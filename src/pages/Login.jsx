@@ -31,7 +31,7 @@ const Login = () => {
                     email: response.data.email,
                     role: response.data.role
                 };
-                
+
                 // Check if user has admin or manager role (role 1 or 2)
                 if (user.role !== 1 && user.role !== 2) {
                     setError('Access denied. Only Admin and Manager roles can access this system.');
@@ -49,7 +49,7 @@ const Login = () => {
                 data: err.response?.data,
                 message: err.message
             });
-            
+
             if (err.response?.status === 404) {
                 setError('User not found. Please check your email.');
             } else if (err.response?.status === 401) {
@@ -70,10 +70,10 @@ const Login = () => {
                 {/* Logo Section */}
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-700 to-blue-800 rounded-2xl mb-4 shadow-lg overflow-hidden">
-                        <img src="/abis_icon.png" alt="ABiS" className="w-14 h-14" />
+                        <img src="/abis_icon.png" alt="WorkPulse" className="w-14 h-14" />
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900">
-                        <span className="text-blue-700">ABiS</span> WorkPulse
+                        WorkPulse
                     </h1>
                     <p className="text-gray-600 mt-2">Leave & On-Duty Management System</p>
                 </div>

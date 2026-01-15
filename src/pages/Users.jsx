@@ -73,11 +73,11 @@ const Users = () => {
             setLoadingBalance(prev => ({ ...prev, [userId]: true }));
             const token = localStorage.getItem('token');
             if (!token) return;
-            
+
             const response = await axios.get(`${API_BASE_URL}/api/leave/user-balance/${userId}`, {
                 headers: { 'x-access-token': token }
             });
-            
+
             setLeaveBalances(prev => ({
                 ...prev,
                 [userId]: response.data
@@ -359,12 +359,12 @@ const Users = () => {
                     <table className="w-full">
                         <thead className="bg-[#2E5090] border-b border-gray-200">
                             <tr>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-white uppercase w-12"></th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">User</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">Email</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">Role</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">Actions</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-white w-12"></th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">User</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">Email</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">Role</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
@@ -428,7 +428,7 @@ const Users = () => {
                                                 </div>
                                             </td>
                                         </tr>
-                                        
+
                                         {/* Leave Balance Child Row */}
                                         {expandedUserId === u.staffid && (
                                             <tr className="bg-blue-50 border-t border-blue-100">
@@ -454,7 +454,7 @@ const Users = () => {
                                                                         leaveBalances[u.staffid].leaveTypes.map((leave) => (
                                                                             <div key={leave.id} className="bg-white rounded-lg p-2 border border-blue-200 min-w-[120px] max-w-[140px]">
                                                                                 <div className="flex flex-row items-center justify-between mb-0.5">
-                                                                                    <div className="text-[10px] text-gray-600 font-medium uppercase">{leave.name}</div>
+                                                                                    <div className="text-[10px] text-gray-600 font-medium">{leave.name}</div>
                                                                                     <div className="text-lg font-bold text-blue-600">{leave.balance || 0}</div>
                                                                                 </div>
                                                                                 <div className="space-y-1 text-xs">

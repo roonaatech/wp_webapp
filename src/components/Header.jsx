@@ -16,13 +16,13 @@ const Header = () => {
         fetchPendingCount();
         // Refresh pending count every 30 seconds
         const interval = setInterval(fetchPendingCount, 30000);
-        
+
         // Listen for approval events to refresh count immediately
         const handleApprovalChange = () => {
             fetchPendingCount();
         };
         window.addEventListener('approvalStatusChanged', handleApprovalChange);
-        
+
         return () => {
             clearInterval(interval);
             window.removeEventListener('approvalStatusChanged', handleApprovalChange);
@@ -40,7 +40,7 @@ const Header = () => {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const response = await axios.get(`${API_BASE_URL}/api/leave/requests`, 
+            const response = await axios.get(`${API_BASE_URL}/api/leave/requests`,
                 {
                     params: { status: 'Pending', limit: 1, page: 1 },
                     headers: { 'x-access-token': token }
@@ -103,14 +103,14 @@ const Header = () => {
                         </svg>
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">ABiS WorkPulse</h1>
+                        <h1 className="text-2xl font-bold text-gray-900">WorkPulse</h1>
                         <p className="text-sm text-gray-500">Leave and On-Duty Management System</p>
                     </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
                     <div className="relative">
-                        <button 
+                        <button
                             onClick={handleNotificationClick}
                             className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative group"
                             title="View pending approvals"
@@ -130,7 +130,7 @@ const Header = () => {
                             </div>
                         )}
                     </div>
-                    
+
                     <div className="relative">
                         <div className="flex items-center gap-3 pl-4 border-l border-gray-200 cursor-pointer" onClick={() => setShowMenu(!showMenu)}>
                             <div className="text-right">

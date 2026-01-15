@@ -92,11 +92,11 @@ const Sidebar = () => {
             <div className="p-6 border-b border-gray-700">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-700 rounded-lg flex items-center justify-center">
-                        <img src="/abis_icon.png" alt="ABiS" className="w-10 h-10" />
+                        <img src="/abis_icon.png" alt="WorkPulse" className="w-10 h-10" />
                     </div>
                     <div>
-                        <h1 className="text-lg font-bold">ABiS</h1>
-                        <p className="text-xs text-gray-400">WorkPulse</p>
+                        <h1 className="text-lg font-bold">WorkPulse</h1>
+                        <p className="text-xs text-gray-400">Leave & On-Duty</p>
                     </div>
                 </div>
             </div>
