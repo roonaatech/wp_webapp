@@ -8,7 +8,8 @@ const Reports = () => {
     const [filteredReports, setFilteredReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [users, setUsers] = useState([]);
+    const [selectedUserId, setSelectedUserId] = useState('');
     const [dateFilter, setDateFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [typeFilter, setTypeFilter] = useState('both');
@@ -16,11 +17,12 @@ const Reports = () => {
 
     useEffect(() => {
         fetchReports();
+        fetchUsers();
     }, []);
 
     useEffect(() => {
         filterReports();
-    }, [reports, searchTerm, dateFilter, statusFilter, typeFilter]);
+    }, [reports, users, selectedUserId, dateFilter, statusFilter, typeFilter]);
 
     const fetchReports = async () => {
         try {
@@ -43,83 +45,104 @@ const Reports = () => {
         }
     };
 
-    const filterReports = () => {
-        let filtered = [...reports];
-
-        // Type filter (leave, on-duty, or both)
-        if (typeFilter !== 'both') {
-            filtered = filtered.filter(report => {
-                if (typeFilter === 'leave' && !report.on_duty) return true;
-                if (typeFilter === 'on_duty' && report.on_duty) return true;
-                return false;
+    const fetchUsers = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+                headers: { 'x-access-token': token }
             });
+            setUsers(response.data);
+        } catch (error) {
+            console.error('Error fetching users:', error);
         }
+    };
 
-        // Search filter
-        if (searchTerm) {
-            filtered = filtered.filter(report =>
-                `${report.tblstaff?.firstname || ''} ${report.tblstaff?.lastname || ''}`.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
+    const filterReports = () => {
+        try {
+            let filtered = [...reports];
 
-        // Date filter
-        if (dateFilter !== 'all') {
-            const today = new Date();
-            const startDate = new Date();
-
-            switch (dateFilter) {
-                case '7days':
-                    startDate.setDate(today.getDate() - 7);
-                    break;
-                case '30days':
-                    startDate.setDate(today.getDate() - 30);
-                    break;
-                case '90days':
-                    startDate.setDate(today.getDate() - 90);
-                    break;
-                default:
-                    break;
+            // Type filter (leave, on-duty, or both)
+            if (typeFilter !== 'both') {
+                filtered = filtered.filter(report => {
+                    if (typeFilter === 'leave' && !report.on_duty) return true;
+                    if (typeFilter === 'on_duty' && report.on_duty) return true;
+                    return false;
+                });
             }
 
-            filtered = filtered.filter(report => {
-                const reportDate = new Date(report.date);
-                return reportDate >= startDate;
-            });
-        }
+            // User filter
+            if (selectedUserId) {
+                console.log('Filtering active. Selected User ID:', selectedUserId);
+                filtered = filtered.filter(report => {
+                    const reportStaffId = report.staff_id || report.tblstaff?.staffid;
+                    // Force string comparison
+                    const match = String(reportStaffId) === String(selectedUserId);
+                    return match;
+                });
+            }
 
-        // Status filter based on record type and approval status
-        if (statusFilter !== 'all') {
-            filtered = filtered.filter(report => {
-                if (report.on_duty) {
-                    // On-duty record - filter by completion status
-                    if (statusFilter === 'approved' || statusFilter === 'completed') return report.check_out_time !== null;
-                    if (statusFilter === 'pending' || statusFilter === 'active') return report.check_out_time === null;
-                    if (statusFilter === 'rejected') return false; // On-duty can't be rejected
-                } else {
-                    // Leave record - filter by approval status
-                    if (statusFilter === 'approved') return report.status === 'Approved';
-                    if (statusFilter === 'pending') return report.status === 'Pending';
-                    if (statusFilter === 'rejected') return report.status === 'Rejected';
-                    if (statusFilter === 'completed' || statusFilter === 'active') return false; // Leave doesn't have these statuses
+            // Date filter
+            if (dateFilter !== 'all') {
+                const today = new Date();
+                const startDate = new Date();
+
+                switch (dateFilter) {
+                    case '7days':
+                        startDate.setDate(today.getDate() - 7);
+                        break;
+                    case '30days':
+                        startDate.setDate(today.getDate() - 30);
+                        break;
+                    case '90days':
+                        startDate.setDate(today.getDate() - 90);
+                        break;
+                    default:
+                        break;
                 }
-                return false;
-            });
-        }
 
-        setFilteredReports(filtered);
+                filtered = filtered.filter(report => {
+                    const reportDate = new Date(report.date);
+                    return reportDate >= startDate;
+                });
+            }
+
+            // Status filter based on record type and approval status
+            if (statusFilter !== 'all') {
+                filtered = filtered.filter(report => {
+                    if (report.on_duty) {
+                        // On-duty record - filter by completion status
+                        if (statusFilter === 'approved' || statusFilter === 'completed') return report.check_out_time !== null;
+                        if (statusFilter === 'pending' || statusFilter === 'active') return report.check_out_time === null;
+                        if (statusFilter === 'rejected') return false; // On-duty can't be rejected
+                    } else {
+                        // Leave record - filter by approval status
+                        if (statusFilter === 'approved') return report.status === 'Approved';
+                        if (statusFilter === 'pending') return report.status === 'Pending';
+                        if (statusFilter === 'rejected') return report.status === 'Rejected';
+                        if (statusFilter === 'completed' || statusFilter === 'active') return false; // Leave doesn't have these statuses
+                    }
+                    return false;
+                });
+            }
+
+            setFilteredReports(filtered);
+        } catch (err) {
+            console.error('Error in filterReports:', err);
+        }
     };
 
     const calculateDuration = (checkIn, checkOut) => {
         if (!checkIn) return '—';
         if (!checkOut) return 'In Progress';
-        
+
         const start = new Date(checkIn);
         const end = new Date(checkOut);
         const diffMs = end - start;
         const diffMins = Math.floor(diffMs / 60000);
         const hours = Math.floor(diffMins / 60);
         const mins = diffMins % 60;
-        
+
         if (hours > 0) {
             return `${hours}h ${mins}m`;
         }
@@ -144,7 +167,7 @@ const Reports = () => {
             const isLeave = report.start_date && !report.on_duty;
             const duration = calculateDuration(report.check_in_time, report.check_out_time);
             const status = isLeave ? report.status : (report.check_out_time ? 'Completed' : 'Active');
-            const approver = report.approver 
+            const approver = report.approver
                 ? `${report.approver.firstname} ${report.approver.lastname} (${report.approver.email})`
                 : 'N/A';
             return [
@@ -269,14 +292,19 @@ const Reports = () => {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Search by name or email</label>
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Filter by User</label>
+                        <select
+                            value={selectedUserId}
+                            onChange={(e) => setSelectedUserId(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                        />
+                        >
+                            <option value="">All Users</option>
+                            {users.map(user => (
+                                <option key={user.staffid} value={user.staffid}>
+                                    {user.firstname} {user.lastname}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
@@ -316,14 +344,15 @@ const Reports = () => {
                 ) : filteredReports.length > 0 ? (
                     filteredReports.map((report) => {
                         const isLeave = report.start_date && !report.on_duty;
+                        const uniqueKey = `${isLeave ? 'lv' : 'od'}_${report.id}`;
                         const staffName = `${report.tblstaff?.firstname || 'Unknown'} ${report.tblstaff?.lastname || ''}`;
-                        const isExpanded = expandedRows[report.id];
-                        
+                        const isExpanded = expandedRows[uniqueKey];
+
                         // Prepare summary line based on type
                         let summaryText = '';
                         if (isLeave) {
-                            const days = report.start_date && report.end_date 
-                                ? Math.ceil((new Date(report.end_date) - new Date(report.start_date)) / (1000 * 60 * 60 * 24)) + 1 
+                            const days = report.start_date && report.end_date
+                                ? Math.ceil((new Date(report.end_date) - new Date(report.start_date)) / (1000 * 60 * 60 * 24)) + 1
                                 : 0;
                             summaryText = `${report.start_date} → ${report.end_date} (${days} days, ${report.leave_type || 'N/A'})`;
                         } else {
@@ -331,9 +360,9 @@ const Reports = () => {
                             const duration = calculateDuration(report.check_in_time, report.check_out_time);
                             summaryText = `${report.date} | ${startTime} | ${duration} | ${report.client_name || 'N/A'}`;
                         }
-                        
+
                         return (
-                            <div key={report.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 hover:shadow-md transition-shadow">
+                            <div key={uniqueKey} className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 hover:shadow-md transition-shadow">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-start gap-2 flex-1">
                                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold flex-shrink-0 text-sm">
@@ -342,14 +371,13 @@ const Reports = () => {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                                                 <h3 className="font-semibold text-gray-900 text-sm">{staffName}</h3>
-                                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                                                    isLeave ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                                                }`}>
+                                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${isLeave ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                                                    }`}>
                                                     {isLeave ? 'Leave' : 'On-Duty'}
                                                 </span>
                                                 {getStatusBadge(report)}
                                             </div>
-                                            
+
                                             {/* Summary Line */}
                                             <div className="flex items-center justify-between gap-2 mb-1">
                                                 <p className="text-xs text-gray-600 truncate">{summaryText}</p>
@@ -357,19 +385,19 @@ const Reports = () => {
                                                     type="button"
                                                     onClick={() => setExpandedRows(prev => ({
                                                         ...prev,
-                                                        [report.id]: !prev[report.id]
+                                                        [uniqueKey]: !prev[uniqueKey]
                                                     }))}
                                                     className="text-xs text-blue-700 hover:text-blue-800 font-medium whitespace-nowrap ml-2 cursor-pointer bg-none border-none p-0"
                                                 >
                                                     {isExpanded ? 'Show Less' : 'Show More'}
                                                 </button>
                                             </div>
-                                            
+
                                             {/* Expanded Details */}
                                             {isExpanded && (
                                                 <>
                                                     <p className="text-xs text-gray-500 mb-2">{report.tblstaff?.email || 'N/A'}</p>
-                                                    
+
                                                     {isLeave ? (
                                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-2 pt-2 border-t">
                                                             <div>
@@ -383,8 +411,8 @@ const Reports = () => {
                                                             <div>
                                                                 <p className="text-gray-500 font-medium">Days</p>
                                                                 <p className="text-gray-900">
-                                                                    {report.start_date && report.end_date 
-                                                                        ? Math.ceil((new Date(report.end_date) - new Date(report.start_date)) / (1000 * 60 * 60 * 24)) + 1 
+                                                                    {report.start_date && report.end_date
+                                                                        ? Math.ceil((new Date(report.end_date) - new Date(report.start_date)) / (1000 * 60 * 60 * 24)) + 1
                                                                         : 'N/A'}
                                                                 </p>
                                                             </div>
