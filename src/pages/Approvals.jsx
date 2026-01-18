@@ -377,6 +377,23 @@ const Approvals = () => {
         const types = new Set(leaveApprovals.map(item => item.leave_type));
         return ['All', ...Array.from(types)];
     };
+    const SortableHeader = ({ label, sortKey, sortConfig, setSortConfig, align = 'left' }) => (
+        <th
+            className={`px-6 py-3 text-sm font-semibold text-white cursor-pointer hover:bg-white/10 transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
+            onClick={() => {
+                const direction = sortConfig.key === sortKey && sortConfig.direction === 'asc' ? 'desc' : 'asc';
+                setSortConfig({ key: sortKey, direction });
+            }}
+        >
+            <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+                {label}
+                {sortConfig.key === sortKey && (
+                    <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                )}
+            </div>
+        </th>
+    );
+
 
     const getUniqueNames = () => {
         const names = new Set();
@@ -397,26 +414,7 @@ const Approvals = () => {
 
     const getTotalPages = (dataLength) => Math.ceil(dataLength / rowsPerPage);
 
-    const SortableHeader = ({ label, sortKey, sortConfig, setSortConfig, className }) => (
-        <th
-            onClick={() => {
-                const newDirection = sortConfig.key === sortKey && sortConfig.direction === 'asc' ? 'desc' : 'asc';
-                setSortConfig({ key: sortKey, direction: newDirection });
-            }}
-            className={`px-4 py-3 text-left cursor-pointer hover:bg-white/10 transition-all ${className}`}
-        >
-            <div className="flex items-center gap-2">
-                {label}
-                <span className="text-[10px] opacity-50 font-black">
-                    {sortConfig.key === sortKey ? (
-                        sortConfig.direction === 'asc' ? '▲' : '▼'
-                    ) : (
-                        '↕'
-                    )}
-                </span>
-            </div>
-        </th>
-    );
+
 
     const DataTablesFooter = ({ pageData, type }) => {
         // Get separate counts based on table type
@@ -480,347 +478,19 @@ const Approvals = () => {
         );
     };
 
-    const getStatusIcon = (status) => {
-        if (status === 'Approved') return '✅';
-        if (status === 'Rejected') return '❌';
-        return '⏳';
-    };
 
-    const getStatusColor = (status) => {
-        if (status === 'Approved') return { bg: 'bg-green-50', border: 'border-green-200' };
-        if (status === 'Rejected') return { bg: 'bg-red-50', border: 'border-red-200' };
-        return { bg: 'bg-yellow-50', border: 'border-yellow-200' };
-    };
-
-    const renderCompactCard = (request, isLeave, index) => {
-        const staffName = request.tblstaff ? `${request.tblstaff.firstname} ${request.tblstaff.lastname}` : 'Unknown';
-        const statusColor = getStatusColor(request.status);
-
-        return (
-            <tr key={`${isLeave ? 'leave' : 'onduty'}-${request.id}`} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                {statusFilter === 'Pending' && (
-                    <td className="px-6 py-4 text-sm font-medium text-gray-600 w-12">
-                        <input
-                            type="checkbox"
-                            checked={selectedItems.has(`${isLeave ? 'leave' : 'onduty'}-${request.id}`)}
-                            onChange={() => handleSelectItem(`${isLeave ? 'leave' : 'onduty'}-${request.id}`)}
-                            className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-[#2E5090]"
-                        />
-                    </td>
-                )}
-                <td className="px-6 py-4 text-sm font-medium text-gray-600">{index + 1}</td>
-                <td className="px-6 py-4 text-sm font-semibold text-gray-900 whitespace-nowrap">{staffName}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">
-                    {isLeave ? request.leave_type : request.client_name}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-700 font-medium">
-                    {isLeave
-                        ? `${calculateDaysOfLeave(request.start_date, request.end_date)} days`
-                        : calculateOnDutyDuration(request.start_time, request.end_time)
-                    }
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-700">
-                    {isLeave
-                        ? `${request.start_date} - ${request.end_date}`
-                        : `${new Date(request.start_time).toLocaleDateString()} ${new Date(request.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(request.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                    }
-                </td>
-                {isHistory && request.status === 'Rejected' && statusFilter === 'Rejected' && (
-                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs">
-                        {request.rejection_reason ? (
-                            <div className="bg-red-50 border border-red-200 rounded p-2 text-red-800 text-xs italic flex items-start justify-between gap-2">
-                                <span>"{request.rejection_reason}"</span>
-                                {request.manager_id === user.id && (
-                                    <button
-                                        onClick={() => setEditReasonModal({
-                                            show: true,
-                                            item: request,
-                                            isLeave: isLeave,
-                                            reason: request.rejection_reason
-                                        })}
-                                        className="text-red-600 hover:text-red-800 font-medium flex-shrink-0"
-                                        title="Edit rejection reason"
-                                    >
-                                        ✎
-                                    </button>
-                                )}
-                            </div>
-                        ) : (
-                            <span className="text-gray-400">—</span>
-                        )}
-                    </td>
-                )}
-                {isHistory && statusFilter === 'Approved' && (
-                    <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
-                        {formatApprovalDate(request.updatedAt)}
-                    </td>
-                )}
-                {isHistory && statusFilter === 'Rejected' && (
-                    <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
-                        {formatApprovalDate(request.updatedAt)}
-                    </td>
-                )}
-                {isHistory && (
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                        {request.approver ? (
-                            <div className="flex flex-col gap-0.5">
-                                <span className="font-medium">{request.approver.firstname} {request.approver.lastname}</span>
-                                {request.approver.email && <span className="text-xs text-blue-600">{request.approver.email}</span>}
-                            </div>
-                        ) : (
-                            <span className="text-gray-400 italic">—</span>
-                        )}
-                    </td>
-                )}
-                {!isHistory && (
-                    <td className="px-6 py-4 flex gap-2">
-                        <button
-                            onClick={() => handleUpdateStatus(request, 'rejected', isLeave)}
-                            disabled={processingId === `${isLeave ? 'leave' : 'onduty'}-${request.id}-rejected`}
-                            className="px-3 py-1 text-sm rounded-lg border border-red-300 text-red-600 hover:bg-red-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center gap-2 min-w-fit"
-                            title="Reject"
-                        >
-                            {processingId === `${isLeave ? 'leave' : 'onduty'}-${request.id}-rejected` ? (
-                                <>
-                                    <span className="inline-block w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></span>
-                                    <span>Processing...</span>
-                                </>
-                            ) : (
-                                'Reject'
-                            )}
-                        </button>
-                        <button
-                            onClick={() => handleUpdateStatus(request, 'approved', isLeave)}
-                            disabled={processingId === `${isLeave ? 'leave' : 'onduty'}-${request.id}-approved`}
-                            className="px-3 py-1 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center gap-2 min-w-fit"
-                            title="Approve"
-                        >
-                            {processingId === `${isLeave ? 'leave' : 'onduty'}-${request.id}-approved` ? (
-                                <>
-                                    <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                    <span>Processing...</span>
-                                </>
-                            ) : (
-                                'Approve'
-                            )}
-                        </button>
-                    </td>
-                )}
-            </tr>
-        );
-    };
-
-    const renderApprovalsList = (items, isLeave) => {
-        return (
-            <div className="grid gap-5">
-                {items.length > 0 ? (
-                    items.map((request) => {
-                        const staffName = request.tblstaff ? `${request.tblstaff.firstname} ${request.tblstaff.lastname}` : 'Unknown';
-                        const isApproved = request.status === 'Approved';
-                        const isRejected = request.status === 'Rejected';
-                        const isPending = request.status === 'Pending';
-
-                        let headerBg, headerBorder, statusBadgeColor;
-                        if (isApproved) {
-                            headerBg = 'bg-gradient-to-r from-emerald-50 to-emerald-25';
-                            headerBorder = 'border-emerald-200';
-                            statusBadgeColor = 'bg-emerald-100 text-emerald-700 border-emerald-300';
-                        } else if (isRejected) {
-                            headerBg = 'bg-gradient-to-r from-red-50 to-rose-25';
-                            headerBorder = 'border-red-200';
-                            statusBadgeColor = 'bg-red-100 text-red-700 border-red-300';
-                        } else {
-                            headerBg = 'bg-gradient-to-r from-blue-50 to-cyan-25';
-                            headerBorder = 'border-blue-200';
-                            statusBadgeColor = 'bg-blue-100 text-blue-700 border-blue-300';
-                        }
-
-                        return (
-                            <div key={`${isLeave ? 'leave' : 'onduty'}-${request.id}`} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-300">
-                                {/* Header Section */}
-                                <div className={`${headerBg} border-b ${headerBorder} px-6 py-4`}>
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2E5090] to-[#3D6DB3] flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0">
-                                                {staffName.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <h3 className="text-lg font-bold text-gray-900">{staffName}</h3>
-                                                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${isLeave ? 'bg-indigo-50 text-indigo-700 border-indigo-300' : 'bg-violet-50 text-violet-700 border-violet-300'}`}>
-                                                        {isLeave ? '📋 ' + request.leave_type : '🏢 On-Duty'}
-                                                    </span>
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusBadgeColor}`}>
-                                                        {isApproved && '✅ Approved'}
-                                                        {isRejected && '❌ Rejected'}
-                                                        {isPending && '⏳ Pending'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {isHistory && (
-                                            <button
-                                                onClick={() => handleUpdateStatus(request, 'pending', isLeave)}
-                                                disabled={processingId === `${isLeave ? 'leave' : 'onduty'}-${request.id}`}
-                                                className="p-2 rounded-lg border border-gray-300 text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-all disabled:opacity-50"
-                                                title="Unapprove (Revert to Pending)"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                                </svg>
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Details Section */}
-                                <div className="px-6 py-5">
-                                    {isLeave ? (
-                                        <div className="space-y-4">
-                                            {/* Date Range */}
-                                            <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
-                                                <span className="text-xl">📅</span>
-                                                <div className="flex-1">
-                                                    <p className="text-xs font-semibold text-gray-500 tracking-tight">Period</p>
-                                                    <p className="text-gray-900 font-medium mt-1">
-                                                        {request.start_date} <span className="text-gray-400">→</span> {request.end_date}
-                                                    </p>
-                                                    <p className="text-sm text-gray-600 mt-1">
-                                                        <span className="inline-block px-2.5 py-1 bg-[#2E5090] text-white rounded-md font-bold text-xs">
-                                                            {calculateDaysOfLeave(request.start_date, request.end_date)} {calculateDaysOfLeave(request.start_date, request.end_date) === 1 ? 'day' : 'days'}
-                                                        </span>
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            {/* Reason */}
-                                            <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
-                                                <span className="text-xl">💬</span>
-                                                <div className="flex-1">
-                                                    <p className="text-xs font-semibold text-gray-500 tracking-tight">Reason</p>
-                                                    <p className="text-gray-900 font-medium mt-1">{request.reason || 'No reason provided'}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {/* Date and Time */}
-                                            <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
-                                                <span className="text-xl">📅</span>
-                                                <div className="flex-1">
-                                                    <p className="text-xs font-semibold text-gray-500 tracking-tight">Date & Time</p>
-                                                    <p className="text-gray-900 font-medium mt-1">
-                                                        {new Date(request.start_time).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
-                                                    </p>
-                                                    <p className="text-sm text-gray-600 mt-1">
-                                                        ⏰ {new Date(request.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        {request.end_time && (
-                                                            <span> - {new Date(request.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                        )}
-                                                    </p>
-                                                    <p className="text-sm font-semibold text-[#2E5090] mt-2">
-                                                        ⏱ {calculateOnDutyDuration(request.start_time, request.end_time)} duration
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            {/* Client and Location */}
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
-                                                    <span className="text-xl">🏢</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-semibold text-gray-500 tracking-tight">Client</p>
-                                                        <p className="text-gray-900 font-medium mt-1 truncate">{request.client_name}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
-                                                    <span className="text-xl">📍</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-semibold text-gray-500 tracking-tight">Location</p>
-                                                        <p className="text-gray-900 font-medium mt-1 truncate">{request.location}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Rejection Reason */}
-                                    {request.rejection_reason && (
-                                        <div className="mt-4 flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
-                                            <span className="text-xl">⚠️</span>
-                                            <div className="flex-1">
-                                                <p className="text-xs font-bold text-red-700 tracking-tight">Rejection Reason</p>
-                                                <p className="text-red-700 font-medium mt-2">{request.rejection_reason}</p>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Approved By */}
-                                    {isHistory && request.approver && (
-                                        <div className="mt-4 flex items-start gap-3 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
-                                            <span className="text-xl">👤</span>
-                                            <div className="flex-1">
-                                                <p className="text-xs font-bold text-blue-700 tracking-tight">Approved By</p>
-                                                <p className="text-gray-900 font-medium mt-2">
-                                                    {request.approver.firstname} {request.approver.lastname}
-                                                </p>
-                                                {request.approver.email && (
-                                                    <p className="text-sm text-blue-600 mt-1">{request.approver.email}</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Action Buttons */}
-                                {!isHistory && (
-                                    <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3 justify-end">
-                                        <button
-                                            onClick={() => handleUpdateStatus(request, 'rejected', isLeave)}
-                                            disabled={processingId === `${isLeave ? 'leave' : 'onduty'}-${request.id}`}
-                                            className="px-4 py-2.5 rounded-lg border-2 border-red-300 text-red-700 bg-white hover:bg-red-50 transition-colors disabled:opacity-50 font-semibold text-sm shadow-sm hover:shadow-md"
-                                            title="Reject"
-                                        >
-                                            ❌ Reject
-                                        </button>
-                                        <button
-                                            onClick={() => handleUpdateStatus(request, 'approved', isLeave)}
-                                            disabled={processingId === `${isLeave ? 'leave' : 'onduty'}-${request.id}`}
-                                            className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 transition-all disabled:opacity-50 shadow-md hover:shadow-lg font-semibold text-sm"
-                                            title="Approve"
-                                        >
-                                            {processingId === `${isLeave ? 'leave' : 'onduty'}-${request.id}` ? '⏳ Processing...' : '✅ Approve'}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })
-                ) : (
-                    <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-dashed border-gray-300">
-                        <div className="text-5xl mb-4">✨</div>
-                        <p className="text-gray-600 font-semibold text-base mb-1">No {statusFilter.toLowerCase()} requests</p>
-                        <p className="text-gray-500 text-sm">All clear! You're all caught up.</p>
-                    </div>
-                )}
-            </div>
-        );
-    };
 
     return (
-        <div className="font-sans antialiased tracking-tight">
-            <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Approvals <span className="text-[#2E5090] text-xl opacity-50">&</span> Requests</h1>
-                        <p className="text-[11px] font-bold text-gray-400 tracking-tight mt-0.5">
-                            Manage {statusFilter.toLowerCase()} leave and on-duty requests
-                        </p>
-                    </div>
+        <div className="p-6 font-sans">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Approvals & Requests</h1>
+                    <p className="text-gray-600 mt-1">Manage {statusFilter.toLowerCase()} leave and on-duty requests</p>
                 </div>
 
-                {/* Status Tabs - Compact */}
-                <div className="flex space-x-1 bg-gray-100/60 backdrop-blur-sm p-1 rounded-xl w-fit">
+                {/* Status Tabs */}
+                <div className="bg-gray-100 p-1 rounded-lg inline-flex">
                     {['Pending', 'Approved', 'Rejected'].map((tab) => (
                         <button
                             key={tab}
@@ -828,9 +498,9 @@ const Approvals = () => {
                                 setStatusFilter(tab);
                                 setExpandedSections({ leave: true, onDuty: false });
                             }}
-                            className={`px-6 py-1.5 rounded-lg text-[11px] font-black tracking-tight transition-all duration-300 ${statusFilter === tab
-                                ? 'bg-white text-[#2E5090] shadow-sm scale-[1.02]'
-                                : 'text-gray-400 hover:text-gray-600'
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${statusFilter === tab
+                                ? 'bg-white text-[#2E5090] shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             {tab}
@@ -840,553 +510,465 @@ const Approvals = () => {
             </div>
 
             {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                    <p className="text-red-800 font-medium">⚠️ {error}</p>
+                <div className="mb-6 p-4 bg-red-50 text-red-800 rounded-lg border border-red-200">
+                    <p className="font-medium">⚠️ {error}</p>
                 </div>
             )}
 
             {loading ? (
-                <ModernLoader size="lg" message="Loading Approvals..." />
+                <div className="flex items-center justify-center h-64">
+                    <ModernLoader size="lg" message="Loading..." />
+                </div>
             ) : (
-                <>
-                    {/* High-End Segmented Navigation - Compact */}
-                    <div className="flex flex-col items-center mb-6 space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-                        <div className="bg-gray-100/80 backdrop-blur-sm p-1 rounded-2xl flex items-center shadow-inner border border-gray-200/50">
+                <div className="space-y-6">
+                    {/* Section Switcher & Filters */}
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                        <div className="flex gap-2">
                             <button
                                 onClick={() => setExpandedSections({ leave: true, onDuty: false })}
-                                className={`px-6 py-2 rounded-xl font-black text-[10px] tracking-tight transition-all duration-500 flex items-center gap-2 ${expandedSections.leave
-                                    ? 'bg-[#2E5090] text-white shadow-md scale-[1.02]'
-                                    : 'text-gray-500 hover:text-gray-800'
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${expandedSections.leave
+                                    ? 'bg-[#2E5090] text-white border-[#2E5090]'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                                     }`}
                             >
-                                <span className="text-sm">📋</span>
-                                Leave
-                                <span className={`ml-0.5 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm ${expandedSections.leave ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
-                                    }`}>
-                                    {leaveApprovals.length}
-                                </span>
+                                Leave Requests ({leaveApprovals.length})
                             </button>
                             <button
                                 onClick={() => setExpandedSections({ leave: false, onDuty: true })}
-                                className={`px-6 py-2 rounded-xl font-black text-[10px] tracking-tight transition-all duration-500 flex items-center gap-2 ${expandedSections.onDuty
-                                    ? 'bg-[#2E5090] text-white shadow-md scale-[1.02]'
-                                    : 'text-gray-500 hover:text-gray-800'
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${expandedSections.onDuty
+                                    ? 'bg-[#2E5090] text-white border-[#2E5090]'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                                     }`}
                             >
-                                <span className="text-sm">🏢</span>
-                                On-Duty
-                                <span className={`ml-0.5 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm ${expandedSections.onDuty ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
-                                    }`}>
-                                    {onDutyApprovals.length}
-                                </span>
+                                On-Duty Requests ({onDutyApprovals.length})
                             </button>
                         </div>
-                    </div>
 
-                    {/* Main Content Board - Ultra Compact */}
-                    <div className="bg-white rounded-[1.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100/50 p-5 min-h-[400px] relative overflow-visible">
-                        {/* Bulk Action Bar - Ultra Compact */}
-                        {selectedItems.size > 0 && statusFilter === 'Pending' && (
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-[98%] bg-white rounded-xl p-2 flex items-center justify-between shadow-lg border border-blue-50 z-20 animate-in zoom-in-95 duration-300">
-                                <div className="flex items-center gap-3 px-2 text-[#2E5090]">
-                                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#2E5090] to-blue-500 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                                        {selectedItems.size}
-                                    </div>
-                                    <p className="text-[10px] font-black tracking-tight">Selected</p>
-                                </div>
-                                <div className="flex gap-1.5">
+                        <div className="flex items-center gap-3">
+                            {expandedSections.leave && (
+                                <select
+                                    value={leaveTypeFilter}
+                                    onChange={(e) => setLeaveTypeFilter(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                                >
+                                    {getUniqueLeaveTypes().map(type => (
+                                        <option key={type} value={type}>{type === 'All' ? 'All Types' : type}</option>
+                                    ))}
+                                </select>
+                            )}
+                            <select
+                                value={nameFilter}
+                                onChange={(e) => setNameFilter(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                            >
+                                {getUniqueNames().map(name => (
+                                    <option key={name} value={name}>{name === 'All' ? 'All Employees' : name}</option>
+                                ))}
+                            </select>
+
+                            {/* Bulk Actions */}
+                            {selectedItems.size > 0 && statusFilter === 'Pending' && (
+                                <div className="flex gap-2 animate-in fade-in duration-200">
                                     <button
                                         onClick={() => handleBulkAction('approved')}
                                         disabled={bulkProcessing}
-                                        className="h-7 px-4 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black rounded-lg transition-all text-[10px] flex items-center gap-1.5"
+                                        className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                                     >
-                                        {bulkProcessing ? <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : '✓'}
-                                        Approve
+                                        Approve ({selectedItems.size})
                                     </button>
                                     <button
                                         onClick={() => handleBulkAction('rejected')}
                                         disabled={bulkProcessing}
-                                        className="h-7 px-4 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white font-black rounded-lg transition-all text-[10px] flex items-center gap-1.5"
+                                        className="px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                                     >
-                                        {bulkProcessing ? <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : '✕'}
-                                        Reject
-                                    </button>
-                                    <button
-                                        onClick={() => setSelectedItems(new Set())}
-                                        className="h-7 px-2 text-gray-400 hover:text-gray-600 font-bold transition-colors text-[10px]"
-                                    >
-                                        Clear
+                                        Reject ({selectedItems.size})
                                     </button>
                                 </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Main Table */}
+                    <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+                        {expandedSections.leave ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-[#2E5090]">
+                                        <tr>
+                                            {statusFilter === 'Pending' && (
+                                                <th className="px-6 py-3 w-10">
+                                                    <input
+                                                        type="checkbox"
+                                                        onChange={() => handleSelectAll(true)}
+                                                        checked={leaveApprovals.length > 0 && selectedItems.size === leaveApprovals.map(i => `leave-${i.id}`).filter(k => selectedItems.has(k)).length}
+                                                        className="w-4 h-4 rounded accent-blue-600"
+                                                    />
+                                                </th>
+                                            )}
+                                            <SortableHeader label="Employee" sortKey="staffName" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
+                                            <SortableHeader label="Leave Type" sortKey="leave_type" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
+                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
+                                            <SortableHeader label="Period" sortKey="start_date" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
+                                            {statusFilter === 'Approved' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Reason</th>}
+                                            <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {sortedAndFilteredLeaveApprovals.length > 0 ? (
+                                            sortedAndFilteredLeaveApprovals.map((req) => (
+                                                <tr key={`l-${req.id}`} className="hover:bg-gray-50 transition-colors">
+                                                    {statusFilter === 'Pending' && (
+                                                        <td className="px-6 py-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedItems.has(`leave-${req.id}`)}
+                                                                onChange={() => handleSelectItem(`leave-${req.id}`)}
+                                                                className="w-4 h-4 rounded accent-[#2E5090]"
+                                                            />
+                                                        </td>
+                                                    )}
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#2E5090] font-bold text-sm">
+                                                                {req.tblstaff?.firstname?.charAt(0)}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium text-gray-900">{req.tblstaff?.firstname} {req.tblstaff?.lastname}</p>
+                                                                <p className="text-xs text-gray-500">ID: {req.staff_id}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm font-medium">
+                                                            {req.leave_type}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                                        {calculateDaysOfLeave(req.start_date, req.end_date)} Days
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="text-sm text-gray-900">
+                                                            {req.start_date} <span className="text-gray-400">to</span> {req.end_date}
+                                                        </div>
+                                                    </td>
+                                                    {statusFilter === 'Approved' && (
+                                                        <td className="px-6 py-4 text-sm text-gray-700">
+                                                            {req.approver ? `${req.approver.firstname} ${req.approver.lastname}` : '-'}
+                                                        </td>
+                                                    )}
+                                                    {statusFilter === 'Rejected' && (
+                                                        <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs">{req.rejection_reason || '-'}</td>
+                                                    )}
+                                                    <td className="px-6 py-4 text-right">
+                                                        {!isHistory ? (
+                                                            <div className="flex justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => handleUpdateStatus(req, 'approved', true)}
+                                                                    disabled={processingId === `leave-${req.id}-approved`}
+                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
+                                                                >
+                                                                    {processingId === `leave-${req.id}-approved` ? '...' : 'Approve'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleUpdateStatus(req, 'rejected', true)}
+                                                                    disabled={processingId === `leave-${req.id}-rejected`}
+                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
+                                                                >
+                                                                    {processingId === `leave-${req.id}-rejected` ? '...' : 'Reject'}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-end gap-3">
+                                                                <button
+                                                                    onClick={() => handleUpdateStatus(req, 'pending', true)}
+                                                                    disabled={processingId === `leave-${req.id}-pending`}
+                                                                    className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 transition-colors"
+                                                                    title="Revert to Pending"
+                                                                >
+                                                                    Revert
+                                                                </button>
+                                                                {statusFilter === 'Rejected' && user.id === req.manager_id && (
+                                                                    <button
+                                                                        onClick={() => setEditReasonModal({
+                                                                            show: true,
+                                                                            item: req,
+                                                                            isLeave: true,
+                                                                            reason: req.rejection_reason || ''
+                                                                        })}
+                                                                        className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
+                                                                    >
+                                                                        Edit Reason
+                                                                    </button>
+                                                                )}
+
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                                                    No leave requests found
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-[#2E5090]">
+                                        <tr>
+                                            {statusFilter === 'Pending' && (
+                                                <th className="px-6 py-3 w-10">
+                                                    <input
+                                                        type="checkbox"
+                                                        onChange={() => handleSelectAll(false)}
+                                                        checked={onDutyApprovals.length > 0 && selectedItems.size === onDutyApprovals.map(i => `onduty-${i.id}`).filter(k => selectedItems.has(k)).length}
+                                                        className="w-4 h-4 rounded accent-blue-600"
+                                                    />
+                                                </th>
+                                            )}
+                                            <SortableHeader label="Employee" sortKey="staffName" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
+                                            <SortableHeader label="Client / Location" sortKey="client_name" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
+                                            <SortableHeader label="Date" sortKey="start_time" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
+                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
+                                            {statusFilter === 'Approved' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Reason</th>}
+                                            <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {sortedAndFilteredOnDutyApprovals.length > 0 ? (
+                                            sortedAndFilteredOnDutyApprovals.map((req) => (
+                                                <tr key={`o-${req.id}`} className="hover:bg-gray-50 transition-colors">
+                                                    {statusFilter === 'Pending' && (
+                                                        <td className="px-6 py-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedItems.has(`onduty-${req.id}`)}
+                                                                onChange={() => handleSelectItem(`onduty-${req.id}`)}
+                                                                className="w-4 h-4 rounded accent-[#2E5090]"
+                                                            />
+                                                        </td>
+                                                    )}
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#2E5090] font-bold text-sm">
+                                                                {req.tblstaff?.firstname?.charAt(0)}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium text-gray-900">{req.tblstaff?.firstname} {req.tblstaff?.lastname}</p>
+                                                                <p className="text-xs text-gray-500">ID: {req.staff_id}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <p className="text-sm font-medium text-gray-900">{req.client_name}</p>
+                                                        <p className="text-xs text-gray-500">{req.location || 'Remote'}</p>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-gray-900">
+                                                        {new Date(req.start_time).toLocaleDateString()}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="px-2 py-1 bg-violet-50 text-violet-700 rounded text-sm font-medium">
+                                                            {calculateOnDutyDuration(req.start_time, req.end_time)}
+                                                        </span>
+                                                    </td>
+                                                    {statusFilter === 'Approved' && (
+                                                        <td className="px-6 py-4 text-sm text-gray-700">
+                                                            {req.approver ? `${req.approver.firstname} ${req.approver.lastname}` : '-'}
+                                                        </td>
+                                                    )}
+                                                    {statusFilter === 'Rejected' && (
+                                                        <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs">{req.rejection_reason || '-'}</td>
+                                                    )}
+                                                    <td className="px-6 py-4 text-right">
+                                                        {!isHistory ? (
+                                                            <div className="flex justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => handleUpdateStatus(req, 'approved', false)}
+                                                                    disabled={processingId === `onduty-${req.id}-approved`}
+                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
+                                                                >
+                                                                    {processingId === `onduty-${req.id}-approved` ? '...' : 'Approve'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleUpdateStatus(req, 'rejected', false)}
+                                                                    disabled={processingId === `onduty-${req.id}-rejected`}
+                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
+                                                                >
+                                                                    {processingId === `onduty-${req.id}-rejected` ? '...' : 'Reject'}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-end gap-3">
+                                                                <button
+                                                                    onClick={() => handleUpdateStatus(req, 'pending', false)}
+                                                                    disabled={processingId === `onduty-${req.id}-pending`}
+                                                                    className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 transition-colors"
+                                                                    title="Revert to Pending"
+                                                                >
+                                                                    Revert
+                                                                </button>
+                                                                {statusFilter === 'Rejected' && user.id === req.manager_id && (
+                                                                    <button
+                                                                        onClick={() => setEditReasonModal({
+                                                                            show: true,
+                                                                            item: req,
+                                                                            isLeave: false,
+                                                                            reason: req.rejection_reason || ''
+                                                                        })}
+                                                                        className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
+                                                                    >
+                                                                        Edit Reason
+                                                                    </button>
+                                                                )}
+
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                                                    No on-duty requests found
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         )}
 
-                        {/* Top Filters Row - Ultra Compact */}
-                        <div className="flex items-center justify-between mb-6 pb-3 border-b border-gray-50">
-                            <div className="flex gap-3">
-                                <div>
-                                    <p className="text-[8px] font-black text-gray-300 tracking-tight ml-2 mb-1">Staff</p>
-                                    <select
-                                        value={nameFilter}
-                                        onChange={(e) => setNameFilter(e.target.value)}
-                                        className="min-w-[150px] px-3 py-1.5 bg-gray-50/50 border border-gray-100 rounded-lg text-[10px] font-bold text-gray-600 focus:bg-white focus:ring-1 focus:ring-blue-100 outline-none transition-all appearance-none cursor-pointer"
-                                    >
-                                        {getUniqueNames().map(name => (
-                                            <option key={name} value={name}>{name === 'All' ? 'Every Employee' : name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                {expandedSections.leave && (
-                                    <div>
-                                        <p className="text-[8px] font-black text-gray-300 tracking-tight ml-2 mb-1">Category</p>
-                                        <select
-                                            value={leaveTypeFilter}
-                                            onChange={(e) => setLeaveTypeFilter(e.target.value)}
-                                            className="min-w-[130px] px-3 py-1.5 bg-gray-50/50 border border-gray-100 rounded-lg text-[10px] font-bold text-gray-600 focus:bg-white focus:ring-1 focus:ring-blue-100 outline-none transition-all appearance-none cursor-pointer"
-                                        >
-                                            {getUniqueLeaveTypes().map(type => (
-                                                <option key={type} value={type}>{type === 'All' ? 'Any Type' : type}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                                {(nameFilter !== 'All' || leaveTypeFilter !== 'All') && (
-                                    <button
-                                        onClick={() => { setNameFilter('All'); setLeaveTypeFilter('All'); }}
-                                        className="h-6 px-2 text-[9px] font-black text-rose-500 hover:bg-rose-50 rounded-md transition-all"
-                                    >
-                                        ↺ Reset
-                                    </button>
-                                )}
-                                <div className="text-right border-l border-gray-100 pl-4">
-                                    <p className="text-[8px] font-black text-gray-300 tracking-tight mb-0.5">Found</p>
-                                    <p className="text-lg font-black text-gray-900 leading-none">
-                                        {expandedSections.leave ? leaveApprovals.length : onDutyApprovals.length}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="animate-in fade-in duration-700">
-                            {expandedSections.leave && (
-                                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-                                    <table className="w-full border-collapse text-left">
-                                        <thead>
-                                            <tr className="bg-[#2E5090] border-b border-[#2E5090]">
-                                                {statusFilter === 'Pending' && <th className="px-4 py-3 w-10"></th>}
-                                                <th className="px-4 py-3 text-[13px] font-bold text-white tracking-tight">#</th>
-                                                <SortableHeader label="Employee Details" sortKey="staffName" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} className="text-[13px] text-white font-bold tracking-tight" />
-                                                <SortableHeader label="Leave Type" sortKey="leave_type" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} className="text-[13px] text-white font-bold tracking-tight" />
-                                                <th className="px-4 py-3 text-[13px] font-bold text-white tracking-tight">Duration</th>
-                                                <SortableHeader label="Requested Period" sortKey="start_date" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} className="text-[13px] text-white font-bold tracking-tight" />
-
-                                                {statusFilter === 'Rejected' && <th className="px-4 py-3 text-[13px] font-bold text-white tracking-tight">Reason</th>}
-                                                <th className="px-4 py-3 text-right text-[13px] font-bold text-white tracking-tight">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {sortedAndFilteredLeaveApprovals.length > 0 ? (
-                                                sortedAndFilteredLeaveApprovals.map((req, idx) => (
-                                                    <tr key={`l-${req.id}`} className="hover:bg-blue-50/40 transition-colors group">
-                                                        {statusFilter === 'Pending' && (
-                                                            <td className="px-4 py-3.5">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedItems.has(`leave-${req.id}`)}
-                                                                    onChange={() => handleSelectItem(`leave-${req.id}`)}
-                                                                    className="w-4 h-4 rounded border-slate-300 text-[#2E5090] focus:ring-[#2E5090] cursor-pointer"
-                                                                />
-                                                            </td>
-                                                        )}
-                                                        <td className="px-4 py-3.5 text-[11px] font-bold text-slate-600">
-                                                            {idx + 1}
-                                                        </td>
-                                                        <td className="px-4 py-3.5">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-[#2E5090] font-bold text-xs border border-slate-100 shadow-sm">
-                                                                    {req.tblstaff?.firstname?.charAt(0)}
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-[11px] font-bold text-slate-700 leading-tight">{req.tblstaff?.firstname} {req.tblstaff?.lastname}</p>
-                                                                    <p className="text-[9px] font-bold text-slate-400 tracking-tighter">Id: {req.staff_id}</p>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3.5">
-                                                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold border shadow-sm ${req.leave_type?.toLowerCase().includes('sick') ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                                                                req.leave_type?.toLowerCase().includes('casual') ? 'bg-blue-50 text-sky-600 border-blue-100' :
-                                                                    'bg-slate-50 text-slate-500 border-slate-200'
-                                                                }`}>
-                                                                {req.leave_type}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-3.5 text-[11px] font-bold text-slate-600">
-                                                            {calculateDaysOfLeave(req.start_date, req.end_date)} Days
-                                                        </td>
-                                                        <td className="px-4 py-3.5">
-                                                            <div className="flex flex-col gap-0.5">
-                                                                <span className="text-[11px] font-bold text-slate-600 leading-none">{req.start_date}</span>
-                                                                <span className="text-[9px] text-slate-300 font-bold tracking-widest">through {req.end_date}</span>
-                                                            </div>
-                                                        </td>
-
-                                                        {statusFilter === 'Rejected' && <td className="px-4 py-3.5 text-[11px] text-slate-600 max-w-xs whitespace-normal" title={req.rejection_reason}>{req.rejection_reason || '—'}</td>}
-                                                        <td className="px-4 py-3.5 text-right font-bold">
-                                                            {!isHistory ? (
-                                                                <div className="flex justify-end gap-2">
-                                                                    <button
-                                                                        onClick={() => handleUpdateStatus(req, 'approved', true)}
-                                                                        className="h-7 px-4 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] rounded shadow-md transition-all active:scale-95"
-                                                                    >
-                                                                        Approve
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleUpdateStatus(req, 'rejected', true)}
-                                                                        className="h-7 px-4 bg-white border border-slate-200 hover:border-rose-200 hover:text-rose-500 text-slate-500 text-[10px] rounded shadow-sm transition-all active:scale-95"
-                                                                    >
-                                                                        Reject
-                                                                    </button>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex flex-col items-end gap-1">
-                                                                    {statusFilter === 'Rejected' && user.id === req.manager_id && (
-                                                                        <button
-                                                                            onClick={() => setEditReasonModal({
-                                                                                show: true,
-                                                                                item: req,
-                                                                                isLeave: true,
-                                                                                reason: req.rejection_reason || ''
-                                                                            })}
-                                                                            className="h-6 px-3 bg-white border border-slate-200 hover:border-blue-300 hover:text-blue-600 text-slate-500 text-[10px] rounded shadow-sm transition-all flex items-center gap-1 active:scale-95"
-                                                                        >
-                                                                            <span>✎</span> Edit Reason
-                                                                        </button>
-                                                                    )}
-                                                                    {req.approver && (
-                                                                        <span className="text-[9px] text-slate-300 tracking-tighter">Verified by {req.approver?.firstname}</span>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr><td colSpan={10} className="px-4 py-20 text-center text-slate-200 font-bold text-[11px] tracking-tight">No Records Found</td></tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-
-                            {expandedSections.onDuty && (
-                                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-                                    <table className="w-full border-collapse text-left">
-                                        <thead>
-                                            <tr className="bg-[#2E5090] border-b border-[#2E5090]">
-                                                {statusFilter === 'Pending' && <th className="px-4 py-3 w-10"></th>}
-                                                <th className="px-4 py-3 text-[13px] font-bold text-white tracking-tight">#</th>
-                                                <SortableHeader label="Staff Details" sortKey="staffName" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} className="text-[13px] text-white font-bold tracking-tight" />
-                                                <SortableHeader label="Client / Destination" sortKey="client_name" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} className="text-[13px] text-white font-bold tracking-tight" />
-                                                <th className="px-4 py-3 text-[13px] font-bold text-white tracking-tight">Duration</th>
-                                                <SortableHeader label="Date" sortKey="start_time" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} className="text-[13px] text-white font-bold tracking-tight" />
-                                                {statusFilter === 'Rejected' && <th className="px-4 py-3 text-[13px] font-bold text-white tracking-tight">Reason</th>}
-                                                <th className="px-4 py-3 text-right text-[13px] font-bold text-white tracking-tight">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {sortedAndFilteredOnDutyApprovals.length > 0 ? (
-                                                sortedAndFilteredOnDutyApprovals.map((req, idx) => (
-                                                    <tr key={`o-${req.id}`} className="hover:bg-blue-50/40 transition-colors group">
-                                                        {statusFilter === 'Pending' && (
-                                                            <td className="px-4 py-3.5 text-center">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedItems.has(`onduty-${req.id}`)}
-                                                                    onChange={() => handleSelectItem(`onduty-${req.id}`)}
-                                                                    className="w-4 h-4 rounded border-slate-300 text-[#2E5090] focus:ring-[#2E5090] cursor-pointer"
-                                                                />
-                                                            </td>
-                                                        )}
-                                                        <td className="px-4 py-3.5 text-[11px] font-bold text-slate-400">
-                                                            {idx + 1}
-                                                        </td>
-                                                        <td className="px-4 py-3.5 text-[11px] font-bold text-slate-700">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-[#2E5090] font-bold text-[10px] border border-slate-100 shadow-sm">
-                                                                    {req.tblstaff?.firstname?.charAt(0)}
-                                                                </div>
-                                                                <div className="flex flex-col">
-                                                                    <span className="leading-none">{req.tblstaff?.firstname} {req.tblstaff?.lastname}</span>
-                                                                    <span className="text-[9px] text-slate-400 mt-1 tracking-tight">Id: {req.staff_id}</span>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3.5 text-[11px] font-bold text-slate-700">
-                                                            <div className="flex flex-col">
-                                                                <span className="leading-none">{req.client_name}</span>
-                                                                <span className="text-[8px] text-[#2E5090] mt-1 tracking-tight">@ {req.location || 'Remote Site'}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3.5 text-[11px] font-bold text-slate-600">
-                                                            <span className="px-2 py-0.5 bg-violet-50 text-violet-600 border border-violet-100 rounded text-[9px] tracking-tight shadow-sm">
-                                                                {calculateOnDutyDuration(req.start_time, req.end_time)}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-3.5 text-[11px] font-bold text-slate-500">
-                                                            {new Date(req.start_time).toLocaleDateString()}
-                                                        </td>
-                                                        {statusFilter === 'Rejected' && <td className="px-4 py-3.5 text-[11px] text-slate-600 max-w-xs whitespace-normal" title={req.rejection_reason}>{req.rejection_reason || '—'}</td>}
-                                                        <td className="px-4 py-3.5 text-right font-bold">
-                                                            {!isHistory ? (
-                                                                <div className="flex justify-end gap-2">
-                                                                    <button
-                                                                        onClick={() => handleUpdateStatus(req, 'approved', false)}
-                                                                        className="h-7 px-4 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] rounded shadow-md transition-all active:scale-95"
-                                                                    >
-                                                                        Approve
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleUpdateStatus(req, 'rejected', false)}
-                                                                        className="h-7 px-4 bg-white border border-slate-200 hover:border-rose-200 hover:text-rose-500 text-slate-500 text-[10px] rounded shadow-sm transition-all active:scale-95"
-                                                                    >
-                                                                        Reject
-                                                                    </button>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex flex-col items-end gap-1">
-                                                                    {statusFilter === 'Rejected' && user.id === req.manager_id && (
-                                                                        <button
-                                                                            onClick={() => setEditReasonModal({
-                                                                                show: true,
-                                                                                item: req,
-                                                                                isLeave: false,
-                                                                                reason: req.rejection_reason || ''
-                                                                            })}
-                                                                            className="h-6 px-3 bg-white border border-slate-200 hover:border-blue-300 hover:text-blue-600 text-slate-500 text-[10px] rounded shadow-sm transition-all flex items-center gap-1 active:scale-95"
-                                                                        >
-                                                                            <span>✎</span> Edit Reason
-                                                                        </button>
-                                                                    )}
-                                                                    {req.approver && (
-                                                                        <span className="text-[9px] text-slate-300 tracking-tighter">Verified by {req.approver?.firstname}</span>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr><td colSpan={10} className="px-4 py-20 text-center text-slate-200 font-bold text-[11px] tracking-tight">No Records Found</td></tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-
-                            {/* Compact Footer */}
-                            <div className="mt-4 pt-3 border-t border-gray-50">
-                                <DataTablesFooter pageData={pagination} type={expandedSections.leave ? 'leave' : 'onDuty'} />
-                            </div>
+                        {/* Pagination Footer */}
+                        <div className="bg-white border-t border-gray-200 p-4">
+                            <DataTablesFooter pageData={pagination} type={expandedSections.leave ? 'leave' : 'onDuty'} />
                         </div>
                     </div>
-                </>
+                </div>
             )}
 
             {/* Rejection Reason Modal */}
-            {
-                rejectionModal.show && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-                            <div className="bg-red-50 border-b border-red-200 px-6 py-4">
-                                <h2 className="text-lg font-bold text-red-900">Reject {rejectionModal.isLeave ? 'Leave Request' : 'On-Duty Request'}</h2>
-                                <p className="text-sm text-red-700 mt-1">Please provide a reason for rejection</p>
-                            </div>
-                            <div className="p-6">
-                                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
-                                    {rejectionModal.isLeave ? (
-                                        <>
-                                            <p className="text-sm text-gray-600"><strong>Staff:</strong> {rejectionModal.item?.tblstaff?.firstname} {rejectionModal.item?.tblstaff?.lastname}</p>
-                                            <p className="text-sm text-gray-600"><strong>Leave Type:</strong> {rejectionModal.item?.leave_type}</p>
-                                            <p className="text-sm text-gray-600"><strong>Period:</strong> {rejectionModal.item?.start_date} to {rejectionModal.item?.end_date}</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <p className="text-sm text-gray-600"><strong>Staff:</strong> {rejectionModal.item?.tblstaff?.firstname} {rejectionModal.item?.tblstaff?.lastname}</p>
-                                            <p className="text-sm text-gray-600"><strong>Client:</strong> {rejectionModal.item?.client_name}</p>
-                                            <p className="text-sm text-gray-600"><strong>Location:</strong> {rejectionModal.item?.location}</p>
-                                        </>
-                                    )}
-                                </div>
-                                <textarea
-                                    value={rejectionModal.reason}
-                                    onChange={(e) => setRejectionModal({ ...rejectionModal, reason: e.target.value })}
-                                    placeholder="Enter the reason for rejection..."
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
-                                    rows="4"
-                                />
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => setRejectionModal({ ...rejectionModal, show: false, reason: '' })}
-                                        disabled={processingId === `${rejectionModal.isLeave ? 'leave' : 'onduty'}-${rejectionModal.item?.id}-rejected`}
-                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            if (!rejectionModal.reason.trim()) {
-                                                setError('Please provide a reason for rejection');
-                                                return;
-                                            }
-                                            await performStatusUpdate(rejectionModal.item, 'rejected', rejectionModal.isLeave, rejectionModal.reason);
-                                            setRejectionModal({ ...rejectionModal, show: false, reason: '' });
-                                        }}
-                                        disabled={processingId === `${rejectionModal.isLeave ? 'leave' : 'onduty'}-${rejectionModal.item?.id}-rejected`}
-                                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
-                                    >
-                                        {processingId === `${rejectionModal.isLeave ? 'leave' : 'onduty'}-${rejectionModal.item?.id}-rejected` ? (
-                                            <>
-                                                <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                                <span>Processing...</span>
-                                            </>
-                                        ) : (
-                                            'Confirm Rejection'
-                                        )}
-                                    </button>
-                                </div>
+            {rejectionModal.show && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+                        <div className="flex justify-between items-center p-6 border-b">
+                            <h2 className="text-xl font-bold">Reject Request</h2>
+                            <button onClick={() => setRejectionModal({ ...rejectionModal, show: false })} className="text-gray-500 hover:text-gray-700">✕</button>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-sm text-gray-600 mb-4">Please provide a reason for rejecting this request.</p>
+                            <textarea
+                                value={rejectionModal.reason}
+                                onChange={(e) => setRejectionModal({ ...rejectionModal, reason: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                rows="3"
+                                placeholder="Reason..."
+                            />
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button
+                                    onClick={() => setRejectionModal({ ...rejectionModal, show: false })}
+                                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (!rejectionModal.reason.trim()) {
+                                            setError('Reason is required');
+                                            return;
+                                        }
+                                        performStatusUpdate(rejectionModal.item, 'rejected', rejectionModal.isLeave, rejectionModal.reason);
+                                        setRejectionModal({ ...rejectionModal, show: false, reason: '' });
+                                    }}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                >
+                                    Reject Request
+                                </button>
                             </div>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
 
-            {/* Bulk Rejection Modal */}
-            {
-                bulkRejectionModal.show && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-                            <div className="bg-red-50 border-b border-red-200 px-6 py-4">
-                                <h2 className="text-lg font-bold text-red-900">Bulk Reject Requests</h2>
-                                <p className="text-sm text-red-700 mt-1">Rejecting {selectedItems.size} selected item{selectedItems.size !== 1 ? 's' : ''}</p>
-                            </div>
-                            <div className="p-6">
-                                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
-                                    <p className="text-sm text-gray-600"><strong>Selected Items:</strong> {selectedItems.size}</p>
-                                    <p className="text-sm text-gray-600 mt-2">All selected requests will be rejected with the same reason.</p>
-                                </div>
-                                <textarea
-                                    value={bulkRejectionModal.reason}
-                                    onChange={(e) => setBulkRejectionModal({ ...bulkRejectionModal, reason: e.target.value })}
-                                    placeholder="Enter the reason for rejection..."
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
-                                    rows="4"
-                                />
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => setBulkRejectionModal({ show: false, reason: '', action: null })}
-                                        disabled={bulkProcessing}
-                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            if (!bulkRejectionModal.reason.trim()) {
-                                                setError('Please provide a reason for rejection');
-                                                return;
-                                            }
-                                            await performBulkStatusUpdate('rejected', bulkRejectionModal.reason);
-                                        }}
-                                        disabled={bulkProcessing}
-                                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
-                                    >
-                                        {bulkProcessing ? (
-                                            <>
-                                                <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                                <span>Processing...</span>
-                                            </>
-                                        ) : (
-                                            'Confirm Bulk Rejection'
-                                        )}
-                                    </button>
-                                </div>
+            {/* Bulk Rejection Modal - Simplified */}
+            {bulkRejectionModal.show && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+                        <div className="flex justify-between items-center p-6 border-b">
+                            <h2 className="text-xl font-bold">Bulk Reject</h2>
+                            <button onClick={() => setBulkRejectionModal({ ...bulkRejectionModal, show: false })} className="text-gray-500 hover:text-gray-700">✕</button>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-sm text-gray-600 mb-4">Rejecting {selectedItems.size} items. Please provide a reason.</p>
+                            <textarea
+                                value={bulkRejectionModal.reason}
+                                onChange={(e) => setBulkRejectionModal({ ...bulkRejectionModal, reason: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                rows="3"
+                                placeholder="Reason..."
+                            />
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button
+                                    onClick={() => setBulkRejectionModal({ ...bulkRejectionModal, show: false })}
+                                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => performBulkStatusUpdate('rejected', bulkRejectionModal.reason)}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                >
+                                    Confirm Rejection
+                                </button>
                             </div>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
 
-            {/* Edit Rejection Reason Modal */}
-            {
-                editReasonModal.show && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-                            <div className="bg-orange-50 border-b border-orange-200 px-6 py-4">
-                                <h2 className="text-lg font-bold text-orange-900">Edit Rejection Reason</h2>
-                                <p className="text-sm text-orange-700 mt-1">Update the reason for rejection</p>
-                            </div>
-                            <div className="p-6">
-                                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
-                                    {editReasonModal.isLeave ? (
-                                        <>
-                                            <p className="text-sm text-gray-600"><strong>Staff:</strong> {editReasonModal.item?.tblstaff?.firstname} {editReasonModal.item?.tblstaff?.lastname}</p>
-                                            <p className="text-sm text-gray-600"><strong>Leave Type:</strong> {editReasonModal.item?.leave_type}</p>
-                                            <p className="text-sm text-gray-600"><strong>Period:</strong> {editReasonModal.item?.start_date} to {editReasonModal.item?.end_date}</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <p className="text-sm text-gray-600"><strong>Staff:</strong> {editReasonModal.item?.tblstaff?.firstname} {editReasonModal.item?.tblstaff?.lastname}</p>
-                                            <p className="text-sm text-gray-600"><strong>Client:</strong> {editReasonModal.item?.client_name}</p>
-                                            <p className="text-sm text-gray-600"><strong>Location:</strong> {editReasonModal.item?.location}</p>
-                                        </>
-                                    )}
-                                </div>
-                                <textarea
-                                    value={editReasonModal.reason}
-                                    onChange={(e) => setEditReasonModal({ ...editReasonModal, reason: e.target.value })}
-                                    placeholder="Enter the rejection reason..."
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 mb-4"
-                                    rows="4"
-                                />
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => setEditReasonModal({ ...editReasonModal, show: false })}
-                                        disabled={processingId === `${editReasonModal.isLeave ? 'leave' : 'onduty'}-${editReasonModal.item?.id}-edit`}
-                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            if (!editReasonModal.reason.trim()) {
-                                                setError('Please provide a reason');
-                                                return;
-                                            }
-                                            await updateRejectionReason(editReasonModal.item, editReasonModal.isLeave, editReasonModal.reason);
-                                            setEditReasonModal({ ...editReasonModal, show: false });
-                                        }}
-                                        disabled={processingId === `${editReasonModal.isLeave ? 'leave' : 'onduty'}-${editReasonModal.item?.id}-edit`}
-                                        className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
-                                    >
-                                        {processingId === `${editReasonModal.isLeave ? 'leave' : 'onduty'}-${editReasonModal.item?.id}-edit` ? (
-                                            <>
-                                                <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                                <span>Saving...</span>
-                                            </>
-                                        ) : (
-                                            'Save Changes'
-                                        )}
-                                    </button>
-                                </div>
+            {/* Edit Reason Modal - Simplified */}
+            {editReasonModal.show && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+                        <div className="flex justify-between items-center p-6 border-b">
+                            <h2 className="text-xl font-bold">Edit Reason</h2>
+                            <button onClick={() => setEditReasonModal({ ...editReasonModal, show: false })} className="text-gray-500 hover:text-gray-700">✕</button>
+                        </div>
+                        <div className="p-6">
+                            <textarea
+                                value={editReasonModal.reason}
+                                onChange={(e) => setEditReasonModal({ ...editReasonModal, reason: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                rows="3"
+                            />
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button
+                                    onClick={() => setEditReasonModal({ ...editReasonModal, show: false })}
+                                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        updateRejectionReason(editReasonModal.item, editReasonModal.isLeave, editReasonModal.reason);
+                                        setEditReasonModal({ ...editReasonModal, show: false });
+                                    }}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Save Changes
+                                </button>
                             </div>
                         </div>
                     </div>
-                )
-            }
-        </div >
+                </div>
+            )}
+        </div>
     );
 };
 

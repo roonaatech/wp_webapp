@@ -8,6 +8,7 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [showInactiveModal, setShowInactiveModal] = useState(false);
     const navigate = useNavigate();
 
     const handleLogin = async (e) => {
@@ -54,6 +55,8 @@ const Login = () => {
                 setError('User not found. Please check your email.');
             } else if (err.response?.status === 401) {
                 setError('Invalid password.');
+            } else if (err.response?.status === 403) {
+                setShowInactiveModal(true);
             } else if (err.message === 'Network Error' || !err.response) {
                 setError('Cannot connect to server. Please make sure the backend is running on port 3000.');
             } else {
@@ -160,6 +163,28 @@ const Login = () => {
                     Contact IT support if you need assistance
                 </p>
             </div>
+
+            {/* Inactive Account Modal */}
+            {showInactiveModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full transform scale-100 transition-all p-6 text-center animate-bounce-in">
+                        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100">
+                            <span className="text-4xl">🚫</span>
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Account Inactive</h3>
+                        <p className="text-gray-500 mb-6 leading-relaxed">
+                            Your account is currently inactive. You cannot access the WorkPulse system.<br />
+                            <span className="text-sm font-medium text-blue-600 mt-2 block">Please contact your administrator.</span>
+                        </p>
+                        <button
+                            onClick={() => setShowInactiveModal(false)}
+                            className="w-full py-3 bg-gradient-to-r from-gray-800 to-gray-900 text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:from-black hover:to-black transition-all transform hover:-translate-y-0.5"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

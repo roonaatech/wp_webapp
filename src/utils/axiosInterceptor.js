@@ -40,32 +40,35 @@ export const setupAxiosInterceptors = (navigate) => {
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;
-                    
+
                     // Clear stored auth data
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
-                    
+
                     // Determine the reason for redirection
                     let reason = 'expired';
-                    if (message.includes('unauthorized') || message.includes('access denied')) {
+                    // Check for inactive user
+                    if (message.includes('inactive')) {
+                        reason = 'inactive';
+                    } else if (message.includes('unauthorized') || message.includes('access denied')) {
                         reason = 'unauthorized';
                     } else if (message.includes('token') && message.includes('expired')) {
                         reason = 'expired';
                     }
-                    
+
                     // Navigate to session expired page
-                    navigate('/session-expired', { 
+                    navigate('/session-expired', {
                         state: { reason },
-                        replace: true 
+                        replace: true
                     });
-                    
+
                     // Reset flag after a short delay
                     setTimeout(() => {
                         isRedirecting = false;
                     }, 1000);
                 }
             }
-            
+
             return Promise.reject(error);
         }
     );
@@ -88,32 +91,35 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;
-                    
+
                     // Clear stored auth data
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
-                    
+
                     // Determine the reason for redirection
                     let reason = 'expired';
-                    if (message.includes('unauthorized') || message.includes('access denied')) {
+                    // Check for inactive user
+                    if (message.includes('inactive')) {
+                        reason = 'inactive';
+                    } else if (message.includes('unauthorized') || message.includes('access denied')) {
                         reason = 'unauthorized';
                     } else if (message.includes('token') && message.includes('expired')) {
                         reason = 'expired';
                     }
-                    
+
                     // Navigate to session expired page
-                    navigate('/session-expired', { 
+                    navigate('/session-expired', {
                         state: { reason },
-                        replace: true 
+                        replace: true
                     });
-                    
+
                     // Reset flag after a short delay
                     setTimeout(() => {
                         isRedirecting = false;
                     }, 1000);
                 }
             }
-            
+
             return Promise.reject(error);
         }
     );

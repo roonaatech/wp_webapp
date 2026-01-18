@@ -7,6 +7,7 @@ const Users = () => {
     const [users, setUsers] = useState([]);
     const [managersAndAdmins, setManagersAndAdmins] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -26,6 +27,21 @@ const Users = () => {
     });
     const [formError, setFormError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const [confirmationModal, setConfirmationModal] = useState({
+        show: false,
+        title: '',
+        message: '',
+        confirmText: '',
+        confirmButtonColor: '',
+        action: null,
+        data: null
+    });
+    const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+    const [resetPasswordData, setResetPasswordData] = useState({ userId: null, userName: '', newPassword: '', confirmPassword: '' });
+    const [resetPasswordError, setResetPasswordError] = useState(null);
+    const [resettingPassword, setResettingPassword] = useState(false);
+    const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = user.role === 1;
 
@@ -277,10 +293,122 @@ const Users = () => {
         }
     };
 
+    const handleToggleStatus = (user) => {
+        const action = user.active ? 'deactivate' : 'activate';
+        setConfirmationModal({
+            show: true,
+            title: `${user.active ? 'Deactivate' : 'Activate'} User`,
+            message: `Are you sure you want to ${action} ${user.firstname} ${user.lastname}?`,
+            confirmText: user.active ? 'Deactivate' : 'Activate',
+            confirmButtonColor: user.active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700',
+            action: 'toggle_status',
+            data: user
+        });
+    };
+
+    const confirmAction = async () => {
+        if (!confirmationModal.data) return;
+
+        const user = confirmationModal.data;
+        if (confirmationModal.action === 'toggle_status') {
+            try {
+                const token = localStorage.getItem('token');
+                const payload = {
+                    firstname: user.firstname,
+                    lastname: user.lastname,
+                    email: user.email,
+                    role: user.role,
+                    gender: user.gender,
+                    approving_manager_id: user.approving_manager_id,
+                    active: user.active ? 0 : 1
+                };
+
+                await axios.put(
+                    `${API_BASE_URL}/api/admin/users/${user.staffid || user.id}`,
+                    payload,
+                    { headers: { 'x-access-token': token } }
+                );
+
+                setUsers(users.map(u => {
+                    if (u.staffid === (user.staffid || user.id)) {
+                        return { ...u, active: payload.active };
+                    }
+                    return u;
+                }));
+                closeConfirmationModal();
+            } catch (error) {
+                console.error('Error updating status:', error);
+                // Ideally show a toast/alert here, but distinct from the confirmation modal
+                alert(`Failed to update status: ${error.response?.data?.message || error.message}`);
+            }
+        }
+    };
+
+    const closeConfirmationModal = () => {
+        setConfirmationModal({ ...confirmationModal, show: false });
+    };
+
+    const handleResetPasswordClick = (user) => {
+        setResetPasswordData({
+            userId: user.staffid || user.id,
+            userName: `${user.firstname} ${user.lastname}`,
+            newPassword: '',
+            confirmPassword: ''
+        });
+        setResetPasswordError(null);
+        setShowPasswordResetModal(true);
+    };
+
+    const handleResetPasswordSubmit = async (e) => {
+        e.preventDefault();
+        setResetPasswordError(null);
+
+        // Validation
+        if (!resetPasswordData.newPassword) {
+            setResetPasswordError('Password is required.');
+            return;
+        }
+        if (resetPasswordData.newPassword.length < 6) {
+            setResetPasswordError('Password must be at least 6 characters long.');
+            return;
+        }
+        if (resetPasswordData.newPassword !== resetPasswordData.confirmPassword) {
+            setResetPasswordError('Passwords do not match.');
+            return;
+        }
+
+        try {
+            setResettingPassword(true);
+            const token = localStorage.getItem('token');
+            await axios.post(
+                `${API_BASE_URL}/api/admin/users/${resetPasswordData.userId}/reset-password`,
+                { newPassword: resetPasswordData.newPassword },
+                { headers: { 'x-access-token': token } }
+            );
+
+            // Show success notification
+            setSuccessMessage(`Password reset successfully for ${resetPasswordData.userName}`);
+            setShowSuccessNotification(true);
+            setShowPasswordResetModal(false);
+            setResetPasswordData({ userId: null, userName: '', newPassword: '', confirmPassword: '' });
+        } catch (error) {
+            console.error('Error resetting password:', error);
+            setResetPasswordError(error.response?.data?.message || error.message || 'Failed to reset password');
+        } finally {
+            setResettingPassword(false);
+        }
+    };
+
     const filteredUsers = users.filter(u => {
         const fullName = u.firstname + ' ' + u.lastname;
-        return fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        const matchesSearch = fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             u.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+        const matchesStatus = statusFilter === 'all' ? true :
+            statusFilter === 'active' ? u.active === 1 :
+                u.active === 0;
+
+        return matchesSearch && matchesStatus;
     });
 
     const getRoleColor = (role) => {
@@ -300,6 +428,48 @@ const Users = () => {
             default: return 'Unknown';
         }
     };
+
+    // Show unauthorized page for non-admin users
+    if (!isAdmin) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
+                <div className="max-w-md w-full">
+                    <div className="bg-white rounded-2xl shadow-xl p-8 text-center border border-red-100">
+                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+
+                        <h1 className="text-2xl font-bold text-gray-900 mb-3">
+                            Access Denied
+                        </h1>
+
+                        <p className="text-gray-600 mb-6 leading-relaxed">
+                            You do not have permission to access the User Management page. This area is restricted to administrators only.
+                        </p>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                            <p className="text-sm text-blue-800">
+                                <strong>Your Role:</strong> {getRoleName(user.role)}
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => window.history.back()}
+                            className="w-full py-3 bg-gradient-to-r from-blue-700 to-blue-800 text-white rounded-lg hover:from-blue-800 hover:to-blue-900 transition-all font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                        >
+                            ← Go Back
+                        </button>
+
+                        <p className="text-sm text-gray-500 mt-6">
+                            If you believe this is an error, please contact your administrator.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div>
@@ -323,13 +493,6 @@ const Users = () => {
                 </div>
             </div>
 
-            {/* Admin Only Access Message */}
-            {!isAdmin && (
-                <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <p className="text-yellow-800 font-medium">ℹ️ This page is restricted to Admins only</p>
-                </div>
-            )}
-
             {/* Error Message */}
             {error && (
                 <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -337,19 +500,55 @@ const Users = () => {
                 </div>
             )}
 
-            {/* Search Bar */}
+            {/* Search and Filter Bar */}
             <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                <div className="relative">
-                    <svg className="absolute left-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                        type="text"
-                        placeholder="Search users by name or email..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                    />
+                <div className="flex flex-col md:flex-row gap-4">
+                    {/* Search Input */}
+                    <div className="relative flex-1">
+                        <svg className="absolute left-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            placeholder="Search users by name or email..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                        />
+                    </div>
+
+                    {/* Status Filter */}
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setStatusFilter('all')}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${statusFilter === 'all'
+                                ? 'bg-blue-700 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setStatusFilter('active')}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${statusFilter === 'active'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                            Active
+                        </button>
+                        <button
+                            onClick={() => setStatusFilter('inactive')}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${statusFilter === 'inactive'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                            InActive
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -360,6 +559,7 @@ const Users = () => {
                         <thead className="bg-[#2E5090] border-b border-gray-200">
                             <tr>
                                 <th className="px-3 py-3 text-left text-xs font-semibold text-white w-12"></th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">ID</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-white">User</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-white">Email</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-white">Role</th>
@@ -370,7 +570,7 @@ const Users = () => {
                         <tbody className="divide-y divide-gray-200">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-8 text-center">
+                                    <td colSpan="7" className="px-6 py-8 text-center">
                                         <ModernLoader size="md" message="Loading Users..." />
                                     </td>
                                 </tr>
@@ -386,6 +586,9 @@ const Users = () => {
                                                 >
                                                     {expandedUserId === u.staffid ? '▼' : '▶'}
                                                 </button>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-600">
+                                                #{u.staffid}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
@@ -407,9 +610,21 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    <div className={'w-2 h-2 rounded-full ' + (u.active ? 'bg-green-500' : 'bg-gray-300')}></div>
-                                                    <span className={'text-sm font-medium ' + (u.active ? 'text-green-600' : 'text-gray-600')}>
-                                                        {u.active ? 'Active' : 'Inactive'}
+                                                    <button
+                                                        onClick={() => handleToggleStatus(u)}
+                                                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${u.active ? 'bg-green-600' : 'bg-red-600'
+                                                            }`}
+                                                        role="switch"
+                                                        aria-checked={u.active}
+                                                    >
+                                                        <span
+                                                            aria-hidden="true"
+                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${u.active ? 'translate-x-5' : 'translate-x-0'
+                                                                }`}
+                                                        />
+                                                    </button>
+                                                    <span className={`text-sm font-medium ${u.active ? 'text-green-600' : 'text-red-600'}`}>
+                                                        {u.active ? 'Active' : 'InActive'}
                                                     </span>
                                                 </div>
                                             </td>
@@ -417,14 +632,26 @@ const Users = () => {
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         onClick={() => handleEditUserClick(u)}
-                                                        className="p-2 hover:bg-blue-50 rounded-lg transition-colors text-blue-600"
-                                                        title="Edit user"
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
+                                                        title="Edit user details"
                                                     >
-                                                        ✏️
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                        <span>Edit</span>
                                                     </button>
-                                                    <button className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600" title="Delete user">
-                                                        🗑️
-                                                    </button>
+                                                    {isAdmin && (
+                                                        <button
+                                                            onClick={() => handleResetPasswordClick(u)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow"
+                                                            title="Reset user password"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                                            </svg>
+                                                            <span>Reset</span>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -432,7 +659,7 @@ const Users = () => {
                                         {/* Leave Balance Child Row */}
                                         {expandedUserId === u.staffid && (
                                             <tr className="bg-blue-50 border-t border-blue-100">
-                                                <td colSpan="6" className="px-6 py-4">
+                                                <td colSpan="7" className="px-6 py-4">
                                                     {loadingBalance[u.staffid] ? (
                                                         <div className="flex items-center justify-center py-4">
                                                             <ModernLoader size="sm" message="Loading leave balance..." />
@@ -487,7 +714,7 @@ const Users = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                                         No users found
                                     </td>
                                 </tr>
@@ -677,8 +904,137 @@ const Users = () => {
                     </div>
                 </div>
             )}
+
+            {/* Confirmation Modal */}
+            {confirmationModal.show && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+                    <div className="bg-white rounded-lg shadow-2xl max-w-sm w-full transform transition-all scale-100">
+                        <div className="p-6">
+                            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-blue-100 rounded-full mb-4">
+                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-center text-gray-900 mb-2">{confirmationModal.title}</h3>
+                            <p className="text-sm text-center text-gray-500 mb-6">{confirmationModal.message}</p>
+                            <div className="flex gap-3 justify-center">
+                                <button
+                                    onClick={closeConfirmationModal}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmAction}
+                                    className={`px-4 py-2 text-white rounded-lg font-medium shadow-sm transition-colors ${confirmationModal.confirmButtonColor}`}
+                                >
+                                    {confirmationModal.confirmText}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Password Reset Modal */}
+            {showPasswordResetModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+                        <div className="bg-gradient-to-r from-amber-600 to-amber-700 px-6 py-4">
+                            <h2 className="text-xl font-bold text-white">🔑 Reset Password</h2>
+                        </div>
+
+                        <form onSubmit={handleResetPasswordSubmit} className="p-6 space-y-4">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                <p className="text-sm text-blue-800">
+                                    <strong>User:</strong> {resetPasswordData.userName}
+                                </p>
+                            </div>
+
+                            {resetPasswordError && (
+                                <div className="bg-red-50 border border-red-200 rounded p-3">
+                                    <p className="text-red-800 text-sm font-medium">⚠️ {resetPasswordError}</p>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                <input
+                                    type="password"
+                                    value={resetPasswordData.newPassword}
+                                    onChange={(e) => setResetPasswordData({ ...resetPasswordData, newPassword: e.target.value })}
+                                    placeholder="Enter new password"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-600"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                <input
+                                    type="password"
+                                    value={resetPasswordData.confirmPassword}
+                                    onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
+                                    placeholder="Confirm new password"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-600"
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowPasswordResetModal(false);
+                                        setResetPasswordData({ userId: null, userName: '', newPassword: '', confirmPassword: '' });
+                                        setResetPasswordError(null);
+                                    }}
+                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={resettingPassword}
+                                    className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {resettingPassword ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <span>Resetting...</span>
+                                        </>
+                                    ) : (
+                                        'Reset Password'
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Notification Modal */}
+            {showSuccessNotification && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full transform scale-100 transition-all p-6 text-center">
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">Success!</h3>
+                        <p className="text-gray-600 mb-6">{successMessage}</p>
+                        <button
+                            onClick={() => setShowSuccessNotification(false)}
+                            className="w-full py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                        >
+                            OK
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
+
 
 export default Users;
