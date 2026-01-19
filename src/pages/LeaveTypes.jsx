@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
@@ -117,17 +118,28 @@ export default function LeaveTypes() {
 
       if (modalType === 'create') {
         await axios.post(`${API_BASE}/api/leavetypes`, formData, config);
-        setSuccess('Leave type created successfully!');
+        const successMsg = `Leave type '${formData.name}' created successfully`;
+        setSuccess(successMsg);
+        toast.success(successMsg);
       } else {
         await axios.put(`${API_BASE}/api/leavetypes/${editingId}`, formData, config);
-        setSuccess('Leave type updated successfully!');
+        const successMsg = `Leave type '${formData.name}' updated successfully`;
+        setSuccess(successMsg);
+        toast.success(successMsg, {
+            style: {
+                background: '#2563eb', // Blue for updates
+                color: '#fff'
+            }
+        });
       }
 
       setShowModal(false);
       fetchLeaveTypes();
     } catch (err) {
       console.error('Error:', err);
-      setError(err.response?.data?.message || 'An error occurred');
+      const errorMsg = err.response?.data?.message || 'An error occurred';
+      setError(errorMsg);
+      toast.error(errorMsg);
     }
   };
 
@@ -139,11 +151,20 @@ export default function LeaveTypes() {
       await axios.delete(`${API_BASE}/api/leavetypes/${id}`, {
         headers: { 'x-access-token': token }
       });
-      setSuccess('Leave type deleted successfully!');
+      const successMsg = 'Leave type deleted successfully';
+      setSuccess(successMsg);
+      toast.success(successMsg, {
+        style: {
+            background: '#dc2626', // Red for delete
+            color: '#fff'
+        }
+      });
       fetchLeaveTypes();
     } catch (err) {
       console.error('Error:', err);
-      setError(err.response?.data?.message || 'Failed to delete leave type');
+      const errorMsg = err.response?.data?.message || 'Failed to delete leave type';
+      setError(errorMsg);
+      toast.error(errorMsg);
     }
   };
 

@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 
@@ -234,9 +235,18 @@ const Approvals = () => {
             window.dispatchEvent(new Event('approvalStatusChanged'));
 
             setError(null);
+            const employeeName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : 'Request';
+            toast.success(`${employeeName}'s ${isLeave ? 'leave' : 'on-duty'} ${statusStr.toLowerCase()} successfully`, {
+                style: {
+                    background: statusStr === 'Approved' ? '#059669' : '#dc2626',
+                    color: '#fff'
+                }
+            });
         } catch (error) {
             console.error('Error updating status:', error);
-            setError(error.response?.data?.message || 'Failed to update request');
+            const errorMsg = error.response?.data?.message || 'Failed to update request';
+            setError(errorMsg);
+            toast.error(errorMsg);
         } finally {
             setProcessingId(null);
         }
@@ -337,10 +347,18 @@ const Approvals = () => {
 
             window.dispatchEvent(new Event('approvalStatusChanged'));
             setError(null);
-            alert(`${updates.length} item(s) ${status === 'approved' ? 'approved' : 'rejected'} successfully!`);
+            const actionStr = status === 'approved' ? 'approved' : 'rejected';
+            toast.success(`${updates.length} request(s) ${actionStr} successfully!`, {
+                style: {
+                    background: status === 'approved' ? '#059669' : '#dc2626',
+                    color: '#fff'
+                }
+            });
         } catch (error) {
             console.error('Error performing bulk update:', error);
-            setError(error.response?.data?.message || 'Failed to perform bulk action');
+            const errorMsg = error.response?.data?.message || 'Failed to perform bulk action';
+            setError(errorMsg);
+            toast.error(errorMsg);
         } finally {
             setBulkProcessing(false);
         }
@@ -378,9 +396,18 @@ const Approvals = () => {
                 ));
             }
             setError(null);
+            const name = item.tblstaff ? `${item.tblstaff.firstname}` : 'Request';
+            toast.success(`Updated rejection reason for ${name}`, {
+                style: {
+                    background: '#2563eb', // Blue for updates
+                    color: '#fff'
+                }
+            });
         } catch (error) {
             console.error('Error updating rejection reason:', error);
-            setError(error.response?.data?.message || 'Failed to update rejection reason');
+            const errorMsg = error.response?.data?.message || 'Failed to update rejection reason';
+            setError(errorMsg);
+            toast.error(errorMsg);
         } finally {
             setProcessingId(null);
         }
@@ -726,7 +753,11 @@ const Approvals = () => {
                                                         </td>
                                                     )}
                                                     {statusFilter === 'Rejected' && (
-                                                        <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs">{req.rejection_reason || '-'}</td>
+                                                        <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs" title={req.rejection_reason}>
+                                                            {req.rejection_reason && req.rejection_reason.length > 120
+                                                                ? `${req.rejection_reason.substring(0, 120)}...`
+                                                                : req.rejection_reason || '-'}
+                                                        </td>
                                                     )}
                                                     <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                                         {!isHistory ? (
@@ -756,7 +787,7 @@ const Approvals = () => {
                                                                 >
                                                                     Revert
                                                                 </button>
-                                                                {statusFilter === 'Rejected' && user.id === req.manager_id && (
+                                                                {statusFilter === 'Rejected' && req.manager_id && (Number(user.id) === Number(req.manager_id) || Number(user.staffid) === Number(req.manager_id)) && (
                                                                     <button
                                                                         onClick={() => setEditReasonModal({
                                                                             show: true,
@@ -856,7 +887,11 @@ const Approvals = () => {
                                                         </td>
                                                     )}
                                                     {statusFilter === 'Rejected' && (
-                                                        <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs">{req.rejection_reason || '-'}</td>
+                                                        <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs" title={req.rejection_reason}>
+                                                            {req.rejection_reason && req.rejection_reason.length > 150
+                                                                ? `${req.rejection_reason.substring(0, 150)}...`
+                                                                : req.rejection_reason || '-'}
+                                                        </td>
                                                     )}
                                                     <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                                         {!isHistory ? (
@@ -886,7 +921,7 @@ const Approvals = () => {
                                                                 >
                                                                     Revert
                                                                 </button>
-                                                                {statusFilter === 'Rejected' && user.id === req.manager_id && (
+                                                                {statusFilter === 'Rejected' && req.manager_id && (Number(user.id) === Number(req.manager_id) || Number(user.staffid) === Number(req.manager_id)) && (
                                                                     <button
                                                                         onClick={() => setEditReasonModal({
                                                                             show: true,
@@ -1221,7 +1256,25 @@ const Approvals = () => {
                                     </div>
                                     {detailsModal.item.status === 'Rejected' && (
                                         <div className="pt-3 border-t border-red-100">
-                                            <span className="text-xs font-bold text-red-600 tracking-wide block mb-2">Rejection Justification:</span>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-xs font-bold text-red-600 tracking-wide block">Rejection Justification:</span>
+                                                {detailsModal.item.manager_id && (Number(user.id) === Number(detailsModal.item.manager_id) || Number(user.staffid) === Number(detailsModal.item.manager_id)) && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setDetailsModal({ ...detailsModal, show: false });
+                                                            setEditReasonModal({
+                                                                show: true,
+                                                                item: detailsModal.item,
+                                                                isLeave: detailsModal.isLeave,
+                                                                reason: detailsModal.item.rejection_reason || ''
+                                                            });
+                                                        }}
+                                                        className="text-[10px] font-bold text-[#2E5090] hover:underline uppercase tracking-tighter"
+                                                    >
+                                                        Modify
+                                                    </button>
+                                                )}
+                                            </div>
                                             <p className="text-sm font-medium text-red-900 bg-white/50 p-3 rounded-lg border border-red-100 leading-relaxed">
                                                 {detailsModal.item.rejection_reason || 'No specific feedback provided by the approver.'}
                                             </p>

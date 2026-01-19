@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import AxiosInterceptorSetup from './components/AxiosInterceptorSetup';
+import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import SessionExpired from './pages/SessionExpired';
 import Dashboard from './pages/Dashboard';
@@ -35,6 +36,40 @@ function App() {
   return (
     <Router>
       <AxiosInterceptorSetup>
+        <Toaster 
+          position="top-right" 
+          reverseOrder={false}
+          toastOptions={{
+            duration: 4000,
+            style: {
+              padding: '12px 16px',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: '500',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            },
+            success: {
+              style: {
+                background: '#059669',
+                color: '#ffffff',
+              },
+              iconTheme: {
+                primary: '#ffffff',
+                secondary: '#059669',
+              },
+            },
+            error: {
+              style: {
+                background: '#dc2626',
+                color: '#ffffff',
+              },
+              iconTheme: {
+                primary: '#ffffff',
+                secondary: '#dc2626',
+              },
+            },
+          }}
+        />
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
@@ -49,7 +84,7 @@ function App() {
           <Route path="/activities" element={<ProtectedLayout><Activities /></ProtectedLayout>} />
           <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
           <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
-          
+
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 
@@ -43,6 +44,13 @@ const Login = () => {
 
                 localStorage.setItem('token', response.data.accessToken);
                 localStorage.setItem('user', JSON.stringify(user));
+                toast.success(`Welcome back, ${user.firstname}!`, {
+                    style: {
+                        background: '#059669',
+                        color: '#fff'
+                    },
+                    icon: '👋'
+                });
                 navigate('/');
             }
         } catch (err) {
@@ -52,17 +60,21 @@ const Login = () => {
                 message: err.message
             });
 
+            let errorMsg = 'Login failed. Please try again.';
             if (err.response?.status === 404) {
-                setError('User not found. Please check your email.');
+                errorMsg = 'User not found. Please check your email.';
             } else if (err.response?.status === 401) {
-                setError('Invalid password.');
+                errorMsg = 'Invalid password.';
             } else if (err.response?.status === 403) {
                 setShowInactiveModal(true);
+                errorMsg = 'Account is inactive.';
             } else if (err.message === 'Network Error' || !err.response) {
-                setError('Cannot connect to server. Please make sure the backend is running on port 3000.');
+                errorMsg = 'Cannot connect to server. Please make sure the backend is running on port 3000.';
             } else {
-                setError(err.response?.data?.message || 'Login failed. Please try again.');
+                errorMsg = err.response?.data?.message || 'Login failed. Please try again.';
             }
+            setError(errorMsg);
+            toast.error(errorMsg);
         } finally {
             setLoading(false);
         }

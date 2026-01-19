@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../hide-scrollbar.css';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import {
     BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -51,9 +52,18 @@ const Dashboard = () => {
 
             // Optionally, refresh stats
             fetchDashboardStats();
+            const employeeName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : 'Request';
+            toast.success(`${employeeName}'s ${isLeave ? 'leave' : 'on-duty'} ${statusStr.toLowerCase()} successfully`, {
+                style: {
+                    background: statusStr === 'Approved' ? '#059669' : '#dc2626',
+                    color: '#fff'
+                }
+            });
         } catch (error) {
             console.error('Error updating status:', error);
-            setModalError(error.response?.data?.message || 'Failed to update request');
+            const errorMsg = error.response?.data?.message || 'Failed to update request';
+            setModalError(errorMsg);
+            toast.error(errorMsg);
         } finally {
             setProcessingId(null);
         }

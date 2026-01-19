@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 
@@ -274,6 +275,7 @@ const Users = () => {
                     return u;
                 }));
                 handleCloseModal();
+                toast.success(`User ${payload.firstname} ${payload.lastname} updated successfully`);
             } else {
                 // Create new user - password required
                 payload.password = formData.password;
@@ -284,10 +286,13 @@ const Users = () => {
                 // Add new user to the list
                 setUsers(prev => [...prev, response.data.user]);
                 handleCloseModal();
+                toast.success(`User ${payload.firstname} ${payload.lastname} created successfully`);
             }
         } catch (err) {
             console.error('Error:', err);
-            setFormError(err.response?.data?.message || err.message || 'Failed to save user');
+            const errorMsg = err.response?.data?.message || err.message || 'Failed to save user';
+            setFormError(errorMsg);
+            toast.error(errorMsg);
         } finally {
             setSubmitting(false);
         }
@@ -336,10 +341,17 @@ const Users = () => {
                     return u;
                 }));
                 closeConfirmationModal();
+                const status = payload.active ? 'activated' : 'deactivated';
+                toast.success(`User ${user.firstname} ${user.lastname} ${status} successfully`, {
+                    style: {
+                        background: payload.active ? '#059669' : '#4b5563', // Green for active, Gray for deactive
+                        color: '#fff'
+                    }
+                });
             } catch (error) {
                 console.error('Error updating status:', error);
-                // Ideally show a toast/alert here, but distinct from the confirmation modal
-                alert(`Failed to update status: ${error.response?.data?.message || error.message}`);
+                const errorMsg = error.response?.data?.message || error.message;
+                toast.error(`Failed to update status: ${errorMsg}`);
             }
         }
     };
@@ -387,13 +399,21 @@ const Users = () => {
             );
 
             // Show success notification
+            toast.success(`Password for ${resetPasswordData.userName} reset successfully`, {
+                style: {
+                    background: '#7c3aed', // Purple for password reset
+                    color: '#fff'
+                }
+            });
             setSuccessMessage(`Password reset successfully for ${resetPasswordData.userName}`);
             setShowSuccessNotification(true);
             setShowPasswordResetModal(false);
             setResetPasswordData({ userId: null, userName: '', newPassword: '', confirmPassword: '' });
         } catch (error) {
             console.error('Error resetting password:', error);
-            setResetPasswordError(error.response?.data?.message || error.message || 'Failed to reset password');
+            const errorMsg = error.response?.data?.message || error.message || 'Failed to reset password';
+            setResetPasswordError(errorMsg);
+            toast.error(errorMsg);
         } finally {
             setResettingPassword(false);
         }

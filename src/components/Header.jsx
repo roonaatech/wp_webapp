@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 
 const Header = () => {
@@ -89,6 +90,12 @@ const Header = () => {
         } finally {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            toast.success('Logged out. See you soon!', {
+                style: {
+                    background: '#4b5563',
+                    color: '#fff'
+                }
+            });
             navigate('/session-expired', { state: { reason: 'logout' } });
         }
     };
