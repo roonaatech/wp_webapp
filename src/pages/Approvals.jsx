@@ -36,7 +36,8 @@ const Approvals = () => {
         show: false,
         item: null,
         isLeave: false,
-        reason: ''
+        reason: '',
+        showError: false
     });
     const [editReasonModal, setEditReasonModal] = useState({
         show: false,
@@ -49,6 +50,15 @@ const Approvals = () => {
     const [bulkRejectionModal, setBulkRejectionModal] = useState({
         show: false,
         reason: '',
+        action: null,
+        showError: false
+    });
+    const [confirmationModal, setConfirmationModal] = useState({
+        show: false,
+        title: '',
+        message: '',
+        confirmText: '',
+        confirmButtonColor: '',
         action: null
     });
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -142,12 +152,40 @@ const Approvals = () => {
                 show: true,
                 item: item,
                 isLeave: isLeave,
-                reason: ''
+                reason: '',
+                showError: false
             });
             return;
         }
 
-        // For approve or pending, proceed directly
+        if (status === 'approved') {
+            const employeeName = `${item.tblstaff?.firstname} ${item.tblstaff?.lastname}`;
+            const type = isLeave ? 'Leave' : 'On-Duty';
+            setConfirmationModal({
+                show: true,
+                title: 'Confirm Approval',
+                message: `Are you sure you want to approve this ${type} request for ${employeeName}?`,
+                confirmText: 'Approve',
+                confirmButtonColor: 'bg-green-600 hover:bg-green-700',
+                action: () => performStatusUpdate(item, status, isLeave, null)
+            });
+            return;
+        }
+
+        // For pending (revert), also ask for confirmation
+        if (status === 'pending') {
+            setConfirmationModal({
+                show: true,
+                title: 'Revert to Pending',
+                message: 'Are you sure you want to move this request back to pending status?',
+                confirmText: 'Revert',
+                confirmButtonColor: 'bg-red-600 hover:bg-red-700',
+                action: () => performStatusUpdate(item, status, isLeave, null)
+            });
+            return;
+        }
+
+        // Proceed directly for other cases (though usually only rejected reaches here but it's handled above)
         await performStatusUpdate(item, status, isLeave, null);
     };
 
@@ -231,9 +269,16 @@ const Approvals = () => {
         }
 
         if (action === 'rejected') {
-            setBulkRejectionModal({ show: true, reason: '', action: 'rejected' });
+            setBulkRejectionModal({ show: true, reason: '', action: 'rejected', showError: false });
         } else {
-            performBulkStatusUpdate('approved');
+            setConfirmationModal({
+                show: true,
+                title: 'Bulk Approval',
+                message: `Are you sure you want to approve all ${selectedItems.size} selected items?`,
+                confirmText: 'Approve All',
+                confirmButtonColor: 'bg-green-600 hover:bg-green-700',
+                action: () => performBulkStatusUpdate('approved')
+            });
         }
     };
 
@@ -609,8 +654,9 @@ const Approvals = () => {
                                             <SortableHeader label="Leave Type" sortKey="leave_type" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
                                             <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
                                             <SortableHeader label="Period" sortKey="start_date" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
+                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Reason</th>
                                             {statusFilter === 'Approved' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Reason</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Rejection Reason</th>}
                                             <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
                                         </tr>
                                     </thead>
@@ -650,6 +696,11 @@ const Approvals = () => {
                                                     <td className="px-6 py-4">
                                                         <div className="text-sm text-gray-900">
                                                             {req.start_date} <span className="text-gray-400">to</span> {req.end_date}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs">
+                                                        <div className="line-clamp-2" title={req.reason}>
+                                                            {req.reason || '-'}
                                                         </div>
                                                     </td>
                                                     {statusFilter === 'Approved' && (
@@ -709,7 +760,7 @@ const Approvals = () => {
                                             ))
                                         ) : (
                                             <tr>
-                                                <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                                                <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
                                                     No leave requests found
                                                 </td>
                                             </tr>
@@ -865,11 +916,14 @@ const Approvals = () => {
                             <p className="text-sm text-gray-600 mb-4">Please provide a reason for rejecting this request.</p>
                             <textarea
                                 value={rejectionModal.reason}
-                                onChange={(e) => setRejectionModal({ ...rejectionModal, reason: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                onChange={(e) => setRejectionModal({ ...rejectionModal, reason: e.target.value, showError: false })}
+                                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${rejectionModal.showError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'}`}
                                 rows="3"
                                 placeholder="Reason..."
                             />
+                            {rejectionModal.showError && (
+                                <p className="text-red-500 text-xs mt-1 font-medium">Reason is Required</p>
+                            )}
                             <div className="flex justify-end gap-3 mt-6">
                                 <button
                                     onClick={() => setRejectionModal({ ...rejectionModal, show: false })}
@@ -880,11 +934,11 @@ const Approvals = () => {
                                 <button
                                     onClick={() => {
                                         if (!rejectionModal.reason.trim()) {
-                                            setError('Reason is required');
+                                            setRejectionModal({ ...rejectionModal, showError: true });
                                             return;
                                         }
                                         performStatusUpdate(rejectionModal.item, 'rejected', rejectionModal.isLeave, rejectionModal.reason);
-                                        setRejectionModal({ ...rejectionModal, show: false, reason: '' });
+                                        setRejectionModal({ ...rejectionModal, show: false, reason: '', showError: false });
                                     }}
                                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
                                 >
@@ -908,11 +962,14 @@ const Approvals = () => {
                             <p className="text-sm text-gray-600 mb-4">Rejecting {selectedItems.size} items. Please provide a reason.</p>
                             <textarea
                                 value={bulkRejectionModal.reason}
-                                onChange={(e) => setBulkRejectionModal({ ...bulkRejectionModal, reason: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                onChange={(e) => setBulkRejectionModal({ ...bulkRejectionModal, reason: e.target.value, showError: false })}
+                                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${bulkRejectionModal.showError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'}`}
                                 rows="3"
                                 placeholder="Reason..."
                             />
+                            {bulkRejectionModal.showError && (
+                                <p className="text-red-500 text-xs mt-1 font-medium">Reason is Required</p>
+                            )}
                             <div className="flex justify-end gap-3 mt-6">
                                 <button
                                     onClick={() => setBulkRejectionModal({ ...bulkRejectionModal, show: false })}
@@ -921,7 +978,14 @@ const Approvals = () => {
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={() => performBulkStatusUpdate('rejected', bulkRejectionModal.reason)}
+                                    onClick={() => {
+                                        if (!bulkRejectionModal.reason.trim()) {
+                                            setBulkRejectionModal({ ...bulkRejectionModal, showError: true });
+                                            return;
+                                        }
+                                        performBulkStatusUpdate('rejected', bulkRejectionModal.reason);
+                                        setBulkRejectionModal({ ...bulkRejectionModal, show: false, reason: '', showError: false });
+                                    }}
                                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
                                 >
                                     Confirm Rejection
@@ -964,6 +1028,35 @@ const Approvals = () => {
                                     Save Changes
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Confirmation Modal */}
+            {confirmationModal.show && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all">
+                        <div className="p-6">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">{confirmationModal.title}</h3>
+                            <p className="text-gray-600">{confirmationModal.message}</p>
+                        </div>
+                        <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                            <button
+                                onClick={() => setConfirmationModal({ ...confirmationModal, show: false })}
+                                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    confirmationModal.action();
+                                    setConfirmationModal({ ...confirmationModal, show: false });
+                                }}
+                                className={`px-4 py-2 text-white rounded-lg font-medium shadow-sm transition-colors ${confirmationModal.confirmButtonColor}`}
+                            >
+                                {confirmationModal.confirmText}
+                            </button>
                         </div>
                     </div>
                 </div>

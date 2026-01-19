@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
+import BrandLogo from '../components/BrandLogo';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -71,14 +72,8 @@ const Login = () => {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 {/* Logo Section */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-700 to-blue-800 rounded-2xl mb-4 shadow-lg overflow-hidden">
-                        <img src="/abis_icon.png" alt="WorkPulse" className="w-14 h-14" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-gray-900">
-                        WorkPulse
-                    </h1>
-                    <p className="text-gray-600 mt-2">Leave & On-Duty Management System</p>
+                <div className="flex justify-center mb-8">
+                    <BrandLogo className="scale-125" />
                 </div>
 
                 {/* Login Form */}
