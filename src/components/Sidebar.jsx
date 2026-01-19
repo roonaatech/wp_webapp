@@ -78,7 +78,7 @@ const Sidebar = () => {
                 flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 mx-2
                 ${isActive(to)
                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/20'
-                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+                    : 'text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]'
                 }
             `}
         >
@@ -99,7 +99,7 @@ const Sidebar = () => {
     );
 
     return (
-        <div className="w-72 bg-slate-900 border-r border-slate-800/50 text-white min-h-screen shadow-2xl flex flex-col font-sans">
+        <div className="w-72 bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] text-[var(--sidebar-text)] min-h-screen shadow-2xl flex flex-col font-sans transition-colors duration-300">
             <div className="p-8 pb-6">
                 <Link to="/" className="hover:opacity-90 transition-opacity block">
                     <BrandLogo />
@@ -142,11 +142,11 @@ const Sidebar = () => {
 
                 {/* Role Badge */}
                 <div className="mt-4 px-6 mb-6">
-                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 backdrop-blur-sm">
-                        <p className="text-sm text-slate-400 mb-1 font-medium">Signed in as</p>
+                    <div className="bg-white/10 dark:bg-slate-800/50 rounded-xl p-4 border border-[var(--border-color)] backdrop-blur-sm">
+                        <p className="text-sm text-[var(--text-muted)] mb-1 font-medium">Signed in as</p>
                         <div className="flex items-center gap-2">
                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                             <p className="text-base font-bold text-white tracking-wide">
+                             <p className="text-base font-bold text-[var(--text-main)] tracking-wide">
                                 {isAdmin ? 'Administrator' : 'Manager'}
                             </p>
                         </div>
@@ -155,8 +155,8 @@ const Sidebar = () => {
             </nav>
 
             {/* Footer */}
-            <div className="p-6 border-t border-slate-800/50 bg-slate-900">
-                <p className="text-[10px] text-slate-600 text-center font-medium tracking-widest">WORKPULSE v1.0</p>
+            <div className="p-6 border-t border-[var(--border-color)]">
+                <p className="text-[10px] text-[var(--text-muted)] text-center font-medium tracking-widest uppercase">WORKPULSE v1.0</p>
             </div>
         </div>
     );

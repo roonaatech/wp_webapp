@@ -1,3 +1,107 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #f9fafb;
+    --header-bg: #ffffff;
+    --sidebar-bg: #1e293b;
+    --sidebar-text: #f8fafc;
+    --sidebar-muted: #cbd5e1;
+    --text-main: #111827;
+    --text-muted: #4b5563;
+    --border-color: #e5e7eb;
+    --nav-hover: rgba(255, 255, 255, 0.1);
+  }
+
+  [data-theme='dark'] {
+    --bg-primary: #0f172a;
+    --header-bg: #1e293b;
+    --sidebar-bg: #0f172a;
+    --sidebar-text: #f8fafc;
+    --sidebar-muted: #94a3b8;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #1e293b;
+    --nav-hover: #1e293b;
+  }
+
+  [data-theme='blue'] {
+    --bg-primary: #f0f7ff;
+    --header-bg: #1e40af;
+    --sidebar-bg: #1e3a8a;
+    --sidebar-text: #ffffff;
+    --sidebar-muted: #bfdbfe;
+    --text-main: #ffffff;
+    --text-muted: #bfdbfe;
+    --border-color: #3b82f6;
+    --nav-hover: #2563eb;
+  }
+
+  [data-theme='green'] {
+    --bg-primary: #f0fdf4;
+    --header-bg: #166534;
+    --sidebar-bg: #064e1e;
+    --sidebar-text: #ffffff;
+    --sidebar-muted: #bbf7d0;
+    --text-main: #ffffff;
+    --text-muted: #bbf7d0;
+    --border-color: #22c55e;
+    --nav-hover: #15803d;
+  }
+
+  [data-theme='purple'] {
+    --bg-primary: #faf5ff;
+    --header-bg: #6b21a8;
+    --sidebar-bg: #4c1d95;
+    --sidebar-text: #ffffff;
+    --sidebar-muted: #e9d5ff;
+    --text-main: #ffffff;
+    --text-muted: #e9d5ff;
+    --border-color: #a855f7;
+    --nav-hover: #7e22ce;
+  }
+
+  [data-theme='orange'] {
+    --bg-primary: #fffaf0;
+    --header-bg: #c2410c;
+    --sidebar-bg: #9a3412;
+    --sidebar-text: #ffffff;
+    --sidebar-muted: #fed7aa;
+    --text-main: #ffffff;
+    --text-muted: #fed7aa;
+    --border-color: #f97316;
+    --nav-hover: #ea580c;
+  }
+
+  [data-theme='rose'] {
+    --bg-primary: #fff1f2;
+    --header-bg: #be123c;
+    --sidebar-bg: #881337;
+    --sidebar-text: #ffffff;
+    --sidebar-muted: #fecdd3;
+    --text-main: #ffffff;
+    --text-muted: #fecdd3;
+    --border-color: #f43f5e;
+    --nav-hover: #e11d48;
+  }
+
+  [data-theme='teal'] {
+    --bg-primary: #f0fdfa;
+    --header-bg: #0f766e;
+    --sidebar-bg: #134e4a;
+    --sidebar-text: #ffffff;
+    --sidebar-muted: #99f6e4;
+    --text-main: #ffffff;
+    --text-muted: #99f6e4;
+    --border-color: #14b8a6;
+    --nav-hover: #0d9488;
+  }
+}
+
+body {
+  @apply transition-colors duration-300;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -16,21 +16,34 @@ import LeaveTypes from './pages/LeaveTypes';
 import Calendar from './pages/Calendar';
 import ActiveOnDuty from './pages/ActiveOnDuty';
 
-const ProtectedLayout = ({ children }) => (
-  <ProtectedRoute>
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-auto">
-          <div className="p-8">
-            {children}
-          </div>
-        </main>
+const ProtectedLayout = ({ children }) => {
+  const [theme, setTheme] = useState(() => localStorage.getItem('workpulse-theme') || 'default');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('workpulse-theme', theme);
+  }, [theme]);
+
+  const handleThemeChange = (newTheme) => {
+    setTheme(newTheme);
+  };
+
+  return (
+    <ProtectedRoute>
+      <div className="flex h-screen bg-transparent transition-colors duration-300">
+        <Sidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Header onThemeChange={handleThemeChange} currentTheme={theme} />
+          <main className="flex-1 overflow-auto">
+            <div className="p-8">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
-  </ProtectedRoute>
-);
+    </ProtectedRoute>
+  );
+};
 
 function App() {
   return (
