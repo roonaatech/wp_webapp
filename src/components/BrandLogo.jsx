@@ -12,7 +12,16 @@ const BrandLogo = ({ className = "h-10", showText = true, iconSize = "w-12 h-12"
                             <stop offset="100%" style={{ stopColor: '#8B5CF6' }} />
                         </linearGradient>
                     </defs>
+                    {/* Circle Border */}
                     <circle cx="50" cy="50" r="45" fill="none" stroke="url(#logoGradient)" strokeWidth="8" />
+
+                    {/* Calendar Icon (Behind Pulse) */}
+                    <rect x="32" y="32" width="36" height="36" rx="4" fill="none" stroke="url(#logoGradient)" strokeWidth="3" opacity="0.5" />
+                    <line x1="32" y1="42" x2="68" y2="42" stroke="url(#logoGradient)" strokeWidth="3" opacity="0.5" />
+                    <line x1="40" y1="28" x2="40" y2="34" stroke="url(#logoGradient)" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
+                    <line x1="60" y1="28" x2="60" y2="34" stroke="url(#logoGradient)" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
+
+                    {/* Pulse (Foreground) */}
                     <path
                         d="M25 50 L40 50 L45 35 L55 65 L60 50 L75 50"
                         fill="none"
@@ -21,7 +30,6 @@ const BrandLogo = ({ className = "h-10", showText = true, iconSize = "w-12 h-12"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                     />
-                    <circle cx="50" cy="50" r="3" fill="#3B82F6" />
                 </svg>
             </div>
 
