@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { LuClock, LuCheck, LuX, LuChevronDown, LuChevronUp, LuSearch, LuFilter, LuArrowUpDown } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 
@@ -68,6 +69,15 @@ const Approvals = () => {
         isLeave: false
     });
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    const getStatusColor = (status = statusFilter) => {
+        switch (status) {
+            case 'Pending': return 'amber';
+            case 'Approved': return 'emerald';
+            case 'Rejected': return 'rose';
+            default: return 'blue';
+        }
+    };
 
     useEffect(() => {
         fetchApprovals(1);
@@ -524,22 +534,22 @@ const Approvals = () => {
         const endIdx = Math.min((currentPage - 1) * pageSize + currentTypeItems, totalCount);
 
         return (
-            <div className="mt-4 flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
-                <div className="text-sm text-gray-600">
-                    Showing {startIdx} to {endIdx} of {totalCount} {type === 'leave' ? 'leave' : 'on-duty'} entries
+            <div className="mt-4 flex items-center justify-between bg-[var(--header-bg)] p-3 rounded-xl border border-[var(--border-color)]">
+                <div className="text-sm text-[var(--text-muted)] font-medium">
+                    Showing <span className="text-[var(--text-main)] font-bold">{startIdx}</span> to <span className="text-[var(--text-main)] font-bold">{endIdx}</span> of <span className="text-[var(--text-main)] font-bold">{totalCount}</span> {type === 'leave' ? 'leave' : 'on-duty'} entries
                 </div>
                 <div className="flex gap-2">
                     <button
                         onClick={() => fetchApprovals(Math.max(1, currentPage - 1))}
                         disabled={currentPage === 1}
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-4 py-2 border border-[var(--border-color)] text-[var(--text-main)] rounded-lg text-sm font-bold hover:bg-[var(--bg-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     >
                         ← Previous
                     </button>
                     <button
                         onClick={() => fetchApprovals(Math.min(totalPages, currentPage + 1))}
                         disabled={currentPage === totalPages}
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-4 py-2 border border-[var(--border-color)] text-[var(--text-main)] rounded-lg text-sm font-bold hover:bg-[var(--bg-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     >
                         Next →
                     </button>
@@ -552,7 +562,7 @@ const Approvals = () => {
                         localStorage.setItem('approvalsRowsPerPage', newRowsPerPage);
                         fetchApprovals(1);
                     }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm bg-[var(--bg-primary)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
                 >
                     <option value={5}>5 per page</option>
                     <option value={10}>10 per page</option>
@@ -566,31 +576,48 @@ const Approvals = () => {
 
 
     return (
-        <div className="p-6 font-sans">
+        <div className="p-6 font-sans min-h-screen bg-[var(--bg-primary)] transition-colors duration-300">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Approvals & Requests</h1>
-                    <p className="text-gray-600 mt-1">Manage {statusFilter.toLowerCase()} leave and on-duty requests</p>
+                    <h1 className="text-3xl font-bold text-[var(--text-main)]">Approvals & Requests</h1>
+                    <p className="text-[var(--text-muted)] mt-1">Manage {statusFilter.toLowerCase()} leave and on-duty requests</p>
                 </div>
 
                 {/* Status Tabs */}
-                <div className="bg-gray-100 p-1 rounded-lg inline-flex">
-                    {['Pending', 'Approved', 'Rejected'].map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => {
-                                setStatusFilter(tab);
-                                setExpandedSections({ leave: true, onDuty: false });
-                            }}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${statusFilter === tab
-                                ? 'bg-white text-[#2E5090] shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            {tab}
-                        </button>
-                    ))}
+                <div className="bg-transparent p-1 inline-flex gap-4">
+                    {[
+                        { id: 'Pending', icon: <LuClock />, color: 'amber' },
+                        { id: 'Approved', icon: <LuCheck />, color: 'emerald' },
+                        { id: 'Rejected', icon: <LuX />, color: 'rose' }
+                    ].map((tab) => {
+                        const isActive = statusFilter === tab.id;
+                        const colorClasses = {
+                            amber: isActive 
+                                ? 'bg-transparent text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 shadow-sm' 
+                                : 'text-gray-400 dark:text-gray-500 hover:text-amber-600 border border-transparent',
+                            emerald: isActive 
+                                ? 'bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 shadow-sm' 
+                                : 'text-gray-400 dark:text-gray-500 hover:text-emerald-600 border border-transparent',
+                            rose: isActive 
+                                ? 'bg-transparent text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 shadow-sm' 
+                                : 'text-gray-400 dark:text-gray-500 hover:text-rose-600 border border-transparent'
+                        };
+
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => {
+                                    setStatusFilter(tab.id);
+                                    setExpandedSections({ leave: true, onDuty: false });
+                                }}
+                                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black transition-all duration-300 ${colorClasses[tab.color]}`}
+                            >
+                                <span className="text-xl">{tab.icon}</span>
+                                {tab.id}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -607,22 +634,22 @@ const Approvals = () => {
             ) : (
                 <div className="space-y-6">
                     {/* Section Switcher & Filters */}
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[var(--header-bg)] p-4 rounded-xl shadow-sm border border-[var(--border-color)]">
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setExpandedSections({ leave: true, onDuty: false })}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${expandedSections.leave
-                                    ? 'bg-[#2E5090] text-white border-[#2E5090]'
-                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.leave
+                                    ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
+                                    : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
                                     }`}
                             >
                                 Leave Requests ({leaveApprovals.length})
                             </button>
                             <button
                                 onClick={() => setExpandedSections({ leave: false, onDuty: true })}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${expandedSections.onDuty
-                                    ? 'bg-[#2E5090] text-white border-[#2E5090]'
-                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.onDuty
+                                    ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
+                                    : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
                                     }`}
                             >
                                 On-Duty Requests ({onDutyApprovals.length})
@@ -634,7 +661,7 @@ const Approvals = () => {
                                 <select
                                     value={leaveTypeFilter}
                                     onChange={(e) => setLeaveTypeFilter(e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                                    className="px-3 py-2 border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-main)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
                                     {getUniqueLeaveTypes().map(type => (
                                         <option key={type} value={type}>{type === 'All' ? 'All Types' : type}</option>
@@ -644,7 +671,7 @@ const Approvals = () => {
                             <select
                                 value={nameFilter}
                                 onChange={(e) => setNameFilter(e.target.value)}
-                                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                                className="px-3 py-2 border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-main)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                                 {getUniqueNames().map(name => (
                                     <option key={name} value={name}>{name === 'All' ? 'All Employees' : name}</option>
@@ -657,14 +684,14 @@ const Approvals = () => {
                                     <button
                                         onClick={() => handleBulkAction('approved')}
                                         disabled={bulkProcessing}
-                                        className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                                        className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 shadow-lg shadow-emerald-500/20"
                                     >
                                         Approve ({selectedItems.size})
                                     </button>
                                     <button
                                         onClick={() => handleBulkAction('rejected')}
                                         disabled={bulkProcessing}
-                                        className="px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                                        className="px-3 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700 disabled:opacity-50 shadow-lg shadow-rose-500/20"
                                     >
                                         Reject ({selectedItems.size})
                                     </button>
@@ -674,11 +701,11 @@ const Approvals = () => {
                     </div>
 
                     {/* Main Table */}
-                    <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+                    <div className="bg-[var(--header-bg)] rounded-xl shadow-lg overflow-hidden border border-[var(--border-color)]">
                         {expandedSections.leave ? (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#2E5090]">
+                                    <thead className="bg-[#2E5090] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
                                                 <th className="px-6 py-3 w-10">
@@ -819,7 +846,7 @@ const Approvals = () => {
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#2E5090]">
+                                    <thead className="bg-[#2E5090] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
                                                 <th className="px-6 py-3 w-10">
