@@ -35,8 +35,13 @@ export const setupAxiosInterceptors = (navigate) => {
             const status = error.response?.status;
             const message = error.response?.data?.message?.toLowerCase() || '';
 
-            // Check for authentication/authorization errors
             if (status === 401 || status === 403) {
+                // DON'T redirect if this is a login request
+                const isLoginRequest = error.config?.url?.includes('auth/signin');
+                if (isLoginRequest) {
+                    return Promise.reject(error);
+                }
+
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;
@@ -86,8 +91,13 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
             const status = error.response?.status;
             const message = error.response?.data?.message?.toLowerCase() || '';
 
-            // Check for authentication/authorization errors
             if (status === 401 || status === 403) {
+                // DON'T redirect if this is a login request
+                const isLoginRequest = error.config?.url?.includes('auth/signin');
+                if (isLoginRequest) {
+                    return Promise.reject(error);
+                }
+
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;

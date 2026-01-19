@@ -14,65 +14,65 @@ import ModernLoader from '../components/ModernLoader';
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
 const Dashboard = () => {
-                // Approve/Reject API call for pending approvals
-                const performStatusUpdate = async (item, status, isLeave, rejectionReason = null) => {
-                    const itemKey = `${isLeave ? 'leave' : 'onduty'}-${item.id}-${status}`;
-                    setProcessingId(itemKey);
-                    try {
-                        const token = localStorage.getItem('token');
-                        if (!token) {
-                            setModalError('No authentication token found.');
-                            setProcessingId(null);
-                            return;
-                        }
+    // Approve/Reject API call for pending approvals
+    const performStatusUpdate = async (item, status, isLeave, rejectionReason = null) => {
+        const itemKey = `${isLeave ? 'leave' : 'onduty'}-${item.id}-${status}`;
+        setProcessingId(itemKey);
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                setModalError('No authentication token found.');
+                setProcessingId(null);
+                return;
+            }
 
-                        const endpoint = isLeave
-                            ? `${API_BASE_URL}/api/leave/${item.id}/status`
-                            : `${API_BASE_URL}/api/onduty/${item.id}/status`;
+            const endpoint = isLeave
+                ? `${API_BASE_URL}/api/leave/${item.id}/status`
+                : `${API_BASE_URL}/api/onduty/${item.id}/status`;
 
-                        let statusStr = 'Pending';
-                        if (status === 'approved') statusStr = 'Approved';
-                        else if (status === 'rejected') statusStr = 'Rejected';
+            let statusStr = 'Pending';
+            if (status === 'approved') statusStr = 'Approved';
+            else if (status === 'rejected') statusStr = 'Rejected';
 
-                        const requestBody = { status: statusStr };
-                        if (statusStr === 'Rejected' && rejectionReason) {
-                            requestBody.rejection_reason = rejectionReason;
-                        }
+            const requestBody = { status: statusStr };
+            if (statusStr === 'Rejected' && rejectionReason) {
+                requestBody.rejection_reason = rejectionReason;
+            }
 
-                        await axios.put(endpoint, requestBody, { headers: { 'x-access-token': token } });
+            await axios.put(endpoint, requestBody, { headers: { 'x-access-token': token } });
 
-                        // Remove from local state
-                        setPendingApprovals(prev => prev.filter(a => a.id !== item.id));
+            // Remove from local state
+            setPendingApprovals(prev => prev.filter(a => a.id !== item.id));
 
-                        // Close modals
-                        setApproveModal({ show: false, item: null, isLeave: false });
-                        setRejectModal({ show: false, item: null, isLeave: false, reason: '' });
-                        setModalError('');
+            // Close modals
+            setApproveModal({ show: false, item: null, isLeave: false });
+            setRejectModal({ show: false, item: null, isLeave: false, reason: '' });
+            setModalError('');
 
-                        // Optionally, refresh stats
-                        fetchDashboardStats();
-                    } catch (error) {
-                        console.error('Error updating status:', error);
-                        setModalError(error.response?.data?.message || 'Failed to update request');
-                    } finally {
-                        setProcessingId(null);
-                    }
-                };
-            // Show approve modal for quick approve
-            const handleApprove = (item, isLeave) => {
-                setApproveModal({ show: true, item, isLeave });
-                setModalError('');
-            };
-            // Show reject modal for quick reject
-            const handleReject = (item, isLeave) => {
-                setRejectModal({ show: true, item, isLeave, reason: '' });
-                setModalError('');
-            };
-        // Modal state for approve/reject actions
-        const [approveModal, setApproveModal] = useState({ show: false, item: null, isLeave: false });
-        const [rejectModal, setRejectModal] = useState({ show: false, item: null, isLeave: false, reason: '' });
-        const [modalError, setModalError] = useState('');
-        const [processingId, setProcessingId] = useState(null);
+            // Optionally, refresh stats
+            fetchDashboardStats();
+        } catch (error) {
+            console.error('Error updating status:', error);
+            setModalError(error.response?.data?.message || 'Failed to update request');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+    // Show approve modal for quick approve
+    const handleApprove = (item, isLeave) => {
+        setApproveModal({ show: true, item, isLeave });
+        setModalError('');
+    };
+    // Show reject modal for quick reject
+    const handleReject = (item, isLeave) => {
+        setRejectModal({ show: true, item, isLeave, reason: '' });
+        setModalError('');
+    };
+    // Modal state for approve/reject actions
+    const [approveModal, setApproveModal] = useState({ show: false, item: null, isLeave: false });
+    const [rejectModal, setRejectModal] = useState({ show: false, item: null, isLeave: false, reason: '' });
+    const [modalError, setModalError] = useState('');
+    const [processingId, setProcessingId] = useState(null);
     const [stats, setStats] = useState({
         pendingLeaves: 0,
         approvedLeaves: 0,
@@ -108,7 +108,7 @@ const Dashboard = () => {
             if (!token) {
                 return;
             }
-            
+
             const url = `${API_BASE_URL}/api/admin/dashboard/daily-trend?days=${days}`;
             const response = await axios.get(url, {
                 headers: { 'x-access-token': token }
@@ -133,7 +133,7 @@ const Dashboard = () => {
             const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard/stats`, {
                 headers: { 'x-access-token': token }
             });
-            
+
             // Ensure all values are numbers, default to 0
             const cleanedData = {
                 pendingLeaves: Number(response.data.pendingLeaves) || 0,
@@ -145,7 +145,7 @@ const Dashboard = () => {
                 activeOnDuty: Number(response.data.activeOnDuty) || 0
             };
             setStats(cleanedData);
-            
+
             // Fetch real trend data from backend
             fetchTrendData(trendDuration);
         } catch (error) {
@@ -165,7 +165,7 @@ const Dashboard = () => {
             }
 
             const response = await axios.get(
-                `${API_BASE_URL}/api/leave/requests?status=Pending&page=1&limit=5`, 
+                `${API_BASE_URL}/api/leave/requests?status=Pending&page=1&limit=5`,
                 { headers: { 'x-access-token': token } }
             );
 
@@ -218,7 +218,7 @@ const Dashboard = () => {
     const generateTrendData = (statsData, days = 7) => {
         const today = new Date();
         const trendDays = [];
-        
+
         // Generate dates for the selected duration in DD/MM/YY format
         for (let i = days - 1; i >= 0; i--) {
             const date = new Date(today);
@@ -229,39 +229,39 @@ const Dashboard = () => {
             const dateStr = `${day}/${month}/${year}`;
             trendDays.push(dateStr);
         }
-        
+
         const trends = [];
         const totalApprovalsLeaves = statsData.approvedLeaves || 0;
         const totalApprovalsOnDuty = statsData.approvedOnDuty || 0;
         const totalApprovals = totalApprovalsLeaves + totalApprovalsOnDuty;
-        
+
         // Only create actual data points - no mock data for future dates
         // Limit to actual days with data
         const dataPoints = Math.min(days, 7); // Show max 7 days or less if selected fewer
-        
+
         // Distribute approved items evenly across available data points
         let baseLeaves = totalApprovals > 0 ? Math.floor(totalApprovalsLeaves / dataPoints) : 0;
         let baseOnDuty = totalApprovals > 0 ? Math.floor(totalApprovalsOnDuty / dataPoints) : 0;
-        
+
         let totalDistributedLeaves = 0;
         let totalDistributedOnDuty = 0;
-        
+
         for (let i = 0; i < days; i++) {
             if (i < dataPoints && totalApprovals > 0) {
                 // Actual data points
                 const variance = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
                 let dailyLeaves = Math.max(0, baseLeaves + variance);
                 let dailyOnDuty = Math.max(0, baseOnDuty + variance);
-                
+
                 // On the last data point, ensure we reach the total
                 if (i === dataPoints - 1) {
                     dailyLeaves = Math.max(0, totalApprovalsLeaves - totalDistributedLeaves);
                     dailyOnDuty = Math.max(0, totalApprovalsOnDuty - totalDistributedOnDuty);
                 }
-                
+
                 totalDistributedLeaves += dailyLeaves;
                 totalDistributedOnDuty += dailyOnDuty;
-                
+
                 trends.push({
                     day: trendDays[i],
                     leaves: dailyLeaves,
@@ -278,20 +278,32 @@ const Dashboard = () => {
                 });
             }
         }
-        
+
         return trends;
     };
 
-    const StatCard = ({ title, value, icon, color, footer }) => (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <div className="flex items-start justify-between">
-                <div>
-                    <p className="text-gray-500 text-sm font-medium">{title}</p>
-                    <p className={`text-4xl font-bold mt-2 ${color}`}>{value}</p>
-                    {footer && <p className="text-gray-400 text-xs mt-2">{footer}</p>}
-                </div>
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl bg-gray-50`}>
-                    {icon}
+    const StatCard = ({ title, value, icon, color, footer, gradient }) => (
+        <div className={`relative overflow-hidden bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group`}>
+            {/* Background Decorative Gradient Circle */}
+            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 group-hover:scale-150 transition-transform duration-700 ${gradient}`}></div>
+
+            <div className="flex items-start justify-between relative z-10">
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm ${gradient} text-white`}>
+                            {icon}
+                        </div>
+                        <p className="text-gray-500 text-sm font-semibold tracking-wide uppercase">{title}</p>
+                    </div>
+                    <div>
+                        <p className={`text-4xl font-black ${color} tracking-tight`}>{value}</p>
+                        {footer && (
+                            <div className="flex items-center gap-1.5 mt-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                                <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">{footer}</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -313,7 +325,7 @@ const Dashboard = () => {
         labels: ['Pending', 'Approved', 'Rejected'],
         datasets: [{
             data: [stats.pendingLeaves, stats.approvedLeaves, stats.rejectedLeaves],
-            backgroundColor: ['#2E5090', '#8FA3D1', '#C1272D'],
+            backgroundColor: ['#f59e0b', '#10b981', '#ef4444'],
             borderColor: '#fff',
             borderWidth: 3,
             hoverBorderWidth: 4,
@@ -325,7 +337,7 @@ const Dashboard = () => {
         labels: ['Active', 'Pending', 'Approved', 'Rejected'],
         datasets: [{
             data: [stats.activeOnDuty, stats.pendingOnDuty, stats.approvedOnDuty, stats.rejectedOnDuty],
-            backgroundColor: ['#2E5090', '#8FA3D1', '#C1272D', '#E8E8E8'],
+            backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444'],
             borderColor: '#fff',
             borderWidth: 3,
             hoverBorderWidth: 4,
@@ -342,24 +354,26 @@ const Dashboard = () => {
                 labels: {
                     usePointStyle: true,
                     padding: 20,
-                    font: { size: 12, weight: '500' },
-                    color: '#374151'
+                    font: { size: 12, weight: '600' },
+                    color: '#4B5563'
                 }
             },
             tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 10,
+                backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                padding: 12,
+                cornerRadius: 12,
                 titleFont: { size: 13, weight: 'bold' },
                 bodyFont: { size: 12 },
                 callbacks: {
-                    label: function(context) {
+                    label: function (context) {
                         const label = context.label || '';
                         const value = context.parsed || 0;
-                        return label + ': ' + value;
+                        return `  ${label}: ${value}`;
                     }
                 }
             }
-        }
+        },
+        cutout: '70%'
     };
 
     // Prepare chart data - filter out zero values
@@ -392,16 +406,18 @@ const Dashboard = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 py-8 relative">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">On-Duty and Leave Dashboard</h1>
-                    <p className="text-gray-600 mt-1">Overview of leave and on-duty management system.</p>
+        <div className="min-h-screen bg-[#F8FAFC]">
+            <div className="max-w-7xl mx-auto px-6 py-10 relative">
+                <div className="mb-10">
+                    <h1 className="text-4xl font-black text-gray-900 tracking-tight">Dashboard Overview</h1>
+                    <p className="text-gray-500 mt-2 text-lg font-medium">Real-time attendance and leave insights.</p>
                 </div>
 
                 {error && (
-                    <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                        <p className="text-red-800 font-medium">⚠️ {error}</p>
+                    <div className="mb-8 bg-red-50 border-l-4 border-red-500 rounded-r-2xl p-4 shadow-sm">
+                        <p className="text-red-800 font-semibold flex items-center gap-2">
+                            <span className="text-xl">⚠️</span> {error}
+                        </p>
                     </div>
                 )}
 
@@ -410,292 +426,289 @@ const Dashboard = () => {
                 ) : (
                     <div className={`transition-all duration-300 ${(approveModal.show || rejectModal.show) ? 'blur-sm' : ''}`}>
                         <>
-                        {/* Pending Approvals Section - Highlighted at Top (only shown if there are pending approvals) */}
-                        {!pendingApprovalsLoading && pendingApprovals.length > 0 && (
-                        <div className="mb-8 relative rounded-2xl overflow-visible flex flex-col md:flex-row items-stretch bg-orange-50/80 backdrop-blur-lg border border-orange-300/60 shadow-xl ring-2 ring-orange-400/20 animate-fadeInUp min-h-0" style={{boxShadow: '0 8px 32px 0 rgba(251, 146, 60, 0.18)'}}>
-                            {/* Glassmorphism floating accent bar */}
-                            <div className="absolute left-0 top-0 h-full w-2 bg-gradient-to-b from-orange-500 via-orange-400 to-red-400 rounded-l-2xl animate-pulse"></div>
-                            {/* Icon and header */}
-                            <div className="flex flex-col justify-center py-2 md:py-0 pl-8 pr-0 md:pl-8 md:pr-0 z-10 min-w-[180px] min-h-0 h-auto">
-                                <h2 className="text-xl font-extrabold text-orange-800 tracking-tight drop-shadow mb-1 text-left">Pending Approvals</h2>
-                                <div className="flex justify-start mt-2 mb-2 w-full">
-                                    <Link 
-                                        to="/approvals" 
-                                        className="px-6 py-2 bg-gradient-to-r from-orange-500 to-red-400 text-white rounded-full font-semibold text-sm shadow hover:from-orange-600 hover:to-red-500 transition-all"
-                                    >
-                                        View All →
-                                    </Link>
-                                </div>
-                            </div>
-                            {/* Horizontal scrollable row of pending approvals with arrows */}
-                            <div className="flex-1 flex items-center px-4 py-2 md:py-0 md:px-8 relative overflow-x-hidden">
-                                <button
-                                    type="button"
-                                    className="absolute left-2 z-20 bg-transparent hover:bg-transparent text-red-600 w-10 h-10 flex items-center justify-center focus:outline-none transition-all duration-200"
-                                    style={{top: '50%', transform: 'translateY(-50%)'}}
-                                    onClick={() => {
-                                        const container = document.getElementById('pending-approvals-scroll');
-                                        if (container) container.scrollBy({ left: -320, behavior: 'smooth' });
-                                    }}
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 32 32" className="w-8 h-8">
-                                        <circle cx="16" cy="16" r="14" stroke="red" strokeWidth="2" fill="none"/>
-                                        <path d="M20 25L12 16L20 7" stroke="red" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                </button>
-                                <div
-                                    id="pending-approvals-scroll"
-                                    className="flex gap-6 px-2 md:px-6 lg:px-10 hide-scrollbar"
-                                    style={{overflowX: 'auto', overflowY: 'hidden', scrollBehavior: 'smooth', minWidth: 0}}
-                                >
-                                    {pendingApprovals.map((item, idx) => (
-                                        <div
-                                            key={item.id}
-                                            className="bg-white/95 rounded-2xl border border-orange-300/60 shadow-lg px-6 py-4 my-2 hover:scale-[1.02] hover:shadow-2xl transition-all duration-200 relative overflow-hidden group min-h-[70px] min-w-[180px] max-w-[260px] w-fit flex-shrink-0 flex flex-col justify-start items-start text-left"
-                                            style={{backdropFilter: 'blur(8px)', borderColor: '#fdba74'}}>
-                                            {/* Animated accent dot */}
-                                            <span className="absolute top-4 right-4 w-3.5 h-3.5 rounded-full bg-gradient-to-br from-orange-400 to-red-400 animate-pulse"></span>
-                                            <div className="flex items-center mb-2">
-                                                <h3
-                                                    className={`text-xs mb-1 font-semibold rounded px-1 py-0.5 max-w-[200px] overflow-x-auto whitespace-nowrap ${item.type === 'leave' ? 'text-blue-700 bg-blue-100/70' : 'text-purple-700 bg-purple-100/70'}`}
-                                                    title={item.name}
-                                                    style={{wordBreak: 'normal'}}
-                                                >
-                                                    {item.name}
-                                                </h3>
-                                            </div>
-                                            <p className="text-xs text-orange-700 mb-1 font-normal whitespace-nowrap leading-tight bg-orange-50/60 rounded px-1 py-0.5 max-w-[200px] overflow-x-auto" title={item.title} style={{wordBreak: 'normal'}}>{item.title}</p>
-                                            <p className="text-xs text-orange-400">
-                                                {new Date(item.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                            </p>
-                                            <div className="flex-1"></div>
-                                            <div className="flex gap-2 mt-3 w-full justify-end">
-                                                <button
-                                                    className="p-0.5 rounded bg-green-500 hover:bg-green-600 text-white shadow transition-colors flex items-center justify-center min-w-0 min-h-0 h-7 w-7 pointer-events-auto"
-                                                    title="Approve"
-                                                    type="button"
-                                                    style={{maxWidth:'28px',maxHeight:'28px'}}
-                                                    onClick={e => { e.stopPropagation(); handleApprove(item, item.type === 'leave'); }}
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    className="p-0.5 rounded bg-red-500 hover:bg-red-600 text-white shadow transition-colors flex items-center justify-center min-w-0 min-h-0 h-7 w-7 pointer-events-auto"
-                                                    title="Reject"
-                                                    type="button"
-                                                    style={{maxWidth:'28px',maxHeight:'28px'}}
-                                                    onClick={e => { e.stopPropagation(); handleReject(item, item.type === 'leave'); }}
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                            <Link
-                                                to="/approvals"
-                                                className="absolute inset-0 z-0 pointer-events-none"
-                                                tabIndex={-1}
-                                                aria-label="View approval details"
-                                            />
+                            {/* Pending Approvals Section */}
+                            {!pendingApprovalsLoading && pendingApprovals.length > 0 && (
+                                <div className="mb-12 relative rounded-[2.5rem] overflow-hidden flex flex-col md:flex-row items-stretch bg-white border border-gray-100 shadow-2xl animate-fadeInUp min-h-0">
+                                    {/* Left Side Info Panel */}
+                                    <div className="bg-gradient-to-br from-orange-500 to-red-500 p-10 flex flex-col justify-center min-w-[280px]">
+                                        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-3xl mb-6 backdrop-blur-md border border-white/30 shadow-inner">
+                                            ⚡
                                         </div>
-                                    ))}
-                                </div>
-                                <button
-                                    type="button"
-                                    className="absolute right-2 z-20 bg-transparent hover:bg-transparent text-red-600 w-10 h-10 flex items-center justify-center focus:outline-none transition-all duration-200"
-                                    style={{top: '50%', transform: 'translateY(-50%)'}}
-                                    onClick={() => {
-                                        const container = document.getElementById('pending-approvals-scroll');
-                                        if (container) container.scrollBy({ left: 320, behavior: 'smooth' });
-                                    }}
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 32 32" className="w-8 h-8">
-                                        <circle cx="16" cy="16" r="14" stroke="red" strokeWidth="2" fill="none"/>
-                                        <path d="M12 7L20 16L12 25" stroke="red" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                </button>
-
-                            </div>
-                        </div>
-                        )}
-
-                        {/* Summary Section */}
-                        <div className="mb-8">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4">Summary</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <StatCard
-                                title="Total Leave Requests"
-                                value={stats.pendingLeaves + stats.approvedLeaves + stats.rejectedLeaves}
-                                icon="📄"
-                                color="text-blue-600"
-                                footer="All leave requests"
-                            />
-                            <StatCard
-                                title="Total On-Duty Logs"
-                                value={stats.pendingOnDuty + stats.approvedOnDuty + stats.rejectedOnDuty + stats.activeOnDuty}
-                                icon="📍"
-                                color="text-purple-600"
-                                footer="All on-duty logs"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Leave Section */}
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-4">Leave Requests</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <StatCard
-                                title="Pending Leaves"
-                                value={stats.pendingLeaves}
-                                icon="⏳"
-                                color="text-orange-600"
-                                footer="Requires Attention"
-                            />
-                            <StatCard
-                                title="Approved Leaves"
-                                value={stats.approvedLeaves}
-                                icon="✅"
-                                color="text-green-600"
-                                footer="Total approved"
-                            />
-                            <StatCard
-                                title="Rejected Leaves"
-                                value={stats.rejectedLeaves}
-                                icon="❌"
-                                color="text-red-600"
-                                footer="Total rejected"
-                            />
-                        </div>
-                    </div>
-
-                    {/* On-Duty Section */}
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-4">On-Duty Logs</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <StatCard
-                                title="Active On-Duty"
-                                value={stats.activeOnDuty}
-                                icon="🟢"
-                                color="text-blue-600"
-                                footer="Currently active"
-                            />
-                            <StatCard
-                                title="Pending On-Duty"
-                                value={stats.pendingOnDuty}
-                                icon="⏳"
-                                color="text-orange-600"
-                                footer="Awaiting approval"
-                            />
-                            <StatCard
-                                title="Approved On-Duty"
-                                value={stats.approvedOnDuty}
-                                icon="✔️"
-                                color="text-green-600"
-                                footer="Total approved"
-                            />
-                            <StatCard
-                                title="Rejected On-Duty"
-                                value={stats.rejectedOnDuty}
-                                icon="❌"
-                                color="text-red-600"
-                                footer="Total rejected"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Charts Section */}
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h2>
-                        
-                        {/* Trend Bar Chart (Recharts) */}
-                        <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-lg font-bold text-gray-900">Daily Approval Trend</h3>
-                                <div className="flex gap-2">
-                                    {[7, 14, 30].map((days) => (
-                                        <button
-                                            key={days}
-                                            onClick={() => setTrendDuration(days)}
-                                            disabled={trendLoading}
-                                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                                                trendDuration === days
-                                                    ? 'bg-blue-700 text-white'
-                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                            } ${trendLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        <h2 className="text-2xl font-black text-white leading-tight mb-2">Pending Actions</h2>
+                                        <p className="text-orange-100 text-sm font-medium mb-8 leading-relaxed opacity-90">Quickly review and manage urgent employee requests.</p>
+                                        <Link
+                                            to="/approvals"
+                                            className="inline-flex items-center justify-center px-6 py-3 bg-white text-orange-600 rounded-2xl font-bold text-sm shadow-xl hover:scale-105 transition-transform"
                                         >
-                                            {days}d
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-4">Shows the number of leave and on-duty approvals for each day. Select 7d, 14d, or 30d to view trends over different time periods.</p>
-                            <div className="relative w-full h-96">
-                                {trendLoading && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-lg z-10">
-                                        <ModernLoader />
+                                            View All Requests
+                                        </Link>
                                     </div>
-                                )}
-                                <ResponsiveContainer width="100%" height={400}>
-                                    <BarChart data={trendBarChartData} margin={{ top: 20, right: 30, left: 0, bottom: 40 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                        <XAxis 
-                                            dataKey="day" 
-                                            stroke="#6b7280" 
-                                            style={{ fontSize: '12px' }}
-                                            label={{ value: 'Day', position: 'insideBottomRight', offset: -10 }}
-                                        />
-                                        <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                            cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
-                                            formatter={(value, name) => {
-                                                const nameMap = { leaves: 'Leave Approvals', onDuty: 'On-Duty Approvals' };
-                                                return [value, nameMap[name] || name];
+
+                                    {/* Scrollable Requests Panel */}
+                                    <div className="flex-1 flex items-center px-10 py-10 relative bg-gray-50/50">
+                                        <button
+                                            type="button"
+                                            className="absolute left-4 z-20 w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-500 hover:scale-110 transition-all focus:outline-none"
+                                            onClick={() => {
+                                                const container = document.getElementById('pending-approvals-scroll');
+                                                if (container) container.scrollBy({ left: -350, behavior: 'smooth' });
                                             }}
-                                        />
-                                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                        <Bar dataKey="leaves" fill="#10b981" radius={[8, 8, 0, 0]} name="Leave Approvals" />
-                                        <Bar dataKey="onDuty" fill="#3b82f6" radius={[8, 8, 0, 0]} name="On-Duty Approvals" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-6 h-6">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                                            </svg>
+                                        </button>
 
-                        {/* Doughnut Charts Grid (Chart.js) */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                            {/* Leave Distribution Doughnut Chart */}
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                <h3 className="text-lg font-bold text-gray-900 mb-2">Leave Request Distribution</h3>
-                                <p className="text-sm text-gray-600 mb-4">Breakdown of all leave requests by status - shows how many are pending, approved, or rejected.</p>
-                                <div style={{ height: '350px', position: 'relative' }}>
-                                    <Doughnut data={leaveDoughnutData} options={doughnutOptions} />
+                                        <div
+                                            id="pending-approvals-scroll"
+                                            className="flex gap-8 px-6 hide-scrollbar overflow-x-auto scroll-smooth"
+                                            style={{ overflowY: 'hidden' }}
+                                        >
+                                            {pendingApprovals.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="bg-white rounded-[2rem] border border-gray-100 shadow-xl px-7 py-8 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 relative group min-w-[260px] max-w-[280px] flex-shrink-0 flex flex-col"
+                                                >
+                                                    <div className="flex justify-between items-start mb-6">
+                                                        <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${item.type === 'leave' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-purple-50 text-purple-600 border border-purple-100'}`}>
+                                                            {item.type}
+                                                        </div>
+                                                        <div className="text-[11px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
+                                                            {new Date(item.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        </div>
+                                                    </div>
+
+                                                    <h3 className="text-lg font-black text-gray-900 leading-tight mb-2 line-clamp-1">{item.name}</h3>
+                                                    <p className="text-gray-500 text-sm font-medium line-clamp-2 mb-8 leading-relaxed italic">"{item.title}"</p>
+
+                                                    <div className="mt-auto flex gap-3">
+                                                        <button
+                                                            onClick={() => handleApprove(item, item.type === 'leave')}
+                                                            className="flex-1 py-3 bg-green-500 text-white rounded-2xl font-bold text-xs shadow-lg shadow-green-100 hover:bg-green-600 hover:scale-105 transition-all flex items-center justify-center"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleReject(item, item.type === 'leave')}
+                                                            className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl font-bold flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            className="absolute right-4 z-20 w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-500 hover:scale-110 transition-all focus:outline-none"
+                                            onClick={() => {
+                                                const container = document.getElementById('pending-approvals-scroll');
+                                                if (container) container.scrollBy({ left: 350, behavior: 'smooth' });
+                                            }}
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-6 h-6">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Summary Section */}
+                            <div className="mb-12">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-2 h-8 bg-blue-600 rounded-full"></div>
+                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">System Summary</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <StatCard
+                                        title="Total Leave Requests"
+                                        value={stats.pendingLeaves + stats.approvedLeaves + stats.rejectedLeaves}
+                                        icon="📄"
+                                        color="text-blue-600"
+                                        footer="Engagement overview"
+                                        gradient="bg-gradient-to-br from-blue-500 to-indigo-600"
+                                    />
+                                    <StatCard
+                                        title="Total On-Duty Logs"
+                                        value={stats.pendingOnDuty + stats.approvedOnDuty + stats.rejectedOnDuty + stats.activeOnDuty}
+                                        icon="📍"
+                                        color="text-purple-600"
+                                        footer="Operational overview"
+                                        gradient="bg-gradient-to-br from-purple-500 to-pink-600"
+                                    />
                                 </div>
                             </div>
 
-                            {/* On-Duty Distribution Doughnut Chart */}
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                <h3 className="text-lg font-bold text-gray-900 mb-2">On-Duty Distribution</h3>
-                                <p className="text-sm text-gray-600 mb-4">Breakdown of all on-duty logs by status - shows active, pending, approved, and rejected entries.</p>
-                                <div style={{ height: '350px', position: 'relative' }}>
-                                    <Doughnut data={onDutyDoughnutData} options={doughnutOptions} />
+                            {/* Leave Section */}
+                            <div className="mb-12">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-2 h-8 bg-orange-500 rounded-full"></div>
+                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">Leave Management</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <StatCard
+                                        title="Pending Review"
+                                        value={stats.pendingLeaves}
+                                        icon="⏳"
+                                        color="text-orange-600"
+                                        footer="Action Required"
+                                        gradient="bg-gradient-to-br from-orange-400 to-amber-500"
+                                    />
+                                    <StatCard
+                                        title="Success Rate"
+                                        value={stats.approvedLeaves}
+                                        icon="✨"
+                                        color="text-green-600"
+                                        footer="Total approved"
+                                        gradient="bg-gradient-to-br from-green-400 to-emerald-600"
+                                    />
+                                    <StatCard
+                                        title="Exceptions"
+                                        value={stats.rejectedLeaves}
+                                        icon="🚨"
+                                        color="text-red-600"
+                                        footer="Total rejected"
+                                        gradient="bg-gradient-to-br from-red-400 to-rose-600"
+                                    />
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Quick Actions */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-                        <Link to="/approvals" className="inline-block px-6 py-3 bg-blue-700 text-white rounded-lg font-medium hover:bg-blue-800 transition-colors">
-                            Go to All Approvals
-                        </Link>
-                    </div>
+                            {/* On-Duty Section */}
+                            <div className="mb-12">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-2 h-8 bg-blue-500 rounded-full"></div>
+                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">On-Duty Operations</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                                    <StatCard
+                                        title="Currently In Field"
+                                        value={stats.activeOnDuty}
+                                        icon="🛰️"
+                                        color="text-blue-600"
+                                        footer="Live active status"
+                                        gradient="bg-gradient-to-br from-blue-400 to-cyan-500"
+                                    />
+                                    <StatCard
+                                        title="Verification Queue"
+                                        value={stats.pendingOnDuty}
+                                        icon="🔎"
+                                        color="text-orange-600"
+                                        footer="Pending checks"
+                                        gradient="bg-gradient-to-br from-orange-400 to-amber-500"
+                                    />
+                                    <StatCard
+                                        title="Verified Tasks"
+                                        value={stats.approvedOnDuty}
+                                        icon="🛡️"
+                                        color="text-green-600"
+                                        footer="System confirmed"
+                                        gradient="bg-gradient-to-br from-green-400 to-emerald-600"
+                                    />
+                                    <StatCard
+                                        title="Declined Tasks"
+                                        value={stats.rejectedOnDuty}
+                                        icon="🚫"
+                                        color="text-red-600"
+                                        footer="Policy violation"
+                                        gradient="bg-gradient-to-br from-red-400 to-rose-600"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Charts Section */}
+                            <div className="mb-8">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h2>
+
+                                {/* Trend Bar Chart (Recharts) */}
+                                <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="text-lg font-bold text-gray-900">Daily Approval Trend</h3>
+                                        <div className="flex gap-2">
+                                            {[7, 14, 30].map((days) => (
+                                                <button
+                                                    key={days}
+                                                    onClick={() => setTrendDuration(days)}
+                                                    disabled={trendLoading}
+                                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${trendDuration === days
+                                                            ? 'bg-blue-700 text-white'
+                                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                        } ${trendLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                >
+                                                    {days}d
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mb-4">Shows the number of leave and on-duty approvals for each day. Select 7d, 14d, or 30d to view trends over different time periods.</p>
+                                    <div className="relative w-full h-96">
+                                        {trendLoading && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-lg z-10">
+                                                <ModernLoader />
+                                            </div>
+                                        )}
+                                        <ResponsiveContainer width="100%" height={400}>
+                                            <BarChart data={trendBarChartData} margin={{ top: 20, right: 30, left: 0, bottom: 40 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                                <XAxis
+                                                    dataKey="day"
+                                                    stroke="#6b7280"
+                                                    style={{ fontSize: '12px' }}
+                                                    label={{ value: 'Day', position: 'insideBottomRight', offset: -10 }}
+                                                />
+                                                <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
+                                                <Tooltip
+                                                    contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                                    cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
+                                                    formatter={(value, name) => {
+                                                        const nameMap = { leaves: 'Leave Approvals', onDuty: 'On-Duty Approvals' };
+                                                        return [value, nameMap[name] || name];
+                                                    }}
+                                                />
+                                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                                <Bar dataKey="leaves" fill="#10b981" radius={[8, 8, 0, 0]} name="Leave Approvals" />
+                                                <Bar dataKey="onDuty" fill="#3b82f6" radius={[8, 8, 0, 0]} name="On-Duty Approvals" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                {/* Doughnut Charts Grid (Chart.js) */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                                    {/* Leave Distribution Doughnut Chart */}
+                                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">Leave Request Distribution</h3>
+                                        <p className="text-sm text-gray-600 mb-4">Breakdown of all leave requests by status - shows how many are pending, approved, or rejected.</p>
+                                        <div style={{ height: '350px', position: 'relative' }}>
+                                            <Doughnut data={leaveDoughnutData} options={doughnutOptions} />
+                                        </div>
+                                    </div>
+
+                                    {/* On-Duty Distribution Doughnut Chart */}
+                                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">On-Duty Distribution</h3>
+                                        <p className="text-sm text-gray-600 mb-4">Breakdown of all on-duty logs by status - shows active, pending, approved, and rejected entries.</p>
+                                        <div style={{ height: '350px', position: 'relative' }}>
+                                            <Doughnut data={onDutyDoughnutData} options={doughnutOptions} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Quick Actions */}
+                            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+                                <Link to="/approvals" className="inline-block px-6 py-3 bg-blue-700 text-white rounded-lg font-medium hover:bg-blue-800 transition-colors">
+                                    Go to All Approvals
+                                </Link>
+                            </div>
                         </>
                     </div>
                 )}
-                
+
                 {/* Modals - Outside blurred content */}
                 {approveModal.show && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -738,7 +751,7 @@ const Dashboard = () => {
                         </div>
                     </div>
                 )}
-                
+
                 {rejectModal.show && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
