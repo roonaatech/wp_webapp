@@ -594,14 +594,14 @@ const Approvals = () => {
                         const isActive = statusFilter === tab.id;
                         const colorClasses = {
                             amber: isActive 
-                                ? 'bg-transparent text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 shadow-sm' 
-                                : 'text-gray-400 dark:text-gray-500 hover:text-amber-600 border border-transparent',
+                                ? 'text-amber-600 dark:text-amber-400 border-2 border-amber-400 dark:border-amber-400 shadow-md' 
+                                : 'text-gray-500 dark:text-gray-400 hover:text-amber-600 border-2 border-gray-200 dark:border-slate-700 hover:border-amber-200',
                             emerald: isActive 
-                                ? 'bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 shadow-sm' 
-                                : 'text-gray-400 dark:text-gray-500 hover:text-emerald-600 border border-transparent',
+                                ? 'text-emerald-600 dark:text-emerald-400 border-2 border-emerald-400 dark:border-emerald-400 shadow-md' 
+                                : 'text-gray-500 dark:text-gray-400 hover:text-emerald-600 border-2 border-gray-200 dark:border-slate-700 hover:border-emerald-200',
                             rose: isActive 
-                                ? 'bg-transparent text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 shadow-sm' 
-                                : 'text-gray-400 dark:text-gray-500 hover:text-rose-600 border border-transparent'
+                                ? 'text-rose-600 dark:text-rose-400 border-2 border-rose-400 dark:border-rose-400 shadow-md' 
+                                : 'text-gray-500 dark:text-gray-400 hover:text-rose-600 border-2 border-gray-200 dark:border-slate-700 hover:border-rose-200'
                         };
 
                         return (
