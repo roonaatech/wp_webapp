@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { 
+    LuLayoutDashboard, 
+    LuUsers, 
+    LuClipboardCheck, 
+    LuCar, 
+    LuCalendarDays, 
+    LuLayers, 
+    LuFileText, 
+    LuActivity 
+} from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
+import '../hide-scrollbar.css';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -64,21 +75,21 @@ const Sidebar = () => {
         <Link
             to={to}
             className={`
-                flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200
+                flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 mx-2
                 ${isActive(to)
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-md'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/20'
+                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
                 }
             `}
         >
             <span className="text-xl">{icon}</span>
-            <span className="font-medium flex-1">{label}</span>
+            <span className="font-medium flex-1 tracking-wide text-base">{label}</span>
             {badge !== undefined && badge > 0 && (
                 <span className={`
-                    px-2 py-1 rounded-full text-xs font-bold
+                    px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm
                     ${isActive(to)
-                        ? 'bg-red-500 text-white'
-                        : 'bg-red-500 text-white'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-rose-500 text-white'
                     }
                 `}>
                     {badge}
@@ -88,61 +99,64 @@ const Sidebar = () => {
     );
 
     return (
-        <div className="w-64 bg-gradient-to-b from-gray-900 to-gray-800 text-white min-h-screen shadow-xl flex flex-col">
-            <div className="p-6 border-b border-gray-700">
-                <Link to="/" className="hover:opacity-90 transition-opacity">
+        <div className="w-72 bg-slate-900 border-r border-slate-800/50 text-white min-h-screen shadow-2xl flex flex-col font-sans">
+            <div className="p-8 pb-6">
+                <Link to="/" className="hover:opacity-90 transition-opacity block">
                     <BrandLogo />
                 </Link>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-4 py-4 space-y-1">
+            <nav className="flex-1 px-2 space-y-6 overflow-y-auto hide-scrollbar py-4">
                 <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">Main</p>
-                    <NavLink to="/" icon="📊" label="Dashboard" />
+                    <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3">Overview</p>
+                    <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
                 </div>
 
                 <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2 mt-4">Management</p>
+                    <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Management</p>
                     {/* Users - Admin Only */}
                     {isAdmin && (
-                        <NavLink to="/users" icon="👥" label="Users" />
+                        <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
                     )}
                     {/* Approvals - Both Admin and Manager */}
-                    <NavLink to="/approvals" icon="✓" label="Approvals" badge={approvalsCount} />
+                    <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
                     {/* Active On-Duty - Both Admin and Manager */}
-                    <NavLink to="/active-onduty" icon="🚗" label="Active On-Duty" badge={activeOnDutyCount} />
+                    <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
                     {/* Calendar - Both Admin and Manager */}
-                    <NavLink to="/calendar" icon="📆" label="Calendar" />
+                    <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                     {/* Leave Types - Admin Only */}
                     {isAdmin && (
-                        <NavLink to="/leave-types" icon="📅" label="Leave Types" />
+                        <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
                     )}
                 </div>
 
                 <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2 mt-4">Other</p>
-                    <NavLink to="/reports" icon="📈" label="Reports" />
+                    <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Analysis</p>
+                    <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
                     {/* Activities - Admin Only */}
                     {isAdmin && (
-                        <NavLink to="/activities" icon="📋" label="Activities" />
+                        <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
                     )}
                 </div>
 
                 {/* Role Badge */}
-                <div className="mt-8 px-4">
-                    <div className="bg-gray-700 rounded-lg p-3">
-                        <p className="text-xs text-gray-400 mb-1">Current Role</p>
-                        <p className="text-sm font-semibold text-blue-500">
-                            {isAdmin ? '👑 Admin' : '🔐 Manager'}
-                        </p>
+                <div className="mt-4 px-6 mb-6">
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 backdrop-blur-sm">
+                        <p className="text-sm text-slate-400 mb-1 font-medium">Signed in as</p>
+                        <div className="flex items-center gap-2">
+                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                             <p className="text-base font-bold text-white tracking-wide">
+                                {isAdmin ? 'Administrator' : 'Manager'}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </nav>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-700">
-                <p className="text-xs text-gray-500 px-2 text-center">Version 1.0</p>
+            <div className="p-6 border-t border-slate-800/50 bg-slate-900">
+                <p className="text-[10px] text-slate-600 text-center font-medium tracking-widest">WORKPULSE v1.0</p>
             </div>
         </div>
     );
