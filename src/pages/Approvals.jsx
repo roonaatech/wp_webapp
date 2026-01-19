@@ -61,6 +61,11 @@ const Approvals = () => {
         confirmButtonColor: '',
         action: null
     });
+    const [detailsModal, setDetailsModal] = useState({
+        show: false,
+        item: null,
+        isLeave: false
+    });
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     useEffect(() => {
@@ -235,6 +240,14 @@ const Approvals = () => {
         } finally {
             setProcessingId(null);
         }
+    };
+
+    const handleOpenDetails = (item, isLeave) => {
+        setDetailsModal({
+            show: true,
+            item: item,
+            isLeave: isLeave
+        });
     };
 
     const handleSelectItem = (key) => {
@@ -663,9 +676,13 @@ const Approvals = () => {
                                     <tbody className="divide-y divide-gray-200">
                                         {sortedAndFilteredLeaveApprovals.length > 0 ? (
                                             sortedAndFilteredLeaveApprovals.map((req) => (
-                                                <tr key={`l-${req.id}`} className="hover:bg-gray-50 transition-colors">
+                                                <tr
+                                                    key={`l-${req.id}`}
+                                                    className="hover:bg-gray-50 transition-colors cursor-pointer group"
+                                                    onClick={() => handleOpenDetails(req, true)}
+                                                >
                                                     {statusFilter === 'Pending' && (
-                                                        <td className="px-6 py-4">
+                                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                                                             <input
                                                                 type="checkbox"
                                                                 checked={selectedItems.has(`leave-${req.id}`)}
@@ -711,7 +728,7 @@ const Approvals = () => {
                                                     {statusFilter === 'Rejected' && (
                                                         <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs">{req.rejection_reason || '-'}</td>
                                                     )}
-                                                    <td className="px-6 py-4 text-right">
+                                                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                                         {!isHistory ? (
                                                             <div className="flex justify-end gap-2">
                                                                 <button
@@ -795,9 +812,13 @@ const Approvals = () => {
                                     <tbody className="divide-y divide-gray-200">
                                         {sortedAndFilteredOnDutyApprovals.length > 0 ? (
                                             sortedAndFilteredOnDutyApprovals.map((req) => (
-                                                <tr key={`o-${req.id}`} className="hover:bg-gray-50 transition-colors">
+                                                <tr
+                                                    key={`o-${req.id}`}
+                                                    className="hover:bg-gray-50 transition-colors cursor-pointer group"
+                                                    onClick={() => handleOpenDetails(req, false)}
+                                                >
                                                     {statusFilter === 'Pending' && (
-                                                        <td className="px-6 py-4">
+                                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                                                             <input
                                                                 type="checkbox"
                                                                 checked={selectedItems.has(`onduty-${req.id}`)}
@@ -837,7 +858,7 @@ const Approvals = () => {
                                                     {statusFilter === 'Rejected' && (
                                                         <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs">{req.rejection_reason || '-'}</td>
                                                     )}
-                                                    <td className="px-6 py-4 text-right">
+                                                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                                         {!isHistory ? (
                                                             <div className="flex justify-end gap-2">
                                                                 <button
@@ -906,28 +927,33 @@ const Approvals = () => {
 
             {/* Rejection Reason Modal */}
             {rejectionModal.show && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-                        <div className="flex justify-between items-center p-6 border-b">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
+                        <div className="p-6 bg-[#2E5090] text-white flex justify-between items-center">
                             <h2 className="text-xl font-bold">Reject Request</h2>
-                            <button onClick={() => setRejectionModal({ ...rejectionModal, show: false })} className="text-gray-500 hover:text-gray-700">✕</button>
+                            <button onClick={() => setRejectionModal({ ...rejectionModal, show: false })} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">✕</button>
                         </div>
                         <div className="p-6">
-                            <p className="text-sm text-gray-600 mb-4">Please provide a reason for rejecting this request.</p>
+                            <p className="text-sm text-gray-500 font-medium mb-4">Please provide a formal reason for this rejection.</p>
                             <textarea
                                 value={rejectionModal.reason}
                                 onChange={(e) => setRejectionModal({ ...rejectionModal, reason: e.target.value, showError: false })}
-                                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${rejectionModal.showError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'}`}
-                                rows="3"
-                                placeholder="Reason..."
+                                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-all font-medium ${rejectionModal.showError ? 'border-red-500 focus:ring-red-500 bg-red-50/30' : 'border-gray-200 focus:ring-[#2E5090] bg-gray-50/30'}`}
+                                rows="4"
+                                placeholder="State the reason for rejection..."
                             />
                             {rejectionModal.showError && (
-                                <p className="text-red-500 text-xs mt-1 font-medium">Reason is Required</p>
+                                <p className="text-red-500 text-xs mt-2 font-bold flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+                                    </svg>
+                                    Justification is required for rejection.
+                                </p>
                             )}
                             <div className="flex justify-end gap-3 mt-6">
                                 <button
                                     onClick={() => setRejectionModal({ ...rejectionModal, show: false })}
-                                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                    className="px-6 py-2.5 text-gray-600 font-bold text-xs uppercase tracking-wider hover:bg-gray-100 rounded-lg transition-all"
                                 >
                                     Cancel
                                 </button>
@@ -940,9 +966,9 @@ const Approvals = () => {
                                         performStatusUpdate(rejectionModal.item, 'rejected', rejectionModal.isLeave, rejectionModal.reason);
                                         setRejectionModal({ ...rejectionModal, show: false, reason: '', showError: false });
                                     }}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                    className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md shadow-red-100"
                                 >
-                                    Reject Request
+                                    Confirm Rejection
                                 </button>
                             </div>
                         </div>
@@ -950,30 +976,35 @@ const Approvals = () => {
                 </div>
             )}
 
-            {/* Bulk Rejection Modal - Simplified */}
+            {/* Bulk Rejection Modal */}
             {bulkRejectionModal.show && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-                        <div className="flex justify-between items-center p-6 border-b">
-                            <h2 className="text-xl font-bold">Bulk Reject</h2>
-                            <button onClick={() => setBulkRejectionModal({ ...bulkRejectionModal, show: false })} className="text-gray-500 hover:text-gray-700">✕</button>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
+                        <div className="p-6 bg-[#2E5090] text-white flex justify-between items-center">
+                            <h2 className="text-xl font-bold">Bulk Rejection</h2>
+                            <button onClick={() => setBulkRejectionModal({ ...bulkRejectionModal, show: false })} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">✕</button>
                         </div>
                         <div className="p-6">
-                            <p className="text-sm text-gray-600 mb-4">Rejecting {selectedItems.size} items. Please provide a reason.</p>
+                            <p className="text-sm text-gray-500 font-medium mb-4">Provide a unified reason for rejecting all selected requests.</p>
                             <textarea
                                 value={bulkRejectionModal.reason}
                                 onChange={(e) => setBulkRejectionModal({ ...bulkRejectionModal, reason: e.target.value, showError: false })}
-                                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${bulkRejectionModal.showError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'}`}
-                                rows="3"
-                                placeholder="Reason..."
+                                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-all font-medium ${bulkRejectionModal.showError ? 'border-red-500 focus:ring-red-500 bg-red-50/30' : 'border-gray-200 focus:ring-[#2E5090] bg-gray-50/30'}`}
+                                rows="4"
+                                placeholder="Common justification for rejection..."
                             />
                             {bulkRejectionModal.showError && (
-                                <p className="text-red-500 text-xs mt-1 font-medium">Reason is Required</p>
+                                <p className="text-red-500 text-xs mt-2 font-bold flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+                                    </svg>
+                                    A reason is required for processing.
+                                </p>
                             )}
                             <div className="flex justify-end gap-3 mt-6">
                                 <button
                                     onClick={() => setBulkRejectionModal({ ...bulkRejectionModal, show: false })}
-                                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                    className="px-6 py-2.5 text-gray-600 font-bold text-xs uppercase tracking-wider hover:bg-gray-100 rounded-lg transition-all"
                                 >
                                     Cancel
                                 </button>
@@ -986,9 +1017,9 @@ const Approvals = () => {
                                         performBulkStatusUpdate('rejected', bulkRejectionModal.reason);
                                         setBulkRejectionModal({ ...bulkRejectionModal, show: false, reason: '', showError: false });
                                     }}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                    className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md"
                                 >
-                                    Confirm Rejection
+                                    Execute Rejection
                                 </button>
                             </div>
                         </div>
@@ -996,25 +1027,27 @@ const Approvals = () => {
                 </div>
             )}
 
-            {/* Edit Reason Modal - Simplified */}
+            {/* Edit Reason Modal */}
             {editReasonModal.show && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-                        <div className="flex justify-between items-center p-6 border-b">
-                            <h2 className="text-xl font-bold">Edit Reason</h2>
-                            <button onClick={() => setEditReasonModal({ ...editReasonModal, show: false })} className="text-gray-500 hover:text-gray-700">✕</button>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
+                        <div className="p-6 bg-[#2E5090] text-white flex justify-between items-center">
+                            <h2 className="text-xl font-bold">Amend Reason</h2>
+                            <button onClick={() => setEditReasonModal({ ...editReasonModal, show: false })} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">✕</button>
                         </div>
                         <div className="p-6">
+                            <p className="text-sm text-gray-500 font-medium mb-4">Modify the existing rejection reason for this record.</p>
                             <textarea
                                 value={editReasonModal.reason}
                                 onChange={(e) => setEditReasonModal({ ...editReasonModal, reason: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                rows="3"
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2E5090] bg-gray-50/30 font-medium"
+                                rows="4"
+                                placeholder="Updated justification..."
                             />
                             <div className="flex justify-end gap-3 mt-6">
                                 <button
                                     onClick={() => setEditReasonModal({ ...editReasonModal, show: false })}
-                                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                    className="px-6 py-2.5 text-gray-600 font-bold text-xs uppercase tracking-wider hover:bg-gray-100 rounded-lg transition-all"
                                 >
                                     Cancel
                                 </button>
@@ -1023,9 +1056,9 @@ const Approvals = () => {
                                         updateRejectionReason(editReasonModal.item, editReasonModal.isLeave, editReasonModal.reason);
                                         setEditReasonModal({ ...editReasonModal, show: false });
                                     }}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    className="px-6 py-2.5 bg-[#2E5090] text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-blue-800 transition-all shadow-md"
                                 >
-                                    Save Changes
+                                    Save Amendments
                                 </button>
                             </div>
                         </div>
@@ -1035,16 +1068,18 @@ const Approvals = () => {
 
             {/* Confirmation Modal */}
             {confirmationModal.show && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all">
-                        <div className="p-6">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">{confirmationModal.title}</h3>
-                            <p className="text-gray-600">{confirmationModal.message}</p>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
+                        <div className="p-6 bg-[#2E5090] text-white">
+                            <h3 className="text-xl font-bold">{confirmationModal.title}</h3>
                         </div>
-                        <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                        <div className="p-8">
+                            <p className="text-gray-600 font-medium leading-relaxed">{confirmationModal.message}</p>
+                        </div>
+                        <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
                             <button
                                 onClick={() => setConfirmationModal({ ...confirmationModal, show: false })}
-                                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                                className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-gray-100 transition-all shadow-sm"
                             >
                                 Cancel
                             </button>
@@ -1053,10 +1088,189 @@ const Approvals = () => {
                                     confirmationModal.action();
                                     setConfirmationModal({ ...confirmationModal, show: false });
                                 }}
-                                className={`px-4 py-2 text-white rounded-lg font-medium shadow-sm transition-colors ${confirmationModal.confirmButtonColor}`}
+                                className={`px-6 py-2.5 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all shadow-md ${confirmationModal.confirmButtonColor}`}
                             >
                                 {confirmationModal.confirmText}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Details Modal */}
+            {detailsModal.show && detailsModal.item && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn border border-gray-200">
+                        {/* Header Panel */}
+                        <div className="p-6 bg-[#2E5090] text-white relative">
+                            <button
+                                onClick={() => setDetailsModal({ ...detailsModal, show: false })}
+                                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl font-bold shadow-inner border border-white/20">
+                                    {detailsModal.isLeave ? '📄' : '📍'}
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold">Request Data Sheet</h2>
+                                    <p className="text-white/80 text-xs font-semibold tracking-wide">
+                                        {detailsModal.isLeave ? 'Leave Application Details' : 'On-Duty Transaction Details'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-4">
+                                <span className={`px-3 py-1 rounded-md text-[10px] font-bold tracking-wide border ${detailsModal.item.status === 'Approved' ? 'bg-green-500/20 border-green-400/30 text-green-100' :
+                                    detailsModal.item.status === 'Rejected' ? 'bg-red-500/20 border-red-400/30 text-red-100' :
+                                        'bg-orange-500/20 border-orange-400/30 text-orange-100'
+                                    }`}>
+                                    {detailsModal.item.status}
+                                </span>
+                                <span className="text-[10px] font-semibold text-white/70 tracking-wide">
+                                    System ID: {detailsModal.item.id}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Content Scrollable */}
+                        <div className="p-8 overflow-y-auto hide-scrollbar space-y-8">
+                            {/* Employee Header */}
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-full bg-[#2E5090]/10 flex items-center justify-center text-xl font-bold text-[#2E5090]">
+                                    {detailsModal.item.tblstaff?.firstname?.charAt(0)}
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-900">{detailsModal.item.tblstaff?.firstname} {detailsModal.item.tblstaff?.lastname}</h3>
+                                    <p className="text-sm text-gray-500 font-medium">Employee ID: {detailsModal.item.staff_id}</p>
+                                </div>
+                            </div>
+
+                            {/* Main Info Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 border-t border-b border-gray-100 py-8">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-[#2E5090] tracking-wide">Category Type</p>
+                                    <p className="text-base font-semibold text-gray-900">
+                                        {detailsModal.isLeave ? detailsModal.item.leave_type : detailsModal.item.client_name}
+                                    </p>
+                                    {!detailsModal.isLeave && (
+                                        <p className="text-sm text-[#2E5090] font-medium flex items-center gap-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                                <path fillRule="evenodd" d="m9.69 18.94.027.013a2.358 2.358 0 0 0 2.566-.013l.027-.013c.12-.058.214-.144.3-.23.111-.11.23-.235.343-.352l.006-.006c.928-.971 1.636-1.742 2.146-2.583.506-.833.76-1.614.76-2.345 0-2.433-2.029-4.409-4.528-4.409-2.5 0-4.528 1.976-4.528 4.409 0 .731.254 1.512.759 2.345.51.841 1.218 1.612 2.147 2.583l.006.006c.113.117.232.243.343.352.086.086.18.172.3.23ZM10 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+                                            </svg>
+                                            {detailsModal.item.location || 'Client Office'}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
+                                    <p className="text-base font-semibold text-gray-900">
+                                        {detailsModal.isLeave
+                                            ? `${calculateDaysOfLeave(detailsModal.item.start_date, detailsModal.item.end_date)} Session Day(s)`
+                                            : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time)
+                                        }
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective Start</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-base font-semibold text-gray-900">
+                                            {detailsModal.isLeave ? detailsModal.item.start_date : formatApprovalDate(detailsModal.item.start_time)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective End</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-base font-semibold text-gray-900">
+                                            {detailsModal.isLeave ? detailsModal.item.end_date : formatApprovalDate(detailsModal.item.end_time)}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Reason Section */}
+                            <div className="space-y-3">
+                                <p className="text-xs font-bold text-[#2E5090] tracking-wide">Applied Reason / Purpose</p>
+                                <div className="p-5 bg-gray-50 rounded-xl border border-gray-100 text-gray-700 leading-relaxed font-medium">
+                                    {detailsModal.isLeave ? detailsModal.item.reason : detailsModal.item.purpose || 'Task documentation provided.'}
+                                </div>
+                            </div>
+
+                            {/* Decision Trail */}
+                            {detailsModal.item.status !== 'Pending' && (
+                                <div className={`p-6 rounded-xl border ${detailsModal.item.status === 'Approved' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                                    }`}>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <p className={`text-xs font-bold tracking-wide mb-1 ${detailsModal.item.status === 'Approved' ? 'text-green-700' : 'text-red-700'
+                                                }`}>
+                                                Management Decision
+                                            </p>
+                                            <p className="text-sm font-semibold text-gray-900">
+                                                Processed by: {detailsModal.item.approver ? `${detailsModal.item.approver.firstname} ${detailsModal.item.approver.lastname}` : 'System Admin'}
+                                            </p>
+                                        </div>
+                                        <p className="text-[10px] font-bold text-gray-500 tracking-wide">
+                                            {formatApprovalDate(detailsModal.item.updatedAt)}
+                                        </p>
+                                    </div>
+                                    {detailsModal.item.status === 'Rejected' && (
+                                        <div className="pt-3 border-t border-red-100">
+                                            <span className="text-xs font-bold text-red-600 tracking-wide block mb-2">Rejection Justification:</span>
+                                            <p className="text-sm font-medium text-red-900 bg-white/50 p-3 rounded-lg border border-red-100 leading-relaxed">
+                                                {detailsModal.item.rejection_reason || 'No specific feedback provided by the approver.'}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Timestamps */}
+                            <div className="pt-4 flex justify-between text-[10px] font-bold text-gray-500 tracking-wide border-t border-gray-100">
+                                <span>Requested On: {formatApprovalDate(detailsModal.item.createdAt)}</span>
+                            </div>
+                        </div>
+
+                        {/* Footer Controls */}
+                        <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                            <div className="text-[10px] font-semibold text-gray-500 tracking-wide">
+                                Logged: {formatApprovalDate(detailsModal.item.createdAt)}
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setDetailsModal({ ...detailsModal, show: false })}
+                                    className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-gray-100 transition-all shadow-sm"
+                                >
+                                    Cancel
+                                </button>
+                                {detailsModal.item.status === 'Pending' && (
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setDetailsModal({ ...detailsModal, show: false });
+                                                handleUpdateStatus(detailsModal.item, 'rejected', detailsModal.isLeave);
+                                            }}
+                                            className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md"
+                                        >
+                                            Reject
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setDetailsModal({ ...detailsModal, show: false });
+                                                handleUpdateStatus(detailsModal.item, 'approved', detailsModal.isLeave);
+                                            }}
+                                            className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-green-700 transition-all shadow-md shadow-green-100"
+                                        >
+                                            Approve Request
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
