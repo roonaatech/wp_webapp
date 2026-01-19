@@ -143,10 +143,10 @@ const Sidebar = () => {
                 {/* Role Badge */}
                 <div className="mt-4 px-6 mb-6">
                     <div className="bg-white/10 dark:bg-slate-800/50 rounded-xl p-4 border border-[var(--border-color)] backdrop-blur-sm">
-                        <p className="text-sm text-[var(--text-muted)] mb-1 font-medium">Signed in as</p>
+                        <p className="text-sm text-[var(--sidebar-muted)] mb-1 font-medium">Signed in as</p>
                         <div className="flex items-center gap-2">
                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                             <p className="text-base font-bold text-[var(--text-main)] tracking-wide">
+                             <p className="text-base font-bold text-[var(--sidebar-text)] tracking-wide">
                                 {isAdmin ? 'Administrator' : 'Manager'}
                             </p>
                         </div>

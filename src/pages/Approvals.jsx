@@ -560,7 +560,6 @@ const Approvals = () => {
                         const newRowsPerPage = parseInt(e.target.value);
                         setRowsPerPage(newRowsPerPage);
                         localStorage.setItem('approvalsRowsPerPage', newRowsPerPage);
-                        fetchApprovals(1);
                     }}
                     className="px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm bg-[var(--bg-primary)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
                 >
@@ -643,7 +642,7 @@ const Approvals = () => {
                                     : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
                                     }`}
                             >
-                                Leave Requests ({leaveApprovals.length})
+                                Leave Requests ({pagination.leaveCount !== undefined ? pagination.leaveCount : leaveApprovals.length})
                             </button>
                             <button
                                 onClick={() => setExpandedSections({ leave: false, onDuty: true })}
@@ -652,7 +651,7 @@ const Approvals = () => {
                                     : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
                                     }`}
                             >
-                                On-Duty Requests ({onDutyApprovals.length})
+                                On-Duty Requests ({pagination.onDutyCount !== undefined ? pagination.onDutyCount : onDutyApprovals.length})
                             </button>
                         </div>
 
