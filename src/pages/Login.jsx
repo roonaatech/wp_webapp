@@ -149,13 +149,11 @@ const Login = () => {
 
                 </div>
 
-                {/* Secure Access Badge - Moved to very bottom */}
-                <div className="mt-auto flex items-center justify-center gap-4 py-8 animate-fade-in opacity-50 hover:opacity-100 transition-opacity">
-                    <div className="w-10 h-10 flex items-center justify-center text-xl">✅</div>
-                    <div className="text-left">
-                        <p className="text-gray-900 font-bold text-sm">Secure Access</p>
-                        <p className="text-gray-500 text-[10px] uppercase tracking-wider font-semibold">Multi-Factor Authenticated</p>
-                    </div>
+                {/* Copyright Info - Moved to very bottom */}
+                <div className="mt-auto flex items-center justify-center py-8 animate-fade-in opacity-60 hover:opacity-100 transition-opacity">
+                    <p className="text-gray-500 text-xs font-medium text-center">
+                        &copy; {new Date().getFullYear()} Roonaa Technologies India Private Limited
+                    </p>
                 </div>
             </div>
 
