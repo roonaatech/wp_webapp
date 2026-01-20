@@ -11,6 +11,7 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showInactiveModal, setShowInactiveModal] = useState(false);
+    const [showWelcomeModal, setShowWelcomeModal] = useState(false);
     const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, message: '' });
     const navigate = useNavigate();
 
@@ -22,8 +23,19 @@ const Login = () => {
             firstname: data.firstname,
             lastname: data.lastname,
             email: data.email,
-            role: data.role
+            role: data.role,
+            gender: data.gender // Include gender for validation
         };
+
+        // --- Role & Gender Validation (First Time / Setup Required) ---
+        // If role is missing (0/null) OR gender is missing (null/empty string)
+        if (!user.role || !user.gender) {
+            setShowWelcomeModal(true);
+            setLoading(false);
+            // DO NOT SAVE TOKEN - prevent login
+            return;
+        }
+        // -----------------------------------------------------------
 
         // Check if user has admin or manager role (role 1 or 2)
         if (user.role !== 1 && user.role !== 2) {
@@ -34,9 +46,10 @@ const Login = () => {
 
         localStorage.setItem('token', data.accessToken);
         localStorage.setItem('user', JSON.stringify(user));
+
         toast.success(`Welcome back, ${user.firstname}!`, {
             style: {
-                background: '#059669',
+                background: '#059669', // Green for standard login
                 color: '#fff'
             },
             icon: '👋'
@@ -236,6 +249,31 @@ const Login = () => {
                 </div>
 
             </div>
+
+            {/* Welcome / Setup Required Modal */}
+            {showWelcomeModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in">
+                        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <span className="text-4xl">👋</span>
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome to WorkPulse!</h3>
+                        <p className="text-gray-500 mb-8 leading-relaxed">
+                            We're excited to have you on board.
+                            <br /><br />
+                            Your profile setup is incomplete.
+                            <br />
+                            <span className="text-blue-600 font-semibold mt-2 block">Please contact your administrator to configure your account before you can log in.</span>
+                        </p>
+                        <button
+                            onClick={() => setShowWelcomeModal(false)}
+                            className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                        >
+                            Okay, Got it
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Modal remains same but styled for the new theme */}
             {showInactiveModal && (
