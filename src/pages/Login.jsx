@@ -11,7 +11,84 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showInactiveModal, setShowInactiveModal] = useState(false);
+    const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, message: '' });
     const navigate = useNavigate();
+
+    const processLoginSuccess = (data) => {
+        // Backend returns user data at root level, not nested under 'user'
+        const user = {
+            id: data.id,
+            staffid: data.staffid,
+            firstname: data.firstname,
+            lastname: data.lastname,
+            email: data.email,
+            role: data.role
+        };
+
+        // Check if user has admin or manager role (role 1 or 2)
+        if (user.role !== 1 && user.role !== 2) {
+            setError('Access denied. Only Admin and Manager roles can access this system.');
+            setLoading(false);
+            return;
+        }
+
+        localStorage.setItem('token', data.accessToken);
+        localStorage.setItem('user', JSON.stringify(user));
+        toast.success(`Welcome back, ${user.firstname}!`, {
+            style: {
+                background: '#059669',
+                color: '#fff'
+            },
+            icon: '👋'
+        });
+        navigate('/');
+    };
+
+    const handleConfirmLogin = async () => {
+        setConfirmationModal({ ...confirmationModal, isOpen: false });
+        setLoading(true);
+        
+        try {
+            // Retry with forceLocal flag
+            const retryResponse = await axios.post(`${API_BASE_URL}/api/auth/signin`, {
+                email,
+                password,
+                forceLocal: true
+            });
+            
+            if (retryResponse.data.accessToken) {
+                processLoginSuccess(retryResponse.data);
+            }
+        } catch (err) {
+            handleLoginError(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLoginError = (err) => {
+        console.error('Login error details:', {
+            status: err.response?.status,
+            data: err.response?.data,
+            message: err.message
+        });
+
+        let errorMsg = 'Login failed. Please try again.';
+        if (err.response?.status === 404) {
+            errorMsg = 'User not found. Please check your email.';
+        } else if (err.response?.status === 401) {
+            errorMsg = 'Invalid password.';
+        } else if (err.response?.status === 403) {
+            setShowInactiveModal(true);
+            errorMsg = 'Account is inactive.';
+        } else if (err.message === 'Network Error' || !err.response) {
+            errorMsg = 'Cannot connect to server. Please make sure the backend is running on port 3000.';
+        } else {
+            errorMsg = err.response?.data?.message || 'Login failed. Please try again.';
+        }
+        setError(errorMsg);
+        toast.error(errorMsg);
+    };
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -24,58 +101,20 @@ const Login = () => {
                 password
             });
 
-            if (response.data.accessToken) {
-                // Backend returns user data at root level, not nested under 'user'
-                const user = {
-                    id: response.data.id,
-                    staffid: response.data.staffid,
-                    firstname: response.data.firstname,
-                    lastname: response.data.lastname,
-                    email: response.data.email,
-                    role: response.data.role
-                };
-
-                // Check if user has admin or manager role (role 1 or 2)
-                if (user.role !== 1 && user.role !== 2) {
-                    setError('Access denied. Only Admin and Manager roles can access this system.');
-                    setLoading(false);
-                    return;
-                }
-
-                localStorage.setItem('token', response.data.accessToken);
-                localStorage.setItem('user', JSON.stringify(user));
-                toast.success(`Welcome back, ${user.firstname}!`, {
-                    style: {
-                        background: '#059669',
-                        color: '#fff'
-                    },
-                    icon: '👋'
+            if (response.data.requiresConfirmation) {
+                // Show custom confirmation modal
+                setConfirmationModal({
+                    isOpen: true,
+                    message: response.data.message
                 });
-                navigate('/');
+                setLoading(false);
+            } else if (response.data.accessToken) {
+                processLoginSuccess(response.data);
+            } else {
+                setLoading(false);
             }
         } catch (err) {
-            console.error('Login error details:', {
-                status: err.response?.status,
-                data: err.response?.data,
-                message: err.message
-            });
-
-            let errorMsg = 'Login failed. Please try again.';
-            if (err.response?.status === 404) {
-                errorMsg = 'User not found. Please check your email.';
-            } else if (err.response?.status === 401) {
-                errorMsg = 'Invalid password.';
-            } else if (err.response?.status === 403) {
-                setShowInactiveModal(true);
-                errorMsg = 'Account is inactive.';
-            } else if (err.message === 'Network Error' || !err.response) {
-                errorMsg = 'Cannot connect to server. Please make sure the backend is running on port 3000.';
-            } else {
-                errorMsg = err.response?.data?.message || 'Login failed. Please try again.';
-            }
-            setError(errorMsg);
-            toast.error(errorMsg);
-        } finally {
+            handleLoginError(err);
             setLoading(false);
         }
     };
@@ -201,9 +240,9 @@ const Login = () => {
             {/* Modal remains same but styled for the new theme */}
             {showInactiveModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all">
-                        <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <span className="text-5xl">🚫</span>
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in">
+                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <span className="text-4xl">🚫</span>
                         </div>
                         <h3 className="text-2xl font-bold text-gray-900 mb-2">Account Inactive</h3>
                         <p className="text-gray-500 mb-8 leading-relaxed">
@@ -213,7 +252,7 @@ const Login = () => {
                         </p>
                         <button
                             onClick={() => setShowInactiveModal(false)}
-                            className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold hover:bg-black transition-all"
+                            className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all transform hover:-translate-y-0.5 active:translate-y-0"
                         >
                             Close
                         </button>
@@ -221,7 +260,56 @@ const Login = () => {
                 </div>
             )}
 
+            {/* Confirmation Modal for Local Auth */}
+            {confirmationModal.isOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in">
+                        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <span className="text-4xl">🛡️</span>
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-4">Authentication Update</h3>
+                        
+                        <div className="text-gray-600 mb-8 leading-relaxed space-y-3 text-left bg-gray-50 p-4 rounded-xl">
+                            <p>
+                                We noticed a delay in reaching the primary directory server. This sometimes happens due to routine maintenance or network checks.
+                            </p>
+                            <p className="font-medium text-gray-800">
+                                Good news: You can still log in securely!
+                            </p>
+                            <p>
+                                Your local account is ready to go. Would you like to proceed with local sign-in to access your dashboard immediately?
+                            </p>
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => {
+                                    setConfirmationModal({ ...confirmationModal, isOpen: false });
+                                    setLoading(false);
+                                }}
+                                className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmLogin}
+                                className="flex-1 py-3.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-purple-200 hover:shadow-xl hover:shadow-purple-300 transform hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                            >
+                                Yes, Log Me In
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style jsx>{`
+                @keyframes modal-in {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+                .animate-modal-in {
+                    animation: modal-in 0.2s ease-out forwards;
+                }
                 @keyframes float {
                     0%, 100% { transform: translateY(0px); }
                     50% { transform: translateY(-20px); }
