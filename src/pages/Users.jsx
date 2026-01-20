@@ -165,7 +165,7 @@ const Users = () => {
             email: editUser.email,
             password: '',
             confirmPassword: '',
-            role: String(editUser.role),
+            role: editUser.role ? String(editUser.role) : '3', // Default to Employee (3) if role is missing/null
             approving_manager_id: editUser.approving_manager_id || '',
             gender: editUser.gender || ''
         });
