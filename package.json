@@ -13,6 +13,7 @@
     "autoprefixer": "^10.4.20",
     "axios": "^1.6.8",
     "chart.js": "^4.5.1",
+    "mermaid": "^11.12.2",
     "postcss": "^8.4.38",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.3.1",

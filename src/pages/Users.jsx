@@ -3,6 +3,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import MermaidChart from '../components/MermaidChart';
 
 const Users = () => {
     const [users, setUsers] = useState([]);
@@ -449,6 +450,83 @@ const Users = () => {
         }
     };
 
+    const generateOrgChart = (currentUser) => {
+        let definition = 'graph TD\n';
+        
+        // Define styles
+        definition += 'classDef current fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e40af;\n';
+        definition += 'classDef manager fill:#f3f4f6,stroke:#9ca3af,stroke-width:1px,color:#374151;\n';
+        definition += 'classDef reportee fill:#fff,stroke:#e5e7eb,stroke-width:1px,color:#4b5563;\n';
+
+        const safeId = (id) => `U${id}`;
+        const buildLabel = (u) => {
+             const role = getRoleName(u.role);
+             return `${u.firstname} ${u.lastname}<br/>(${role})`;
+        };
+
+        const addedNodes = new Set();
+        const addNode = (u, styleClass) => {
+            const id = u.staffid || u.id;
+            if (addedNodes.has(id)) return;
+            definition += `${safeId(id)}["${buildLabel(u)}"]:::${styleClass}\n`;
+            addedNodes.add(id);
+        };
+
+        const addEdge = (parent, child) => {
+             const pid = parent.staffid || parent.id;
+             const cid = child.staffid || child.id;
+             definition += `${safeId(pid)} --> ${safeId(cid)}\n`;
+        };
+
+        // 1. Ancestors (Upwards)
+        let ancestors = [];
+        let curr = currentUser;
+        const visitedAncestors = new Set([currentUser.staffid || currentUser.id]);
+
+        while (curr.approving_manager_id) {
+            const mgr = users.find(u => (u.staffid || u.id) === curr.approving_manager_id);
+            if (mgr && !visitedAncestors.has(mgr.staffid || mgr.id)) {
+                ancestors.unshift(mgr);
+                visitedAncestors.add(mgr.staffid || mgr.id);
+                curr = mgr;
+            } else {
+                break;
+            }
+        }
+
+        // Add Ancestors
+        ancestors.forEach((a, index) => {
+            addNode(a, 'manager');
+            // Edge to next ancestor or to current user
+            if (index < ancestors.length - 1) {
+                addEdge(a, ancestors[index + 1]);
+            } else {
+                addEdge(a, currentUser);
+            }
+        });
+
+        // Add Current User
+        addNode(currentUser, 'current');
+
+        // 2. Descendants (Downwards - Full Subtree)
+        const processDescendants = (parent) => {
+            const pid = parent.staffid || parent.id;
+            const children = users.filter(u => u.approving_manager_id === pid);
+            
+            children.forEach(child => {
+                addNode(child, 'reportee');
+                addEdge(parent, child);
+                processDescendants(child); // Recursive
+            });
+        };
+
+        processDescendants(currentUser);
+
+        return definition;
+    };
+
+
+
     // Show unauthorized page for non-admin users
     if (!isAdmin) {
         return (
@@ -750,16 +828,16 @@ const Users = () => {
                                                                 )}
                                                             </div>
 
-                                                            {/* Column 2: Empty / Future Content */}
+                                                            {/* Column 2: Org Structure */}
                                                             <div className="hidden lg:block border-l border-gray-200 pl-8">
-                                                                <div className="h-full flex flex-col justify-center items-center text-center p-6 rounded-xl bg-gray-50/50 border border-dashed border-gray-200 text-gray-400">
-                                                                    <div className="mb-2 p-3 bg-white rounded-full shadow-sm">
-                                                                        <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                        </svg>
+                                                                <div className="h-full flex flex-col">
+                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
+                                                                        <span className="w-1 h-4 bg-purple-600 rounded-full"></span>
+                                                                        Organization Structure
+                                                                    </h4>
+                                                                    <div className="flex-1 flex items-center justify-center bg-gray-50/50 rounded-xl overflow-hidden min-h-[200px] border border-gray-100">
+                                                                        <MermaidChart chart={generateOrgChart(u)} uniqueId={u.staffid} />
                                                                     </div>
-                                                                    <span className="text-sm font-medium">History & Analytics</span>
-                                                                    <span className="text-xs mt-1 opacity-70">Coming soon</span>
                                                                 </div>
                                                             </div>
                                                         </div>
