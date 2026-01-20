@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useLocation } from 'react-router-dom';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MermaidChart from '../components/MermaidChart';
@@ -9,9 +10,10 @@ const Users = () => {
     const [users, setUsers] = useState([]);
     const [managersAndAdmins, setManagersAndAdmins] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
+    const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive', 'incomplete'
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const location = useLocation();
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingUserId, setEditingUserId] = useState(null);
     const [expandedUserId, setExpandedUserId] = useState(null);
@@ -48,9 +50,15 @@ const Users = () => {
     const isAdmin = user.role === 1;
 
     useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const statusParam = params.get('status');
+        if (statusParam) {
+            setStatusFilter(statusParam);
+        }
+
         fetchUsers();
         fetchManagersAndAdmins();
-    }, []);
+    }, [location.search]);
 
     const fetchUsers = async () => {
         try {
@@ -425,9 +433,15 @@ const Users = () => {
         const matchesSearch = fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             u.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchesStatus = statusFilter === 'all' ? true :
-            statusFilter === 'active' ? u.active === 1 :
-                u.active === 0;
+        let matchesStatus = true;
+        if (statusFilter === 'active') {
+            matchesStatus = u.active === 1;
+        } else if (statusFilter === 'inactive') {
+            matchesStatus = u.active === 0;
+        } else if (statusFilter === 'incomplete') {
+            // Check for missing role (0 or null) or missing gender (null or empty)
+            matchesStatus = (!u.role || u.role === 0) || (!u.gender);
+        }
 
         return matchesSearch && matchesStatus;
     });
@@ -645,6 +659,16 @@ const Users = () => {
                         >
                             <div className="w-2 h-2 rounded-full bg-red-500"></div>
                             InActive
+                        </button>
+                        <button
+                            onClick={() => setStatusFilter('incomplete')}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${statusFilter === 'incomplete'
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                            Setup Required
                         </button>
                     </div>
                 </div>

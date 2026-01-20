@@ -99,17 +99,32 @@ const Dashboard = () => {
     const [trendDuration, setTrendDuration] = useState(7); // Default 7 days
     const [pendingApprovals, setPendingApprovals] = useState([]);
     const [pendingApprovalsLoading, setPendingApprovalsLoading] = useState(false);
+    const [incompleteProfiles, setIncompleteProfiles] = useState([]);
 
     useEffect(() => {
         console.log('Dashboard mounted');
         fetchDashboardStats();
         fetchPendingApprovals();
+        fetchIncompleteProfiles();
     }, []);
 
     useEffect(() => {
         // Fetch trend data when duration changes
         fetchTrendData(trendDuration);
     }, [trendDuration]);
+
+    const fetchIncompleteProfiles = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await axios.get(`${API_BASE_URL}/api/admin/incomplete-profiles`, {
+                headers: { 'x-access-token': token }
+            });
+            setIncompleteProfiles(response.data);
+        } catch (error) {
+            console.error('Error fetching incomplete profiles:', error);
+        }
+    };
 
     const fetchTrendData = async (days) => {
         try {
@@ -428,6 +443,30 @@ const Dashboard = () => {
                         <p className="text-red-800 font-semibold flex items-center gap-2">
                             <span className="text-xl">⚠️</span> {error}
                         </p>
+                    </div>
+                )}
+
+                {incompleteProfiles.length > 0 && (
+                    <div className="mb-8 bg-orange-50 border-l-4 border-orange-500 rounded-r-2xl p-6 shadow-sm transform transition-all hover:scale-[1.01] duration-300">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-xl font-bold text-orange-900 mb-2 flex items-center gap-2">
+                                    <span className="animate-pulse">●</span> Action Required: Incomplete Profiles
+                                </h3>
+                                <p className="text-orange-800 mb-4 font-medium">
+                                    {incompleteProfiles.length} active user(s) have not been assigned a Role or Gender. They will be unable to log in until this is resolved.
+                                </p>
+                                <Link 
+                                    to="/users?status=incomplete" 
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-white text-orange-600 rounded-lg font-bold shadow-sm border border-orange-100 hover:bg-orange-50 hover:shadow-md transition-all"
+                                >
+                                    Review & Update Profiles →
+                                </Link>
+                            </div>
+                            <div className="bg-orange-100 p-4 rounded-2xl shadow-inner">
+                                <span className="text-3xl">⚠️</span>
+                            </div>
+                        </div>
                     </div>
                 )}
 
