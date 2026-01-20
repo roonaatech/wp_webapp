@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import { calculateLeaveDays } from '../utils/dateUtils';
 
 const Reports = () => {
     const [reports, setReports] = useState([]);
@@ -351,9 +352,7 @@ const Reports = () => {
                         // Prepare summary line based on type
                         let summaryText = '';
                         if (isLeave) {
-                            const days = report.start_date && report.end_date
-                                ? Math.ceil((new Date(report.end_date) - new Date(report.start_date)) / (1000 * 60 * 60 * 24)) + 1
-                                : 0;
+                            const days = calculateLeaveDays(report.start_date, report.end_date);
                             summaryText = `${report.start_date} → ${report.end_date} (${days} days, ${report.leave_type || 'N/A'})`;
                         } else {
                             const startTime = report.check_in_time ? new Date(report.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
@@ -412,7 +411,7 @@ const Reports = () => {
                                                                 <p className="text-gray-500 font-medium">Days</p>
                                                                 <p className="text-gray-900">
                                                                     {report.start_date && report.end_date
-                                                                        ? Math.ceil((new Date(report.end_date) - new Date(report.start_date)) / (1000 * 60 * 60 * 24)) + 1
+                                                                        ? calculateLeaveDays(report.start_date, report.end_date)
                                                                         : 'N/A'}
                                                                 </p>
                                                             </div>

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { LuClock, LuCheck, LuX, LuChevronDown, LuChevronUp, LuSearch, LuFilter, LuArrowUpDown } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import { calculateLeaveDays } from '../utils/dateUtils';
 
 const Approvals = () => {
     const [leaveApprovals, setLeaveApprovals] = useState([]);
@@ -761,7 +762,7 @@ const Approvals = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-sm text-gray-600">
-                                                        {calculateDaysOfLeave(req.start_date, req.end_date)} Days
+                                                        {calculateLeaveDays(req.start_date, req.end_date)} Days
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <div className="text-sm text-gray-900">
@@ -1231,7 +1232,7 @@ const Approvals = () => {
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                     <p className="text-base font-semibold text-gray-900">
                                         {detailsModal.isLeave
-                                            ? `${calculateDaysOfLeave(detailsModal.item.start_date, detailsModal.item.end_date)} Session Day(s)`
+                                            ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date)} Session Day(s)`
                                             : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time)
                                         }
                                     </p>
@@ -1358,25 +1359,6 @@ const Approvals = () => {
     );
 };
 
-const calculateDaysOfLeave = (startDate, endDate) => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    let count = 0;
-    const current = new Date(start);
-
-    while (current <= end) {
-        // In JavaScript: Sunday = 0, Monday = 1, ..., Saturday = 6
-        // Exclude Sunday (0)
-        if (current.getDay() !== 0) {
-            count++;
-        }
-        current.setDate(current.getDate() + 1);
-    }
-
-    return count;
-};
 
 const calculateOnDutyDuration = (startTime, endTime) => {
     if (!startTime || !endTime) return 'In Progress';
