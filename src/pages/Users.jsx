@@ -678,51 +678,88 @@ const Users = () => {
 
                                         {/* Leave Balance Child Row */}
                                         {expandedUserId === u.staffid && (
-                                            <tr className="bg-blue-50 border-t border-blue-100">
-                                                <td colSpan="7" className="px-6 py-4">
+                                            <tr className="bg-slate-50 border-t border-slate-200 shadow-inner">
+                                                <td colSpan="7" className="px-6 py-6">
                                                     {loadingBalance[u.staffid] ? (
-                                                        <div className="flex items-center justify-center py-4">
-                                                            <ModernLoader size="sm" message="Loading leave balance..." />
+                                                        <div className="flex flex-col items-center justify-center py-8">
+                                                            <ModernLoader size="md" message="Loading leave balance..." />
                                                         </div>
                                                     ) : leaveBalances[u.staffid]?.error ? (
-                                                        <div className="text-red-600 text-sm">
-                                                            ⚠️ {leaveBalances[u.staffid].error}
+                                                        <div className="flex items-center justify-center p-6 bg-red-50 rounded-xl border border-red-100 text-red-600">
+                                                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                            <span className="font-medium">{leaveBalances[u.staffid].error}</span>
                                                         </div>
                                                     ) : (
-                                                        <div className="space-y-3">
-                                                            {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 && (
-                                                                <h4 className="font-semibold text-gray-900 mb-4">
-                                                                    Leave Balance (Total Available: <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-bold">{leaveBalances[u.staffid].leaveTypes.reduce((sum, l) => sum + l.balance, 0)}</span> days)
-                                                                </h4>
-                                                            )}
-                                                            <div className="overflow-x-auto">
-                                                                <div className="flex gap-4 min-w-min pb-2">
-                                                                    {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 ? (
-                                                                        leaveBalances[u.staffid].leaveTypes.map((leave) => (
-                                                                            <div key={leave.id} className="bg-white rounded-lg p-2 border border-blue-200 min-w-[120px] max-w-[140px]">
-                                                                                <div className="flex flex-row items-center justify-between mb-0.5">
-                                                                                    <div className="text-[10px] text-gray-600 font-medium">{leave.name}</div>
-                                                                                    <div className="text-lg font-bold text-blue-600">{leave.balance || 0}</div>
-                                                                                </div>
-                                                                                <div className="space-y-1 text-xs">
-                                                                                    <div className="border-t pt-1 flex flex-row gap-3 items-end">
-                                                                                        <div>
-                                                                                            <div className="text-[10px] text-gray-500">Total</div>
-                                                                                            <div className="font-semibold text-gray-900">{leave.total_days || 0}</div>
-                                                                                        </div>
-                                                                                        <div>
-                                                                                            <div className="text-[10px] text-gray-500">Availed</div>
-                                                                                            <div className="font-semibold text-orange-600">{leave.used || 0}</div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        ))
-                                                                    ) : (
-                                                                        <div className="text-gray-600 text-sm">
-                                                                            No leave types assigned
+                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                                            {/* Column 1: Leave Balance List */}
+                                                            <div>
+                                                                <div className="flex items-center justify-between mb-4">
+                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                                                                        <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
+                                                                        Leave Balances
+                                                                    </h4>
+                                                                    {leaveBalances[u.staffid]?.leaveTypes && (
+                                                                        <div className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded shadow-sm border border-gray-100">
+                                                                            Total Available: <span className="font-extrabold text-blue-600 ml-1">{leaveBalances[u.staffid].leaveTypes.reduce((sum, l) => sum + l.balance, 0)}</span>
                                                                         </div>
                                                                     )}
+                                                                </div>
+                                                                
+                                                                {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 ? (
+                                                                    <div className="space-y-3">
+                                                                        {leaveBalances[u.staffid].leaveTypes.map((leave) => {
+                                                                            const percentage = leave.total_days > 0 ? (leave.used / leave.total_days) * 100 : 0;
+                                                                            let progressColor = 'bg-green-500';
+                                                                            if (percentage > 50) progressColor = 'bg-yellow-500';
+                                                                            if (percentage > 80) progressColor = 'bg-orange-500';
+                                                                            if (percentage >= 100) progressColor = 'bg-red-500';
+
+                                                                            return (
+                                                                                <div key={leave.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                                                                                    {/* Left: Info & Progress */}
+                                                                                    <div className="flex-1 mr-4">
+                                                                                        <div className="flex justify-between items-end mb-1.5">
+                                                                                            <span className="font-bold text-gray-800 text-sm">{leave.name}</span>
+                                                                                            <span className="text-[10px] text-gray-400 font-medium">
+                                                                                                <span className="text-gray-600">{leave.used}</span> / {leave.total_days} Used
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                                                                            <div 
+                                                                                                className={`h-1.5 rounded-full ${progressColor} transition-all duration-500`} 
+                                                                                                style={{ width: `${Math.min(percentage, 100)}%` }}
+                                                                                            ></div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    
+                                                                                    {/* Right: Balance Circle */}
+                                                                                    <div className="flex flex-col items-center justify-center bg-blue-50 text-blue-700 w-10 h-10 rounded-lg border border-blue-100">
+                                                                                        <span className="text-sm font-bold leading-none">{leave.balance}</span>
+                                                                                        <span className="text-[9px] uppercase font-bold text-blue-400 mt-0.5">Left</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="text-center py-6 bg-white rounded-xl border border-dashed border-gray-300">
+                                                                        <p className="text-gray-500 text-xs">No leave types assigned.</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Column 2: Empty / Future Content */}
+                                                            <div className="hidden lg:block border-l border-gray-200 pl-8">
+                                                                <div className="h-full flex flex-col justify-center items-center text-center p-6 rounded-xl bg-gray-50/50 border border-dashed border-gray-200 text-gray-400">
+                                                                    <div className="mb-2 p-3 bg-white rounded-full shadow-sm">
+                                                                        <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                        </svg>
+                                                                    </div>
+                                                                    <span className="text-sm font-medium">History & Analytics</span>
+                                                                    <span className="text-xs mt-1 opacity-70">Coming soon</span>
                                                                 </div>
                                                             </div>
                                                         </div>
