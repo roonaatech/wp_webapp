@@ -8,9 +8,14 @@ import MermaidChart from '../components/MermaidChart';
 
 const Users = () => {
     const [users, setUsers] = useState([]);
+    const [allUsersRef, setAllUsersRef] = useState([]); // For Org Chart hierarchy
     const [managersAndAdmins, setManagersAndAdmins] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive', 'incomplete'
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalItems, setTotalItems] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const location = useLocation();
@@ -48,19 +53,41 @@ const Users = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = user.role === 1;
+    const isManager = user.role === 2;
+    const isAllowed = isAdmin || isManager;
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const statusParam = params.get('status');
-        if (statusParam) {
+        if (statusParam && statusParam !== statusFilter) {
             setStatusFilter(statusParam);
         }
-
-        fetchUsers();
-        fetchManagersAndAdmins();
     }, [location.search]);
 
-    const fetchUsers = async () => {
+    // Fetch Managers List (Once)
+    useEffect(() => {
+        if (isAllowed) {
+            fetchManagersAndAdmins();
+            fetchAllUsersForChart();
+        }
+    }, [isAllowed]);
+
+    // Reset page on filter change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, statusFilter, pageSize]);
+
+    // Fetch Users when params change
+    useEffect(() => {
+        if (isAllowed) {
+            const timeoutId = setTimeout(() => {
+                fetchUsers(currentPage);
+            }, 300); // Debounce
+            return () => clearTimeout(timeoutId);
+        }
+    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize]);
+
+    const fetchUsers = async (page) => {
         try {
             setLoading(true);
             setError(null);
@@ -69,10 +96,27 @@ const Users = () => {
                 setError('No authentication token found. Please login first.');
                 return;
             }
-            const response = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+            
+            const queryParams = new URLSearchParams({
+                page: page,
+                limit: pageSize,
+                search: searchTerm,
+                status: statusFilter
+            });
+
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users?${queryParams.toString()}`, {
                 headers: { 'x-access-token': token }
             });
-            setUsers(response.data);
+            
+            if (response.data.users) {
+                setUsers(response.data.users); // users is now the current page
+                setTotalPages(response.data.totalPages);
+                setTotalItems(response.data.totalItems);
+            } else {
+                setUsers(response.data);
+                setTotalPages(1);
+                setTotalItems(response.data.length);
+            }
         } catch (error) {
             console.error('Error fetching users:', error);
             setError(error.response?.data?.message || error.message || 'Failed to fetch users');
@@ -91,6 +135,21 @@ const Users = () => {
             setManagersAndAdmins(response.data);
         } catch (error) {
             console.error('Error fetching managers and admins:', error);
+        }
+    };
+
+    const fetchAllUsersForChart = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users?limit=all`, {
+                 headers: { 'x-access-token': token }
+            });
+            if (response.data.users) {
+                setAllUsersRef(response.data.users);
+            }
+        } catch (error) {
+            console.error('Error fetching all users for chart:', error);
         }
     };
 
@@ -428,23 +487,8 @@ const Users = () => {
         }
     };
 
-    const filteredUsers = users.filter(u => {
-        const fullName = u.firstname + ' ' + u.lastname;
-        const matchesSearch = fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            u.email.toLowerCase().includes(searchTerm.toLowerCase());
-
-        let matchesStatus = true;
-        if (statusFilter === 'active') {
-            matchesStatus = u.active === 1;
-        } else if (statusFilter === 'inactive') {
-            matchesStatus = u.active === 0;
-        } else if (statusFilter === 'incomplete') {
-            // Check for missing role (0 or null) or missing gender (null or empty)
-            matchesStatus = (!u.role || u.role === 0) || (!u.gender);
-        }
-
-        return matchesSearch && matchesStatus;
-    });
+    // Server-side filtering is active, so we just use the users array directly
+    const filteredUsers = users;
 
     const getRoleColor = (role) => {
         switch (role) {
@@ -471,6 +515,7 @@ const Users = () => {
         definition += 'classDef current fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e40af;\n';
         definition += 'classDef manager fill:#f3f4f6,stroke:#9ca3af,stroke-width:1px,color:#374151;\n';
         definition += 'classDef reportee fill:#fff,stroke:#e5e7eb,stroke-width:1px,color:#4b5563;\n';
+        definition += 'classDef admin fill:#fef2f2,stroke:#ef4444,stroke-width:1px,color:#991b1b;\n';
 
         const safeId = (id) => `U${id}`;
         const buildLabel = (u) => {
@@ -489,60 +534,78 @@ const Users = () => {
         const addEdge = (parent, child) => {
              const pid = parent.staffid || parent.id;
              const cid = child.staffid || child.id;
-             definition += `${safeId(pid)} --> ${safeId(cid)}\n`;
+             // Only add edge if both nodes are in our relevant set
+             if (addedNodes.has(pid) && addedNodes.has(cid)) {
+                definition += `${safeId(pid)} --> ${safeId(cid)}\n`;
+             }
         };
 
-        // 1. Ancestors (Upwards)
-        let ancestors = [];
+        // 1. Traverse Up (Ancestors)
         let curr = currentUser;
-        const visitedAncestors = new Set([currentUser.staffid || currentUser.id]);
+        const ancestors = [];
+        const visited = new Set(); // Avoid loops in bad data
+
+        // Helper to find user in any available list
+        const findUser = (id) => {
+            return allUsersRef.find(u => (u.staffid || u.id) === id) || 
+                   users.find(u => (u.staffid || u.id) === id) || 
+                   managersAndAdmins.find(u => (u.staffid || u.id) === id) ||
+                   ((user.staffid || user.id) === id ? user : null);
+        };
 
         while (curr.approving_manager_id) {
-            const mgr = users.find(u => (u.staffid || u.id) === curr.approving_manager_id);
-            if (mgr && !visitedAncestors.has(mgr.staffid || mgr.id)) {
-                ancestors.unshift(mgr);
-                visitedAncestors.add(mgr.staffid || mgr.id);
-                curr = mgr;
-            } else {
-                break;
-            }
+             const mgr = findUser(curr.approving_manager_id);
+             if (mgr && !visited.has(mgr.staffid || mgr.id)) {
+                 ancestors.unshift(mgr); // Add to beginning
+                 visited.add(mgr.staffid || mgr.id);
+                 curr = mgr;
+             } else {
+                 break;
+             }
         }
 
-        // Add Ancestors
-        ancestors.forEach((a, index) => {
-            addNode(a, 'manager');
-            // Edge to next ancestor or to current user
-            if (index < ancestors.length - 1) {
-                addEdge(a, ancestors[index + 1]);
-            } else {
-                addEdge(a, currentUser);
-            }
+        // Add Ancestors to Graph
+        ancestors.forEach(a => {
+            let style = 'manager';
+            if (a.role === 1) style = 'admin';
+            addNode(a, style);
         });
 
         // Add Current User
         addNode(currentUser, 'current');
 
-        // 2. Descendants (Downwards - Full Subtree)
+        // 2. Traverse Down (Descendants) - Recursive
         const processDescendants = (parent) => {
             const pid = parent.staffid || parent.id;
-            const children = users.filter(u => u.approving_manager_id === pid);
+            const sourceList = allUsersRef.length > 0 ? allUsersRef : users;
+            const directReports = sourceList.filter(u => u.approving_manager_id === pid);
             
-            children.forEach(child => {
+            directReports.forEach(child => {
                 addNode(child, 'reportee');
-                addEdge(parent, child);
-                processDescendants(child); // Recursive
+                processDescendants(child);
             });
         };
 
         processDescendants(currentUser);
+
+        // 3. Draw edges for all added nodes
+        const relevantUsers = [...allUsersRef, ...users, ...managersAndAdmins, user].filter(u => u && addedNodes.has(u.staffid || u.id));
+        relevantUsers.forEach(u => {
+             if (u.approving_manager_id) {
+                 const mgr = findUser(u.approving_manager_id);
+                 if (mgr) {
+                     addEdge(mgr, u);
+                 }
+             }
+        });
 
         return definition;
     };
 
 
 
-    // Show unauthorized page for non-admin users
-    if (!isAdmin) {
+    // Show unauthorized page for non-admin/non-manager users
+    if (!isAllowed) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
                 <div className="max-w-md w-full">
@@ -558,7 +621,7 @@ const Users = () => {
                         </h1>
 
                         <p className="text-gray-600 mb-6 leading-relaxed">
-                            You do not have permission to access the User Management page. This area is restricted to administrators only.
+                            You do not have permission to access the User Management page. This area is restricted to administrators and managers only.
                         </p>
 
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -592,7 +655,7 @@ const Users = () => {
                         <p className="text-gray-600 mt-1">
                             {isAdmin
                                 ? 'Manage all system users and their permissions'
-                                : 'Managers cannot access user management'}
+                                : 'View your team details and leave balances'}
                         </p>
                     </div>
                     {isAdmin && (
@@ -667,7 +730,7 @@ const Users = () => {
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                         >
-                            <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                            <span className={`w-2 h-2 rounded-full ${statusFilter === 'incomplete' ? 'bg-white' : 'bg-orange-500'}`}></span>
                             Setup Required
                         </button>
                     </div>
@@ -732,19 +795,21 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => handleToggleStatus(u)}
-                                                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${u.active ? 'bg-green-600' : 'bg-red-600'
-                                                            }`}
-                                                        role="switch"
-                                                        aria-checked={u.active}
-                                                    >
-                                                        <span
-                                                            aria-hidden="true"
-                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${u.active ? 'translate-x-5' : 'translate-x-0'
+                                                    {isAdmin && (
+                                                        <button
+                                                            onClick={() => handleToggleStatus(u)}
+                                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${u.active ? 'bg-green-600' : 'bg-red-600'
                                                                 }`}
-                                                        />
-                                                    </button>
+                                                            role="switch"
+                                                            aria-checked={u.active}
+                                                        >
+                                                            <span
+                                                                aria-hidden="true"
+                                                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${u.active ? 'translate-x-5' : 'translate-x-0'
+                                                                    }`}
+                                                            />
+                                                        </button>
+                                                    )}
                                                     <span className={`text-sm font-medium ${u.active ? 'text-green-600' : 'text-red-600'}`}>
                                                         {u.active ? 'Active' : 'InActive'}
                                                     </span>
@@ -752,17 +817,19 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => handleEditUserClick(u)}
-                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
-                                                        title="Edit user details"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                        </svg>
-                                                        <span>Edit</span>
-                                                    </button>
                                                     {isAdmin && (
+                                                        <button
+                                                            onClick={() => handleEditUserClick(u)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
+                                                            title="Edit user details"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                            </svg>
+                                                            <span>Edit</span>
+                                                        </button>
+                                                    )}
+                                                    {(isAdmin || isManager) && (
                                                         <button
                                                             onClick={() => handleResetPasswordClick(u)}
                                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow"
@@ -883,13 +950,51 @@ const Users = () => {
                 </div>
 
                 {/* Pagination */}
-                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-between">
-                    <p className="text-sm text-gray-600">
-                        Showing <span className="font-medium">{filteredUsers.length}</span> of <span className="font-medium">{users.length}</span> users
-                    </p>
-                    <div className="flex gap-2">
-                        <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 text-sm">Previous</button>
-                        <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 text-sm">Next</button>
+                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                         <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <span>Show</span>
+                            <select
+                                value={pageSize}
+                                onChange={(e) => {
+                                    setPageSize(Number(e.target.value));
+                                }}
+                                className="border border-gray-300 rounded text-sm py-1 px-2 focus:outline-none focus:border-blue-500 bg-white"
+                            >
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>per page</span>
+                        </div>
+                        <p className="text-sm text-gray-600 border-l border-gray-300 pl-4">
+                            Showing <span className="font-medium">{totalItems > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to <span className="font-medium">{Math.min(currentPage * pageSize, totalItems)}</span> of <span className="font-medium">{totalItems}</span> users
+                        </p>
+                    </div>
+
+                    <div className="flex gap-2 items-center">
+                        <button 
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className={`px-3 py-1 border border-gray-300 rounded text-sm transition-colors ${currentPage === 1 ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-700'}`}
+                        >
+                            Previous
+                        </button>
+                        <span className="text-sm text-gray-600 px-2 flex items-center gap-1">
+                            Page 
+                            <span className="font-medium text-gray-900">{currentPage}</span> 
+                            of 
+                            <span className="font-medium text-gray-900">{Math.max(totalPages, 1)}</span>
+                        </span>
+                        <button 
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage >= totalPages}
+                            className={`px-3 py-1 border border-gray-300 rounded text-sm transition-colors ${currentPage >= totalPages ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-700'}`}
+                        >
+                            Next
+                        </button>
                     </div>
                 </div>
             </div>

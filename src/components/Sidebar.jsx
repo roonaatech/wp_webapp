@@ -19,6 +19,7 @@ const Sidebar = () => {
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = user.role === 1;
+    const isManager = user.role === 2;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
 
@@ -115,8 +116,8 @@ const Sidebar = () => {
 
                 <div>
                     <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Management</p>
-                    {/* Users - Admin Only */}
-                    {isAdmin && (
+                    {/* Users - Admin & Manager */}
+                    {(isAdmin || isManager) && (
                         <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
                     )}
                     {/* Approvals - Both Admin and Manager */}
