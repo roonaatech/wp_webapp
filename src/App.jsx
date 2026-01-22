@@ -15,6 +15,7 @@ import Activities from './pages/Activities';
 import LeaveTypes from './pages/LeaveTypes';
 import Calendar from './pages/Calendar';
 import ActiveOnDuty from './pages/ActiveOnDuty';
+import ApkDistribution from './pages/ApkDistribution';
 
 const ProtectedLayout = ({ children }) => {
   const [theme, setTheme] = useState(() => localStorage.getItem('workpulse-theme') || 'default');
@@ -45,12 +46,20 @@ const ProtectedLayout = ({ children }) => {
   );
 };
 
+const PublicOrProtectedLayout = ({ children }) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    return <ProtectedLayout>{children}</ProtectedLayout>;
+  }
+  return children;
+};
+
 function App() {
   return (
     <Router>
       <AxiosInterceptorSetup>
-        <Toaster 
-          position="top-right" 
+        <Toaster
+          position="top-right"
           reverseOrder={false}
           toastOptions={{
             duration: 4000,
@@ -97,6 +106,7 @@ function App() {
           <Route path="/activities" element={<ProtectedLayout><Activities /></ProtectedLayout>} />
           <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
           <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
+          <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />

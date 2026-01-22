@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
+import { LuSmartphone } from "react-icons/lu";
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -60,7 +61,7 @@ const Login = () => {
     const handleConfirmLogin = async () => {
         setConfirmationModal({ ...confirmationModal, isOpen: false });
         setLoading(true);
-        
+
         try {
             // Retry with forceLocal flag
             const retryResponse = await axios.post(`${API_BASE_URL}/api/auth/signin`, {
@@ -68,7 +69,7 @@ const Login = () => {
                 password,
                 forceLocal: true
             });
-            
+
             if (retryResponse.data.accessToken) {
                 processLoginSuccess(retryResponse.data);
             }
@@ -201,6 +202,17 @@ const Login = () => {
 
                 </div>
 
+                {/* Mobile App Download Link */}
+                <div className="mt-4 text-center animate-fade-in">
+                    <Link
+                        to="/apk"
+                        className="inline-flex items-center gap-2 text-blue-600 font-semibold hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50"
+                    >
+                        <LuSmartphone size={20} />
+                        <span>Download Mobile App</span>
+                    </Link>
+                </div>
+
                 {/* Copyright Info - Moved to very bottom */}
                 <div className="mt-auto flex items-center justify-center py-8 animate-fade-in opacity-60 hover:opacity-100 transition-opacity">
                     <p className="text-gray-500 text-xs font-medium text-center">
@@ -306,7 +318,7 @@ const Login = () => {
                             <span className="text-4xl">🛡️</span>
                         </div>
                         <h3 className="text-2xl font-bold text-gray-900 mb-4">Authentication Update</h3>
-                        
+
                         <div className="text-gray-600 mb-8 leading-relaxed space-y-3 text-left bg-gray-50 p-4 rounded-xl">
                             <p>
                                 We noticed a delay in reaching the primary directory server. This sometimes happens due to routine maintenance or network checks.

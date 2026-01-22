@@ -50,10 +50,12 @@ const Reports = () => {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
-            const response = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+            // Use limit=all to get all users for the dropdown
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users?limit=all`, {
                 headers: { 'x-access-token': token }
             });
-            setUsers(response.data);
+            // Handle paginated response structure
+            setUsers(response.data.users || response.data || []);
         } catch (error) {
             console.error('Error fetching users:', error);
         }
