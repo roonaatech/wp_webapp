@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+import API_BASE_URL from '../config/api.config';
 
 export default function LeaveTypes() {
   const [leaveTypes, setLeaveTypes] = useState([]);
@@ -29,7 +28,7 @@ export default function LeaveTypes() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/api/leavetypes/admin/all`, {
+      const response = await axios.get(`${API_BASE_URL}/api/leavetypes/admin/all`, {
         headers: { 'x-access-token': token }
       });
       setLeaveTypes(response.data);
@@ -117,12 +116,12 @@ export default function LeaveTypes() {
       const config = { headers: { 'x-access-token': token } };
 
       if (modalType === 'create') {
-        await axios.post(`${API_BASE}/api/leavetypes`, formData, config);
+        await axios.post(`${API_BASE_URL}/api/leavetypes`, formData, config);
         const successMsg = `Leave type '${formData.name}' created successfully`;
         setSuccess(successMsg);
         toast.success(successMsg);
       } else {
-        await axios.put(`${API_BASE}/api/leavetypes/${editingId}`, formData, config);
+        await axios.put(`${API_BASE_URL}/api/leavetypes/${editingId}`, formData, config);
         const successMsg = `Leave type '${formData.name}' updated successfully`;
         setSuccess(successMsg);
         toast.success(successMsg, {
@@ -148,7 +147,7 @@ export default function LeaveTypes() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${API_BASE}/api/leavetypes/${id}`, {
+      await axios.delete(`${API_BASE_URL}/api/leavetypes/${id}`, {
         headers: { 'x-access-token': token }
       });
       const successMsg = 'Leave type deleted successfully';

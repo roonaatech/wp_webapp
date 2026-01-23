@@ -7,15 +7,19 @@
 // BACKEND CONFIGURATION - CHANGE URL HERE ONLY
 // ============================================
 // Development: http://localhost:3000
+// UAT/Test: https://api.workpulse-uat.roonaa.in:3353
 // Production: https://api.roonaa.in:3343
 
-const ENVIRONMENT = process.env.NODE_ENV || 'development';
+const ENVIRONMENT = import.meta.env.MODE || 'development';
 
 const API_CONFIG = {
   development: {
     baseUrl: 'http://localhost:3000',
-    // baseUrl: 'https://api.roonaa.in:3343',
     description: 'Local Development'
+  },
+  uat: {
+    baseUrl: 'https://api.workpulse-uat.roonaa.in:3353',
+    description: 'UAT/Test Server'
   },
   production: {
     baseUrl: 'https://api.roonaa.in:3343',
@@ -24,7 +28,13 @@ const API_CONFIG = {
 };
 
 // Get current environment config
-const currentEnv = ENVIRONMENT === 'production' ? 'production' : 'development';
+const getEnvironment = () => {
+  if (ENVIRONMENT === 'production') return 'production';
+  if (ENVIRONMENT === 'uat') return 'uat';
+  return 'development';
+};
+
+const currentEnv = getEnvironment();
 const config = API_CONFIG[currentEnv];
 
 const API_BASE_URL = config.baseUrl;
