@@ -51,6 +51,9 @@ const Users = () => {
     const [resettingPassword, setResettingPassword] = useState(false);
     const [showSuccessNotification, setShowSuccessNotification] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
+    const [sortField, setSortField] = useState('staffid');
+    const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+    const [letterFilter, setLetterFilter] = useState(''); // '' means no filter, or single letter A-Z
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = user.role === 1;
     const isManager = user.role === 2;
@@ -75,7 +78,7 @@ const Users = () => {
     // Reset page on filter change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, pageSize]);
+    }, [searchTerm, statusFilter, pageSize, letterFilter]);
 
     // Fetch Users when params change
     useEffect(() => {
@@ -85,7 +88,7 @@ const Users = () => {
             }, 300); // Debounce
             return () => clearTimeout(timeoutId);
         }
-    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize]);
+    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter]);
 
     const fetchUsers = async (page) => {
         try {
@@ -101,7 +104,8 @@ const Users = () => {
                 page: page,
                 limit: pageSize,
                 search: searchTerm,
-                status: statusFilter
+                status: statusFilter,
+                letter: letterFilter
             });
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/users?${queryParams.toString()}`, {
@@ -488,7 +492,51 @@ const Users = () => {
     };
 
     // Server-side filtering is active, so we just use the users array directly
-    const filteredUsers = users;
+    const filteredUsers = users.slice().sort((a, b) => {
+        let aValue, bValue;
+
+        switch (sortField) {
+            case 'staffid':
+                aValue = parseInt(a.staffid);
+                bValue = parseInt(b.staffid);
+                break;
+            case 'name':
+                aValue = `${a.firstname} ${a.lastname}`.toLowerCase();
+                bValue = `${b.firstname} ${b.lastname}`.toLowerCase();
+                break;
+            case 'email':
+                aValue = a.email.toLowerCase();
+                bValue = b.email.toLowerCase();
+                break;
+            case 'role':
+                aValue = a.role;
+                bValue = b.role;
+                break;
+            case 'status':
+                aValue = a.active ? 1 : 0;
+                bValue = b.active ? 1 : 0;
+                break;
+            default:
+                return 0;
+        }
+
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
+    const handleLetterFilter = (letter) => {
+        setLetterFilter(letter === letterFilter ? '' : letter); // Toggle: click same letter to clear filter
+    };
 
     const getRoleColor = (role) => {
         switch (role) {
@@ -754,6 +802,41 @@ const Users = () => {
                 </div>
             </div>
 
+            {/* Alphabet Filter */}
+            <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-center gap-2">
+                        <span className="text-sm font-medium text-gray-700">Filter by First Letter:</span>
+                        <button
+                            onClick={() => setLetterFilter('')}
+                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                                letterFilter === ''
+                                    ? 'bg-blue-700 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                        >
+                            All
+                        </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1 justify-center">
+                        {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter) => (
+                            <button
+                                key={letter}
+                                onClick={() => handleLetterFilter(letter)}
+                                className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                                    letterFilter === letter
+                                        ? 'bg-blue-700 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                                title={`Show users whose first name starts with ${letter}`}
+                            >
+                                {letter}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             {/* Users Table */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
@@ -761,11 +844,71 @@ const Users = () => {
                         <thead className="bg-[#2E5090] border-b border-gray-200">
                             <tr>
                                 <th className="px-3 py-3 text-left text-xs font-semibold text-white w-12"></th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">ID</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">User</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">Email</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">Role</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">Status</th>
+                                <th
+                                    className="px-6 py-3 text-left text-xs font-semibold text-white cursor-pointer hover:bg-[#3E6090] transition-colors"
+                                    onClick={() => handleSort('staffid')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        ID
+                                        {sortField === 'staffid' && (
+                                            <span className="text-white">
+                                                {sortDirection === 'asc' ? '↑' : '↓'}
+                                            </span>
+                                        )}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left text-xs font-semibold text-white cursor-pointer hover:bg-[#3E6090] transition-colors"
+                                    onClick={() => handleSort('name')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        User
+                                        {sortField === 'name' && (
+                                            <span className="text-white">
+                                                {sortDirection === 'asc' ? '↑' : '↓'}
+                                            </span>
+                                        )}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left text-xs font-semibold text-white cursor-pointer hover:bg-[#3E6090] transition-colors"
+                                    onClick={() => handleSort('email')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Email
+                                        {sortField === 'email' && (
+                                            <span className="text-white">
+                                                {sortDirection === 'asc' ? '↑' : '↓'}
+                                            </span>
+                                        )}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left text-xs font-semibold text-white cursor-pointer hover:bg-[#3E6090] transition-colors"
+                                    onClick={() => handleSort('role')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Role
+                                        {sortField === 'role' && (
+                                            <span className="text-white">
+                                                {sortDirection === 'asc' ? '↑' : '↓'}
+                                            </span>
+                                        )}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left text-xs font-semibold text-white cursor-pointer hover:bg-[#3E6090] transition-colors"
+                                    onClick={() => handleSort('status')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Status
+                                        {sortField === 'status' && (
+                                            <span className="text-white">
+                                                {sortDirection === 'asc' ? '↑' : '↓'}
+                                            </span>
+                                        )}
+                                    </div>
+                                </th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-white">Actions</th>
                             </tr>
                         </thead>
