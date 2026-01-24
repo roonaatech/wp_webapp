@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.4](https://github.com/roonaatech/wp_webapp/compare/v0.0.3...v0.0.4) (2026-01-24)
+
+
+### Features
+
+* update approval details and user modal styles for improved clarity and usability ([cd54316](https://github.com/roonaatech/wp_webapp/commit/cd543169d6a83ddf25a5357a0547e5be33d1079a))
+
+
+### Bug Fixes
+
+* implement status and role filters with dropdowns for improved user management ([5518c37](https://github.com/roonaatech/wp_webapp/commit/5518c377a034b128cfe1df85f52ce3346329a9e8))
+
 ### [0.0.3](https://github.com/roonaatech/wp_webapp/compare/v0.0.2...v0.0.3) (2026-01-24)
 
 
