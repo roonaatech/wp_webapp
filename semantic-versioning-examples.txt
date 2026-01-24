@@ -1,0 +1,20 @@
+# Example commit messages for semantic versioning
+
+# Patch release (0.0.1 -> 0.0.2)
+git commit -m "fix: resolve login button alignment issue"
+
+# Minor release (0.0.1 -> 0.1.0)
+git commit -m "feat: add user profile page"
+
+# Major release (0.0.1 -> 1.0.0)
+git commit -m "feat!: redesign authentication system (breaking change)"
+
+# Other types
+git commit -m "docs: update API documentation"
+git commit -m "chore: update dependencies"
+git commit -m "refactor: simplify user validation logic"
+git commit -m "style: format code with prettier"
+git commit -m "test: add unit tests for user service"
+git commit -m "perf: optimize database queries"
+git commit -m "build: update webpack configuration"
+git commit -m "ci: add github actions workflow"
