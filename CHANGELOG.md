@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.3](https://github.com/roonaatech/wp_webapp/compare/v0.0.2...v0.0.3) (2026-01-24)
+
+
+### Features
+
+* enhance Users page with full-screen chart functionality and zoom controls ([a05b7b7](https://github.com/roonaatech/wp_webapp/commit/a05b7b7b7ae2494bdc30277851dfe3dd19c09ed9))
+
 ### [0.0.2](https://github.com/roonaatech/wp_webapp/compare/v0.0.1...v0.0.2) (2026-01-24)
 
 
