@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.2](https://github.com/roonaatech/wp_webapp/compare/v0.0.1...v0.0.2) (2026-01-24)
+
+
+### Features
+
+* display dynamic version number in Sidebar footer ([39fed1c](https://github.com/roonaatech/wp_webapp/commit/39fed1c3fad5af94af330d85da80f317a366ae43))
+
 ### 0.0.1 (2026-01-24)
 
 
