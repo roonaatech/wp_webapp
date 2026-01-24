@@ -588,13 +588,30 @@ const Users = () => {
 
         processDescendants(currentUser);
 
-        // 3. Draw edges for all added nodes
+        // 3. Draw edges for all added nodes (use Set to avoid duplicate edges)
+        const addedEdges = new Set();
         const relevantUsers = [...allUsersRef, ...users, ...managersAndAdmins, user].filter(u => u && addedNodes.has(u.staffid || u.id));
+        
+        // Deduplicate users by ID before processing edges
+        const uniqueUsers = [];
+        const seenIds = new Set();
         relevantUsers.forEach(u => {
+            const id = u.staffid || u.id;
+            if (!seenIds.has(id)) {
+                seenIds.add(id);
+                uniqueUsers.push(u);
+            }
+        });
+        
+        uniqueUsers.forEach(u => {
              if (u.approving_manager_id) {
                  const mgr = findUser(u.approving_manager_id);
                  if (mgr) {
-                     addEdge(mgr, u);
+                     const edgeKey = `${mgr.staffid || mgr.id}-${u.staffid || u.id}`;
+                     if (!addedEdges.has(edgeKey)) {
+                         addEdge(mgr, u);
+                         addedEdges.add(edgeKey);
+                     }
                  }
              }
         });

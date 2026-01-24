@@ -10,6 +10,8 @@ const ApkDistribution = () => {
     const [apkList, setApkList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
+    const [downloadingId, setDownloadingId] = useState(null);
+    const [downloadProgress, setDownloadProgress] = useState(0);
 
     // Auth state
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -93,10 +95,19 @@ const ApkDistribution = () => {
 
     const handleDownload = async (id, filename) => {
         try {
+            setDownloadingId(id);
+            setDownloadProgress(0);
+            
             const headers = token ? { 'x-access-token': token } : {};
             const response = await axios.get(`${API_BASE_URL}/api/apk/download/${id}`, {
                 headers,
-                responseType: 'blob'
+                responseType: 'blob',
+                onDownloadProgress: (progressEvent) => {
+                    if (progressEvent.total) {
+                        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                        setDownloadProgress(percent);
+                    }
+                }
             });
 
             const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -106,8 +117,12 @@ const ApkDistribution = () => {
             document.body.appendChild(link);
             link.click();
             link.remove();
+            toast.success("Download complete!");
         } catch (err) {
             toast.error("Download failed");
+        } finally {
+            setDownloadingId(null);
+            setDownloadProgress(0);
         }
     };
 
@@ -193,11 +208,36 @@ const ApkDistribution = () => {
 
                                     <button
                                         onClick={() => handleDownload('latest', latestApk.filename)}
-                                        className="bg-white text-blue-600 px-8 py-4 rounded-xl font-bold flex items-center gap-3 hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0"
+                                        disabled={downloadingId === 'latest'}
+                                        className={`bg-white text-blue-600 px-8 py-4 rounded-xl font-bold flex items-center gap-3 transition-all shadow-lg transform active:translate-y-0 ${downloadingId === 'latest' ? 'opacity-90 cursor-wait' : 'hover:bg-blue-50 hover:shadow-xl hover:-translate-y-1'}`}
                                     >
-                                        <LuDownload size={20} />
-                                        Download APK
+                                        {downloadingId === 'latest' ? (
+                                            <>
+                                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                {downloadProgress > 0 ? `Downloading ${downloadProgress}%` : 'Starting download...'}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <LuDownload size={20} />
+                                                Download APK
+                                            </>
+                                        )}
                                     </button>
+                                    
+                                    {/* Progress bar */}
+                                    {downloadingId === 'latest' && downloadProgress > 0 && (
+                                        <div className="mt-4 w-full max-w-xs">
+                                            <div className="bg-white/20 rounded-full h-2 overflow-hidden">
+                                                <div 
+                                                    className="bg-white h-full rounded-full transition-all duration-300"
+                                                    style={{ width: `${downloadProgress}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (
@@ -333,10 +373,18 @@ const ApkDistribution = () => {
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDownload(apk.id, apk.filename)}
-                                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                disabled={downloadingId === apk.id}
+                                                                className={`p-2 rounded-lg transition-colors ${downloadingId === apk.id ? 'text-blue-400 cursor-wait' : 'text-blue-600 hover:bg-blue-50'}`}
                                                                 title="Download"
                                                             >
-                                                                <LuDownload size={18} />
+                                                                {downloadingId === apk.id ? (
+                                                                    <svg className="animate-spin h-[18px] w-[18px]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                    </svg>
+                                                                ) : (
+                                                                    <LuDownload size={18} />
+                                                                )}
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDelete(apk.id)}
