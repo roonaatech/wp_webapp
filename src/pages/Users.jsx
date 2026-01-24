@@ -20,6 +20,7 @@ const Users = () => {
     const [error, setError] = useState(null);
     const location = useLocation();
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showAuthInfo, setShowAuthInfo] = useState(true); // Show auth info first, then form
     const [editingUserId, setEditingUserId] = useState(null);
     const [expandedUserId, setExpandedUserId] = useState(null);
     const [leaveBalances, setLeaveBalances] = useState({});
@@ -196,8 +197,13 @@ const Users = () => {
 
     const handleAddUserClick = () => {
         setShowAddModal(true);
+        setShowAuthInfo(true); // Show auth info first
         setEditingUserId(null);
         setFormError(null);
+    };
+
+    const handleProceedToCreate = () => {
+        setShowAuthInfo(false);
         setFormData({
             firstname: '',
             lastname: '',
@@ -228,6 +234,7 @@ const Users = () => {
 
     const handleEditUserClick = (editUser) => {
         setShowAddModal(true);
+        setShowAuthInfo(false); // Go directly to form when editing
         setEditingUserId(editUser.staffid || editUser.id);
         setFormError(null);
         setFormData({
@@ -1167,12 +1174,66 @@ const Users = () => {
                             <h2 className="text-xl font-bold text-white">{editingUserId ? 'Edit User' : 'Add New User'}</h2>
                         </div>
 
-                        <form onSubmit={handleSubmitUser} className="p-6 space-y-4">
-                            {formError && (
-                                <div className="bg-red-50 border border-red-200 rounded p-3">
-                                    <p className="text-red-800 text-sm font-medium">⚠️ {formError}</p>
+                        {showAuthInfo ? (
+                            /* Authentication Information */
+                            <div className="p-6 space-y-4">
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0">
+                                            <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div className="ml-3">
+                                            <h3 className="text-sm font-medium text-blue-800">Authentication Managed by ABiS</h3>
+                                            <div className="mt-2 text-sm text-blue-700">
+                                                <p>User authentication and access management is handled through the ABiS application. Most users should have their accounts created and managed there.</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
+
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0">
+                                            <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div className="ml-3">
+                                            <h3 className="text-sm font-medium text-yellow-800">Need WorkPulse Access Without ABiS?</h3>
+                                            <div className="mt-2 text-sm text-yellow-700">
+                                                <p>If a user needs access to WorkPulse but does not have login access in ABiS, you can create their account directly here.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end space-x-3 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAddModal(false)}
+                                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleProceedToCreate}
+                                        className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                    >
+                                        Create Account Anyway
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            /* User Creation Form */
+                            <form onSubmit={handleSubmitUser} className="p-6 space-y-4">
+                                {formError && (
+                                    <div className="bg-red-50 border border-red-200 rounded p-3">
+                                        <p className="text-red-800 text-sm font-medium">⚠️ {formError}</p>
+                                    </div>
+                                )}
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
@@ -1325,6 +1386,7 @@ const Users = () => {
                                 </button>
                             </div>
                         </form>
+                        )}
                     </div>
                 </div>
             )}
