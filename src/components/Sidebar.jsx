@@ -14,6 +14,7 @@ import {
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
+import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
 
 const Sidebar = () => {
@@ -163,7 +164,9 @@ const Sidebar = () => {
 
             {/* Footer */}
             <div className="p-6 border-t border-[var(--border-color)]">
-                <p className="text-[10px] text-[var(--text-muted)] text-center font-medium tracking-widest uppercase">WORKPULSE v1.0</p>
+                <p className="text-[10px] text-[var(--text-muted)] text-center font-medium tracking-widest uppercase">
+                    WORKPULSE v{packageJson.version}
+                </p>
             </div>
         </div>
     );
