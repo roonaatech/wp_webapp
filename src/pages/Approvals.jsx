@@ -1179,7 +1179,7 @@ const Approvals = () => {
                                     {detailsModal.isLeave ? '📄' : '📍'}
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold">Request Data Sheet</h2>
+                                    <h2 className="text-xl font-bold">{detailsModal.isLeave ? 'Leave Request Details' : 'On-Duty Details'}</h2>
                                     <p className="text-white/80 text-xs font-semibold tracking-wide">
                                         {detailsModal.isLeave ? 'Leave Application Details' : 'On-Duty Transaction Details'}
                                     </p>
@@ -1232,7 +1232,7 @@ const Approvals = () => {
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                     <p className="text-base font-semibold text-gray-900">
                                         {detailsModal.isLeave
-                                            ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date)} Session Day(s)`
+                                            ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date)} Day(s)`
                                             : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time)
                                         }
                                     </p>

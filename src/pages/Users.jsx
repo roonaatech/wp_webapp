@@ -1240,9 +1240,9 @@ const Users = () => {
             {/* Add/Edit User Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+                    <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] overflow-y-auto">
                         <div className="bg-gradient-to-r from-blue-700 to-blue-800 px-6 py-4">
-                            <h2 className="text-xl font-bold text-white">{editingUserId ? 'Edit User' : 'Add New User'}</h2>
+                            <h2 className="text-2xl font-bold text-white">{editingUserId ? 'Edit User' : 'Add New User'}</h2>
                         </div>
 
                         {showAuthInfo ? (
@@ -1256,8 +1256,8 @@ const Users = () => {
                                             </svg>
                                         </div>
                                         <div className="ml-3">
-                                            <h3 className="text-sm font-medium text-blue-800">Authentication Managed by ABiS</h3>
-                                            <div className="mt-2 text-sm text-blue-700">
+                                            <h3 className="text-xl font-bold text-blue-800">Authentication Managed by ABiS</h3>
+                                            <div className="mt-2 text-lg text-blue-700">
                                                 <p>User authentication and access management is handled through the ABiS application. Most users should have their accounts created and managed there.</p>
                                             </div>
                                         </div>
@@ -1272,8 +1272,8 @@ const Users = () => {
                                             </svg>
                                         </div>
                                         <div className="ml-3">
-                                            <h3 className="text-sm font-medium text-yellow-800">Need WorkPulse Access Without ABiS?</h3>
-                                            <div className="mt-2 text-sm text-yellow-700">
+                                            <h3 className="text-xl font-bold text-yellow-800">Need WorkPulse Access Without ABiS?</h3>
+                                            <div className="mt-2 text-lg text-yellow-700">
                                                 <p>If a user needs access to WorkPulse but does not have login access in ABiS, you can create their account directly here.</p>
                                             </div>
                                         </div>
@@ -1284,14 +1284,14 @@ const Users = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowAddModal(false)}
-                                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                        className="px-6 py-3 border border-gray-300 rounded-md text-base font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="button"
                                         onClick={handleProceedToCreate}
-                                        className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                        className="px-6 py-3 bg-blue-600 border border-transparent rounded-md text-base font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                     >
                                         Create Account Anyway
                                     </button>
@@ -1307,48 +1307,48 @@ const Users = () => {
                                 )}
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                <label className="block text-base font-medium text-gray-700 mb-1">First Name</label>
                                 <input
                                     type="text"
                                     name="firstname"
                                     value={formData.firstname}
                                     onChange={handleFormChange}
                                     placeholder="John"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                <label className="block text-base font-medium text-gray-700 mb-1">Last Name</label>
                                 <input
                                     type="text"
                                     name="lastname"
                                     value={formData.lastname}
                                     onChange={handleFormChange}
                                     placeholder="Doe"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <label className="block text-base font-medium text-gray-700 mb-1">Email</label>
                                 <input
                                     type="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleFormChange}
                                     placeholder="john@example.com"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <label className="block text-base font-medium text-gray-700 mb-1">Role</label>
                                 <select
                                     name="role"
                                     value={formData.role}
                                     onChange={handleFormChange}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                 >
                                     <option value="3">Employee</option>
                                     <option value="2">Manager</option>
@@ -1357,12 +1357,12 @@ const Users = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                                <label className="block text-base font-medium text-gray-700 mb-1">Gender</label>
                                 <select
                                     name="gender"
                                     value={formData.gender}
                                     onChange={handleFormChange}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                 >
                                     <option value="">Select Gender</option>
                                     <option value="Male">Male</option>
@@ -1374,14 +1374,14 @@ const Users = () => {
                             {/* Manager/Approver Selection - Show for Employee and Manager roles */}
                             {(formData.role === '3' || formData.role === '2') && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-base font-medium text-gray-700 mb-1">
                                         {formData.role === '3' ? 'Manager / Approving Admin' : 'Approving Admin'}
                                     </label>
                                     <select
                                         name="approving_manager_id"
                                         value={formData.approving_manager_id}
                                         onChange={handleFormChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                     >
                                         <option value="">Select Approver</option>
                                         {managersAndAdmins.map((user) => {
@@ -1406,27 +1406,27 @@ const Users = () => {
                             {!editingUserId && (
                                 <>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Password (required)</label>
+                                        <label className="block text-base font-medium text-gray-700 mb-1">Password (required)</label>
                                         <input
                                             type="password"
                                             name="password"
                                             value={formData.password}
                                             onChange={handleFormChange}
                                             placeholder="••••••••"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                            className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                         />
                                         <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                        <label className="block text-base font-medium text-gray-700 mb-1">Confirm Password</label>
                                         <input
                                             type="password"
                                             name="confirmPassword"
                                             value={formData.confirmPassword}
                                             onChange={handleFormChange}
                                             placeholder="••••••••"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                            className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                         />
                                     </div>
                                 </>
