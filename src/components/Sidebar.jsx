@@ -164,7 +164,7 @@ const Sidebar = () => {
 
             {/* Footer */}
             <div className="p-6 border-t border-[var(--border-color)]">
-                <p className="text-[10px] text-[var(--text-muted)] text-center font-medium tracking-widest uppercase">
+                <p className="text-[10px] text-[var(--sidebar-text)] text-center font-medium tracking-widest uppercase">
                     WORKPULSE v{packageJson.version}
                 </p>
             </div>

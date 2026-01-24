@@ -9,6 +9,12 @@ import MermaidChart from '../components/MermaidChart';
 const Users = () => {
     const [users, setUsers] = useState([]);
     const [allUsersRef, setAllUsersRef] = useState([]); // For Org Chart hierarchy
+    const [fullScreenChart, setFullScreenChart] = useState(null); // Store chart data for full screen
+    const [chartZoom, setChartZoom] = useState(1); // Zoom level for full-screen chart
+    const [panX, setPanX] = useState(0); // Horizontal pan offset
+    const [panY, setPanY] = useState(0); // Vertical pan offset
+    const [isDragging, setIsDragging] = useState(false); // Is user dragging the chart
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); // Starting position of drag
     const [managersAndAdmins, setManagersAndAdmins] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive', 'incomplete'
@@ -247,6 +253,57 @@ const Users = () => {
             approving_manager_id: editUser.approving_manager_id || '',
             gender: editUser.gender || ''
         });
+    };
+
+    const handleExpandChart = (user) => {
+        console.log('Expanding chart for user:', user);
+        setFullScreenChart({
+            chart: generateOrgChart(user),
+            user: user,
+            uniqueId: `fullscreen-${user.staffid}`
+        });
+    };
+
+    const handleCloseFullScreen = () => {
+        setFullScreenChart(null);
+        setChartZoom(1); // Reset zoom when closing
+        setPanX(0); // Reset pan
+        setPanY(0);
+        setIsDragging(false);
+    };
+
+    const handleZoomIn = () => {
+        setChartZoom(prev => Math.min(prev + 0.2, 10));
+    };
+
+    const handleZoomOut = () => {
+        setChartZoom(prev => Math.max(prev - 0.2, 0.5));
+    };
+
+    const handleResetZoom = () => {
+        setChartZoom(1);
+        setPanX(0); // Reset pan
+        setPanY(0);
+    };
+
+    const handleChartMouseDown = (e) => {
+        if (chartZoom > 1.2) { // Enable dragging only when zoomed in
+            setIsDragging(true);
+            setDragStart({ x: e.clientX - panX, y: e.clientY - panY });
+        }
+    };
+
+    const handleChartMouseMove = (e) => {
+        if (isDragging && chartZoom > 1.2) {
+            const newPanX = e.clientX - dragStart.x;
+            const newPanY = e.clientY - dragStart.y;
+            setPanX(newPanX);
+            setPanY(newPanY);
+        }
+    };
+
+    const handleChartMouseUp = () => {
+        setIsDragging(false);
     };
 
     const handleFormChange = (e) => {
@@ -1089,9 +1146,23 @@ const Users = () => {
                                                             {/* Column 2: Org Structure */}
                                                             <div className="hidden lg:block border-l border-gray-200 pl-8">
                                                                 <div className="h-full flex flex-col">
-                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
-                                                                        <span className="w-1 h-4 bg-purple-600 rounded-full"></span>
-                                                                        Organization Structure
+                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center justify-between">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="w-1 h-4 bg-purple-600 rounded-full"></span>
+                                                                            Organization Structure
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                console.log('Expand button clicked for user:', u);
+                                                                                handleExpandChart(u);
+                                                                            }}
+                                                                            className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
+                                                                            title="Expand to full screen"
+                                                                        >
+                                                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                                                            </svg>
+                                                                        </button>
                                                                     </h4>
                                                                     <div className="flex-1 flex items-center justify-center bg-gray-50/50 rounded-xl overflow-hidden min-h-[200px] border border-gray-100">
                                                                         <MermaidChart chart={generateOrgChart(u)} uniqueId={u.staffid} />
@@ -1518,9 +1589,137 @@ const Users = () => {
                     </div>
                 </div>
             )}
+
+            {/* Full Screen Chart Modal */}
+            {fullScreenChart && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg shadow-2xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <span className="w-2 h-6 bg-purple-600 rounded-full"></span>
+                                <div>
+                                    <h2 className="text-xl font-bold text-gray-900">Organization Structure</h2>
+                                    <p className="text-sm text-gray-600">{fullScreenChart.user.firstname} {fullScreenChart.user.lastname}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                {/* Zoom Control Panel */}
+                                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-2">
+                                    {/* Minus Button */}
+                                    <button
+                                        onClick={handleZoomOut}
+                                        disabled={chartZoom <= 0.5}
+                                        className="p-1.5 text-gray-600 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
+                                        title="Zoom out"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                                        </svg>
+                                    </button>
+
+                                    {/* Zoom Slider */}
+                                    <input
+                                        type="range"
+                                        min="0.5"
+                                        max="10"
+                                        step="0.1"
+                                        value={chartZoom}
+                                        onChange={(e) => setChartZoom(parseFloat(e.target.value))}
+                                        className="w-24 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer slider"
+                                        title="Drag to zoom"
+                                    />
+
+                                    {/* Plus Button */}
+                                    <button
+                                        onClick={handleZoomIn}
+                                        disabled={chartZoom >= 10}
+                                        className="p-1.5 text-gray-600 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
+                                        title="Zoom in"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+                                        </svg>
+                                    </button>
+
+                                    {/* Zoom Percentage */}
+                                    <span className="text-xs font-medium text-gray-700 min-w-[45px] text-center">{Math.round(chartZoom * 100)}%</span>
+
+                                    <div className="w-px h-6 bg-gray-300"></div>
+
+                                    {/* Preset Zoom Buttons */}
+                                    <div className="flex items-center gap-0.5">
+                                        {[0.5, 0.75, 1, 1.5, 2, 3, 4, 5, 7.5, 10].map((zoom) => (
+                                            <button
+                                                key={zoom}
+                                                onClick={() => setChartZoom(zoom)}
+                                                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                                                    Math.abs(chartZoom - zoom) < 0.05
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'text-gray-600 hover:bg-white'
+                                                }`}
+                                                title={`Zoom ${Math.round(zoom * 100)}%`}
+                                            >
+                                                {Math.round(zoom * 100)}%
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="w-px h-6 bg-gray-300"></div>
+
+                                    {/* Reset Button */}
+                                    <button
+                                        onClick={handleResetZoom}
+                                        className="px-2 py-1 text-xs font-medium text-gray-600 hover:bg-white rounded transition-colors"
+                                        title="Reset zoom to 100%"
+                                    >
+                                        Reset
+                                    </button>
+                                </div>
+                                <button
+                                    onClick={handleCloseFullScreen}
+                                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                    title="Close full screen"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Chart Container */}
+                        <div className="flex-1 p-6 overflow-hidden">
+                            <div 
+                                className="w-full h-full min-h-[600px] bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center"
+                                style={{
+                                    cursor: chartZoom > 1.2 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                                    overflow: 'hidden'
+                                }}
+                                onMouseDown={handleChartMouseDown}
+                                onMouseMove={handleChartMouseMove}
+                                onMouseUp={handleChartMouseUp}
+                                onMouseLeave={handleChartMouseUp}
+                            >
+                                <div
+                                    style={{
+                                        transform: `translate(${panX}px, ${panY}px) scale(${chartZoom})`,
+                                        transformOrigin: 'center center',
+                                        transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+                                    }}
+                                >
+                                    <MermaidChart
+                                        chart={fullScreenChart.chart}
+                                        uniqueId={fullScreenChart.uniqueId}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
-
 
 export default Users;
