@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.5](https://github.com/roonaatech/wp_webapp/compare/v0.0.4...v0.0.5) (2026-01-24)
+
+
+### Features
+
+* add semantic versioning examples and configuration file ([270e841](https://github.com/roonaatech/wp_webapp/commit/270e841ff7dc24482a45b14dda4585ab8a623dc5))
+* remove days allowed field from leave types and update related modal functionality ([c9cd733](https://github.com/roonaatech/wp_webapp/commit/c9cd733b32cda78f39564a1475e9046790404245))
+
+
+### Bug Fixes
+
+* update role checks in ProtectedRoute and Login components to include Leader role ([1019764](https://github.com/roonaatech/wp_webapp/commit/10197642848cdada3b0c7217ccf71331a611cf28))
+
 ### [0.0.4](https://github.com/roonaatech/wp_webapp/compare/v0.0.3...v0.0.4) (2026-01-24)
 
 
