@@ -38,9 +38,9 @@ const Login = () => {
         }
         // -----------------------------------------------------------
 
-        // Check if user has admin or manager role (role 1 or 2)
-        if (user.role !== 1 && user.role !== 2) {
-            setError('Access denied. Only Admin and Manager roles can access this system.');
+        // Check if user has admin, manager, or leader role (role 1, 2, or 3)
+        if (user.role !== 1 && user.role !== 2 && user.role !== 3) {
+            setError('Access denied. Only Admin, Manager, and Leader roles can access this system.');
             setLoading(false);
             return;
         }
