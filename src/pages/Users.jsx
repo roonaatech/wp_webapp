@@ -17,7 +17,10 @@ const Users = () => {
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); // Starting position of drag
     const [managersAndAdmins, setManagersAndAdmins] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive', 'incomplete'
+    const [statusFilter, setStatusFilter] = useState([]); // Array of selected status values
+    const [showStatusDropdown, setShowStatusDropdown] = useState(false); // Toggle status dropdown
+    const [roleFilter, setRoleFilter] = useState([]); // Array of selected role ids
+    const [showRoleDropdown, setShowRoleDropdown] = useState(false); // Toggle role dropdown
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
@@ -37,7 +40,7 @@ const Users = () => {
         email: '',
         password: '',
         confirmPassword: '',
-        role: '3',
+        role: '4',
         approving_manager_id: '',
         gender: ''
     });
@@ -85,7 +88,7 @@ const Users = () => {
     // Reset page on filter change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, pageSize, letterFilter]);
+    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter]);
 
     // Fetch Users when params change
     useEffect(() => {
@@ -95,7 +98,7 @@ const Users = () => {
             }, 300); // Debounce
             return () => clearTimeout(timeoutId);
         }
-    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter]);
+    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter]);
 
     const fetchUsers = async (page) => {
         try {
@@ -111,9 +114,18 @@ const Users = () => {
                 page: page,
                 limit: pageSize,
                 search: searchTerm,
-                status: statusFilter,
                 letter: letterFilter
             });
+            
+            // Add status filter if any statuses are selected
+            if (statusFilter.length > 0) {
+                queryParams.append('status', statusFilter.join(','));
+            }
+            
+            // Add role filter if any roles are selected
+            if (roleFilter.length > 0) {
+                queryParams.append('role', roleFilter.join(','));
+            }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/users?${queryParams.toString()}`, {
                 headers: { 'x-access-token': token }
@@ -216,7 +228,7 @@ const Users = () => {
             email: '',
             password: '',
             confirmPassword: '',
-            role: '3',
+            role: '4',
             approving_manager_id: '',
             gender: ''
         });
@@ -232,7 +244,7 @@ const Users = () => {
             email: '',
             password: '',
             confirmPassword: '',
-            role: '3',
+            role: '4',
             approving_manager_id: '',
             gender: ''
         });
@@ -249,7 +261,7 @@ const Users = () => {
             email: editUser.email,
             password: '',
             confirmPassword: '',
-            role: editUser.role ? String(editUser.role) : '3', // Default to Employee (3) if role is missing/null
+            role: editUser.role ? String(editUser.role) : '4', // Default to Employee (4) if role is missing/null
             approving_manager_id: editUser.approving_manager_id || '',
             gender: editUser.gender || ''
         });
@@ -614,8 +626,9 @@ const Users = () => {
     const getRoleName = (role) => {
         switch (role) {
             case 1: return 'Admin';
-            case 2: return 'Manager';
-            case 3: return 'Employee';
+            case 2: return 'Leader';
+            case 3: return 'Manager';
+            case 4: return 'Employee';
             default: return 'Unknown';
         }
     };
@@ -821,47 +834,184 @@ const Users = () => {
                         />
                     </div>
 
-                    {/* Status Filter */}
-                    <div className="flex gap-2">
+                    {/* Status Filter Dropdown */}
+                    <div className="relative">
                         <button
-                            onClick={() => setStatusFilter('all')}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${statusFilter === 'all'
-                                ? 'bg-blue-700 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
+                            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                            className="px-4 py-2 rounded-lg font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-2"
                         >
-                            All
+                            <span>Status:</span>
+                            <span className="font-semibold">
+                                {statusFilter.length === 0 ? 'All' : `${statusFilter.length} selected`}
+                            </span>
+                            <svg className={`w-4 h-4 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
                         </button>
+
+                        {showStatusDropdown && (
+                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-48">
+                                <div className="p-3 space-y-2">
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.length === 0}
+                                            onChange={() => setStatusFilter([])}
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">All</span>
+                                    </label>
+                                    <hr className="my-2" />
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.includes('active')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setStatusFilter([...statusFilter, 'active']);
+                                                } else {
+                                                    setStatusFilter(statusFilter.filter(s => s !== 'active'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-600"
+                                        />
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                            <span className="text-sm font-medium text-gray-700">Active</span>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.includes('inactive')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setStatusFilter([...statusFilter, 'inactive']);
+                                                } else {
+                                                    setStatusFilter(statusFilter.filter(s => s !== 'inactive'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-600"
+                                        />
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                            <span className="text-sm font-medium text-gray-700">InActive</span>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.includes('incomplete')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setStatusFilter([...statusFilter, 'incomplete']);
+                                                } else {
+                                                    setStatusFilter(statusFilter.filter(s => s !== 'incomplete'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-600"
+                                        />
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                                            <span className="text-sm font-medium text-gray-700">Setup Required</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Role Filter Dropdown */}
+                    <div className="relative">
                         <button
-                            onClick={() => setStatusFilter('active')}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${statusFilter === 'active'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
+                            onClick={() => setShowRoleDropdown(!showRoleDropdown)}
+                            className="px-4 py-2 rounded-lg font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-2"
                         >
-                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                            Active
+                            <span>Role:</span>
+                            <span className="font-semibold">
+                                {roleFilter.length === 0 ? 'All' : `${roleFilter.length} selected`}
+                            </span>
+                            <svg className={`w-4 h-4 transition-transform ${showRoleDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
                         </button>
-                        <button
-                            onClick={() => setStatusFilter('inactive')}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${statusFilter === 'inactive'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                        >
-                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                            InActive
-                        </button>
-                        <button
-                            onClick={() => setStatusFilter('incomplete')}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${statusFilter === 'incomplete'
-                                ? 'bg-orange-500 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                        >
-                            <span className={`w-2 h-2 rounded-full ${statusFilter === 'incomplete' ? 'bg-white' : 'bg-orange-500'}`}></span>
-                            Setup Required
-                        </button>
+
+                        {showRoleDropdown && (
+                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-48">
+                                <div className="p-3 space-y-2">
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={roleFilter.length === 0}
+                                            onChange={() => setRoleFilter([])}
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">All Roles</span>
+                                    </label>
+                                    <hr className="my-2" />
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={roleFilter.includes('1')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setRoleFilter([...roleFilter, '1']);
+                                                } else {
+                                                    setRoleFilter(roleFilter.filter(r => r !== '1'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-600"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">Admin</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={roleFilter.includes('2')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setRoleFilter([...roleFilter, '2']);
+                                                } else {
+                                                    setRoleFilter(roleFilter.filter(r => r !== '2'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-600"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">Leader</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={roleFilter.includes('3')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setRoleFilter([...roleFilter, '3']);
+                                                } else {
+                                                    setRoleFilter(roleFilter.filter(r => r !== '3'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">Manager</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={roleFilter.includes('4')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setRoleFilter([...roleFilter, '4']);
+                                                } else {
+                                                    setRoleFilter(roleFilter.filter(r => r !== '4'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-gray-600 focus:ring-gray-600"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">Employee</span>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -1350,8 +1500,9 @@ const Users = () => {
                                     onChange={handleFormChange}
                                     className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                 >
-                                    <option value="3">Employee</option>
-                                    <option value="2">Manager</option>
+                                    <option value="4">Employee</option>
+                                    <option value="3">Manager</option>
+                                    <option value="2">Leader</option>
                                     <option value="1">Admin</option>
                                 </select>
                             </div>
@@ -1372,10 +1523,10 @@ const Users = () => {
                             </div>
 
                             {/* Manager/Approver Selection - Show for Employee and Manager roles */}
-                            {(formData.role === '3' || formData.role === '2') && (
+                            {(formData.role === '4' || formData.role === '3' || formData.role === '2') && (
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1">
-                                        {formData.role === '3' ? 'Manager / Approving Admin' : 'Approving Admin'}
+                                        {formData.role === '4' ? 'Manager / Leader / Approving Admin' : formData.role === '3' ? 'Leader / Approving Admin' : 'Approving Admin'}
                                     </label>
                                     <select
                                         name="approving_manager_id"
@@ -1385,10 +1536,12 @@ const Users = () => {
                                     >
                                         <option value="">Select Approver</option>
                                         {managersAndAdmins.map((user) => {
-                                            const isTargetManager = formData.role === '2';
-                                            const isTargetEmployee = formData.role === '3';
-                                            if (isTargetManager && user.role !== 1) return null;
-                                            if (isTargetEmployee && (user.role !== 1 && user.role !== 2)) return null;
+                                            const isTargetManager = formData.role === '3';
+                                            const isTargetLeader = formData.role === '2';
+                                            const isTargetEmployee = formData.role === '4';
+                                            if (isTargetManager && (user.role !== 1 && user.role !== 2)) return null;
+                                            if (isTargetLeader && (user.role !== 1)) return null;
+                                            if (isTargetEmployee && (user.role !== 1 && user.role !== 2 && user.role !== 3)) return null;
                                             return (
                                                 <option key={user.staffid} value={user.staffid}>
                                                     {user.firstname} {user.lastname} ({getRoleName(user.role)})
