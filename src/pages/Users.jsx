@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useLocation } from 'react-router-dom';
@@ -7,6 +8,122 @@ import ModernLoader from '../components/ModernLoader';
 import MermaidChart from '../components/MermaidChart';
 
 const Users = () => {
+    // Leave Types Modal State
+    const [showLeaveModal, setShowLeaveModal] = useState(false);
+    const [leaveModalUser, setLeaveModalUser] = useState(null);
+    const [leaveModalLoading, setLeaveModalLoading] = useState(false);
+    const [leaveModalError, setLeaveModalError] = useState('');
+    const [leaveModalSaving, setLeaveModalSaving] = useState(false);
+    const [modalLeaveTypes, setModalLeaveTypes] = useState([]); // unified: all types, with assigned/unassigned
+
+
+    // Handler to open the Edit Leave Types modal and fetch leave types for a user
+    const handleEditLeaveTypes = async (user) => {
+        setLeaveModalUser(user);
+        setShowLeaveModal(true);
+        setLeaveModalLoading(true);
+        setLeaveModalError('');
+        try {
+            const token = localStorage.getItem('token');
+            // Get all leave types
+            const allTypesRes = await axios.get(`${API_BASE_URL}/api/leavetypes/admin/all`, {
+                headers: { 'x-access-token': token }
+            });
+            // Get user assignments
+            const userTypesRes = await axios.get(`${API_BASE_URL}/api/user/${user.staffid}/leave-types`, {
+                headers: { 'x-access-token': token }
+            });
+            // Build a map of assigned leave_type_id
+            const assignedMap = {};
+            userTypesRes.data.forEach(lt => {
+                if (lt.assigned) assignedMap[lt.leave_type_id] = lt;
+            });
+            // Filter leave types based on gender restriction
+            const userGender = user.gender;
+            const filteredLeaveTypes = allTypesRes.data.filter(lt => {
+                // If no gender restriction or empty array, show to all
+                if (!lt.gender_restriction || lt.gender_restriction.length === 0) {
+                    return true;
+                }
+                // If user has no gender set, show all leave types
+                if (!userGender) {
+                    return true;
+                }
+                // Check if user's gender is in the restriction list
+                return lt.gender_restriction.includes(userGender);
+            });
+            // All leave types: only mark as assigned if present in user_leave_types
+            const merged = filteredLeaveTypes.map(lt => {
+                const assigned = assignedMap[lt.id];
+                return {
+                    leave_type_id: lt.id,
+                    name: lt.name,
+                    assigned: !!assigned,
+                    days_allowed: assigned ? assigned.days_allowed : '',
+                    days_used: assigned ? assigned.days_used : 0
+                };
+            });
+            setModalLeaveTypes(merged);
+        } catch (err) {
+            setLeaveModalError('Failed to load leave types');
+        } finally {
+            setLeaveModalLoading(false);
+        }
+    };
+
+    // Handler to save leave types for a user
+    const handleSaveLeaveTypes = async () => {
+        setLeaveModalSaving(true);
+        setLeaveModalError('');
+        try {
+            const token = localStorage.getItem('token');
+            // Only send assigned types with days_allowed
+            const leaveTypesPayload = modalLeaveTypes.filter(lt => lt.assigned && lt.days_allowed !== '').map(lt => ({
+                leave_type_id: lt.leave_type_id,
+                days_allowed: Number(lt.days_allowed)
+            }));
+            await axios.put(`${API_BASE_URL}/api/user/${leaveModalUser.staffid}/leave-types`,
+                { leaveTypes: leaveTypesPayload },
+                { headers: { 'x-access-token': token } }
+            );
+            toast.success('Leave types updated successfully');
+            // Refresh leave balance for this user to show updated data
+            await fetchLeaveBalance(leaveModalUser.staffid);
+            setShowLeaveModal(false);
+        } catch (err) {
+            setLeaveModalError('Failed to save leave types');
+        } finally {
+            setLeaveModalSaving(false);
+        }
+    };
+
+    // Handler to add a leave type to user
+    const handleAddLeaveTypeToUser = (leaveTypeId) => {
+        setModalLeaveTypes(prev => prev.map(lt => 
+            lt.leave_type_id === leaveTypeId 
+                ? { ...lt, assigned: true, days_allowed: '' } 
+                : lt
+        ));
+    };
+
+    // Handler to remove a leave type from user
+    const handleRemoveLeaveTypeFromUser = (leaveTypeId) => {
+        setModalLeaveTypes(prev => prev.map(lt => 
+            lt.leave_type_id === leaveTypeId 
+                ? { ...lt, assigned: false, days_allowed: '' } 
+                : lt
+        ));
+    };
+
+    // Handler to edit days_allowed for a leave type
+    const handleEditDaysAllowed = (leaveTypeId, days) => {
+        setModalLeaveTypes(prev => prev.map(lt => 
+            lt.leave_type_id === leaveTypeId 
+                ? { ...lt, days_allowed: days } 
+                : lt
+        ));
+    };
+
     const [users, setUsers] = useState([]);
     const [allUsersRef, setAllUsersRef] = useState([]); // For Org Chart hierarchy
     const [fullScreenChart, setFullScreenChart] = useState(null); // Store chart data for full screen
@@ -81,7 +198,6 @@ const Users = () => {
     useEffect(() => {
         if (isAllowed) {
             fetchManagersAndAdmins();
-            fetchAllUsersForChart();
         }
     }, [isAllowed]);
 
@@ -207,8 +323,13 @@ const Users = () => {
             setExpandedUserId(null);
         } else {
             setExpandedUserId(userId);
+            // Fetch leave balance if not already loaded
             if (!leaveBalances[userId]) {
                 fetchLeaveBalance(userId);
+            }
+            // Fetch all users for org chart if not already loaded
+            if (allUsersRef.length === 0) {
+                fetchAllUsersForChart();
             }
         }
     };
@@ -1192,6 +1313,7 @@ const Users = () => {
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
                                                     {isAdmin && (
+                                                        <>
                                                         <button
                                                             onClick={() => handleEditUserClick(u)}
                                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
@@ -1202,6 +1324,15 @@ const Users = () => {
                                                             </svg>
                                                             <span>Edit</span>
                                                         </button>
+                                                        <button
+                                                            onClick={() => handleEditLeaveTypes(u)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow ml-2"
+                                                            title="Edit leave types"
+                                                        >
+                                                            <FiEdit2 className="w-4 h-4" />
+                                                            <span>Leave Types</span>
+                                                        </button>
+                                                        </>
                                                     )}
                                                     {(isAdmin || isManager) && (
                                                         <button
@@ -1243,48 +1374,40 @@ const Users = () => {
                                                                         <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
                                                                         Leave Balances
                                                                     </h4>
-                                                                    {leaveBalances[u.staffid]?.leaveTypes && (
+                                                                    {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 && (
                                                                         <div className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded shadow-sm border border-gray-100">
-                                                                            Total Available: <span className="font-extrabold text-blue-600 ml-1">{leaveBalances[u.staffid].leaveTypes.reduce((sum, l) => sum + l.balance, 0)}</span>
+                                                                            Total Available: <span className="font-extrabold text-blue-600 ml-1">{
+                                                                                leaveBalances[u.staffid].leaveTypes.reduce((sum, lt) => sum + (lt.balance || 0), 0)
+                                                                            }</span>
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                                 
+                                                                {/* Use user_leave_types for leave balances */}
                                                                 {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 ? (
                                                                     <div className="space-y-3">
-                                                                        {leaveBalances[u.staffid].leaveTypes.map((leave) => {
-                                                                            const percentage = leave.total_days > 0 ? (leave.used / leave.total_days) * 100 : 0;
-                                                                            let progressColor = 'bg-green-500';
-                                                                            if (percentage > 50) progressColor = 'bg-yellow-500';
-                                                                            if (percentage > 80) progressColor = 'bg-orange-500';
-                                                                            if (percentage >= 100) progressColor = 'bg-red-500';
-
-                                                                            return (
-                                                                                <div key={leave.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
-                                                                                    {/* Left: Info & Progress */}
-                                                                                    <div className="flex-1 mr-4">
-                                                                                        <div className="flex justify-between items-end mb-1.5">
-                                                                                            <span className="font-bold text-gray-800 text-sm">{leave.name}</span>
-                                                                                            <span className="text-[10px] text-gray-400 font-medium">
-                                                                                                <span className="text-gray-600">{leave.used}</span> / {leave.total_days} Used
-                                                                                            </span>
-                                                                                        </div>
-                                                                                        <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                                                                            <div 
-                                                                                                className={`h-1.5 rounded-full ${progressColor} transition-all duration-500`} 
-                                                                                                style={{ width: `${Math.min(percentage, 100)}%` }}
-                                                                                            ></div>
-                                                                                        </div>
+                                                                        {leaveBalances[u.staffid].leaveTypes.map((lt) => (
+                                                                            <div key={lt.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                                                                                {/* Left: Info & Progress */}
+                                                                                <div className="flex-1 mr-4">
+                                                                                    <div className="flex justify-between items-end mb-1.5">
+                                                                                        <span className="font-bold text-gray-800 text-sm">{lt.name}</span>
+                                                                                        <span className="text-xs text-gray-500">{lt.used} / {lt.total_days}</span>
                                                                                     </div>
-                                                                                    
-                                                                                    {/* Right: Balance Circle */}
-                                                                                    <div className="flex flex-col items-center justify-center bg-blue-50 text-blue-700 w-10 h-10 rounded-lg border border-blue-100">
-                                                                                        <span className="text-sm font-bold leading-none">{leave.balance}</span>
-                                                                                        <span className="text-[9px] uppercase font-bold text-blue-400 mt-0.5">Left</span>
+                                                                                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                                                                        <div 
+                                                                                            className={`h-1.5 rounded-full bg-blue-500 transition-all duration-500`} 
+                                                                                            style={{ width: `${((lt.used / lt.total_days) * 100) || 0}%` }}
+                                                                                        ></div>
                                                                                     </div>
                                                                                 </div>
-                                                                            );
-                                                                        })}
+                                                                                {/* Right: Balance Circle */}
+                                                                                <div className="flex flex-col items-center justify-center bg-blue-50 text-blue-700 w-10 h-10 rounded-lg border border-blue-100">
+                                                                                    <span className="text-sm font-bold leading-none">{lt.balance}</span>
+                                                                                    <span className="text-[9px] uppercase font-bold text-blue-400 mt-0.5">Left</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
                                                                     </div>
                                                                 ) : (
                                                                     <div className="text-center py-6 bg-white rounded-xl border border-dashed border-gray-300">
@@ -1387,9 +1510,125 @@ const Users = () => {
                 </div>
             </div>
 
+            {/* Edit Leave Types Modal */}
+            {showLeaveModal && (
+                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[95vh] overflow-y-auto">
+                        <div className="bg-gradient-to-r from-green-700 to-green-800 px-6 py-4">
+                            <h2 className="text-2xl font-bold text-white">Edit Leave Types</h2>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {leaveModalLoading ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <ModernLoader size="md" message="Loading leave types..." />
+                                </div>
+                            ) : leaveModalError ? (
+                                <div className="bg-red-50 border border-red-200 rounded p-3">
+                                    <p className="text-red-800 text-sm font-medium">⚠️ {leaveModalError}</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                                        <p className="text-sm text-green-800">
+                                            <strong>Employee:</strong> {leaveModalUser?.firstname} {leaveModalUser?.lastname}
+                                        </p>
+                                    </div>
+
+                                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="bg-gray-50 border-b border-gray-200">
+                                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Leave Type</th>
+                                                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Days Allowed</th>
+                                                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Days Used</th>
+                                                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {modalLeaveTypes.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="4" className="text-center text-gray-400 py-6 text-sm">No leave types available.</td>
+                                                    </tr>
+                                                ) : modalLeaveTypes.map((lt, idx) => (
+                                                    <tr key={lt.leave_type_id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors`}>
+                                                        <td className="px-4 py-3 text-sm font-medium text-gray-800">{lt.name}</td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            {lt.assigned ? (
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={lt.days_allowed}
+                                                                    onChange={e => handleEditDaysAllowed(lt.leave_type_id, e.target.value)}
+                                                                    className="w-24 px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
+                                                                    placeholder="0"
+                                                                    autoFocus={lt.days_allowed === ''}
+                                                                />
+                                                            ) : (
+                                                                <span className="text-gray-400 text-sm">-</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">{lt.days_used || 0}</td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            {lt.assigned ? (
+                                                                <button 
+                                                                    onClick={() => handleRemoveLeaveTypeFromUser(lt.leave_type_id)} 
+                                                                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                                                                    title="Remove leave type"
+                                                                >
+                                                                    <FiTrash2 className="w-4 h-4" />
+                                                                </button>
+                                                            ) : (
+                                                                <button 
+                                                                    onClick={() => handleAddLeaveTypeToUser(lt.leave_type_id)} 
+                                                                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+                                                                    title="Add leave type"
+                                                                >
+                                                                    <FiPlus className="w-4 h-4" />
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div className="flex gap-3 pt-4">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setShowLeaveModal(false)} 
+                                            disabled={leaveModalSaving}
+                                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={handleSaveLeaveTypes} 
+                                            disabled={leaveModalSaving} 
+                                            className="flex-1 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {leaveModalSaving ? (
+                                                <>
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                                    Saving...
+                                                </>
+                                            ) : (
+                                                'Save Changes'
+                                            )}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Add/Edit User Modal */}
             {showAddModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] overflow-y-auto">
                         <div className="bg-gradient-to-r from-blue-700 to-blue-800 px-6 py-4">
                             <h2 className="text-2xl font-bold text-white">{editingUserId ? 'Edit User' : 'Add New User'}</h2>
@@ -1872,7 +2111,8 @@ const Users = () => {
                 </div>
             )}
         </div>
+
     );
-};
+}
 
 export default Users;
