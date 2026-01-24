@@ -18,23 +18,12 @@ import ActiveOnDuty from './pages/ActiveOnDuty';
 import ApkDistribution from './pages/ApkDistribution';
 
 const ProtectedLayout = ({ children }) => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('workpulse-theme') || 'default');
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('workpulse-theme', theme);
-  }, [theme]);
-
-  const handleThemeChange = (newTheme) => {
-    setTheme(newTheme);
-  };
-
   return (
     <ProtectedRoute>
       <div className="flex h-screen bg-transparent transition-colors duration-300">
         <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header onThemeChange={handleThemeChange} currentTheme={theme} />
+          <Header />
           <main className="flex-1 overflow-auto">
             <div className="p-8">
               {children}
