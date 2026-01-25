@@ -13,6 +13,7 @@ import Approvals from './pages/Approvals';
 import Reports from './pages/Reports';
 import Activities from './pages/Activities';
 import LeaveTypes from './pages/LeaveTypes';
+import Roles from './pages/Roles';
 import Calendar from './pages/Calendar';
 import ActiveOnDuty from './pages/ActiveOnDuty';
 import ApkDistribution from './pages/ApkDistribution';
@@ -94,6 +95,7 @@ function App() {
           <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
           <Route path="/activities" element={<ProtectedLayout><Activities /></ProtectedLayout>} />
           <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
+          <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
           <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
           <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
 

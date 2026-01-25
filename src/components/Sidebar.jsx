@@ -10,7 +10,8 @@ import {
     LuLayers,
     LuFileText,
     LuActivity,
-    LuSmartphone
+    LuSmartphone,
+    LuShield
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
@@ -118,19 +119,27 @@ const Sidebar = () => {
 
                 <div>
                     <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Management</p>
-                    {/* Users - Admin & Manager */}
-                    {(isAdmin || isManager) && (
-                        <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
-                    )}
                     {/* Approvals - Both Admin and Manager */}
                     <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
                     {/* Active On-Duty - Both Admin and Manager */}
                     <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
                     {/* Calendar - Both Admin and Manager */}
                     <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
+                </div>
+
+                <div>
+                    <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Configurations</p>
+                    {/* Users - Admin & Manager */}
+                    {(isAdmin || isManager) && (
+                        <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
+                    )}
                     {/* Leave Types - Admin Only */}
                     {isAdmin && (
                         <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
+                    )}
+                    {/* Roles - Admin Only */}
+                    {isAdmin && (
+                        <NavLink to="/roles" icon={<LuShield />} label="Roles" />
                     )}
                 </div>
 
