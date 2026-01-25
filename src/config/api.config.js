@@ -12,17 +12,20 @@
 
 const ENVIRONMENT = import.meta.env.MODE || 'development';
 
+// Check if VITE_API_BASE_URL is provided in .env file
+const ENV_API_URL = import.meta.env.VITE_API_BASE_URL;
+
 const API_CONFIG = {
   development: {
-    baseUrl: 'http://localhost:3000',
+    baseUrl: ENV_API_URL || 'http://localhost:3000',
     description: 'Local Development'
   },
   uat: {
-    baseUrl: 'https://api.workpulse-uat.roonaa.in:3353',
+    baseUrl: ENV_API_URL || 'https://api.workpulse-uat.roonaa.in:3353',
     description: 'UAT/Test Server'
   },
   production: {
-    baseUrl: 'https://api.roonaa.in:3343',
+    baseUrl: ENV_API_URL || 'https://api.roonaa.in:3343',
     description: 'Production Server'
   }
 };
