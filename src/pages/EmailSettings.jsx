@@ -360,6 +360,25 @@ export default function EmailSettings() {
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700"
                                     />
                                 </div>
+
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            id="cc_manager"
+                                            checked={editingTemplate.cc_manager || false}
+                                            onChange={(e) => setEditingTemplate({ ...editingTemplate, cc_manager: e.target.checked })}
+                                            className="w-4 h-4 rounded accent-blue-700"
+                                        />
+                                        <label htmlFor="cc_manager" className="text-sm font-medium text-gray-700">
+                                            CC Manager on this email
+                                        </label>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2 ml-7">
+                                        When enabled, the manager will be CC'd when this email is sent to the employee.
+                                    </p>
+                                </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Body (HTML)</label>
                                     <textarea
@@ -388,8 +407,7 @@ export default function EmailSettings() {
                                 <div className="pt-4 flex gap-3">
                                     <button
                                         type="submit"
-                                        className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition"
-                                    >
+                                        className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition">
                                         Save Changes
                                     </button>
                                     <button
