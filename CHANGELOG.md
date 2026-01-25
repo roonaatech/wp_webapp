@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.6](https://github.com/roonaatech/wp_webapp/compare/v0.0.5...v0.0.6) (2026-01-25)
+
+
+### Features
+
+* add Roles management page and update Sidebar for role access ([aad6ba1](https://github.com/roonaatech/wp_webapp/commit/aad6ba1b7a546bc4a32b4541331ad974c241c1ca))
+* enhance org chart styling with role-specific colors and improve node highlighting ([00b00c4](https://github.com/roonaatech/wp_webapp/commit/00b00c4a64b31b2c9a30b041067f91d596c4f88d))
+
 ### [0.0.5](https://github.com/roonaatech/wp_webapp/compare/v0.0.4...v0.0.5) (2026-01-24)
 
 
