@@ -11,7 +11,8 @@ import {
     LuFileText,
     LuActivity,
     LuSmartphone,
-    LuShield
+    LuShield,
+    LuMail
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
@@ -141,6 +142,10 @@ const Sidebar = () => {
                     {isAdmin && (
                         <NavLink to="/roles" icon={<LuShield />} label="Roles" />
                     )}
+                    {isAdmin && (
+                        <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" />
+                    )}
+
                 </div>
 
                 <div>

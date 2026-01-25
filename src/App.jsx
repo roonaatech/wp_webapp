@@ -17,6 +17,8 @@ import Roles from './pages/Roles';
 import Calendar from './pages/Calendar';
 import ActiveOnDuty from './pages/ActiveOnDuty';
 import ApkDistribution from './pages/ApkDistribution';
+import EmailSettings from './pages/EmailSettings';
+
 
 const ProtectedLayout = ({ children }) => {
   return (
@@ -97,7 +99,9 @@ function App() {
           <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
           <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
           <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
+          <Route path="/email-settings" element={<ProtectedLayout><EmailSettings /></ProtectedLayout>} />
           <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
+
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />
