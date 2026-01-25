@@ -757,11 +757,13 @@ const Users = () => {
     const generateOrgChart = (currentUser) => {
         let definition = 'graph TD\n';
         
-        // Define styles
-        definition += 'classDef current fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e40af;\n';
-        definition += 'classDef manager fill:#f3f4f6,stroke:#9ca3af,stroke-width:1px,color:#374151;\n';
-        definition += 'classDef reportee fill:#fff,stroke:#e5e7eb,stroke-width:1px,color:#4b5563;\n';
-        definition += 'classDef admin fill:#fef2f2,stroke:#ef4444,stroke-width:1px,color:#991b1b;\n';
+        // Define styles with role-specific colors
+        definition += 'classDef current fill:#dbeafe,stroke:#2563eb,stroke-width:3px,color:#1e40af;\n';
+        definition += 'classDef admin fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b;\n';
+        definition += 'classDef manager fill:#fef3c7,stroke:#f59e0b,stroke-width:2px,color:#92400e;\n';
+        definition += 'classDef leader fill:#d1fae5,stroke:#10b981,stroke-width:2px,color:#065f46;\n';
+        definition += 'classDef employee fill:#e0e7ff,stroke:#6366f1,stroke-width:1px,color:#3730a3;\n';
+        definition += 'classDef other fill:#f3f4f6,stroke:#9ca3af,stroke-width:1px,color:#374151;\n';
 
         const safeId = (id) => `U${id}`;
         const buildLabel = (u) => {
@@ -769,10 +771,22 @@ const Users = () => {
              return `${u.firstname} ${u.lastname}<br/>(${role})`;
         };
 
+        const getRoleStyle = (u, isCurrent = false) => {
+            if (isCurrent) return 'current';
+            switch(u.role) {
+                case 1: return 'admin';
+                case 2: return 'manager';
+                case 3: return 'leader';
+                case 4: return 'employee';
+                default: return 'other';
+            }
+        };
+
         const addedNodes = new Set();
-        const addNode = (u, styleClass) => {
+        const addNode = (u, isCurrent = false) => {
             const id = u.staffid || u.id;
             if (addedNodes.has(id)) return;
+            const styleClass = getRoleStyle(u, isCurrent);
             definition += `${safeId(id)}["${buildLabel(u)}"]:::${styleClass}\n`;
             addedNodes.add(id);
         };
@@ -812,13 +826,11 @@ const Users = () => {
 
         // Add Ancestors to Graph
         ancestors.forEach(a => {
-            let style = 'manager';
-            if (a.role === 1) style = 'admin';
-            addNode(a, style);
+            addNode(a, false);
         });
 
-        // Add Current User
-        addNode(currentUser, 'current');
+        // Add Current User (highlighted)
+        addNode(currentUser, true);
 
         // 2. Traverse Down (Descendants) - Recursive
         const processDescendants = (parent) => {
@@ -827,7 +839,7 @@ const Users = () => {
             const directReports = sourceList.filter(u => u.approving_manager_id === pid);
             
             directReports.forEach(child => {
-                addNode(child, 'reportee');
+                addNode(child, false);
                 processDescendants(child);
             });
         };
