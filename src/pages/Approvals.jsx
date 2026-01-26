@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { LuClock, LuCheck, LuX, LuChevronDown, LuChevronUp, LuSearch, LuFilter, LuArrowUpDown } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
 
 const Approvals = () => {
@@ -1262,6 +1263,21 @@ const Approvals = () => {
                                     {detailsModal.isLeave ? detailsModal.item.reason : detailsModal.item.purpose || 'Task documentation provided.'}
                                 </div>
                             </div>
+
+                            {/* Location Map for On-Duty */}
+                            {!detailsModal.isLeave && (
+                                <div className="space-y-3">
+                                    <p className="text-xs font-bold text-[#2E5090] tracking-wide">Location Tracking</p>
+                                    <OnDutyLocationMap
+                                        startLat={detailsModal.item.start_lat}
+                                        startLong={detailsModal.item.start_long}
+                                        endLat={detailsModal.item.end_lat}
+                                        endLong={detailsModal.item.end_long}
+                                        clientName={detailsModal.item.client_name}
+                                        location={detailsModal.item.location}
+                                    />
+                                </div>
+                            )}
 
                             {/* Decision Trail */}
                             {detailsModal.item.status !== 'Pending' && (

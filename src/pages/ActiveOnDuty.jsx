@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import OnDutyLocationMap from '../components/OnDutyLocationMap';
 
 const ActiveOnDuty = () => {
     const [onDutyRecords, setOnDutyRecords] = useState([]);
@@ -258,52 +259,64 @@ const ActiveOnDuty = () => {
                                         </tr>
                                         {expandedRowId === record.id && (
                                             <tr className="bg-blue-50 border-b border-gray-200">
-                                                <td colSpan="7" className="px-6 py-4">
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <td colSpan="7" className="px-6 py-6">
+                                                    <div className="space-y-6">
+                                                        {/* Location Map */}
                                                         <div>
-                                                            <h4 className="font-semibold text-gray-900 mb-3">Location Details</h4>
-                                                            <div className="space-y-2 text-sm">
-                                                                <p>
-                                                                    <span className="text-gray-600">Start Location:</span>
-                                                                    <span className="ml-2 text-gray-900">
-                                                                        {record.start_lat && record.start_long
-                                                                            ? `${parseFloat(record.start_lat).toFixed(6)}, ${parseFloat(record.start_long).toFixed(6)}`
-                                                                            : 'N/A'}
-                                                                    </span>
-                                                                </p>
-                                                                {record.end_lat && record.end_long && (
-                                                                    <p>
-                                                                        <span className="text-gray-600">End Location:</span>
-                                                                        <span className="ml-2 text-gray-900">
-                                                                            {`${parseFloat(record.end_lat).toFixed(6)}, ${parseFloat(record.end_long).toFixed(6)}`}
-                                                                        </span>
-                                                                    </p>
-                                                                )}
-                                                            </div>
+                                                            <h4 className="font-semibold text-gray-900 mb-4 text-lg">Location Tracking</h4>
+                                                            <OnDutyLocationMap
+                                                                startLat={record.start_lat}
+                                                                startLong={record.start_long}
+                                                                endLat={record.end_lat}
+                                                                endLong={record.end_long}
+                                                                clientName={record.client_name}
+                                                                location={record.location}
+                                                            />
                                                         </div>
-                                                        <div>
-                                                            <h4 className="font-semibold text-gray-900 mb-3">Timeline</h4>
-                                                            <div className="space-y-2 text-sm">
-                                                                <p>
-                                                                    <span className="text-gray-600">Start Time:</span>
-                                                                    <span className="ml-2 text-gray-900">
-                                                                        {formatTime(record.start_time)}
-                                                                    </span>
-                                                                </p>
-                                                                <p>
-                                                                    <span className="text-gray-600">Duration:</span>
-                                                                    <span className="ml-2 text-gray-900">
-                                                                        {formatDuration(record.start_time)}
-                                                                    </span>
-                                                                </p>
-                                                                {record.end_time && (
+
+                                                        {/* Additional Details */}
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200">
+                                                            <div>
+                                                                <h4 className="font-semibold text-gray-900 mb-3">Visit Information</h4>
+                                                                <div className="space-y-2 text-sm">
                                                                     <p>
-                                                                        <span className="text-gray-600">End Time:</span>
+                                                                        <span className="text-gray-600">Client:</span>
+                                                                        <span className="ml-2 text-gray-900 font-medium">{record.client_name}</span>
+                                                                    </p>
+                                                                    <p>
+                                                                        <span className="text-gray-600">Location:</span>
+                                                                        <span className="ml-2 text-gray-900">{record.location}</span>
+                                                                    </p>
+                                                                    <p>
+                                                                        <span className="text-gray-600">Purpose:</span>
+                                                                        <span className="ml-2 text-gray-900">{record.purpose}</span>
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="font-semibold text-gray-900 mb-3">Timeline</h4>
+                                                                <div className="space-y-2 text-sm">
+                                                                    <p>
+                                                                        <span className="text-gray-600">Start Time:</span>
                                                                         <span className="ml-2 text-gray-900">
-                                                                            {formatTime(record.end_time)}
+                                                                            {formatTime(record.start_time)}
                                                                         </span>
                                                                     </p>
-                                                                )}
+                                                                    <p>
+                                                                        <span className="text-gray-600">Duration:</span>
+                                                                        <span className="ml-2 text-gray-900 font-medium">
+                                                                            {formatDuration(record.start_time)}
+                                                                        </span>
+                                                                    </p>
+                                                                    {record.end_time && (
+                                                                        <p>
+                                                                            <span className="text-gray-600">End Time:</span>
+                                                                            <span className="ml-2 text-gray-900">
+                                                                                {formatTime(record.end_time)}
+                                                                            </span>
+                                                                        </p>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
