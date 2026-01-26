@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import { LuClock, LuCheck, LuX, LuChevronDown, LuChevronUp, LuSearch, LuFilter, LuArrowUpDown } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import OnDutyLocationMap from '../components/OnDutyLocationMap';
+import { calculateLeaveDays } from '../utils/dateUtils';
 
 const Approvals = () => {
     const [leaveApprovals, setLeaveApprovals] = useState([]);
@@ -139,7 +141,11 @@ const Approvals = () => {
                     manager_id: item.manager_id,
                     approver: item.approver,
                     createdAt: item.createdAt,
-                    updatedAt: item.updatedAt
+                    updatedAt: item.updatedAt,
+                    start_lat: item.start_lat,
+                    start_long: item.start_long,
+                    end_lat: item.end_lat,
+                    end_long: item.end_long
                 };
             });
 
@@ -761,7 +767,7 @@ const Approvals = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-sm text-gray-600">
-                                                        {calculateDaysOfLeave(req.start_date, req.end_date)} Days
+                                                        {calculateLeaveDays(req.start_date, req.end_date)} Days
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <div className="text-sm text-gray-900">
@@ -1178,7 +1184,7 @@ const Approvals = () => {
                                     {detailsModal.isLeave ? '📄' : '📍'}
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold">Request Data Sheet</h2>
+                                    <h2 className="text-xl font-bold">{detailsModal.isLeave ? 'Leave Request Details' : 'On-Duty Details'}</h2>
                                     <p className="text-white/80 text-xs font-semibold tracking-wide">
                                         {detailsModal.isLeave ? 'Leave Application Details' : 'On-Duty Transaction Details'}
                                     </p>
@@ -1231,7 +1237,7 @@ const Approvals = () => {
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                     <p className="text-base font-semibold text-gray-900">
                                         {detailsModal.isLeave
-                                            ? `${calculateDaysOfLeave(detailsModal.item.start_date, detailsModal.item.end_date)} Session Day(s)`
+                                            ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date)} Day(s)`
                                             : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time)
                                         }
                                     </p>
@@ -1261,6 +1267,21 @@ const Approvals = () => {
                                     {detailsModal.isLeave ? detailsModal.item.reason : detailsModal.item.purpose || 'Task documentation provided.'}
                                 </div>
                             </div>
+
+                            {/* Location Map for On-Duty */}
+                            {!detailsModal.isLeave && (
+                                <div className="space-y-3">
+                                    <p className="text-xs font-bold text-[#2E5090] tracking-wide">Location Tracking</p>
+                                    <OnDutyLocationMap
+                                        startLat={detailsModal.item.start_lat}
+                                        startLong={detailsModal.item.start_long}
+                                        endLat={detailsModal.item.end_lat}
+                                        endLong={detailsModal.item.end_long}
+                                        clientName={detailsModal.item.client_name}
+                                        location={detailsModal.item.location}
+                                    />
+                                </div>
+                            )}
 
                             {/* Decision Trail */}
                             {detailsModal.item.status !== 'Pending' && (
@@ -1358,25 +1379,6 @@ const Approvals = () => {
     );
 };
 
-const calculateDaysOfLeave = (startDate, endDate) => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    let count = 0;
-    const current = new Date(start);
-
-    while (current <= end) {
-        // In JavaScript: Sunday = 0, Monday = 1, ..., Saturday = 6
-        // Exclude Sunday (0)
-        if (current.getDay() !== 0) {
-            count++;
-        }
-        current.setDate(current.getDate() + 1);
-    }
-
-    return count;
-};
 
 const calculateOnDutyDuration = (startTime, endTime) => {
     if (!startTime || !endTime) return 'In Progress';

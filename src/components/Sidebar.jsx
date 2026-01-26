@@ -1,24 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { 
-    LuLayoutDashboard, 
-    LuUsers, 
-    LuClipboardCheck, 
-    LuCar, 
-    LuCalendarDays, 
-    LuLayers, 
-    LuFileText, 
-    LuActivity 
+import {
+    LuLayoutDashboard,
+    LuUsers,
+    LuClipboardCheck,
+    LuCar,
+    LuCalendarDays,
+    LuLayers,
+    LuFileText,
+    LuActivity,
+    LuSmartphone,
+    LuShield,
+    LuMail
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
+import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
 
 const Sidebar = () => {
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = user.role === 1;
+    const isManager = user.role === 2;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
 
@@ -115,20 +120,32 @@ const Sidebar = () => {
 
                 <div>
                     <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Management</p>
-                    {/* Users - Admin Only */}
-                    {isAdmin && (
-                        <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
-                    )}
                     {/* Approvals - Both Admin and Manager */}
                     <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
                     {/* Active On-Duty - Both Admin and Manager */}
                     <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
                     {/* Calendar - Both Admin and Manager */}
                     <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
+                </div>
+
+                <div>
+                    <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Configurations</p>
+                    {/* Users - Admin & Manager */}
+                    {(isAdmin || isManager) && (
+                        <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
+                    )}
                     {/* Leave Types - Admin Only */}
                     {isAdmin && (
                         <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
                     )}
+                    {/* Roles - Admin Only */}
+                    {isAdmin && (
+                        <NavLink to="/roles" icon={<LuShield />} label="Roles" />
+                    )}
+                    {isAdmin && (
+                        <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" />
+                    )}
+
                 </div>
 
                 <div>
@@ -138,6 +155,11 @@ const Sidebar = () => {
                     {isAdmin && (
                         <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
                     )}
+
+                    <div className="mt-6 mb-3 px-6 border-t border-[var(--border-color)] pt-6">
+                        <p className="text-sm font-semibold text-blue-400 tracking-widest mb-3">Downloads</p>
+                        <NavLink to="/apk" icon={<LuSmartphone />} label="Mobile App" />
+                    </div>
                 </div>
 
                 {/* Role Badge */}
@@ -145,8 +167,8 @@ const Sidebar = () => {
                     <div className="bg-white/10 dark:bg-slate-800/50 rounded-xl p-4 border border-[var(--border-color)] backdrop-blur-sm">
                         <p className="text-sm text-[var(--sidebar-muted)] mb-1 font-medium">Signed in as</p>
                         <div className="flex items-center gap-2">
-                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                             <p className="text-base font-bold text-[var(--sidebar-text)] tracking-wide">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <p className="text-base font-bold text-[var(--sidebar-text)] tracking-wide">
                                 {isAdmin ? 'Administrator' : 'Manager'}
                             </p>
                         </div>
@@ -156,7 +178,9 @@ const Sidebar = () => {
 
             {/* Footer */}
             <div className="p-6 border-t border-[var(--border-color)]">
-                <p className="text-[10px] text-[var(--text-muted)] text-center font-medium tracking-widest uppercase">WORKPULSE v1.0</p>
+                <p className="text-[10px] text-[var(--sidebar-text)] text-center font-medium tracking-widest uppercase">
+                    WORKPULSE v{packageJson.version}
+                </p>
             </div>
         </div>
     );

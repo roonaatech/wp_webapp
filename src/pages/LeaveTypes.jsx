@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+import API_BASE_URL from '../config/api.config';
 
 export default function LeaveTypes() {
   const [leaveTypes, setLeaveTypes] = useState([]);
@@ -14,7 +13,6 @@ export default function LeaveTypes() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    days_allowed: 0,
     status: true,
     gender_restriction: []
   });
@@ -29,7 +27,7 @@ export default function LeaveTypes() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/api/leavetypes/admin/all`, {
+      const response = await axios.get(`${API_BASE_URL}/api/leavetypes/admin/all`, {
         headers: { 'x-access-token': token }
       });
       setLeaveTypes(response.data);
@@ -45,7 +43,7 @@ export default function LeaveTypes() {
   const openCreateModal = () => {
     setModalType('create');
     setEditingId(null);
-    setFormData({ name: '', description: '', days_allowed: 0, status: true, gender_restriction: [] });
+    setFormData({ name: '', description: '', status: true, gender_restriction: [] });
     setShowModal(true);
   };
 
@@ -55,7 +53,6 @@ export default function LeaveTypes() {
     setFormData({
       name: leaveType.name,
       description: leaveType.description || '',
-      days_allowed: leaveType.days_allowed || 0,
       status: leaveType.status,
       gender_restriction: leaveType.gender_restriction || []
     });
@@ -117,12 +114,12 @@ export default function LeaveTypes() {
       const config = { headers: { 'x-access-token': token } };
 
       if (modalType === 'create') {
-        await axios.post(`${API_BASE}/api/leavetypes`, formData, config);
+        await axios.post(`${API_BASE_URL}/api/leavetypes`, formData, config);
         const successMsg = `Leave type '${formData.name}' created successfully`;
         setSuccess(successMsg);
         toast.success(successMsg);
       } else {
-        await axios.put(`${API_BASE}/api/leavetypes/${editingId}`, formData, config);
+        await axios.put(`${API_BASE_URL}/api/leavetypes/${editingId}`, formData, config);
         const successMsg = `Leave type '${formData.name}' updated successfully`;
         setSuccess(successMsg);
         toast.success(successMsg, {
@@ -148,7 +145,7 @@ export default function LeaveTypes() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${API_BASE}/api/leavetypes/${id}`, {
+      await axios.delete(`${API_BASE_URL}/api/leavetypes/${id}`, {
         headers: { 'x-access-token': token }
       });
       const successMsg = 'Leave type deleted successfully';
@@ -219,7 +216,6 @@ export default function LeaveTypes() {
             <tr>
               <th className="px-6 py-3 text-left text-sm font-semibold text-white">Name</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-white">Description</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white">Days Allowed</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-white">Gender Restriction</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-white">Status</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
@@ -237,9 +233,6 @@ export default function LeaveTypes() {
                 <tr key={leaveType.id} className="border-b border-gray-200">
                   <td className="px-6 py-4 font-medium text-gray-900">{leaveType.name}</td>
                   <td className="px-6 py-4 text-gray-600">{leaveType.description || '-'}</td>
-                  <td className="px-6 py-4">
-                    <span className="font-semibold text-[#2E5090]">{leaveType.days_allowed || 0} days</span>
-                  </td>
                   <td className="px-6 py-4 text-gray-600">{leaveType.gender_restriction?.join(', ') || 'All'}</td>
                   <td className="px-6 py-4">
                     <span
@@ -317,21 +310,6 @@ export default function LeaveTypes() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700"
                   rows="3"
                   placeholder="Optional description..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Days Allowed
-                </label>
-                <input
-                  type="number"
-                  name="days_allowed"
-                  value={formData.days_allowed}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700"
-                  placeholder="e.g., 20"
-                  min="0"
                 />
               </div>
 

@@ -13,27 +13,20 @@ import Approvals from './pages/Approvals';
 import Reports from './pages/Reports';
 import Activities from './pages/Activities';
 import LeaveTypes from './pages/LeaveTypes';
+import Roles from './pages/Roles';
 import Calendar from './pages/Calendar';
 import ActiveOnDuty from './pages/ActiveOnDuty';
+import ApkDistribution from './pages/ApkDistribution';
+import EmailSettings from './pages/EmailSettings';
+
 
 const ProtectedLayout = ({ children }) => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('workpulse-theme') || 'default');
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('workpulse-theme', theme);
-  }, [theme]);
-
-  const handleThemeChange = (newTheme) => {
-    setTheme(newTheme);
-  };
-
   return (
     <ProtectedRoute>
       <div className="flex h-screen bg-transparent transition-colors duration-300">
         <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header onThemeChange={handleThemeChange} currentTheme={theme} />
+          <Header />
           <main className="flex-1 overflow-auto">
             <div className="p-8">
               {children}
@@ -45,12 +38,20 @@ const ProtectedLayout = ({ children }) => {
   );
 };
 
+const PublicOrProtectedLayout = ({ children }) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    return <ProtectedLayout>{children}</ProtectedLayout>;
+  }
+  return children;
+};
+
 function App() {
   return (
     <Router>
       <AxiosInterceptorSetup>
-        <Toaster 
-          position="top-right" 
+        <Toaster
+          position="top-right"
           reverseOrder={false}
           toastOptions={{
             duration: 4000,
@@ -96,7 +97,11 @@ function App() {
           <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
           <Route path="/activities" element={<ProtectedLayout><Activities /></ProtectedLayout>} />
           <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
+          <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
           <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
+          <Route path="/email-settings" element={<ProtectedLayout><EmailSettings /></ProtectedLayout>} />
+          <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
+
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />

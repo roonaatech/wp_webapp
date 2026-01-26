@@ -1,42 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuPalette, LuCheck, LuMoon, LuSun } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 
-const Header = ({ onThemeChange, currentTheme }) => {
+const Header = () => {
     const [showMenu, setShowMenu] = useState(false);
-    const [showThemes, setShowThemes] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
     const [loadingCount, setLoadingCount] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const themeMenuRef = useRef(null);
     const navigate = useNavigate();
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{"email":"Admin User"}');
-
-    const themes = [
-        { id: 'default', name: 'Light', color: '#ffffff', border: '#e5e7eb', icon: <LuSun /> },
-        { id: 'dark', name: 'Dark', color: '#1e293b', border: '#334155', icon: <LuMoon /> },
-        { id: 'blue', name: 'Ocean', color: '#3b82f6', border: '#bfdbfe' },
-        { id: 'green', name: 'Forest', color: '#22c55e', border: '#bbf7d0' },
-        { id: 'purple', name: 'Royal', color: '#a855f7', border: '#ddd6fe' },
-        { id: 'orange', name: 'Sunset', color: '#f97316', border: '#fed7aa' },
-        { id: 'rose', name: 'Ruby', color: '#f43f5e', border: '#fecdd3' },
-        { id: 'teal', name: 'Aqua', color: '#14b8a6', border: '#99f6e4' },
-    ];
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (themeMenuRef.current && !themeMenuRef.current.contains(event.target)) {
-                setShowThemes(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
     useEffect(() => {
         fetchPendingCount();
@@ -137,48 +113,6 @@ const Header = ({ onThemeChange, currentTheme }) => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {/* Theme Selector */}
-                    <div className="relative mr-2" ref={themeMenuRef}>
-                        <button
-                            onClick={() => setShowThemes(!showThemes)}
-                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-[var(--text-muted)] hover:text-blue-500"
-                            title="Change Theme"
-                        >
-                            <LuPalette className="w-6 h-6" />
-                        </button>
-                        
-                        {showThemes && (
-                            <div className="absolute right-0 mt-2 w-48 bg-[var(--header-bg)] rounded-xl shadow-2xl border border-[var(--border-color)] z-[60] p-2 animate-in fade-in zoom-in duration-200">
-                                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest px-3 py-2">Select Theme</p>
-                                <div className="space-y-1">
-                                    {themes.map((t) => (
-                                        <button
-                                            key={t.id}
-                                            onClick={() => {
-                                                onThemeChange(t.id);
-                                                setShowThemes(false);
-                                            }}
-                                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${
-                                                currentTheme === t.id 
-                                                ? 'bg-blue-500 text-white font-semibold' 
-                                                : 'text-[var(--text-main)] hover:bg-slate-100 dark:hover:bg-slate-800'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div 
-                                                    className="w-4 h-4 rounded-full border shadow-sm"
-                                                    style={{ backgroundColor: t.color, borderColor: t.border }}
-                                                />
-                                                <span>{t.name}</span>
-                                            </div>
-                                            {currentTheme === t.id && <LuCheck className="w-4 h-4" />}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
                     <div className="relative">
                         <button
                             onClick={handleNotificationClick}
