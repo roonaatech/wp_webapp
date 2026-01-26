@@ -141,7 +141,11 @@ const Approvals = () => {
                     manager_id: item.manager_id,
                     approver: item.approver,
                     createdAt: item.createdAt,
-                    updatedAt: item.updatedAt
+                    updatedAt: item.updatedAt,
+                    start_lat: item.start_lat,
+                    start_long: item.start_long,
+                    end_lat: item.end_lat,
+                    end_long: item.end_long
                 };
             });
 
