@@ -94,7 +94,8 @@ export default function EmailSettings() {
             toast.success('Email configuration saved successfully');
         } catch (err) {
             console.error('Error saving config:', err);
-            toast.error('Failed to save configuration');
+            const msg = err.response?.data?.message || 'Failed to save configuration';
+            toast.error(msg);
         } finally {
             setLoading(false);
         }

@@ -99,27 +99,27 @@ const Users = () => {
 
     // Handler to add a leave type to user
     const handleAddLeaveTypeToUser = (leaveTypeId) => {
-        setModalLeaveTypes(prev => prev.map(lt => 
-            lt.leave_type_id === leaveTypeId 
-                ? { ...lt, assigned: true, days_allowed: '' } 
+        setModalLeaveTypes(prev => prev.map(lt =>
+            lt.leave_type_id === leaveTypeId
+                ? { ...lt, assigned: true, days_allowed: '' }
                 : lt
         ));
     };
 
     // Handler to remove a leave type from user
     const handleRemoveLeaveTypeFromUser = (leaveTypeId) => {
-        setModalLeaveTypes(prev => prev.map(lt => 
-            lt.leave_type_id === leaveTypeId 
-                ? { ...lt, assigned: false, days_allowed: '' } 
+        setModalLeaveTypes(prev => prev.map(lt =>
+            lt.leave_type_id === leaveTypeId
+                ? { ...lt, assigned: false, days_allowed: '' }
                 : lt
         ));
     };
 
     // Handler to edit days_allowed for a leave type
     const handleEditDaysAllowed = (leaveTypeId, days) => {
-        setModalLeaveTypes(prev => prev.map(lt => 
-            lt.leave_type_id === leaveTypeId 
-                ? { ...lt, days_allowed: days } 
+        setModalLeaveTypes(prev => prev.map(lt =>
+            lt.leave_type_id === leaveTypeId
+                ? { ...lt, days_allowed: days }
                 : lt
         ));
     };
@@ -225,19 +225,19 @@ const Users = () => {
                 setError('No authentication token found. Please login first.');
                 return;
             }
-            
+
             const queryParams = new URLSearchParams({
                 page: page,
                 limit: pageSize,
                 search: searchTerm,
                 letter: letterFilter
             });
-            
+
             // Add status filter if any statuses are selected
             if (statusFilter.length > 0) {
                 queryParams.append('status', statusFilter.join(','));
             }
-            
+
             // Add role filter if any roles are selected
             if (roleFilter.length > 0) {
                 queryParams.append('role', roleFilter.join(','));
@@ -246,7 +246,7 @@ const Users = () => {
             const response = await axios.get(`${API_BASE_URL}/api/admin/users?${queryParams.toString()}`, {
                 headers: { 'x-access-token': token }
             });
-            
+
             if (response.data.users) {
                 setUsers(response.data.users); // users is now the current page
                 setTotalPages(response.data.totalPages);
@@ -282,7 +282,7 @@ const Users = () => {
             const token = localStorage.getItem('token');
             if (!token) return;
             const response = await axios.get(`${API_BASE_URL}/api/admin/users?limit=all`, {
-                 headers: { 'x-access-token': token }
+                headers: { 'x-access-token': token }
             });
             if (response.data.users) {
                 setAllUsersRef(response.data.users);
@@ -756,7 +756,7 @@ const Users = () => {
 
     const generateOrgChart = (currentUser) => {
         let definition = 'graph TD\n';
-        
+
         // Define styles with role-specific colors
         definition += 'classDef current fill:#dbeafe,stroke:#2563eb,stroke-width:3px,color:#1e40af;\n';
         definition += 'classDef admin fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b;\n';
@@ -767,13 +767,13 @@ const Users = () => {
 
         const safeId = (id) => `U${id}`;
         const buildLabel = (u) => {
-             const role = getRoleName(u.role);
-             return `${u.firstname} ${u.lastname}<br/>(${role})`;
+            const role = getRoleName(u.role);
+            return `${u.firstname} ${u.lastname}<br/>(${role})`;
         };
 
         const getRoleStyle = (u, isCurrent = false) => {
             if (isCurrent) return 'current';
-            switch(u.role) {
+            switch (u.role) {
                 case 1: return 'admin';
                 case 2: return 'manager';
                 case 3: return 'leader';
@@ -792,12 +792,12 @@ const Users = () => {
         };
 
         const addEdge = (parent, child) => {
-             const pid = parent.staffid || parent.id;
-             const cid = child.staffid || child.id;
-             // Only add edge if both nodes are in our relevant set
-             if (addedNodes.has(pid) && addedNodes.has(cid)) {
+            const pid = parent.staffid || parent.id;
+            const cid = child.staffid || child.id;
+            // Only add edge if both nodes are in our relevant set
+            if (addedNodes.has(pid) && addedNodes.has(cid)) {
                 definition += `${safeId(pid)} --> ${safeId(cid)}\n`;
-             }
+            }
         };
 
         // 1. Traverse Up (Ancestors)
@@ -807,21 +807,21 @@ const Users = () => {
 
         // Helper to find user in any available list
         const findUser = (id) => {
-            return allUsersRef.find(u => (u.staffid || u.id) === id) || 
-                   users.find(u => (u.staffid || u.id) === id) || 
-                   managersAndAdmins.find(u => (u.staffid || u.id) === id) ||
-                   ((user.staffid || user.id) === id ? user : null);
+            return allUsersRef.find(u => (u.staffid || u.id) === id) ||
+                users.find(u => (u.staffid || u.id) === id) ||
+                managersAndAdmins.find(u => (u.staffid || u.id) === id) ||
+                ((user.staffid || user.id) === id ? user : null);
         };
 
         while (curr.approving_manager_id) {
-             const mgr = findUser(curr.approving_manager_id);
-             if (mgr && !visited.has(mgr.staffid || mgr.id)) {
-                 ancestors.unshift(mgr); // Add to beginning
-                 visited.add(mgr.staffid || mgr.id);
-                 curr = mgr;
-             } else {
-                 break;
-             }
+            const mgr = findUser(curr.approving_manager_id);
+            if (mgr && !visited.has(mgr.staffid || mgr.id)) {
+                ancestors.unshift(mgr); // Add to beginning
+                visited.add(mgr.staffid || mgr.id);
+                curr = mgr;
+            } else {
+                break;
+            }
         }
 
         // Add Ancestors to Graph
@@ -837,7 +837,7 @@ const Users = () => {
             const pid = parent.staffid || parent.id;
             const sourceList = allUsersRef.length > 0 ? allUsersRef : users;
             const directReports = sourceList.filter(u => u.approving_manager_id === pid);
-            
+
             directReports.forEach(child => {
                 addNode(child, false);
                 processDescendants(child);
@@ -849,7 +849,7 @@ const Users = () => {
         // 3. Draw edges for all added nodes (use Set to avoid duplicate edges)
         const addedEdges = new Set();
         const relevantUsers = [...allUsersRef, ...users, ...managersAndAdmins, user].filter(u => u && addedNodes.has(u.staffid || u.id));
-        
+
         // Deduplicate users by ID before processing edges
         const uniqueUsers = [];
         const seenIds = new Set();
@@ -860,18 +860,18 @@ const Users = () => {
                 uniqueUsers.push(u);
             }
         });
-        
+
         uniqueUsers.forEach(u => {
-             if (u.approving_manager_id) {
-                 const mgr = findUser(u.approving_manager_id);
-                 if (mgr) {
-                     const edgeKey = `${mgr.staffid || mgr.id}-${u.staffid || u.id}`;
-                     if (!addedEdges.has(edgeKey)) {
-                         addEdge(mgr, u);
-                         addedEdges.add(edgeKey);
-                     }
-                 }
-             }
+            if (u.approving_manager_id) {
+                const mgr = findUser(u.approving_manager_id);
+                if (mgr) {
+                    const edgeKey = `${mgr.staffid || mgr.id}-${u.staffid || u.id}`;
+                    if (!addedEdges.has(edgeKey)) {
+                        addEdge(mgr, u);
+                        addedEdges.add(edgeKey);
+                    }
+                }
+            }
         });
 
         return definition;
@@ -1156,11 +1156,10 @@ const Users = () => {
                         <span className="text-sm font-medium text-gray-700">Filter by First Letter:</span>
                         <button
                             onClick={() => setLetterFilter('')}
-                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                                letterFilter === ''
+                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${letterFilter === ''
                                     ? 'bg-blue-700 text-white'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                                }`}
                         >
                             All
                         </button>
@@ -1170,11 +1169,10 @@ const Users = () => {
                             <button
                                 key={letter}
                                 onClick={() => handleLetterFilter(letter)}
-                                className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
-                                    letterFilter === letter
+                                className={`w-8 h-8 rounded text-sm font-medium transition-colors ${letterFilter === letter
                                         ? 'bg-blue-700 text-white'
                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
+                                    }`}
                                 title={`Show users whose first name starts with ${letter}`}
                             >
                                 {letter}
@@ -1326,24 +1324,24 @@ const Users = () => {
                                                 <div className="flex items-center gap-2">
                                                     {isAdmin && (
                                                         <>
-                                                        <button
-                                                            onClick={() => handleEditUserClick(u)}
-                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
-                                                            title="Edit user details"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                            </svg>
-                                                            <span>Edit</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleEditLeaveTypes(u)}
-                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow ml-2"
-                                                            title="Edit leave types"
-                                                        >
-                                                            <FiEdit2 className="w-4 h-4" />
-                                                            <span>Leave Types</span>
-                                                        </button>
+                                                            <button
+                                                                onClick={() => handleEditUserClick(u)}
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
+                                                                title="Edit user details"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                </svg>
+                                                                <span>Edit</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleEditLeaveTypes(u)}
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow ml-2"
+                                                                title="Edit leave types"
+                                                            >
+                                                                <FiEdit2 className="w-4 h-4" />
+                                                                <span>Leave Types</span>
+                                                            </button>
                                                         </>
                                                     )}
                                                     {(isAdmin || isManager) && (
@@ -1394,32 +1392,41 @@ const Users = () => {
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                
+
                                                                 {/* Use user_leave_types for leave balances */}
                                                                 {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 ? (
                                                                     <div className="space-y-3">
-                                                                        {leaveBalances[u.staffid].leaveTypes.map((lt) => (
-                                                                            <div key={lt.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
-                                                                                {/* Left: Info & Progress */}
-                                                                                <div className="flex-1 mr-4">
-                                                                                    <div className="flex justify-between items-end mb-1.5">
-                                                                                        <span className="font-bold text-gray-800 text-sm">{lt.name}</span>
-                                                                                        <span className="text-xs text-gray-500">{lt.used} / {lt.total_days}</span>
+                                                                        {leaveBalances[u.staffid].leaveTypes.map((lt) => {
+                                                                            const pct = ((lt.used / lt.total_days) * 100) || 0;
+                                                                            let colors = { bar: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-100', muted: 'text-green-400' };
+
+                                                                            if (pct >= 90) colors = { bar: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100', muted: 'text-red-400' };
+                                                                            else if (pct >= 75) colors = { bar: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', muted: 'text-amber-400' };
+                                                                            else if (pct >= 50) colors = { bar: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-100', muted: 'text-blue-400' };
+
+                                                                            return (
+                                                                                <div key={lt.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                                                                                    {/* Left: Info & Progress */}
+                                                                                    <div className="flex-1 mr-4">
+                                                                                        <div className="flex justify-between items-end mb-1.5">
+                                                                                            <span className="font-bold text-gray-800 text-sm">{lt.name}</span>
+                                                                                            <span className="text-xs text-gray-500">{lt.used} / {lt.total_days}</span>
+                                                                                        </div>
+                                                                                        <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                                                                            <div
+                                                                                                className={`h-1.5 rounded-full ${colors.bar} transition-all duration-500`}
+                                                                                                style={{ width: `${pct}%` }}
+                                                                                            ></div>
+                                                                                        </div>
                                                                                     </div>
-                                                                                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                                                                        <div 
-                                                                                            className={`h-1.5 rounded-full bg-blue-500 transition-all duration-500`} 
-                                                                                            style={{ width: `${((lt.used / lt.total_days) * 100) || 0}%` }}
-                                                                                        ></div>
+                                                                                    {/* Right: Balance Circle */}
+                                                                                    <div className={`flex flex-col items-center justify-center ${colors.bg} ${colors.text} w-10 h-10 rounded-lg border ${colors.border}`}>
+                                                                                        <span className="text-sm font-bold leading-none">{lt.balance}</span>
+                                                                                        <span className={`text-[9px] uppercase font-bold ${colors.muted} mt-0.5`}>Left</span>
                                                                                     </div>
                                                                                 </div>
-                                                                                {/* Right: Balance Circle */}
-                                                                                <div className="flex flex-col items-center justify-center bg-blue-50 text-blue-700 w-10 h-10 rounded-lg border border-blue-100">
-                                                                                    <span className="text-sm font-bold leading-none">{lt.balance}</span>
-                                                                                    <span className="text-[9px] uppercase font-bold text-blue-400 mt-0.5">Left</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        ))}
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 ) : (
                                                                     <div className="text-center py-6 bg-white rounded-xl border border-dashed border-gray-300">
@@ -1475,7 +1482,7 @@ const Users = () => {
                 {/* Pagination */}
                 <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                         <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
                             <span>Show</span>
                             <select
                                 value={pageSize}
@@ -1498,7 +1505,7 @@ const Users = () => {
                     </div>
 
                     <div className="flex gap-2 items-center">
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                             disabled={currentPage === 1}
                             className={`px-3 py-1 border border-gray-300 rounded text-sm transition-colors ${currentPage === 1 ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-700'}`}
@@ -1506,12 +1513,12 @@ const Users = () => {
                             Previous
                         </button>
                         <span className="text-sm text-gray-600 px-2 flex items-center gap-1">
-                            Page 
-                            <span className="font-medium text-gray-900">{currentPage}</span> 
-                            of 
+                            Page
+                            <span className="font-medium text-gray-900">{currentPage}</span>
+                            of
                             <span className="font-medium text-gray-900">{Math.max(totalPages, 1)}</span>
                         </span>
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                             disabled={currentPage >= totalPages}
                             className={`px-3 py-1 border border-gray-300 rounded text-sm transition-colors ${currentPage >= totalPages ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-700'}`}
@@ -1583,16 +1590,16 @@ const Users = () => {
                                                         <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">{lt.days_used || 0}</td>
                                                         <td className="px-4 py-3 text-center">
                                                             {lt.assigned ? (
-                                                                <button 
-                                                                    onClick={() => handleRemoveLeaveTypeFromUser(lt.leave_type_id)} 
+                                                                <button
+                                                                    onClick={() => handleRemoveLeaveTypeFromUser(lt.leave_type_id)}
                                                                     className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                                                                     title="Remove leave type"
                                                                 >
                                                                     <FiTrash2 className="w-4 h-4" />
                                                                 </button>
                                                             ) : (
-                                                                <button 
-                                                                    onClick={() => handleAddLeaveTypeToUser(lt.leave_type_id)} 
+                                                                <button
+                                                                    onClick={() => handleAddLeaveTypeToUser(lt.leave_type_id)}
                                                                     className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
                                                                     title="Add leave type"
                                                                 >
@@ -1607,18 +1614,18 @@ const Users = () => {
                                     </div>
 
                                     <div className="flex gap-3 pt-4">
-                                        <button 
+                                        <button
                                             type="button"
-                                            onClick={() => setShowLeaveModal(false)} 
+                                            onClick={() => setShowLeaveModal(false)}
                                             disabled={leaveModalSaving}
                                             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
                                         >
                                             Cancel
                                         </button>
-                                        <button 
+                                        <button
                                             type="button"
-                                            onClick={handleSaveLeaveTypes} 
-                                            disabled={leaveModalSaving} 
+                                            onClick={handleSaveLeaveTypes}
+                                            disabled={leaveModalSaving}
                                             className="flex-1 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                                         >
                                             {leaveModalSaving ? (
@@ -1707,160 +1714,160 @@ const Users = () => {
                                     </div>
                                 )}
 
-                            <div>
-                                <label className="block text-base font-medium text-gray-700 mb-1">First Name</label>
-                                <input
-                                    type="text"
-                                    name="firstname"
-                                    value={formData.firstname}
-                                    onChange={handleFormChange}
-                                    placeholder="John"
-                                    className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-base font-medium text-gray-700 mb-1">Last Name</label>
-                                <input
-                                    type="text"
-                                    name="lastname"
-                                    value={formData.lastname}
-                                    onChange={handleFormChange}
-                                    placeholder="Doe"
-                                    className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-base font-medium text-gray-700 mb-1">Email</label>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleFormChange}
-                                    placeholder="john@example.com"
-                                    className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-base font-medium text-gray-700 mb-1">Role</label>
-                                <select
-                                    name="role"
-                                    value={formData.role}
-                                    onChange={handleFormChange}
-                                    className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                                >
-                                    <option value="4">Employee</option>
-                                    <option value="3">Manager</option>
-                                    <option value="2">Leader</option>
-                                    <option value="1">Admin</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-base font-medium text-gray-700 mb-1">Gender</label>
-                                <select
-                                    name="gender"
-                                    value={formData.gender}
-                                    onChange={handleFormChange}
-                                    className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                                >
-                                    <option value="">Select Gender</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="Transgender">Transgender</option>
-                                </select>
-                            </div>
-
-                            {/* Manager/Approver Selection - Show for Employee and Manager roles */}
-                            {(formData.role === '4' || formData.role === '3' || formData.role === '2') && (
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">
-                                        {formData.role === '4' ? 'Manager / Leader / Approving Admin' : formData.role === '3' ? 'Leader / Approving Admin' : 'Approving Admin'}
-                                    </label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">First Name</label>
+                                    <input
+                                        type="text"
+                                        name="firstname"
+                                        value={formData.firstname}
+                                        onChange={handleFormChange}
+                                        placeholder="John"
+                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">Last Name</label>
+                                    <input
+                                        type="text"
+                                        name="lastname"
+                                        value={formData.lastname}
+                                        onChange={handleFormChange}
+                                        placeholder="Doe"
+                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">Email</label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={formData.email}
+                                        onChange={handleFormChange}
+                                        placeholder="john@example.com"
+                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">Role</label>
                                     <select
-                                        name="approving_manager_id"
-                                        value={formData.approving_manager_id}
+                                        name="role"
+                                        value={formData.role}
                                         onChange={handleFormChange}
                                         className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                     >
-                                        <option value="">Select Approver</option>
-                                        {managersAndAdmins.map((user) => {
-                                            const isTargetManager = formData.role === '3';
-                                            const isTargetLeader = formData.role === '2';
-                                            const isTargetEmployee = formData.role === '4';
-                                            if (isTargetManager && (user.role !== 1 && user.role !== 2)) return null;
-                                            if (isTargetLeader && (user.role !== 1)) return null;
-                                            if (isTargetEmployee && (user.role !== 1 && user.role !== 2 && user.role !== 3)) return null;
-                                            return (
-                                                <option key={user.staffid} value={user.staffid}>
-                                                    {user.firstname} {user.lastname} ({getRoleName(user.role)})
-                                                </option>
-                                            );
-                                        })}
+                                        <option value="4">Employee</option>
+                                        <option value="3">Manager</option>
+                                        <option value="2">Leader</option>
+                                        <option value="1">Admin</option>
                                     </select>
-                                    {formError && formError.includes('Manager role requires') && (
-                                        <p className="text-xs text-red-600 mt-1">⚠️ This field is required</p>
-                                    )}
                                 </div>
-                            )}
 
-                            {/* Only show password fields for new users */}
-                            {!editingUserId && (
-                                <>
+                                <div>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">Gender</label>
+                                    <select
+                                        name="gender"
+                                        value={formData.gender}
+                                        onChange={handleFormChange}
+                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    >
+                                        <option value="">Select Gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Transgender">Transgender</option>
+                                    </select>
+                                </div>
+
+                                {/* Manager/Approver Selection - Show for Employee and Manager roles */}
+                                {(formData.role === '4' || formData.role === '3' || formData.role === '2') && (
                                     <div>
-                                        <label className="block text-base font-medium text-gray-700 mb-1">Password (required)</label>
-                                        <input
-                                            type="password"
-                                            name="password"
-                                            value={formData.password}
+                                        <label className="block text-base font-medium text-gray-700 mb-1">
+                                            {formData.role === '4' ? 'Manager / Leader / Approving Admin' : formData.role === '3' ? 'Leader / Approving Admin' : 'Approving Admin'}
+                                        </label>
+                                        <select
+                                            name="approving_manager_id"
+                                            value={formData.approving_manager_id}
                                             onChange={handleFormChange}
-                                            placeholder="••••••••"
                                             className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                                        />
-                                        <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                                        >
+                                            <option value="">Select Approver</option>
+                                            {managersAndAdmins.map((user) => {
+                                                const isTargetManager = formData.role === '3';
+                                                const isTargetLeader = formData.role === '2';
+                                                const isTargetEmployee = formData.role === '4';
+                                                if (isTargetManager && (user.role !== 1 && user.role !== 2)) return null;
+                                                if (isTargetLeader && (user.role !== 1)) return null;
+                                                if (isTargetEmployee && (user.role !== 1 && user.role !== 2 && user.role !== 3)) return null;
+                                                return (
+                                                    <option key={user.staffid} value={user.staffid}>
+                                                        {user.firstname} {user.lastname} ({getRoleName(user.role)})
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                        {formError && formError.includes('Manager role requires') && (
+                                            <p className="text-xs text-red-600 mt-1">⚠️ This field is required</p>
+                                        )}
                                     </div>
+                                )}
 
-                                    <div>
-                                        <label className="block text-base font-medium text-gray-700 mb-1">Confirm Password</label>
-                                        <input
-                                            type="password"
-                                            name="confirmPassword"
-                                            value={formData.confirmPassword}
-                                            onChange={handleFormChange}
-                                            placeholder="••••••••"
-                                            className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                                        />
-                                    </div>
-                                </>
-                            )}
+                                {/* Only show password fields for new users */}
+                                {!editingUserId && (
+                                    <>
+                                        <div>
+                                            <label className="block text-base font-medium text-gray-700 mb-1">Password (required)</label>
+                                            <input
+                                                type="password"
+                                                name="password"
+                                                value={formData.password}
+                                                onChange={handleFormChange}
+                                                placeholder="••••••••"
+                                                className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                            />
+                                            <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                                        </div>
 
-                            <div className="flex gap-3 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={handleCloseModal}
-                                    disabled={submitting}
-                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="flex-1 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {submitting ? (
-                                        <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                                            {editingUserId ? 'Saving...' : 'Creating...'}
-                                        </>
-                                    ) : (
-                                        editingUserId ? 'Save Changes' : 'Create User'
-                                    )}
-                                </button>
-                            </div>
-                        </form>
+                                        <div>
+                                            <label className="block text-base font-medium text-gray-700 mb-1">Confirm Password</label>
+                                            <input
+                                                type="password"
+                                                name="confirmPassword"
+                                                value={formData.confirmPassword}
+                                                onChange={handleFormChange}
+                                                placeholder="••••••••"
+                                                className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={handleCloseModal}
+                                        disabled={submitting}
+                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={submitting}
+                                        className="flex-1 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {submitting ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                                {editingUserId ? 'Saving...' : 'Creating...'}
+                                            </>
+                                        ) : (
+                                            editingUserId ? 'Save Changes' : 'Create User'
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
                         )}
                     </div>
                 </div>
@@ -2057,11 +2064,10 @@ const Users = () => {
                                             <button
                                                 key={zoom}
                                                 onClick={() => setChartZoom(zoom)}
-                                                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
-                                                    Math.abs(chartZoom - zoom) < 0.05
+                                                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${Math.abs(chartZoom - zoom) < 0.05
                                                         ? 'bg-blue-600 text-white'
                                                         : 'text-gray-600 hover:bg-white'
-                                                }`}
+                                                    }`}
                                                 title={`Zoom ${Math.round(zoom * 100)}%`}
                                             >
                                                 {Math.round(zoom * 100)}%
@@ -2094,7 +2100,7 @@ const Users = () => {
 
                         {/* Chart Container */}
                         <div className="flex-1 p-6 overflow-hidden">
-                            <div 
+                            <div
                                 className="w-full h-full min-h-[600px] bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center"
                                 style={{
                                     cursor: chartZoom > 1.2 ? (isDragging ? 'grabbing' : 'grab') : 'default',
