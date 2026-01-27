@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import { hasAdminPermission } from '../utils/roleUtils';
 
 const Activities = () => {
     // Get today's date in YYYY-MM-DD format
@@ -33,7 +34,7 @@ const Activities = () => {
     const [showSummary, setShowSummary] = useState(false);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isAdmin = user.role === 1;
+    const isAdmin = hasAdminPermission(user.role);
 
     useEffect(() => {
         // Check if user is admin

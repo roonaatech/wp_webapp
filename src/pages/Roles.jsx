@@ -5,6 +5,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import { clearRolesCache, fetchRoles as refreshRolesCache } from '../utils/roleUtils';
 
 const Roles = () => {
     const [roles, setRoles] = useState([]);
@@ -30,6 +31,9 @@ const Roles = () => {
         can_manage_users: false,
         can_manage_leave_types: false,
         can_view_reports: false,
+        can_access_webapp: false,
+        can_manage_roles: false,
+        can_manage_email_settings: false,
         active: true
     });
 
@@ -81,6 +85,9 @@ const Roles = () => {
                 can_manage_users: role.can_manage_users,
                 can_manage_leave_types: role.can_manage_leave_types,
                 can_view_reports: role.can_view_reports,
+                can_access_webapp: role.can_access_webapp,
+                can_manage_roles: role.can_manage_roles,
+                can_manage_email_settings: role.can_manage_email_settings,
                 active: role.active
             });
         } else {
@@ -95,6 +102,9 @@ const Roles = () => {
                 can_manage_users: false,
                 can_manage_leave_types: false,
                 can_view_reports: false,
+                can_access_webapp: false,
+                can_manage_roles: false,
+                can_manage_email_settings: false,
                 active: true
             });
         }
@@ -139,6 +149,10 @@ const Roles = () => {
                 toast.success('Role created successfully');
             }
 
+            // Clear and refresh the global roles cache
+            clearRolesCache();
+            await refreshRolesCache(true);
+            
             fetchRoles();
             fetchStatistics();
             handleCloseModal();
@@ -161,6 +175,11 @@ const Roles = () => {
                 headers: { 'x-access-token': token }
             });
             toast.success('Role deleted successfully');
+            
+            // Clear and refresh the global roles cache
+            clearRolesCache();
+            await refreshRolesCache(true);
+            
             fetchRoles();
             fetchStatistics();
         } catch (err) {
@@ -241,6 +260,11 @@ const Roles = () => {
 
             toast.success('Hierarchy updated successfully');
             setHierarchyMode(false);
+            
+            // Clear and refresh the global roles cache since hierarchy changed
+            clearRolesCache();
+            await refreshRolesCache(true);
+            
             fetchRoles();
         } catch (err) {
             const errorMsg = err.response?.data?.message || 'Failed to update hierarchy';
@@ -563,6 +587,39 @@ const Roles = () => {
                                             className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                         />
                                         <span className="text-sm text-gray-700">Can view reports</span>
+                                    </label>
+
+                                    <label className="flex items-center space-x-3">
+                                        <input
+                                            type="checkbox"
+                                            name="can_access_webapp"
+                                            checked={formData.can_access_webapp}
+                                            onChange={handleInputChange}
+                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                        />
+                                        <span className="text-sm text-gray-700">Can access web app</span>
+                                    </label>
+
+                                    <label className="flex items-center space-x-3">
+                                        <input
+                                            type="checkbox"
+                                            name="can_manage_roles"
+                                            checked={formData.can_manage_roles}
+                                            onChange={handleInputChange}
+                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                        />
+                                        <span className="text-sm text-gray-700">Can manage roles</span>
+                                    </label>
+
+                                    <label className="flex items-center space-x-3">
+                                        <input
+                                            type="checkbox"
+                                            name="can_manage_email_settings"
+                                            checked={formData.can_manage_email_settings}
+                                            onChange={handleInputChange}
+                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                        />
+                                        <span className="text-sm text-gray-700">Can manage email settings</span>
                                     </label>
 
                                     <label className="flex items-center space-x-3">

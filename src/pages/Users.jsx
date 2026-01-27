@@ -6,6 +6,19 @@ import { useLocation } from 'react-router-dom';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MermaidChart from '../components/MermaidChart';
+import { 
+    hasAdminPermission, 
+    canApproveLeave, 
+    canApproveOnDuty, 
+    getRoleDisplayName, 
+    getRoleColor as getRoleColorUtil,
+    getHierarchyLevel,
+    canBeApproverFor,
+    getCachedRoles,
+    fetchRoles,
+    needsApprover,
+    getApproverLabel 
+} from '../utils/roleUtils';
 
 const Users = () => {
     // Leave Types Modal State
@@ -133,6 +146,7 @@ const Users = () => {
     const [isDragging, setIsDragging] = useState(false); // Is user dragging the chart
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); // Starting position of drag
     const [managersAndAdmins, setManagersAndAdmins] = useState([]);
+    const [availableRoles, setAvailableRoles] = useState([]); // All available roles for dropdown
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState([]); // Array of selected status values
     const [showStatusDropdown, setShowStatusDropdown] = useState(false); // Toggle status dropdown
@@ -183,9 +197,10 @@ const Users = () => {
     const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
     const [letterFilter, setLetterFilter] = useState(''); // '' means no filter, or single letter A-Z
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isAdmin = user.role === 1;
-    const isManager = user.role === 2;
-    const isAllowed = isAdmin || isManager;
+    // Use permission-based checks instead of hardcoded role IDs
+    const isAdmin = hasAdminPermission(user.role);
+    const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
+    const isAllowed = isAdmin || canApprove;
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -199,6 +214,7 @@ const Users = () => {
     useEffect(() => {
         if (isAllowed) {
             fetchManagersAndAdmins();
+            fetchAvailableRoles();
         }
     }, [isAllowed]);
 
@@ -275,6 +291,19 @@ const Users = () => {
             setManagersAndAdmins(response.data);
         } catch (error) {
             console.error('Error fetching managers and admins:', error);
+        }
+    };
+
+    const fetchAvailableRoles = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await axios.get(`${API_BASE_URL}/api/roles`, {
+                headers: { 'x-access-token': token }
+            });
+            setAvailableRoles(response.data);
+        } catch (error) {
+            console.error('Error fetching roles:', error);
         }
     };
 
@@ -380,6 +409,7 @@ const Users = () => {
         setEditingUserId(editUser.staffid || editUser.id);
         setEditingUserFromPhp(!!editUser.userid); // True if userid exists (from PHP app)
         setFormError(null);
+        console.log('Setting role in form to:', editUser.role, 'Type:', typeof editUser.role);
         setFormData({
             firstname: editUser.firstname,
             lastname: editUser.lastname,
@@ -511,11 +541,13 @@ const Users = () => {
         setSubmitting(true);
         try {
             const token = localStorage.getItem('token');
+            const roleNum = parseInt(formData.role);
+            console.log('Form role value:', formData.role, 'Parsed:', roleNum);
             const payload = {
                 firstname: formData.firstname.trim(),
                 lastname: formData.lastname.trim(),
                 email: formData.email.trim(),
-                role: formData.role,
+                role: roleNum, // Must be an integer
                 gender: formData.gender
             };
 
@@ -534,6 +566,8 @@ const Users = () => {
             let response;
             if (editingUserId) {
                 // Update user - password not included in edit mode
+                console.log('Sending update request with payload:', payload);
+                console.log('Updating user with ID:', editingUserId);
                 response = await axios.put(
                     `${API_BASE_URL}/api/admin/users/${editingUserId}`,
                     payload,
@@ -541,12 +575,30 @@ const Users = () => {
                 );
 
                 // Update the user in the list
+                console.log('Update response user:', response.data.user);
+                console.log('Editing user ID:', editingUserId);
+                const responseRole = parseInt(response.data.user.role);
+                console.log('Response role:', response.data.user.role, 'Parsed:', responseRole);
+                
                 setUsers(users.map(u => {
-                    if (u.staffid === editingUserId || u.id === editingUserId) {
-                        return response.data.user;
+                    // Compare by staffid since that's the primary key
+                    if (String(u.staffid) === String(editingUserId)) {
+                        // Merge response data with existing user to preserve all fields
+                        const updatedUser = {
+                            ...u,
+                            ...response.data.user,
+                            role: responseRole // Ensure role is an integer
+                        };
+                        console.log('Found matching user. Updated user object:', updatedUser);
+                        return updatedUser;
                     }
                     return u;
                 }));
+                
+                // Refetch users from current page to ensure complete data
+                console.log('Refetching users from page:', currentPage);
+                await fetchUsers(currentPage);
+                
                 handleCloseModal();
                 toast.success(`User ${payload.firstname} ${payload.lastname} updated successfully`);
             } else {
@@ -739,23 +791,13 @@ const Users = () => {
         setLetterFilter(letter === letterFilter ? '' : letter); // Toggle: click same letter to clear filter
     };
 
-    const getRoleColor = (role) => {
-        switch (role) {
-            case 1: return 'bg-red-50 text-red-700';
-            case 2: return 'bg-blue-50 text-blue-700';
-            case 3: return 'bg-gray-50 text-gray-700';
-            default: return 'bg-gray-50 text-gray-700';
-        }
+    // Use role utilities for dynamic role colors and names
+    const getRoleColor = (roleId) => {
+        return getRoleColorUtil(roleId);
     };
 
-    const getRoleName = (role) => {
-        switch (role) {
-            case 1: return 'Admin';
-            case 2: return 'Leader';
-            case 3: return 'Manager';
-            case 4: return 'Employee';
-            default: return 'Unknown';
-        }
+    const getRoleName = (roleId) => {
+        return getRoleDisplayName(roleId);
     };
 
     const generateOrgChart = (currentUser) => {
@@ -1794,10 +1836,12 @@ const Users = () => {
                                         onChange={handleFormChange}
                                         className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                     >
-                                        <option value="4">Employee</option>
-                                        <option value="3">Manager</option>
-                                        <option value="2">Leader</option>
-                                        <option value="1">Admin</option>
+                                        <option value="">Select Role</option>
+                                        {availableRoles.map((role) => (
+                                            <option key={role.id} value={String(role.id)}>
+                                                {role.display_name || role.name}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
 
@@ -1816,11 +1860,11 @@ const Users = () => {
                                     </select>
                                 </div>
 
-                                {/* Manager/Approver Selection - Show for Employee and Manager roles */}
-                                {(formData.role === '4' || formData.role === '3' || formData.role === '2') && (
+                                {/* Manager/Approver Selection - Show for roles that need an approver */}
+                                {formData.role && needsApprover(parseInt(formData.role)) && (
                                     <div>
                                         <label className="block text-base font-medium text-gray-700 mb-1">
-                                            {formData.role === '4' ? 'Manager / Leader / Approving Admin' : formData.role === '3' ? 'Leader / Approving Admin' : 'Approving Admin'}
+                                            {getApproverLabel(parseInt(formData.role))}
                                         </label>
                                         <select
                                             name="approving_manager_id"
@@ -1829,16 +1873,19 @@ const Users = () => {
                                             className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                         >
                                             <option value="">Select Approver</option>
-                                            {managersAndAdmins.map((user) => {
-                                                const isTargetManager = formData.role === '3';
-                                                const isTargetLeader = formData.role === '2';
-                                                const isTargetEmployee = formData.role === '4';
-                                                if (isTargetManager && (user.role !== 1 && user.role !== 2)) return null;
-                                                if (isTargetLeader && (user.role !== 1)) return null;
-                                                if (isTargetEmployee && (user.role !== 1 && user.role !== 2 && user.role !== 3)) return null;
+                                            {managersAndAdmins.map((approver) => {
+                                                // Use hierarchy-based check: approver must be higher in hierarchy than target role
+                                                const targetRoleId = parseInt(formData.role);
+                                                const approverRoleId = approver.role;
+                                                
+                                                // Only show approvers who are higher in hierarchy than the target role
+                                                if (!canBeApproverFor(approverRoleId, targetRoleId)) {
+                                                    return null;
+                                                }
+                                                
                                                 return (
-                                                    <option key={user.staffid} value={user.staffid}>
-                                                        {user.firstname} {user.lastname} ({getRoleName(user.role)})
+                                                    <option key={approver.staffid} value={approver.staffid}>
+                                                        {approver.firstname} {approver.lastname} ({getRoleName(approver.role)})
                                                     </option>
                                                 );
                                             })}

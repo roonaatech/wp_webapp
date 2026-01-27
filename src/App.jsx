@@ -18,9 +18,18 @@ import Calendar from './pages/Calendar';
 import ActiveOnDuty from './pages/ActiveOnDuty';
 import ApkDistribution from './pages/ApkDistribution';
 import EmailSettings from './pages/EmailSettings';
+import { fetchRoles } from './utils/roleUtils';
 
 
 const ProtectedLayout = ({ children }) => {
+  // Fetch roles on app load to populate the cache
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchRoles();
+    }
+  }, []);
+  
   return (
     <ProtectedRoute>
       <div className="flex h-screen bg-transparent transition-colors duration-300">

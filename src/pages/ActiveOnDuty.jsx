@@ -3,6 +3,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
+import { hasAdminPermission } from '../utils/roleUtils';
 
 const ActiveOnDuty = () => {
     const [onDutyRecords, setOnDutyRecords] = useState([]);
@@ -12,7 +13,7 @@ const ActiveOnDuty = () => {
     const [sortConfig, setSortConfig] = useState({ key: 'start_time', direction: 'desc' });
     const [expandedRowId, setExpandedRowId] = useState(null);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isAdmin = user.role === 1;
+    const isAdmin = hasAdminPermission(user.role);
 
     useEffect(() => {
         fetchActiveOnDuty();

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 import { LuSmartphone } from "react-icons/lu";
+import { fetchRoles, canAccessWebApp, getRoleDisplayName } from '../utils/roleUtils';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -16,7 +17,7 @@ const Login = () => {
     const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, message: '' });
     const navigate = useNavigate();
 
-    const processLoginSuccess = (data) => {
+    const processLoginSuccess = async (data) => {
         // Backend returns user data at root level, not nested under 'user'
         const user = {
             id: data.id,
@@ -38,14 +39,31 @@ const Login = () => {
         }
         // -----------------------------------------------------------
 
-        // Check if user has admin, manager, or leader role (role 1, 2, or 3)
-        if (user.role !== 1 && user.role !== 2 && user.role !== 3) {
-            setError('Access denied. Only Admin, Manager, and Leader roles can access this system.');
-            setLoading(false);
-            return;
+        // Fetch roles from API and cache them for permission checks
+        // Store token temporarily to make the API call
+        localStorage.setItem('token', data.accessToken);
+        
+        try {
+            const roles = await fetchRoles(true); // Force refresh roles cache
+            console.log('Fetched roles for permission check:', roles);
+            console.log('User role ID:', user.role, 'Type:', typeof user.role);
+            
+            // Check if user has permission to access webapp (based on role permissions)
+            const hasAccess = canAccessWebApp(user.role);
+            console.log('canAccessWebApp result:', hasAccess);
+            
+            if (!hasAccess) {
+                localStorage.removeItem('token'); // Remove token since access is denied
+                setError('Access denied. Your role does not have permission to access this system. Please ensure your role has the necessary permissions enabled.');
+                setLoading(false);
+                return;
+            }
+        } catch (roleError) {
+            console.error('Error fetching roles:', roleError);
+            // If we can't fetch roles, allow login but log the error
+            // The roles will be fetched on next page load
         }
 
-        localStorage.setItem('token', data.accessToken);
         localStorage.setItem('user', JSON.stringify(user));
 
         toast.success(`Welcome back, ${user.firstname}!`, {

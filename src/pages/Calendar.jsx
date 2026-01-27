@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import { hasAdminPermission } from '../utils/roleUtils';
 
 const Calendar = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -143,7 +144,7 @@ const Calendar = () => {
     const firstDay = getFirstDayOfMonth(currentDate);
     const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isAdmin = user.role === 1;
+    const isAdmin = hasAdminPermission(user.role);
 
     // Group events by staff name for the sidebar
     const groupedEvents = selectedEvents.reduce((acc, event) => {

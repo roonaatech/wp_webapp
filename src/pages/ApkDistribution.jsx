@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 import { LuDownload, LuUpload, LuTrash2, LuEye, LuEyeOff, LuSmartphone, LuHistory } from "react-icons/lu";
+import { hasAdminPermission } from '../utils/roleUtils';
 
 const ApkDistribution = () => {
     const [latestApk, setLatestApk] = useState(null);
@@ -17,7 +18,7 @@ const ApkDistribution = () => {
     // Auth state
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const token = localStorage.getItem('token');
-    const isAdmin = user.role === 1;
+    const isAdmin = hasAdminPermission(user.role);
 
     // Form state
     const [file, setFile] = useState(null);
