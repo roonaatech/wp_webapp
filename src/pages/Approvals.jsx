@@ -599,14 +599,14 @@ const Approvals = () => {
                         const isActive = statusFilter === tab.id;
                         const colorClasses = {
                             amber: isActive 
-                                ? 'text-amber-600 dark:text-amber-400 border-2 border-amber-400 dark:border-amber-400 shadow-md' 
-                                : 'text-gray-500 dark:text-gray-400 hover:text-amber-600 border-2 border-gray-200 dark:border-slate-700 hover:border-amber-200',
+                                ? 'bg-amber-500 dark:bg-amber-600 text-white border-0 shadow-lg shadow-amber-500/30' 
+                                : 'text-black dark:text-black border-2 border-black dark:border-black bg-white dark:bg-white hover:bg-gray-100 dark:hover:bg-gray-100',
                             emerald: isActive 
-                                ? 'text-emerald-600 dark:text-emerald-400 border-2 border-emerald-400 dark:border-emerald-400 shadow-md' 
-                                : 'text-gray-500 dark:text-gray-400 hover:text-emerald-600 border-2 border-gray-200 dark:border-slate-700 hover:border-emerald-200',
+                                ? 'bg-emerald-500 dark:bg-emerald-600 text-white border-0 shadow-lg shadow-emerald-500/30' 
+                                : 'text-black dark:text-black border-2 border-black dark:border-black bg-white dark:bg-white hover:bg-gray-100 dark:hover:bg-gray-100',
                             rose: isActive 
-                                ? 'text-rose-600 dark:text-rose-400 border-2 border-rose-400 dark:border-rose-400 shadow-md' 
-                                : 'text-gray-500 dark:text-gray-400 hover:text-rose-600 border-2 border-gray-200 dark:border-slate-700 hover:border-rose-200'
+                                ? 'bg-rose-500 dark:bg-rose-600 text-white border-0 shadow-lg shadow-rose-500/30' 
+                                : 'text-black dark:text-black border-2 border-black dark:border-black bg-white dark:bg-white hover:bg-gray-100 dark:hover:bg-gray-100'
                         };
 
                         return (
@@ -616,7 +616,7 @@ const Approvals = () => {
                                     setStatusFilter(tab.id);
                                     setExpandedSections({ leave: true, onDuty: false });
                                 }}
-                                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black transition-all duration-300 ${colorClasses[tab.color]}`}
+                                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black transition-all duration-300 transform hover:scale-105 ${colorClasses[tab.color]}`}
                             >
                                 <span className="text-xl">{tab.icon}</span>
                                 {tab.id}
