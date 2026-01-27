@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.2.0](https://github.com/roonaatech/wp_webapp/compare/v0.1.0...v0.2.0) (2026-01-27)
+
+
+### Features
+
+* Enhance Sidebar component with collapsible functionality and local storage support ([e7e755c](https://github.com/roonaatech/wp_webapp/commit/e7e755ca4f283e75decaba80416789c4cedc8130))
+
 ## [0.1.0](https://github.com/roonaatech/wp_webapp/compare/v0.0.8...v0.1.0) (2026-01-27)
 
 ### [0.0.8](https://github.com/roonaatech/wp_webapp/compare/v0.0.7...v0.0.8) (2026-01-27)
