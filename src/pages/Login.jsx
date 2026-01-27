@@ -136,7 +136,7 @@ const Login = () => {
     return (
         <div className="min-h-screen bg-white flex overflow-hidden">
             {/* Left Side - Login Form */}
-            <div className="w-full lg:w-[45%] flex flex-col p-8 lg:p-16 xl:p-24 overflow-y-auto">
+            <div className="w-full lg:w-[65%] flex flex-col p-8 lg:p-16 xl:p-24 overflow-y-auto">
                 <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center items-center text-center">
                     {/* Logo */}
                     <div className="mb-28 -mt-12">
@@ -159,46 +159,60 @@ const Login = () => {
                             </div>
                         )}
 
-                        <div className="space-y-4">
-                            {/* Email Field */}
-                            <div>
-                                <input
-                                    id="email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="Enter your email"
-                                    required
-                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-gray-800 placeholder-gray-400"
-                                />
+                        <div className="border border-gray-200 rounded-lg p-6 space-y-6">
+                            <div className="space-y-4">
+                                {/* Email Field */}
+                                <div className="flex items-center gap-4">
+                                    <label htmlFor="email" className="text-sm font-semibold text-gray-700 w-16 flex-shrink-0">Email</label>
+                                    <input
+                                        id="email"
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="Enter your email"
+                                        required
+                                        className="flex-1 px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-gray-800 placeholder-gray-400"
+                                    />
+                                </div>
+
+                                {/* Password Field */}
+                                <div className="flex items-center gap-4">
+                                    <label htmlFor="password" className="text-sm font-semibold text-gray-700 w-16 flex-shrink-0">Password</label>
+                                    <input
+                                        id="password"
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="Password"
+                                        required
+                                        className="flex-1 px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-gray-800 placeholder-gray-400"
+                                    />
+                                </div>
                             </div>
 
-                            {/* Password Field */}
-                            <div>
-                                <input
-                                    id="password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="Password"
-                                    required
-                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-gray-800 placeholder-gray-400"
-                                />
+                            <div className="flex justify-center">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-40 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-200 hover:shadow-xl hover:shadow-purple-300 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                                >
+                                    {loading ? (
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        "Sign In"
+                                    )}
+                                </button>
                             </div>
                         </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-40 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-200 hover:shadow-xl hover:shadow-purple-300 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
-                        >
-                            {loading ? (
-                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            ) : (
-                                "Sign In"
-                            )}
-                        </button>
                     </form>
+
+                    {/* ABiS Credentials Instruction */}
+                    <div className="mt-8 max-w-md w-full bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200/50 rounded-xl p-6 shadow-sm">
+                        <div>
+                            <p className="text-sm font-semibold text-gray-900 mb-1">Login Credentials</p>
+                            <p className="text-xs text-gray-600">Use your <span className="font-bold text-gray-800">ABiS account</span> credentials to access WorkPulse</p>
+                        </div>
+                    </div>
 
                 </div>
 
@@ -206,7 +220,7 @@ const Login = () => {
                 <div className="mt-4 text-center animate-fade-in">
                     <Link
                         to="/apk"
-                        className="inline-flex items-center gap-2 text-blue-600 font-semibold hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50"
+                        className="inline-flex items-center justify-center gap-2 w-60 py-4 bg-white border-2 border-black text-black font-bold rounded-xl shadow-lg shadow-gray-200 hover:shadow-xl hover:shadow-gray-300 transform hover:-translate-y-0.5 active:translate-y-0 transition-all"
                     >
                         <LuSmartphone size={20} />
                         <span>Download Mobile App</span>
@@ -222,7 +236,7 @@ const Login = () => {
             </div>
 
             {/* Right Side - Decorative Panel */}
-            <div className="hidden lg:flex lg:w-[55%] relative bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 items-center justify-center p-20 overflow-hidden">
+            <div className="hidden lg:flex lg:w-[35%] relative bg-gradient-to-br from-blue-600 to-purple-600 items-center justify-center p-20 overflow-hidden">
                 {/* Background decorative elements */}
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/10 rounded-full blur-3xl animate-pulse"></div>
                 <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>

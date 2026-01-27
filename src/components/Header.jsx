@@ -134,7 +134,10 @@ const Header = () => {
                         <div className="flex items-center gap-3 pl-4 border-l border-[var(--border-color)] cursor-pointer group" onClick={() => setShowMenu(!showMenu)}>
                             <div className="text-right hidden sm:block">
                                 <p className="text-sm font-bold text-[var(--text-main)] group-hover:text-blue-500 transition-colors uppercase tracking-tight">{user.firstname || 'Admin'}</p>
-                                <p className="text-[11px] text-[var(--text-muted)] font-medium">{user.email}</p>
+                                <div className="flex items-center gap-1.5 justify-end mt-0.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <p className="text-[11px] text-[var(--text-muted)] font-medium">{user.role === 1 ? 'Administrator' : 'Manager'}</p>
+                                </div>
                             </div>
                             <button className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-md group-hover:shadow-lg transition-all transform group-hover:scale-105 active:scale-95">
                                 {(user.firstname || 'A').charAt(0)}

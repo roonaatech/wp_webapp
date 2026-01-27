@@ -148,6 +148,7 @@ const Users = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showAuthInfo, setShowAuthInfo] = useState(true); // Show auth info first, then form
     const [editingUserId, setEditingUserId] = useState(null);
+    const [editingUserFromPhp, setEditingUserFromPhp] = useState(false); // Track if user is from PHP app
     const [expandedUserId, setExpandedUserId] = useState(null);
     const [leaveBalances, setLeaveBalances] = useState({});
     const [loadingBalance, setLoadingBalance] = useState({});
@@ -358,6 +359,7 @@ const Users = () => {
     const handleCloseModal = () => {
         setShowAddModal(false);
         setEditingUserId(null);
+        setEditingUserFromPhp(false);
         setFormError(null);
         setFormData({
             firstname: '',
@@ -372,9 +374,11 @@ const Users = () => {
     };
 
     const handleEditUserClick = (editUser) => {
+        console.log('Edit user data:', editUser); // Debug log to check userid field
         setShowAddModal(true);
         setShowAuthInfo(false); // Go directly to form when editing
         setEditingUserId(editUser.staffid || editUser.id);
+        setEditingUserFromPhp(!!editUser.userid); // True if userid exists (from PHP app)
         setFormError(null);
         setFormData({
             firstname: editUser.firstname,
@@ -1714,39 +1718,71 @@ const Users = () => {
                                     </div>
                                 )}
 
+                                {editingUserFromPhp && (
+                                    <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                                        <div className="flex items-start gap-3">
+                                            <div className="text-2xl flex-shrink-0">ℹ️</div>
+                                            <div>
+                                                <h4 className="font-semibold text-amber-900 mb-1">User from ABiS System</h4>
+                                                <p className="text-sm text-amber-800">
+                                                    The <span className="font-bold">name and email</span> fields are managed through the ABiS application and cannot be edited here. To update this information, please edit the user profile in the ABiS system.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">First Name</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
+                                        First Name
+                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
+                                    </label>
                                     <input
                                         type="text"
                                         name="firstname"
                                         value={formData.firstname}
                                         onChange={handleFormChange}
                                         placeholder="John"
-                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                        disabled={editingUserFromPhp}
+                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${
+                                            editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                        }`}
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">Last Name</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
+                                        Last Name
+                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
+                                    </label>
                                     <input
                                         type="text"
                                         name="lastname"
                                         value={formData.lastname}
                                         onChange={handleFormChange}
                                         placeholder="Doe"
-                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                        disabled={editingUserFromPhp}
+                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${
+                                            editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                        }`}
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">Email</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
+                                        Email
+                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
+                                    </label>
                                     <input
                                         type="email"
                                         name="email"
                                         value={formData.email}
                                         onChange={handleFormChange}
                                         placeholder="john@example.com"
-                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                        disabled={editingUserFromPhp}
+                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${
+                                            editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                        }`}
                                     />
                                 </div>
 

@@ -86,48 +86,83 @@ const Sidebar = () => {
         return location.pathname === path;
     };
 
+    const [hoveredLink, setHoveredLink] = useState(null);
+    const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
+
+    const handleMouseEnter = (to, event) => {
+        if (isCollapsed) {
+            setHoveredLink(to);
+            const rect = event.currentTarget.getBoundingClientRect();
+            setTooltipPos({
+                top: rect.top + rect.height / 2,
+                left: rect.right + 10 // 10px gap from the element
+            });
+        }
+    };
+
+    const handleMouseLeave = () => {
+        setHoveredLink(null);
+    };
+
     const NavLink = ({ to, icon, label, badge }) => (
-        <Link
-            to={to}
-            title={isCollapsed ? label : ''}
-            className={`
-                flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 mx-2
-                ${isCollapsed ? 'justify-center' : ''}
-                ${isActive(to)
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/20'
-                    : 'text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]'
-                }
-            `}
-        >
-            <span className="text-xl flex-shrink-0">{icon}</span>
-            {!isCollapsed && (
-                <>
-                    <span className="font-medium flex-1 tracking-wide text-base">{label}</span>
-                    {badge !== undefined && badge > 0 && (
-                        <span className={`
-                            px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm flex-shrink-0
-                            ${isActive(to)
-                                ? 'bg-white/20 text-white'
-                                : 'bg-rose-500 text-white'
-                            }
-                        `}>
-                            {badge}
-                        </span>
-                    )}
-                </>
-            )}
-            {isCollapsed && badge !== undefined && badge > 0 && (
-                <span className={`
-                    absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold
+        <div className="relative group">
+            <Link
+                to={to}
+                onMouseEnter={(e) => handleMouseEnter(to, e)}
+                onMouseLeave={handleMouseLeave}
+                className={`
+                    flex items-center gap-3 px-4 py-1.5 rounded-xl transition-all duration-300 mx-2 relative
+                    ${isCollapsed ? 'justify-center' : ''}
                     ${isActive(to)
-                        ? 'bg-white/20 text-white'
-                        : 'bg-rose-500 text-white'
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/20'
+                        : 'text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]'
                     }
-                `}>
-                    {badge}
-                </span>
+                `}
+            >
+                <span className="text-xl flex-shrink-0">{icon}</span>
+                {!isCollapsed && (
+                    <>
+                        <span className="font-medium flex-1 tracking-wide text-base">{label}</span>
+                        {badge !== undefined && badge > 0 && (
+                            <span className={`
+                                px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm flex-shrink-0
+                                ${isActive(to)
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-rose-500 text-white'
+                                }
+                            `}>
+                                {badge}
+                            </span>
+                        )}
+                    </>
+                )}
+                {isCollapsed && badge !== undefined && badge > 0 && (
+                    <span className={`
+                        absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold
+                        ${isActive(to)
+                            ? 'bg-white/20 text-white'
+                            : 'bg-rose-500 text-white'
+                        }
+                    `}>
+                        {badge}
+                    </span>
+                )}
+            </Link>
+
+            {/* Tooltip - positioned at hovered element */}
+            {isCollapsed && hoveredLink === to && (
+                <div className="fixed bg-gray-900 text-white px-3 py-2 rounded-lg whitespace-nowrap text-sm font-medium shadow-lg z-50 pointer-events-none"
+                    style={{
+                        top: `${tooltipPos.top}px`,
+                        left: `${tooltipPos.left}px`,
+                        transform: 'translateY(-50%)'
+                    }}
+                >
+                    {label}
+                    <div className="absolute -left-1 top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
+                </div>
             )}
-        </Link>
+        </div>
     );
 
     return (
@@ -156,10 +191,10 @@ const Sidebar = () => {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-2 space-y-4 overflow-y-auto hide-scrollbar py-4">
+            <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
                 {!isCollapsed && (
                     <div>
-                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3">Overview</p>
+                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1">Overview</p>
                         <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
                     </div>
                 )}
@@ -169,7 +204,7 @@ const Sidebar = () => {
 
                 {!isCollapsed && (
                     <div>
-                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Management</p>
+                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Management</p>
                         {/* Approvals - Both Admin and Manager */}
                         <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
                         {/* Active On-Duty - Both Admin and Manager */}
@@ -188,7 +223,7 @@ const Sidebar = () => {
 
                 {!isCollapsed && (
                     <div>
-                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Configurations</p>
+                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Configurations</p>
                         {/* Users - Admin & Manager */}
                         {(isAdmin || isManager) && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
@@ -225,7 +260,7 @@ const Sidebar = () => {
 
                 {!isCollapsed && (
                     <div>
-                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Analysis</p>
+                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Analysis</p>
                         <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
                         {/* Activities - Admin Only */}
                         {isAdmin && (
@@ -248,20 +283,6 @@ const Sidebar = () => {
                     </div>
                 )}
 
-                {/* Role Badge */}
-                {!isCollapsed && (
-                    <div className="mt-4 px-6 mb-6">
-                        <div className="bg-white/10 dark:bg-slate-800/50 rounded-xl p-4 border border-[var(--border-color)] backdrop-blur-sm">
-                            <p className="text-sm text-[var(--sidebar-muted)] mb-1 font-medium">Signed in as</p>
-                            <div className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <p className="text-base font-bold text-[var(--sidebar-text)] tracking-wide">
-                                    {isAdmin ? 'Administrator' : 'Manager'}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </nav>
 
             {/* Footer */}
