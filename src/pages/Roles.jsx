@@ -26,11 +26,13 @@ const Roles = () => {
         display_name: '',
         description: '',
         hierarchy_level: 999,
-        can_approve_leave: false,
-        can_approve_onduty: false,
-        can_manage_users: false,
+        // Hierarchical permissions - 'none', 'subordinates', 'all'
+        can_approve_leave: 'none',
+        can_approve_onduty: 'none',
+        can_manage_users: 'none',
+        can_view_reports: 'none',
+        // Global permissions - boolean
         can_manage_leave_types: false,
-        can_view_reports: false,
         can_access_webapp: false,
         can_manage_roles: false,
         can_manage_email_settings: false,
@@ -80,11 +82,13 @@ const Roles = () => {
                 display_name: role.display_name,
                 description: role.description || '',
                 hierarchy_level: role.hierarchy_level,
-                can_approve_leave: role.can_approve_leave,
-                can_approve_onduty: role.can_approve_onduty,
-                can_manage_users: role.can_manage_users,
+                // Hierarchical permissions
+                can_approve_leave: role.can_approve_leave || 'none',
+                can_approve_onduty: role.can_approve_onduty || 'none',
+                can_manage_users: role.can_manage_users || 'none',
+                can_view_reports: role.can_view_reports || 'none',
+                // Global permissions
                 can_manage_leave_types: role.can_manage_leave_types,
-                can_view_reports: role.can_view_reports,
                 can_access_webapp: role.can_access_webapp,
                 can_manage_roles: role.can_manage_roles,
                 can_manage_email_settings: role.can_manage_email_settings,
@@ -97,11 +101,13 @@ const Roles = () => {
                 display_name: '',
                 description: '',
                 hierarchy_level: 999,
-                can_approve_leave: false,
-                can_approve_onduty: false,
-                can_manage_users: false,
+                // Hierarchical permissions
+                can_approve_leave: 'none',
+                can_approve_onduty: 'none',
+                can_manage_users: 'none',
+                can_view_reports: 'none',
+                // Global permissions
                 can_manage_leave_types: false,
-                can_view_reports: false,
                 can_access_webapp: false,
                 can_manage_roles: false,
                 can_manage_email_settings: false,
@@ -393,20 +399,28 @@ const Roles = () => {
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="flex flex-wrap gap-1">
-                                        {role.can_approve_leave && (
-                                            <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">Leave</span>
+                                        {role.can_approve_leave && role.can_approve_leave !== 'none' && (
+                                            <span className={`px-2 py-1 text-xs rounded ${role.can_approve_leave === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
+                                                Leave {role.can_approve_leave === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
                                         )}
-                                        {role.can_approve_onduty && (
-                                            <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">OnDuty</span>
+                                        {role.can_approve_onduty && role.can_approve_onduty !== 'none' && (
+                                            <span className={`px-2 py-1 text-xs rounded ${role.can_approve_onduty === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
+                                                OnDuty {role.can_approve_onduty === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
                                         )}
-                                        {role.can_manage_users && (
-                                            <span className="px-2 py-1 text-xs rounded bg-purple-100 text-purple-800">Users</span>
+                                        {role.can_manage_users && role.can_manage_users !== 'none' && (
+                                            <span className={`px-2 py-1 text-xs rounded ${role.can_manage_users === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
+                                                Users {role.can_manage_users === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
                                         )}
                                         {role.can_manage_leave_types && (
                                             <span className="px-2 py-1 text-xs rounded bg-purple-100 text-purple-800">LeaveTypes</span>
                                         )}
-                                        {role.can_view_reports && (
-                                            <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">Reports</span>
+                                        {role.can_view_reports && role.can_view_reports !== 'none' && (
+                                            <span className={`px-2 py-1 text-xs rounded ${role.can_view_reports === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-blue-50 text-blue-700'}`}>
+                                                Reports {role.can_view_reports === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
                                         )}
                                     </div>
                                 </td>
@@ -529,110 +543,221 @@ const Roles = () => {
                                 </div>
                             </div>
 
-                            {/* Permissions */}
+                            {/* Permissions Table */}
                             <div className="space-y-4">
-                                <h3 className="text-lg font-semibold text-gray-900">Permissions</h3>
+                                <h3 className="text-lg font-semibold text-gray-900">Hierarchical Permissions</h3>
+                                <p className="text-sm text-gray-500">Select access level for each permission. "Subordinates" allows access to direct reports only, "All" allows access to everyone.</p>
                                 
-                                <div className="space-y-3">
-                                    <label className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            name="can_approve_leave"
-                                            checked={formData.can_approve_leave}
-                                            onChange={handleInputChange}
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
-                                        <span className="text-sm text-gray-700">Can approve leave requests</span>
-                                    </label>
-
-                                    <label className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            name="can_approve_onduty"
-                                            checked={formData.can_approve_onduty}
-                                            onChange={handleInputChange}
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
-                                        <span className="text-sm text-gray-700">Can approve on-duty requests</span>
-                                    </label>
-
-                                    <label className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            name="can_manage_users"
-                                            checked={formData.can_manage_users}
-                                            onChange={handleInputChange}
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
-                                        <span className="text-sm text-gray-700">Can manage users</span>
-                                    </label>
-
-                                    <label className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            name="can_manage_leave_types"
-                                            checked={formData.can_manage_leave_types}
-                                            onChange={handleInputChange}
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
-                                        <span className="text-sm text-gray-700">Can manage leave types</span>
-                                    </label>
-
-                                    <label className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            name="can_view_reports"
-                                            checked={formData.can_view_reports}
-                                            onChange={handleInputChange}
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
-                                        <span className="text-sm text-gray-700">Can view reports</span>
-                                    </label>
-
-                                    <label className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            name="can_access_webapp"
-                                            checked={formData.can_access_webapp}
-                                            onChange={handleInputChange}
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
-                                        <span className="text-sm text-gray-700">Can access web app</span>
-                                    </label>
-
-                                    <label className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            name="can_manage_roles"
-                                            checked={formData.can_manage_roles}
-                                            onChange={handleInputChange}
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
-                                        <span className="text-sm text-gray-700">Can manage roles</span>
-                                    </label>
-
-                                    <label className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            name="can_manage_email_settings"
-                                            checked={formData.can_manage_email_settings}
-                                            onChange={handleInputChange}
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
-                                        <span className="text-sm text-gray-700">Can manage email settings</span>
-                                    </label>
-
-                                    <label className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            name="active"
-                                            checked={formData.active}
-                                            onChange={handleInputChange}
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
-                                        <span className="text-sm text-gray-700">Active</span>
-                                    </label>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border border-gray-200 rounded-lg">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Permission</th>
+                                                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b w-32">Subordinates</th>
+                                                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b w-32">All</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {/* Approve Leave */}
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Approve Leave Requests</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_approve_leave === 'subordinates' || formData.can_approve_leave === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_approve_leave: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_approve_leave: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_approve_leave === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_approve_leave: e.target.checked ? 'all' : (prev.can_approve_leave === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* Approve On-Duty */}
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Approve On-Duty Requests</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_approve_onduty === 'subordinates' || formData.can_approve_onduty === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_approve_onduty: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_approve_onduty: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_approve_onduty === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_approve_onduty: e.target.checked ? 'all' : (prev.can_approve_onduty === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* Manage Users */}
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Manage Users</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_manage_users === 'subordinates' || formData.can_manage_users === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_manage_users: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_manage_users: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_manage_users === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_manage_users: e.target.checked ? 'all' : (prev.can_manage_users === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* View Reports */}
+                                            <tr className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">View Reports</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_view_reports === 'subordinates' || formData.can_view_reports === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_view_reports: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_view_reports: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_view_reports === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_view_reports: e.target.checked ? 'all' : (prev.can_view_reports === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
+                            </div>
+
+                            {/* Global Permissions */}
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-gray-900">Global Permissions</h3>
+                                <p className="text-sm text-gray-500">These permissions apply globally (not hierarchy-based).</p>
+                                
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border border-gray-200 rounded-lg">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Permission</th>
+                                                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b w-32">Enabled</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Access Web Application</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_access_webapp"
+                                                        checked={formData.can_access_webapp}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Manage Leave Types</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_manage_leave_types"
+                                                        checked={formData.can_manage_leave_types}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Manage Roles</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_manage_roles"
+                                                        checked={formData.can_manage_roles}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            <tr className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Manage Email Settings</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_manage_email_settings"
+                                                        checked={formData.can_manage_email_settings}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Status */}
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-gray-900">Status</h3>
+                                <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 w-fit">
+                                    <input
+                                        type="checkbox"
+                                        name="active"
+                                        checked={formData.active}
+                                        onChange={handleInputChange}
+                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                    />
+                                    <span className="text-sm text-gray-700">Active</span>
+                                </label>
                             </div>
 
                             {/* Action Buttons */}

@@ -108,12 +108,13 @@ export const canAccessWebApp = (roleId) => {
     
     // Use the explicit can_access_webapp permission
     // Fallback to checking other permissions for backward compatibility
+    // For enum permissions, check if they're not 'none'
     const hasAccess = role.can_access_webapp === true || 
-                      role.can_approve_leave || 
-                      role.can_approve_onduty || 
-                      role.can_manage_users || 
+                      (role.can_approve_leave && role.can_approve_leave !== 'none') || 
+                      (role.can_approve_onduty && role.can_approve_onduty !== 'none') || 
+                      (role.can_manage_users && role.can_manage_users !== 'none') || 
                       role.can_manage_leave_types || 
-                      role.can_view_reports;
+                      (role.can_view_reports && role.can_view_reports !== 'none');
     
     console.log('canAccessWebApp - hasAccess:', hasAccess, 'role details:', {
         can_access_webapp: role.can_access_webapp,
@@ -129,16 +130,16 @@ export const canAccessWebApp = (roleId) => {
 
 /**
  * Check if user has admin-level permissions
- * Based on can_manage_users permission
+ * Based on can_manage_users permission being 'subordinates' or 'all'
  */
 export const hasAdminPermission = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_manage_users === true;
+    return role.can_manage_users === 'all';
 };
 
 /**
- * Check if user can manage leave types
+ * Check if user can manage leave types (global permission - boolean)
  */
 export const canManageLeaveTypes = (roleId) => {
     const role = getRoleById(roleId);
@@ -147,34 +148,89 @@ export const canManageLeaveTypes = (roleId) => {
 };
 
 /**
- * Check if user can approve leave requests
+ * Check if user can approve leave requests (any level - subordinates or all)
  */
 export const canApproveLeave = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_approve_leave === true;
+    return role.can_approve_leave === 'subordinates' || role.can_approve_leave === 'all';
 };
 
 /**
- * Check if user can approve on-duty requests
+ * Check if user can approve leave for all users
+ */
+export const canApproveLeaveAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_approve_leave === 'all';
+};
+
+/**
+ * Check if user can approve on-duty requests (any level - subordinates or all)
  */
 export const canApproveOnDuty = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_approve_onduty === true;
+    return role.can_approve_onduty === 'subordinates' || role.can_approve_onduty === 'all';
 };
 
 /**
- * Check if user can view reports
+ * Check if user can approve on-duty for all users
+ */
+export const canApproveOnDutyAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_approve_onduty === 'all';
+};
+
+/**
+ * Check if user can view reports (any level - subordinates or all)
  */
 export const canViewReports = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_view_reports === true;
+    return role.can_view_reports === 'subordinates' || role.can_view_reports === 'all';
 };
 
 /**
- * Check if user can manage roles
+ * Check if user can view reports for all users
+ */
+export const canViewReportsAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_reports === 'all';
+};
+
+/**
+ * Check if user can manage users (any level - subordinates or all)
+ */
+export const canManageUsers = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_users === 'subordinates' || role.can_manage_users === 'all';
+};
+
+/**
+ * Check if user can manage all users
+ */
+export const canManageUsersAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_users === 'all';
+};
+
+/**
+ * Get permission level for a specific permission
+ * Returns: 'none', 'subordinates', or 'all'
+ */
+export const getPermissionLevel = (roleId, permissionName) => {
+    const role = getRoleById(roleId);
+    if (!role) return 'none';
+    return role[permissionName] || 'none';
+};
+
+/**
+ * Check if user can manage roles (global permission - boolean)
  */
 export const canManageRoles = (roleId) => {
     const role = getRoleById(roleId);
@@ -183,7 +239,7 @@ export const canManageRoles = (roleId) => {
 };
 
 /**
- * Check if user can manage email settings
+ * Check if user can manage email settings (global permission - boolean)
  */
 export const canManageEmailSettings = (roleId) => {
     const role = getRoleById(roleId);
@@ -219,7 +275,7 @@ export const getApproverRoles = (roleId) => {
     
     return roles.filter(r => 
         r.hierarchy_level < targetLevel && 
-        (r.can_approve_leave || r.can_approve_onduty)
+        (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none')
     );
 };
 
@@ -241,9 +297,11 @@ export const canBeApproverFor = (approverRoleId, targetRoleId) => {
     
     // Approver must have STRICTLY higher authority (lower level number) and approval permissions
     // e.g., Admin (level 1) can approve Leader (level 2), but Leader cannot approve another Leader
-    return approverLevel < targetLevel && 
-           approverRole && 
-           (approverRole.can_approve_leave || approverRole.can_approve_onduty);
+    // For enum permissions, check if they're not 'none'
+    const hasApprovalPermission = approverRole && 
+        (approverRole.can_approve_leave !== 'none' || approverRole.can_approve_onduty !== 'none');
+    
+    return approverLevel < targetLevel && hasApprovalPermission;
 };
 
 /**
@@ -257,7 +315,7 @@ export const needsApprover = (roleId) => {
     // Check if there's any role with higher authority (lower level) that can approve
     return roles.some(r => 
         r.hierarchy_level < targetLevel && 
-        (r.can_approve_leave || r.can_approve_onduty)
+        (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none')
     );
 };
 
