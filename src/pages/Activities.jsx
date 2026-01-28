@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
-import { hasAdminPermission } from '../utils/roleUtils';
+import { hasAdminPermission, fetchRoles } from '../utils/roleUtils';
 
 const Activities = () => {
+    const navigate = useNavigate();
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasPermission, setHasPermission] = useState(false);
+    
     // Get today's date in YYYY-MM-DD format
     const getTodayDate = () => {
         const today = new Date();
@@ -36,13 +41,29 @@ const Activities = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = hasAdminPermission(user.role);
 
+    // Check permission first
     useEffect(() => {
-        // Check if user is admin
-        if (!isAdmin) {
-            setError('Unauthorized: Only admins can view activity logs');
-            setLoading(false);
-            return;
-        }
+        const checkPermission = async () => {
+            try {
+                await fetchRoles(true);
+                const isAdminUser = hasAdminPermission(user.role);
+                if (!isAdminUser) {
+                    navigate('/unauthorized', { replace: true });
+                } else {
+                    setHasPermission(true);
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+                navigate('/unauthorized', { replace: true });
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
+        checkPermission();
+    }, [user.role, navigate]);
+
+    useEffect(() => {
+        if (!hasPermission) return;
         
         // Fetch with today's date by default
         fetchActivities(1, {
@@ -53,7 +74,7 @@ const Activities = () => {
             adminId: ''
         });
         fetchSummary({ startDate: getTodayDate(), endDate: getTodayDate() });
-    }, [user.role]);
+    }, [hasPermission]);
 
     const fetchActivities = async (page = 1, filters = {}) => {
         try {
@@ -200,15 +221,18 @@ const Activities = () => {
         return colors[entity] || 'bg-gray-100 text-gray-800';
     };
 
-    if (!isAdmin) {
+    // Show loading while checking permissions
+    if (!permissionChecked) {
         return (
-            <div className="p-6">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-                    <h2 className="font-bold mb-2">Access Denied</h2>
-                    <p>Only administrators can view activity logs.</p>
-                </div>
+            <div className="flex items-center justify-center min-h-screen">
+                <ModernLoader />
             </div>
         );
+    }
+
+    // Don't render if no permission
+    if (!hasPermission) {
+        return null;
     }
 
     return (

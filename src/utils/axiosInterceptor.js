@@ -35,13 +35,32 @@ export const setupAxiosInterceptors = (navigate) => {
             const status = error.response?.status;
             const message = error.response?.data?.message?.toLowerCase() || '';
 
-            if (status === 401 || status === 403) {
-                // DON'T redirect if this is a login request
-                const isLoginRequest = error.config?.url?.includes('auth/signin');
-                if (isLoginRequest) {
-                    return Promise.reject(error);
-                }
+            // DON'T redirect if this is a login request
+            const isLoginRequest = error.config?.url?.includes('auth/signin');
+            if (isLoginRequest) {
+                return Promise.reject(error);
+            }
 
+            // Handle 403 Forbidden (permission denied)
+            if (status === 403) {
+                // Prevent multiple redirects
+                if (!isRedirecting) {
+                    isRedirecting = true;
+
+                    // Don't clear token/user data for 403 - user is authenticated but lacks permission
+                    // Navigate to unauthorized page
+                    navigate('/unauthorized', { replace: true });
+
+                    // Reset flag after a short delay
+                    setTimeout(() => {
+                        isRedirecting = false;
+                    }, 1000);
+                }
+                return Promise.reject(error);
+            }
+
+            // Handle 401 Unauthorized (session expired)
+            if (status === 401) {
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;
@@ -50,13 +69,11 @@ export const setupAxiosInterceptors = (navigate) => {
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
 
-                    // Determine the reason for redirection
+                    // Determine the reason for session expiry
                     let reason = 'expired';
                     // Check for inactive user
                     if (message.includes('inactive')) {
                         reason = 'inactive';
-                    } else if (message.includes('unauthorized') || message.includes('access denied')) {
-                        reason = 'unauthorized';
                     } else if (message.includes('token') && message.includes('expired')) {
                         reason = 'expired';
                     }
@@ -91,13 +108,32 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
             const status = error.response?.status;
             const message = error.response?.data?.message?.toLowerCase() || '';
 
-            if (status === 401 || status === 403) {
-                // DON'T redirect if this is a login request
-                const isLoginRequest = error.config?.url?.includes('auth/signin');
-                if (isLoginRequest) {
-                    return Promise.reject(error);
-                }
+            // DON'T redirect if this is a login request
+            const isLoginRequest = error.config?.url?.includes('auth/signin');
+            if (isLoginRequest) {
+                return Promise.reject(error);
+            }
 
+            // Handle 403 Forbidden (permission denied)
+            if (status === 403) {
+                // Prevent multiple redirects
+                if (!isRedirecting) {
+                    isRedirecting = true;
+
+                    // Don't clear token/user data for 403 - user is authenticated but lacks permission
+                    // Navigate to unauthorized page
+                    navigate('/unauthorized', { replace: true });
+
+                    // Reset flag after a short delay
+                    setTimeout(() => {
+                        isRedirecting = false;
+                    }, 1000);
+                }
+                return Promise.reject(error);
+            }
+
+            // Handle 401 Unauthorized (session expired)
+            if (status === 401) {
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;
@@ -106,13 +142,11 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
 
-                    // Determine the reason for redirection
+                    // Determine the reason for session expiry
                     let reason = 'expired';
                     // Check for inactive user
                     if (message.includes('inactive')) {
                         reason = 'inactive';
-                    } else if (message.includes('unauthorized') || message.includes('access denied')) {
-                        reason = 'unauthorized';
                     } else if (message.includes('token') && message.includes('expired')) {
                         reason = 'expired';
                     }

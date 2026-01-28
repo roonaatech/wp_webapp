@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
-import { hasAdminPermission } from '../utils/roleUtils';
+import { hasAdminPermission, fetchRoles, canManageActiveOnDuty } from '../utils/roleUtils';
 
 const ActiveOnDuty = () => {
+    const navigate = useNavigate();
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasPermission, setHasPermission] = useState(false);
     const [onDutyRecords, setOnDutyRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -15,9 +19,32 @@ const ActiveOnDuty = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = hasAdminPermission(user.role);
 
+    // Check permission first
     useEffect(() => {
-        fetchActiveOnDuty();
-    }, []);
+        const checkPermission = async () => {
+            try {
+                await fetchRoles(true);
+                const canManage = canManageActiveOnDuty(user.role);
+                if (!canManage) {
+                    navigate('/unauthorized', { replace: true });
+                } else {
+                    setHasPermission(true);
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+                navigate('/unauthorized', { replace: true });
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
+        checkPermission();
+    }, [user.role, navigate]);
+
+    useEffect(() => {
+        if (hasPermission) {
+            fetchActiveOnDuty();
+        }
+    }, [hasPermission]);
 
     const fetchActiveOnDuty = async () => {
         try {
@@ -119,6 +146,16 @@ const ActiveOnDuty = () => {
         if (sortConfig.key !== column) return <span className="text-gray-400 text-sm">⬍</span>;
         return sortConfig.direction === 'asc' ? <span className="text-blue-500">↑</span> : <span className="text-blue-500">↓</span>;
     };
+
+    // Show loading while checking permissions
+    if (!permissionChecked) {
+        return <ModernLoader />;
+    }
+
+    // Don't render if no permission
+    if (!hasPermission) {
+        return null;
+    }
 
     if (loading) {
         return <ModernLoader />;

@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { LuClock, LuCheck, LuX, LuChevronDown, LuChevronUp, LuSearch, LuFilter, LuArrowUpDown } from "react-icons/lu";
@@ -7,8 +8,12 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
+import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
 
 const Approvals = () => {
+    const navigate = useNavigate();
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasPermission, setHasPermission] = useState(false);
     const [leaveApprovals, setLeaveApprovals] = useState([]);
     const [onDutyApprovals, setOnDutyApprovals] = useState([]);
     const [statusFilter, setStatusFilter] = useState('Pending');
@@ -81,10 +86,34 @@ const Approvals = () => {
         }
     };
 
+    // Check permission first
     useEffect(() => {
-        fetchApprovals(1);
-        setSelectedItems(new Set()); // Clear selections when status changes
-    }, [statusFilter, rowsPerPage]);
+        const checkPermission = async () => {
+            try {
+                await fetchRoles(true);
+                const canApproveL = canApproveLeave(user.role);
+                const canApproveO = canApproveOnDuty(user.role);
+                if (!canApproveL && !canApproveO) {
+                    navigate('/unauthorized', { replace: true });
+                } else {
+                    setHasPermission(true);
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+                navigate('/unauthorized', { replace: true });
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
+        checkPermission();
+    }, [user.role, navigate]);
+
+    useEffect(() => {
+        if (hasPermission) {
+            fetchApprovals(1);
+            setSelectedItems(new Set()); // Clear selections when status changes
+        }
+    }, [statusFilter, rowsPerPage, hasPermission]);
 
     const fetchApprovals = async (page = 1) => {
         try {
@@ -578,7 +607,19 @@ const Approvals = () => {
         );
     };
 
+    // Show loading while checking permissions
+    if (!permissionChecked) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <ModernLoader />
+            </div>
+        );
+    }
 
+    // Don't render if no permission
+    if (!hasPermission) {
+        return null;
+    }
 
     return (
         <div className="p-6 font-sans min-h-screen bg-[var(--bg-primary)] transition-colors duration-300">

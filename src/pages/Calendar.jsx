@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
-import { hasAdminPermission } from '../utils/roleUtils';
+import { hasAdminPermission, fetchRoles, canManageSchedule } from '../utils/roleUtils';
 
 const Calendar = () => {
+    const navigate = useNavigate();
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasPermission, setHasPermission] = useState(false);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -15,10 +19,34 @@ const Calendar = () => {
     const [selectedEventType, setSelectedEventType] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('');
     const [expandedEmployee, setExpandedEmployee] = useState(null);
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    // Check permission first
+    useEffect(() => {
+        const checkPermission = async () => {
+            try {
+                await fetchRoles(true);
+                const canManage = canManageSchedule(user.role);
+                if (!canManage) {
+                    navigate('/unauthorized', { replace: true });
+                } else {
+                    setHasPermission(true);
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+                navigate('/unauthorized', { replace: true });
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
+        checkPermission();
+    }, [user.role, navigate]);
 
     useEffect(() => {
-        fetchCalendarEvents();
-    }, [currentDate]);
+        if (hasPermission) {
+            fetchCalendarEvents();
+        }
+    }, [currentDate, hasPermission]);
 
     // Auto-select today's date and show details on mount
     useEffect(() => {
@@ -143,7 +171,6 @@ const Calendar = () => {
     const daysInMonth = getDaysInMonth(currentDate);
     const firstDay = getFirstDayOfMonth(currentDate);
     const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = hasAdminPermission(user.role);
 
     // Group events by staff name for the sidebar
@@ -161,6 +188,16 @@ const Calendar = () => {
         if (event.type === 'on_duty') acc[key].hasOnDuty = true;
         return acc;
     }, {});
+
+    // Show loading while checking permissions
+    if (!permissionChecked) {
+        return <ModernLoader />;
+    }
+
+    // Don't render if no permission
+    if (!hasPermission) {
+        return null;
+    }
 
     if (loading) return <ModernLoader />;
 

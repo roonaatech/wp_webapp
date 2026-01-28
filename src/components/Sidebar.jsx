@@ -33,6 +33,7 @@ const Sidebar = () => {
     const canManageEmailPermission = canManageEmailSettings(user.role);
     const canManageActiveOnDutyPermission = canManageActiveOnDuty(user.role);
     const canManageSchedulePermission = canManageSchedule(user.role);
+    const canViewReportsPermission = canViewReports(user.role);
     // Show Configurations section if user has any configuration permission
     const hasAnyConfigPermission = canManageUsersPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
@@ -277,10 +278,12 @@ const Sidebar = () => {
                     </div>
                 )}
 
-                {!isCollapsed && (
+                {!isCollapsed && (canViewReportsPermission || isAdmin) && (
                     <div>
                         <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Analysis</p>
-                        <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        {canViewReportsPermission && (
+                            <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        )}
                         {/* Activities - Admin Only */}
                         {isAdmin && (
                             <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
@@ -292,9 +295,11 @@ const Sidebar = () => {
                         </div>
                     </div>
                 )}
-                {isCollapsed && (
+                {isCollapsed && (canViewReportsPermission || isAdmin) && (
                     <div className="space-y-2">
-                        <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        {canViewReportsPermission && (
+                            <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        )}
                         {isAdmin && (
                             <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
                         )}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MermaidChart from '../components/MermaidChart';
@@ -18,10 +18,15 @@ import {
     getCachedRoles,
     fetchRoles,
     needsApprover,
-    getApproverLabel 
+    getApproverLabel,
+    getRoleById
 } from '../utils/roleUtils';
 
 const Users = () => {
+    // Permission check state
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasPermission, setHasPermission] = useState(false);
+    
     // Leave Types Modal State
     const [showLeaveModal, setShowLeaveModal] = useState(false);
     const [leaveModalUser, setLeaveModalUser] = useState(null);
@@ -197,12 +202,40 @@ const Users = () => {
     const [sortField, setSortField] = useState('staffid');
     const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
     const [letterFilter, setLetterFilter] = useState(''); // '' means no filter, or single letter A-Z
+    const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    // Use permission-based checks instead of hardcoded role IDs
+
+    // Check permission by fetching fresh role data from API - MUST BE FIRST EFFECT
+    useEffect(() => {
+        const checkPermission = async () => {
+            try {
+                // Force refresh roles from server to get latest permissions
+                await fetchRoles(true);
+                
+                // Now check if user can manage users with fresh data
+                const canManage = canManageUsersUtil(user.role);
+                
+                if (!canManage) {
+                    navigate('/unauthorized', { replace: true });
+                } else {
+                    setHasPermission(true);
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+                navigate('/unauthorized', { replace: true });
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
+        
+        checkPermission();
+    }, [user.role, navigate]);
+
+    // Use permission-based checks for UI (after permission is confirmed)
     const isAdmin = hasAdminPermission(user.role);
     const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
-    const canManageUsers = canManageUsersUtil(user.role); // Check if user can manage users (subordinates or all)
-    const isAllowed = isAdmin || canApprove || canManageUsers;
+    const canManageUsers = canManageUsersUtil(user.role);
+    const isAllowed = hasPermission; // Only use the verified permission
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -925,48 +958,18 @@ const Users = () => {
         return definition;
     };
 
-
-
-    // Show unauthorized page for non-admin/non-manager users
-    if (!isAllowed) {
+    // Show loading while checking permissions
+    if (!permissionChecked) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
-                <div className="max-w-md w-full">
-                    <div className="bg-white rounded-2xl shadow-xl p-8 text-center border border-red-100">
-                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                        </div>
-
-                        <h1 className="text-2xl font-bold text-gray-900 mb-3">
-                            Access Denied
-                        </h1>
-
-                        <p className="text-gray-600 mb-6 leading-relaxed">
-                            You do not have permission to access the User Management page. This area is restricted to administrators and managers only.
-                        </p>
-
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                            <p className="text-sm text-blue-800">
-                                <strong>Your Role:</strong> {getRoleName(user.role)}
-                            </p>
-                        </div>
-
-                        <button
-                            onClick={() => window.history.back()}
-                            className="w-full py-3 bg-gradient-to-r from-blue-700 to-blue-800 text-white rounded-lg hover:from-blue-800 hover:to-blue-900 transition-all font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                        >
-                            ← Go Back
-                        </button>
-
-                        <p className="text-sm text-gray-500 mt-6">
-                            If you believe this is an error, please contact your administrator.
-                        </p>
-                    </div>
-                </div>
+            <div className="flex items-center justify-center min-h-screen">
+                <ModernLoader />
             </div>
         );
+    }
+
+    // Early return to prevent rendering if not allowed
+    if (!hasPermission) {
+        return null;
     }
 
     return (
@@ -1118,7 +1121,7 @@ const Users = () => {
                         </button>
 
                         {showRoleDropdown && (
-                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-48">
+                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-48 max-h-80 overflow-y-auto">
                                 <div className="p-3 space-y-2">
                                     <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
                                         <input
@@ -1130,66 +1133,23 @@ const Users = () => {
                                         <span className="text-sm font-medium text-gray-700">All Roles</span>
                                     </label>
                                     <hr className="my-2" />
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                                        <input
-                                            type="checkbox"
-                                            checked={roleFilter.includes('1')}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setRoleFilter([...roleFilter, '1']);
-                                                } else {
-                                                    setRoleFilter(roleFilter.filter(r => r !== '1'));
-                                                }
-                                            }}
-                                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-600"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">Admin</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                                        <input
-                                            type="checkbox"
-                                            checked={roleFilter.includes('2')}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setRoleFilter([...roleFilter, '2']);
-                                                } else {
-                                                    setRoleFilter(roleFilter.filter(r => r !== '2'));
-                                                }
-                                            }}
-                                            className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-600"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">Leader</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                                        <input
-                                            type="checkbox"
-                                            checked={roleFilter.includes('3')}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setRoleFilter([...roleFilter, '3']);
-                                                } else {
-                                                    setRoleFilter(roleFilter.filter(r => r !== '3'));
-                                                }
-                                            }}
-                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">Manager</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                                        <input
-                                            type="checkbox"
-                                            checked={roleFilter.includes('4')}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setRoleFilter([...roleFilter, '4']);
-                                                } else {
-                                                    setRoleFilter(roleFilter.filter(r => r !== '4'));
-                                                }
-                                            }}
-                                            className="w-4 h-4 rounded border-gray-300 text-gray-600 focus:ring-gray-600"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">Employee</span>
-                                    </label>
+                                    {availableRoles.map(role => (
+                                        <label key={role.id} className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                            <input
+                                                type="checkbox"
+                                                checked={roleFilter.includes(String(role.id))}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setRoleFilter([...roleFilter, String(role.id)]);
+                                                    } else {
+                                                        setRoleFilter(roleFilter.filter(r => r !== String(role.id)));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">{role.display_name}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
                         )}

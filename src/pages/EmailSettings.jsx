@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FiSave, FiSend, FiEdit2, FiInfo } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
+import ModernLoader from '../components/ModernLoader';
+import { fetchRoles, getRoleById } from '../utils/roleUtils';
 
 export default function EmailSettings() {
+    const navigate = useNavigate();
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasPermission, setHasPermission] = useState(false);
     const [activeTab, setActiveTab] = useState('config');
     const [loading, setLoading] = useState(false);
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     // Config State
     const [config, setConfig] = useState({
@@ -29,10 +36,34 @@ export default function EmailSettings() {
     const [templates, setTemplates] = useState([]);
     const [editingTemplate, setEditingTemplate] = useState(null);
 
+    // Check permission first
     useEffect(() => {
-        fetchConfig();
-        fetchTemplates();
-    }, []);
+        const checkPermission = async () => {
+            try {
+                await fetchRoles(true);
+                const role = getRoleById(user.role);
+                const canManage = role?.can_manage_email_settings === true;
+                if (!canManage) {
+                    navigate('/unauthorized', { replace: true });
+                } else {
+                    setHasPermission(true);
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+                navigate('/unauthorized', { replace: true });
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
+        checkPermission();
+    }, [user.role, navigate]);
+
+    useEffect(() => {
+        if (hasPermission) {
+            fetchConfig();
+            fetchTemplates();
+        }
+    }, [hasPermission]);
 
     const fetchConfig = async () => {
         try {
@@ -139,6 +170,20 @@ export default function EmailSettings() {
             toast.error('Failed to update template');
         }
     };
+
+    // Show loading while checking permissions
+    if (!permissionChecked) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <ModernLoader />
+            </div>
+        );
+    }
+
+    // Don't render if no permission
+    if (!hasPermission) {
+        return null;
+    }
 
     return (
         <div className="p-6">

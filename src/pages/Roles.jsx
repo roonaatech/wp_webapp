@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiPlus, FiX, FiMove, FiCheck, FiSave } from 'react-icons/fi';
 import { MdDragIndicator } from 'react-icons/md';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
-import { clearRolesCache, fetchRoles as refreshRolesCache } from '../utils/roleUtils';
+import { clearRolesCache, fetchRoles as refreshRolesCache, getRoleById } from '../utils/roleUtils';
 
 const Roles = () => {
+    const navigate = useNavigate();
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasPermission, setHasPermission] = useState(false);
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -19,6 +23,7 @@ const Roles = () => {
     const [hierarchyRoles, setHierarchyRoles] = useState([]);
     const [draggedIndex, setDraggedIndex] = useState(null);
     const [dragOverIndex, setDragOverIndex] = useState(null);
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     // Form state
     const [formData, setFormData] = useState({
@@ -41,10 +46,34 @@ const Roles = () => {
         active: true
     });
 
+    // Check permission first
     useEffect(() => {
-        fetchRoles();
-        fetchStatistics();
-    }, []);
+        const checkPermission = async () => {
+            try {
+                await refreshRolesCache(true);
+                const role = getRoleById(user.role);
+                const canManage = role?.can_manage_roles === true;
+                if (!canManage) {
+                    navigate('/unauthorized', { replace: true });
+                } else {
+                    setHasPermission(true);
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+                navigate('/unauthorized', { replace: true });
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
+        checkPermission();
+    }, [user.role, navigate]);
+
+    useEffect(() => {
+        if (hasPermission) {
+            fetchRoles();
+            fetchStatistics();
+        }
+    }, [hasPermission]);
 
     const fetchRoles = async () => {
         try {
@@ -288,6 +317,16 @@ const Roles = () => {
         const stat = statistics.find(s => s.id === roleId);
         return stat ? parseInt(stat.user_count) : 0;
     };
+
+    // Show loading while checking permissions
+    if (!permissionChecked) {
+        return <ModernLoader />;
+    }
+
+    // Don't render if no permission
+    if (!hasPermission) {
+        return null;
+    }
 
     if (loading) {
         return <ModernLoader />;

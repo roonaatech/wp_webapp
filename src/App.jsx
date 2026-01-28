@@ -7,6 +7,7 @@ import AxiosInterceptorSetup from './components/AxiosInterceptorSetup';
 import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import SessionExpired from './pages/SessionExpired';
+import Unauthorized from './pages/Unauthorized';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Approvals from './pages/Approvals';
@@ -97,6 +98,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/session-expired" element={<SessionExpired />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* Protected Routes */}
           <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />

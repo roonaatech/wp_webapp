@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { calculateLeaveDays } from '../utils/dateUtils';
+import { fetchRoles, canViewReports } from '../utils/roleUtils';
 
 const Reports = () => {
+    const navigate = useNavigate();
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasPermission, setHasPermission] = useState(false);
     const [reports, setReports] = useState([]);
     const [filteredReports, setFilteredReports] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -15,10 +20,34 @@ const Reports = () => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [typeFilter, setTypeFilter] = useState('both');
     const [expandedRows, setExpandedRows] = useState({});
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    // Check permission first
+    useEffect(() => {
+        const checkPermission = async () => {
+            try {
+                await fetchRoles(true);
+                const canView = canViewReports(user.role);
+                if (!canView) {
+                    navigate('/unauthorized', { replace: true });
+                } else {
+                    setHasPermission(true);
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+                navigate('/unauthorized', { replace: true });
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
+        checkPermission();
+    }, [user.role, navigate]);
 
     useEffect(() => {
-        fetchReports();
-    }, []);
+        if (hasPermission) {
+            fetchReports();
+        }
+    }, [hasPermission]);
 
     // Extract unique users from reports for the dropdown
     useEffect(() => {
@@ -247,6 +276,20 @@ const Reports = () => {
         onDutyCount: filteredReports.filter(r => r.on_duty).length,
         approved: filteredReports.filter(r => (r.start_date && r.status === 'Approved') || (r.on_duty && r.check_out_time)).length
     };
+
+    // Show loading while checking permissions
+    if (!permissionChecked) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <ModernLoader />
+            </div>
+        );
+    }
+
+    // Don't render if no permission
+    if (!hasPermission) {
+        return null;
+    }
 
     return (
         <div>

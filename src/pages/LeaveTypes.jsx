@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
+import ModernLoader from '../components/ModernLoader';
+import { fetchRoles, canManageLeaveTypes } from '../utils/roleUtils';
 
 export default function LeaveTypes() {
+  const navigate = useNavigate();
+  const [permissionChecked, setPermissionChecked] = useState(false);
+  const [hasPermission, setHasPermission] = useState(false);
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -18,10 +24,34 @@ export default function LeaveTypes() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  // Check permission first
+  useEffect(() => {
+    const checkPermission = async () => {
+      try {
+        await fetchRoles(true);
+        const canManage = canManageLeaveTypes(user.role);
+        if (!canManage) {
+          navigate('/unauthorized', { replace: true });
+        } else {
+          setHasPermission(true);
+        }
+      } catch (error) {
+        console.error('Error checking permissions:', error);
+        navigate('/unauthorized', { replace: true });
+      } finally {
+        setPermissionChecked(true);
+      }
+    };
+    checkPermission();
+  }, [user.role, navigate]);
 
   useEffect(() => {
-    fetchLeaveTypes();
-  }, []);
+    if (hasPermission) {
+      fetchLeaveTypes();
+    }
+  }, [hasPermission]);
 
   const fetchLeaveTypes = async () => {
     try {
@@ -164,6 +194,20 @@ export default function LeaveTypes() {
       toast.error(errorMsg);
     }
   };
+
+  // Show loading while checking permissions
+  if (!permissionChecked) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <ModernLoader />
+      </div>
+    );
+  }
+
+  // Don't render if no permission
+  if (!hasPermission) {
+    return null;
+  }
 
   if (loading) {
     return (
