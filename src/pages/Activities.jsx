@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
-import { hasAdminPermission, fetchRoles } from '../utils/roleUtils';
+import { canViewActivities, fetchRoles } from '../utils/roleUtils';
 
 const Activities = () => {
     const navigate = useNavigate();
@@ -39,15 +39,14 @@ const Activities = () => {
     const [showSummary, setShowSummary] = useState(false);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isAdmin = hasAdminPermission(user.role);
 
     // Check permission first
     useEffect(() => {
         const checkPermission = async () => {
             try {
                 await fetchRoles(true);
-                const isAdminUser = hasAdminPermission(user.role);
-                if (!isAdminUser) {
+                const hasActivityPermission = canViewActivities(user.role);
+                if (!hasActivityPermission) {
                     navigate('/unauthorized', { replace: true });
                 } else {
                     setHasPermission(true);

@@ -256,6 +256,24 @@ export const canManageScheduleAll = (roleId) => {
 };
 
 /**
+ * Check if user can view activities (any level - subordinates or all)
+ */
+export const canViewActivities = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_activities === 'subordinates' || role.can_view_activities === 'all';
+};
+
+/**
+ * Check if user can view activities for all users
+ */
+export const canViewActivitiesAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_activities === 'all';
+};
+
+/**
  * Get permission level for a specific permission
  * Returns: 'none', 'subordinates', or 'all'
  */

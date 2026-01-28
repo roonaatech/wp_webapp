@@ -20,7 +20,7 @@ import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageUsers as canManageUsersUtil, canManageActiveOnDuty, canManageSchedule } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageUsers as canManageUsersUtil, canManageActiveOnDuty, canManageSchedule, canViewActivities } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -34,6 +34,7 @@ const Sidebar = () => {
     const canManageActiveOnDutyPermission = canManageActiveOnDuty(user.role);
     const canManageSchedulePermission = canManageSchedule(user.role);
     const canViewReportsPermission = canViewReports(user.role);
+    const canViewActivitiesPermission = canViewActivities(user.role);
     // Show Configurations section if user has any configuration permission
     const hasAnyConfigPermission = canManageUsersPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
@@ -278,14 +279,14 @@ const Sidebar = () => {
                     </div>
                 )}
 
-                {!isCollapsed && (canViewReportsPermission || isAdmin) && (
+                {!isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
                     <div>
                         <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Analysis</p>
                         {canViewReportsPermission && (
                             <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
                         )}
-                        {/* Activities - Admin Only */}
-                        {isAdmin && (
+                        {/* Activities - Based on can_view_activities permission */}
+                        {canViewActivitiesPermission && (
                             <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
                         )}
 
@@ -295,12 +296,12 @@ const Sidebar = () => {
                         </div>
                     </div>
                 )}
-                {isCollapsed && (canViewReportsPermission || isAdmin) && (
+                {isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
                     <div className="space-y-2">
                         {canViewReportsPermission && (
                             <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
                         )}
-                        {isAdmin && (
+                        {canViewActivitiesPermission && (
                             <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
                         )}
                         <NavLink to="/apk" icon={<LuSmartphone />} label="Mobile App" />

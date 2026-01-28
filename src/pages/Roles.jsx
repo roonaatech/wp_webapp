@@ -38,6 +38,7 @@ const Roles = () => {
         can_view_reports: 'none',
         can_manage_active_onduty: 'none',
         can_manage_schedule: 'none',
+        can_view_activities: 'none',
         // Global permissions - boolean
         can_manage_leave_types: false,
         can_access_webapp: false,
@@ -120,6 +121,7 @@ const Roles = () => {
                 can_view_reports: role.can_view_reports || 'none',
                 can_manage_active_onduty: role.can_manage_active_onduty || 'none',
                 can_manage_schedule: role.can_manage_schedule || 'none',
+                can_view_activities: role.can_view_activities || 'none',
                 // Global permissions
                 can_manage_leave_types: role.can_manage_leave_types,
                 can_access_webapp: role.can_access_webapp,
@@ -141,6 +143,7 @@ const Roles = () => {
                 can_view_reports: 'none',
                 can_manage_active_onduty: 'none',
                 can_manage_schedule: 'none',
+                can_view_activities: 'none',
                 // Global permissions
                 can_manage_leave_types: false,
                 can_access_webapp: false,
@@ -477,6 +480,11 @@ const Roles = () => {
                                                 Schedule {role.can_manage_schedule === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
+                                        {role.can_view_activities && role.can_view_activities !== 'none' && (
+                                            <span className={`px-2 py-1 text-xs rounded ${role.can_view_activities === 'all' ? 'bg-cyan-100 text-cyan-800' : 'bg-cyan-50 text-cyan-700'}`}>
+                                                Activities {role.can_view_activities === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
+                                        )}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -759,7 +767,7 @@ const Roles = () => {
                                             </tr>
                                             
                                             {/* View Schedule */}
-                                            <tr className="hover:bg-gray-50">
+                                            <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Schedule</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <input
@@ -781,6 +789,35 @@ const Roles = () => {
                                                         checked={formData.can_manage_schedule === 'all'}
                                                         onChange={(e) => {
                                                             setFormData(prev => ({ ...prev, can_manage_schedule: e.target.checked ? 'all' : (prev.can_manage_schedule === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* View Activities */}
+                                            <tr className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">View Activities</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_view_activities === 'subordinates' || formData.can_view_activities === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_view_activities: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_view_activities: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_view_activities === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_view_activities: e.target.checked ? 'all' : (prev.can_view_activities === 'all' ? 'subordinates' : 'none') }));
                                                         }}
                                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                                     />
