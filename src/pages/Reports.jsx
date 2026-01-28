@@ -18,8 +18,31 @@ const Reports = () => {
 
     useEffect(() => {
         fetchReports();
-        fetchUsers();
     }, []);
+
+    // Extract unique users from reports for the dropdown
+    useEffect(() => {
+        if (reports && reports.length > 0) {
+            const uniqueUsers = new Map();
+            reports.forEach(report => {
+                const staffId = report.staff_id || report.tblstaff?.staffid;
+                const firstName = report.tblstaff?.firstname || 'Unknown';
+                const lastName = report.tblstaff?.lastname || '';
+                
+                if (staffId && !uniqueUsers.has(staffId)) {
+                    uniqueUsers.set(staffId, {
+                        staffid: staffId,
+                        firstname: firstName,
+                        lastname: lastName
+                    });
+                }
+            });
+            // Convert map to array and sort by name
+            const usersList = Array.from(uniqueUsers.values())
+                .sort((a, b) => `${a.firstname} ${a.lastname}`.localeCompare(`${b.firstname} ${b.lastname}`));
+            setUsers(usersList);
+        }
+    }, [reports]);
 
     useEffect(() => {
         filterReports();
@@ -47,18 +70,9 @@ const Reports = () => {
     };
 
     const fetchUsers = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-            // Use limit=all to get all users for the dropdown
-            const response = await axios.get(`${API_BASE_URL}/api/admin/users?limit=all`, {
-                headers: { 'x-access-token': token }
-            });
-            // Handle paginated response structure
-            setUsers(response.data.users || response.data || []);
-        } catch (error) {
-            console.error('Error fetching users:', error);
-        }
+        // Don't fetch users separately - we'll extract unique users from reports
+        // This ensures the dropdown shows all users with reports visible to the current user
+        // based on their can_view_reports permission
     };
 
     const filterReports = () => {

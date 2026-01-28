@@ -10,6 +10,7 @@ import {
     hasAdminPermission, 
     canApproveLeave, 
     canApproveOnDuty, 
+    canManageUsers as canManageUsersUtil,
     getRoleDisplayName, 
     getRoleColor as getRoleColorUtil,
     getHierarchyLevel,
@@ -200,7 +201,8 @@ const Users = () => {
     // Use permission-based checks instead of hardcoded role IDs
     const isAdmin = hasAdminPermission(user.role);
     const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
-    const isAllowed = isAdmin || canApprove;
+    const canManageUsers = canManageUsersUtil(user.role); // Check if user can manage users (subordinates or all)
+    const isAllowed = isAdmin || canApprove || canManageUsers;
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -976,7 +978,7 @@ const Users = () => {
                         <p className="text-gray-600 mt-1">
                             {isAdmin
                                 ? 'Manage all system users and their permissions'
-                                : 'View your team details and leave balances'}
+                                : 'Manage your team members and their leave balances'}
                         </p>
                     </div>
                     {isAdmin && (
@@ -1346,7 +1348,7 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    {isAdmin && (
+                                                    {(isAdmin || canManageUsers) && (
                                                         <button
                                                             onClick={() => handleToggleStatus(u)}
                                                             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${u.active ? 'bg-green-600' : 'bg-red-600'
@@ -1368,7 +1370,7 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    {isAdmin && (
+                                                    {(isAdmin || canManageUsers) && (
                                                         <>
                                                             <button
                                                                 onClick={() => handleEditUserClick(u)}
@@ -1390,7 +1392,7 @@ const Users = () => {
                                                             </button>
                                                         </>
                                                     )}
-                                                    {(isAdmin || isManager) && (
+                                                    {(isAdmin || canManageUsers) && (
                                                         <button
                                                             onClick={() => handleResetPasswordClick(u)}
                                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow"

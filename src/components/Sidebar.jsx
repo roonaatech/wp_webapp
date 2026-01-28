@@ -20,7 +20,7 @@ import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageUsers as canManageUsersUtil } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageUsers as canManageUsersUtil, canManageActiveOnDuty, canManageSchedule } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -31,6 +31,8 @@ const Sidebar = () => {
     const canManageUsersPermission = canManageUsersUtil(user.role); // Users page visibility
     const canManageRolesPermission = canManageRoles(user.role);
     const canManageEmailPermission = canManageEmailSettings(user.role);
+    const canManageActiveOnDutyPermission = canManageActiveOnDuty(user.role);
+    const canManageSchedulePermission = canManageSchedule(user.role);
     // Show Configurations section if user has any configuration permission
     const hasAnyConfigPermission = canManageUsersPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
@@ -214,17 +216,25 @@ const Sidebar = () => {
                         <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Management</p>
                         {/* Approvals - Both Admin and Manager */}
                         <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
-                        {/* Active On-Duty - Both Admin and Manager */}
-                        <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
-                        {/* Calendar - Both Admin and Manager */}
-                        <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
+                        {/* Active On-Duty - For users with can_manage_active_onduty permission */}
+                        {canManageActiveOnDutyPermission && (
+                            <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
+                        )}
+                        {/* Calendar/Schedule - For users with can_manage_schedule permission */}
+                        {canManageSchedulePermission && (
+                            <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
+                        )}
                     </div>
                 )}
                 {isCollapsed && (
                     <div className="space-y-2">
                         <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
-                        <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
-                        <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
+                        {canManageActiveOnDutyPermission && (
+                            <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
+                        )}
+                        {canManageSchedulePermission && (
+                            <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
+                        )}
                     </div>
                 )}
 

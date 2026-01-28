@@ -220,6 +220,42 @@ export const canManageUsersAll = (roleId) => {
 };
 
 /**
+ * Check if user can manage active on-duty records (any level - subordinates or all)
+ */
+export const canManageActiveOnDuty = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_active_onduty === 'subordinates' || role.can_manage_active_onduty === 'all';
+};
+
+/**
+ * Check if user can manage all active on-duty records
+ */
+export const canManageActiveOnDutyAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_active_onduty === 'all';
+};
+
+/**
+ * Check if user can manage schedule (any level - subordinates or all)
+ */
+export const canManageSchedule = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_schedule === 'subordinates' || role.can_manage_schedule === 'all';
+};
+
+/**
+ * Check if user can manage schedule for all users
+ */
+export const canManageScheduleAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_schedule === 'all';
+};
+
+/**
  * Get permission level for a specific permission
  * Returns: 'none', 'subordinates', or 'all'
  */
