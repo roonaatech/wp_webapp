@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.2.0](https://github.com/roonaatech/wp_webapp/compare/v0.1.0...v0.2.0) (2026-01-27)
+
+
+### Features
+
+* Enhance Sidebar component with collapsible functionality and local storage support ([e7e755c](https://github.com/roonaatech/wp_webapp/commit/e7e755ca4f283e75decaba80416789c4cedc8130))
+
+## [0.1.0](https://github.com/roonaatech/wp_webapp/compare/v0.0.8...v0.1.0) (2026-01-27)
+
+### [0.0.8](https://github.com/roonaatech/wp_webapp/compare/v0.0.7...v0.0.8) (2026-01-27)
+
+
+### Features
+
+* Add geographical coordinates to approval items in Approvals component ([11cb224](https://github.com/roonaatech/wp_webapp/commit/11cb2245e282a3082750b629b364dd5a87ee3f91))
+* add VITE_API_BASE_URL to .env.uat and implement CC Manager checkbox in Email Settings. ([140383f](https://github.com/roonaatech/wp_webapp/commit/140383f4b64e5afc6b3e146477c620a9d88abbd7))
+* Add WorkPulse logo and display specific API error messages in email settings. ([492138d](https://github.com/roonaatech/wp_webapp/commit/492138d9d843ab004d5e3ce0eb6a0fdd462f2b1d))
+* Implement Email Settings page for configuring SMTP, sending test emails, and managing templates. ([a6c4f69](https://github.com/roonaatech/wp_webapp/commit/a6c4f69dcb226a84644b1bb4a76f9b7d089d18d6))
+* Integrate OnDutyLocationMap component for displaying location details in ActiveOnDuty and Approvals pages ([a7161a9](https://github.com/roonaatech/wp_webapp/commit/a7161a9128ccd80e6003e0369aa24bd9b5b24bd1))
+* update API configuration to use environment variable for base URLs ([4967a1f](https://github.com/roonaatech/wp_webapp/commit/4967a1fef74a3cdd6ed92ce4e334abbccad077db))
+
 ### [0.0.7](https://github.com/roonaatech/wp_webapp/compare/v0.0.6...v0.0.7) (2026-01-25)
 
 ### [0.0.6](https://github.com/roonaatech/wp_webapp/compare/v0.0.5...v0.0.6) (2026-01-25)

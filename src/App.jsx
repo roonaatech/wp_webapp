@@ -7,6 +7,7 @@ import AxiosInterceptorSetup from './components/AxiosInterceptorSetup';
 import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import SessionExpired from './pages/SessionExpired';
+import Unauthorized from './pages/Unauthorized';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Approvals from './pages/Approvals';
@@ -18,9 +19,18 @@ import Calendar from './pages/Calendar';
 import ActiveOnDuty from './pages/ActiveOnDuty';
 import ApkDistribution from './pages/ApkDistribution';
 import EmailSettings from './pages/EmailSettings';
+import { fetchRoles } from './utils/roleUtils';
 
 
 const ProtectedLayout = ({ children }) => {
+  // Fetch roles on app load to populate the cache
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchRoles();
+    }
+  }, []);
+  
   return (
     <ProtectedRoute>
       <div className="flex h-screen bg-transparent transition-colors duration-300">
@@ -88,6 +98,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/session-expired" element={<SessionExpired />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* Protected Routes */}
           <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />

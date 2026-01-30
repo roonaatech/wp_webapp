@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { LuClock, LuCheck, LuX, LuChevronDown, LuChevronUp, LuSearch, LuFilter, LuArrowUpDown } from "react-icons/lu";
@@ -7,8 +8,12 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
+import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
 
 const Approvals = () => {
+    const navigate = useNavigate();
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasPermission, setHasPermission] = useState(false);
     const [leaveApprovals, setLeaveApprovals] = useState([]);
     const [onDutyApprovals, setOnDutyApprovals] = useState([]);
     const [statusFilter, setStatusFilter] = useState('Pending');
@@ -81,10 +86,34 @@ const Approvals = () => {
         }
     };
 
+    // Check permission first
     useEffect(() => {
-        fetchApprovals(1);
-        setSelectedItems(new Set()); // Clear selections when status changes
-    }, [statusFilter, rowsPerPage]);
+        const checkPermission = async () => {
+            try {
+                await fetchRoles(true);
+                const canApproveL = canApproveLeave(user.role);
+                const canApproveO = canApproveOnDuty(user.role);
+                if (!canApproveL && !canApproveO) {
+                    navigate('/unauthorized', { replace: true });
+                } else {
+                    setHasPermission(true);
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+                navigate('/unauthorized', { replace: true });
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
+        checkPermission();
+    }, [user.role, navigate]);
+
+    useEffect(() => {
+        if (hasPermission) {
+            fetchApprovals(1);
+            setSelectedItems(new Set()); // Clear selections when status changes
+        }
+    }, [statusFilter, rowsPerPage, hasPermission]);
 
     const fetchApprovals = async (page = 1) => {
         try {
@@ -578,7 +607,19 @@ const Approvals = () => {
         );
     };
 
+    // Show loading while checking permissions
+    if (!permissionChecked) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <ModernLoader />
+            </div>
+        );
+    }
 
+    // Don't render if no permission
+    if (!hasPermission) {
+        return null;
+    }
 
     return (
         <div className="p-6 font-sans min-h-screen bg-[var(--bg-primary)] transition-colors duration-300">
@@ -599,14 +640,14 @@ const Approvals = () => {
                         const isActive = statusFilter === tab.id;
                         const colorClasses = {
                             amber: isActive 
-                                ? 'text-amber-600 dark:text-amber-400 border-2 border-amber-400 dark:border-amber-400 shadow-md' 
-                                : 'text-gray-500 dark:text-gray-400 hover:text-amber-600 border-2 border-gray-200 dark:border-slate-700 hover:border-amber-200',
+                                ? 'bg-amber-500 dark:bg-amber-600 text-white border-0 shadow-lg shadow-amber-500/30' 
+                                : 'text-black dark:text-black border-2 border-black dark:border-black bg-white dark:bg-white hover:bg-gray-100 dark:hover:bg-gray-100',
                             emerald: isActive 
-                                ? 'text-emerald-600 dark:text-emerald-400 border-2 border-emerald-400 dark:border-emerald-400 shadow-md' 
-                                : 'text-gray-500 dark:text-gray-400 hover:text-emerald-600 border-2 border-gray-200 dark:border-slate-700 hover:border-emerald-200',
+                                ? 'bg-emerald-500 dark:bg-emerald-600 text-white border-0 shadow-lg shadow-emerald-500/30' 
+                                : 'text-black dark:text-black border-2 border-black dark:border-black bg-white dark:bg-white hover:bg-gray-100 dark:hover:bg-gray-100',
                             rose: isActive 
-                                ? 'text-rose-600 dark:text-rose-400 border-2 border-rose-400 dark:border-rose-400 shadow-md' 
-                                : 'text-gray-500 dark:text-gray-400 hover:text-rose-600 border-2 border-gray-200 dark:border-slate-700 hover:border-rose-200'
+                                ? 'bg-rose-500 dark:bg-rose-600 text-white border-0 shadow-lg shadow-rose-500/30' 
+                                : 'text-black dark:text-black border-2 border-black dark:border-black bg-white dark:bg-white hover:bg-gray-100 dark:hover:bg-gray-100'
                         };
 
                         return (
@@ -616,7 +657,7 @@ const Approvals = () => {
                                     setStatusFilter(tab.id);
                                     setExpandedSections({ leave: true, onDuty: false });
                                 }}
-                                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black transition-all duration-300 ${colorClasses[tab.color]}`}
+                                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black transition-all duration-300 transform hover:scale-105 ${colorClasses[tab.color]}`}
                             >
                                 <span className="text-xl">{tab.icon}</span>
                                 {tab.id}

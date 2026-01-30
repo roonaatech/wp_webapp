@@ -11,6 +11,7 @@ import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartL
 import { Doughnut } from 'react-chartjs-2';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
@@ -97,15 +98,27 @@ const Dashboard = () => {
     const [trendLoading, setTrendLoading] = useState(false);
     const [error, setError] = useState(null);
     const [trendDuration, setTrendDuration] = useState(7); // Default 7 days
+    const [trendStartDate, setTrendStartDate] = useState(null); // Custom start date
+    const [trendEndDate, setTrendEndDate] = useState(null); // Custom end date
+    const [showCustomDateRange, setShowCustomDateRange] = useState(false); // Toggle custom date range
     const [pendingApprovals, setPendingApprovals] = useState([]);
     const [pendingApprovalsLoading, setPendingApprovalsLoading] = useState(false);
     const [incompleteProfiles, setIncompleteProfiles] = useState([]);
 
     useEffect(() => {
         console.log('Dashboard mounted');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        // Always fetch stats (it's protected by verifyToken only, so accessible to all logged-in users)
         fetchDashboardStats();
+
+        // Conditionally fetch pending approvals
         fetchPendingApprovals();
-        fetchIncompleteProfiles();
+
+        // Only fetch incomplete profiles if user has permission to manage users
+        if (canManageUsers(user.role)) {
+            fetchIncompleteProfiles();
+        }
     }, []);
 
     useEffect(() => {
@@ -126,7 +139,7 @@ const Dashboard = () => {
         }
     };
 
-    const fetchTrendData = async (days) => {
+    const fetchTrendData = async (days, startDate = null, endDate = null) => {
         try {
             setTrendLoading(true);
             const token = localStorage.getItem('token');
@@ -134,7 +147,15 @@ const Dashboard = () => {
                 return;
             }
 
-            const url = `${API_BASE_URL}/api/admin/dashboard/daily-trend?days=${days}`;
+            let url = `${API_BASE_URL}/api/admin/dashboard/daily-trend`;
+            if (startDate && endDate) {
+                // Use custom date range
+                url += `?startDate=${startDate}&endDate=${endDate}`;
+            } else {
+                // Use days parameter
+                url += `?days=${days}`;
+            }
+
             const response = await axios.get(url, {
                 headers: { 'x-access-token': token }
             });
@@ -185,7 +206,20 @@ const Dashboard = () => {
         try {
             setPendingApprovalsLoading(true);
             const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
             if (!token) {
+                return;
+            }
+
+            // Check permissions before making the call
+            const hasLeavePermission = canApproveLeave(user.role);
+            const hasOnDutyPermission = canApproveOnDuty(user.role);
+
+            // If user has no approval permissions, don't fetch
+            if (!hasLeavePermission && !hasOnDutyPermission) {
+                setPendingApprovals([]);
+                setPendingApprovalsLoading(false);
                 return;
             }
 
@@ -456,8 +490,8 @@ const Dashboard = () => {
                                 <p className="text-orange-800 mb-4 font-medium">
                                     {incompleteProfiles.length} active user(s) have not been assigned a Role or Gender. They will be unable to log in until this is resolved.
                                 </p>
-                                <Link 
-                                    to="/users?status=incomplete" 
+                                <Link
+                                    to="/users?status=incomplete"
                                     className="inline-flex items-center gap-2 px-4 py-2 bg-white text-orange-600 rounded-lg font-bold shadow-sm border border-orange-100 hover:bg-orange-50 hover:shadow-md transition-all"
                                 >
                                     Review & Update Profiles →
@@ -674,25 +708,74 @@ const Dashboard = () => {
 
                                 {/* Trend Bar Chart (Recharts) */}
                                 <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-lg font-bold text-gray-900">Daily Approval Trend</h3>
-                                        <div className="flex gap-2">
-                                            {[7, 14, 30].map((days) => (
+                                    <div className="flex flex-col gap-4 mb-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-lg font-bold text-gray-900">Daily Approval Trend</h3>
+                                            <button
+                                                onClick={() => setShowCustomDateRange(!showCustomDateRange)}
+                                                className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                            >
+                                                {showCustomDateRange ? 'Use Quick Select' : 'Custom Range'}
+                                            </button>
+                                        </div>
+
+                                        {showCustomDateRange ? (
+                                            <div className="flex gap-3 items-end">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={trendStartDate || ''}
+                                                        onChange={(e) => setTrendStartDate(e.target.value)}
+                                                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={trendEndDate || ''}
+                                                        onChange={(e) => setTrendEndDate(e.target.value)}
+                                                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                </div>
                                                 <button
-                                                    key={days}
-                                                    onClick={() => setTrendDuration(days)}
-                                                    disabled={trendLoading}
-                                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${trendDuration === days
+                                                    onClick={() => {
+                                                        if (trendStartDate && trendEndDate) {
+                                                            fetchTrendData(null, trendStartDate, trendEndDate);
+                                                            setShowCustomDateRange(false);
+                                                        }
+                                                    }}
+                                                    disabled={!trendStartDate || !trendEndDate || trendLoading}
+                                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    Apply
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-2 flex-wrap">
+                                                {[7, 14, 30, 60, 90].map((days) => (
+                                                    <button
+                                                        key={days}
+                                                        onClick={() => {
+                                                            setTrendDuration(days);
+                                                            setTrendStartDate(null);
+                                                            setTrendEndDate(null);
+                                                            fetchTrendData(days);
+                                                        }}
+                                                        disabled={trendLoading}
+                                                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${trendDuration === days && !showCustomDateRange
                                                             ? 'bg-blue-700 text-white'
                                                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                        } ${trendLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                >
-                                                    {days}d
-                                                </button>
-                                            ))}
-                                        </div>
+                                                            } ${trendLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        {days}d
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                    <p className="text-sm text-gray-600 mb-4">Shows the number of leave and on-duty approvals for each day. Select 7d, 14d, or 30d to view trends over different time periods.</p>
+                                    <p className="text-sm text-gray-600 mb-4">Shows the number of leave and on-duty approvals for each day. Select a predefined period or use custom date range.</p>
                                     <div className="relative w-full h-96">
                                         {trendLoading && (
                                             <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-lg z-10">

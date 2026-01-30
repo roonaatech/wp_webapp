@@ -2,12 +2,31 @@ import React, { useEffect, useState } from 'react';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MermaidChart from '../components/MermaidChart';
+import { 
+    hasAdminPermission, 
+    canApproveLeave, 
+    canApproveOnDuty, 
+    canManageUsers as canManageUsersUtil,
+    getRoleDisplayName, 
+    getRoleColor as getRoleColorUtil,
+    getHierarchyLevel,
+    canBeApproverFor,
+    getCachedRoles,
+    fetchRoles,
+    needsApprover,
+    getApproverLabel,
+    getRoleById
+} from '../utils/roleUtils';
 
 const Users = () => {
+    // Permission check state
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasPermission, setHasPermission] = useState(false);
+    
     // Leave Types Modal State
     const [showLeaveModal, setShowLeaveModal] = useState(false);
     const [leaveModalUser, setLeaveModalUser] = useState(null);
@@ -133,6 +152,7 @@ const Users = () => {
     const [isDragging, setIsDragging] = useState(false); // Is user dragging the chart
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); // Starting position of drag
     const [managersAndAdmins, setManagersAndAdmins] = useState([]);
+    const [availableRoles, setAvailableRoles] = useState([]); // All available roles for dropdown
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState([]); // Array of selected status values
     const [showStatusDropdown, setShowStatusDropdown] = useState(false); // Toggle status dropdown
@@ -148,6 +168,7 @@ const Users = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showAuthInfo, setShowAuthInfo] = useState(true); // Show auth info first, then form
     const [editingUserId, setEditingUserId] = useState(null);
+    const [editingUserFromPhp, setEditingUserFromPhp] = useState(false); // Track if user is from PHP app
     const [expandedUserId, setExpandedUserId] = useState(null);
     const [leaveBalances, setLeaveBalances] = useState({});
     const [loadingBalance, setLoadingBalance] = useState({});
@@ -181,10 +202,40 @@ const Users = () => {
     const [sortField, setSortField] = useState('staffid');
     const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
     const [letterFilter, setLetterFilter] = useState(''); // '' means no filter, or single letter A-Z
+    const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isAdmin = user.role === 1;
-    const isManager = user.role === 2;
-    const isAllowed = isAdmin || isManager;
+
+    // Check permission by fetching fresh role data from API - MUST BE FIRST EFFECT
+    useEffect(() => {
+        const checkPermission = async () => {
+            try {
+                // Force refresh roles from server to get latest permissions
+                await fetchRoles(true);
+                
+                // Now check if user can manage users with fresh data
+                const canManage = canManageUsersUtil(user.role);
+                
+                if (!canManage) {
+                    navigate('/unauthorized', { replace: true });
+                } else {
+                    setHasPermission(true);
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+                navigate('/unauthorized', { replace: true });
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
+        
+        checkPermission();
+    }, [user.role, navigate]);
+
+    // Use permission-based checks for UI (after permission is confirmed)
+    const isAdmin = hasAdminPermission(user.role);
+    const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
+    const canManageUsers = canManageUsersUtil(user.role);
+    const isAllowed = hasPermission; // Only use the verified permission
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -198,6 +249,7 @@ const Users = () => {
     useEffect(() => {
         if (isAllowed) {
             fetchManagersAndAdmins();
+            fetchAvailableRoles();
         }
     }, [isAllowed]);
 
@@ -274,6 +326,19 @@ const Users = () => {
             setManagersAndAdmins(response.data);
         } catch (error) {
             console.error('Error fetching managers and admins:', error);
+        }
+    };
+
+    const fetchAvailableRoles = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await axios.get(`${API_BASE_URL}/api/roles`, {
+                headers: { 'x-access-token': token }
+            });
+            setAvailableRoles(response.data);
+        } catch (error) {
+            console.error('Error fetching roles:', error);
         }
     };
 
@@ -358,6 +423,7 @@ const Users = () => {
     const handleCloseModal = () => {
         setShowAddModal(false);
         setEditingUserId(null);
+        setEditingUserFromPhp(false);
         setFormError(null);
         setFormData({
             firstname: '',
@@ -372,10 +438,13 @@ const Users = () => {
     };
 
     const handleEditUserClick = (editUser) => {
+        console.log('Edit user data:', editUser); // Debug log to check userid field
         setShowAddModal(true);
         setShowAuthInfo(false); // Go directly to form when editing
         setEditingUserId(editUser.staffid || editUser.id);
+        setEditingUserFromPhp(!!editUser.userid); // True if userid exists (from PHP app)
         setFormError(null);
+        console.log('Setting role in form to:', editUser.role, 'Type:', typeof editUser.role);
         setFormData({
             firstname: editUser.firstname,
             lastname: editUser.lastname,
@@ -507,11 +576,13 @@ const Users = () => {
         setSubmitting(true);
         try {
             const token = localStorage.getItem('token');
+            const roleNum = parseInt(formData.role);
+            console.log('Form role value:', formData.role, 'Parsed:', roleNum);
             const payload = {
                 firstname: formData.firstname.trim(),
                 lastname: formData.lastname.trim(),
                 email: formData.email.trim(),
-                role: formData.role,
+                role: roleNum, // Must be an integer
                 gender: formData.gender
             };
 
@@ -530,6 +601,8 @@ const Users = () => {
             let response;
             if (editingUserId) {
                 // Update user - password not included in edit mode
+                console.log('Sending update request with payload:', payload);
+                console.log('Updating user with ID:', editingUserId);
                 response = await axios.put(
                     `${API_BASE_URL}/api/admin/users/${editingUserId}`,
                     payload,
@@ -537,12 +610,30 @@ const Users = () => {
                 );
 
                 // Update the user in the list
+                console.log('Update response user:', response.data.user);
+                console.log('Editing user ID:', editingUserId);
+                const responseRole = parseInt(response.data.user.role);
+                console.log('Response role:', response.data.user.role, 'Parsed:', responseRole);
+                
                 setUsers(users.map(u => {
-                    if (u.staffid === editingUserId || u.id === editingUserId) {
-                        return response.data.user;
+                    // Compare by staffid since that's the primary key
+                    if (String(u.staffid) === String(editingUserId)) {
+                        // Merge response data with existing user to preserve all fields
+                        const updatedUser = {
+                            ...u,
+                            ...response.data.user,
+                            role: responseRole // Ensure role is an integer
+                        };
+                        console.log('Found matching user. Updated user object:', updatedUser);
+                        return updatedUser;
                     }
                     return u;
                 }));
+                
+                // Refetch users from current page to ensure complete data
+                console.log('Refetching users from page:', currentPage);
+                await fetchUsers(currentPage);
+                
                 handleCloseModal();
                 toast.success(`User ${payload.firstname} ${payload.lastname} updated successfully`);
             } else {
@@ -735,23 +826,13 @@ const Users = () => {
         setLetterFilter(letter === letterFilter ? '' : letter); // Toggle: click same letter to clear filter
     };
 
-    const getRoleColor = (role) => {
-        switch (role) {
-            case 1: return 'bg-red-50 text-red-700';
-            case 2: return 'bg-blue-50 text-blue-700';
-            case 3: return 'bg-gray-50 text-gray-700';
-            default: return 'bg-gray-50 text-gray-700';
-        }
+    // Use role utilities for dynamic role colors and names
+    const getRoleColor = (roleId) => {
+        return getRoleColorUtil(roleId);
     };
 
-    const getRoleName = (role) => {
-        switch (role) {
-            case 1: return 'Admin';
-            case 2: return 'Leader';
-            case 3: return 'Manager';
-            case 4: return 'Employee';
-            default: return 'Unknown';
-        }
+    const getRoleName = (roleId) => {
+        return getRoleDisplayName(roleId);
     };
 
     const generateOrgChart = (currentUser) => {
@@ -877,48 +958,18 @@ const Users = () => {
         return definition;
     };
 
-
-
-    // Show unauthorized page for non-admin/non-manager users
-    if (!isAllowed) {
+    // Show loading while checking permissions
+    if (!permissionChecked) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
-                <div className="max-w-md w-full">
-                    <div className="bg-white rounded-2xl shadow-xl p-8 text-center border border-red-100">
-                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                        </div>
-
-                        <h1 className="text-2xl font-bold text-gray-900 mb-3">
-                            Access Denied
-                        </h1>
-
-                        <p className="text-gray-600 mb-6 leading-relaxed">
-                            You do not have permission to access the User Management page. This area is restricted to administrators and managers only.
-                        </p>
-
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                            <p className="text-sm text-blue-800">
-                                <strong>Your Role:</strong> {getRoleName(user.role)}
-                            </p>
-                        </div>
-
-                        <button
-                            onClick={() => window.history.back()}
-                            className="w-full py-3 bg-gradient-to-r from-blue-700 to-blue-800 text-white rounded-lg hover:from-blue-800 hover:to-blue-900 transition-all font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                        >
-                            ← Go Back
-                        </button>
-
-                        <p className="text-sm text-gray-500 mt-6">
-                            If you believe this is an error, please contact your administrator.
-                        </p>
-                    </div>
-                </div>
+            <div className="flex items-center justify-center min-h-screen">
+                <ModernLoader />
             </div>
         );
+    }
+
+    // Early return to prevent rendering if not allowed
+    if (!hasPermission) {
+        return null;
     }
 
     return (
@@ -930,7 +981,7 @@ const Users = () => {
                         <p className="text-gray-600 mt-1">
                             {isAdmin
                                 ? 'Manage all system users and their permissions'
-                                : 'View your team details and leave balances'}
+                                : 'Manage your team members and their leave balances'}
                         </p>
                     </div>
                     {isAdmin && (
@@ -1070,7 +1121,7 @@ const Users = () => {
                         </button>
 
                         {showRoleDropdown && (
-                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-48">
+                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-48 max-h-80 overflow-y-auto">
                                 <div className="p-3 space-y-2">
                                     <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
                                         <input
@@ -1082,66 +1133,23 @@ const Users = () => {
                                         <span className="text-sm font-medium text-gray-700">All Roles</span>
                                     </label>
                                     <hr className="my-2" />
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                                        <input
-                                            type="checkbox"
-                                            checked={roleFilter.includes('1')}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setRoleFilter([...roleFilter, '1']);
-                                                } else {
-                                                    setRoleFilter(roleFilter.filter(r => r !== '1'));
-                                                }
-                                            }}
-                                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-600"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">Admin</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                                        <input
-                                            type="checkbox"
-                                            checked={roleFilter.includes('2')}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setRoleFilter([...roleFilter, '2']);
-                                                } else {
-                                                    setRoleFilter(roleFilter.filter(r => r !== '2'));
-                                                }
-                                            }}
-                                            className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-600"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">Leader</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                                        <input
-                                            type="checkbox"
-                                            checked={roleFilter.includes('3')}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setRoleFilter([...roleFilter, '3']);
-                                                } else {
-                                                    setRoleFilter(roleFilter.filter(r => r !== '3'));
-                                                }
-                                            }}
-                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">Manager</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                                        <input
-                                            type="checkbox"
-                                            checked={roleFilter.includes('4')}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setRoleFilter([...roleFilter, '4']);
-                                                } else {
-                                                    setRoleFilter(roleFilter.filter(r => r !== '4'));
-                                                }
-                                            }}
-                                            className="w-4 h-4 rounded border-gray-300 text-gray-600 focus:ring-gray-600"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">Employee</span>
-                                    </label>
+                                    {availableRoles.map(role => (
+                                        <label key={role.id} className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                            <input
+                                                type="checkbox"
+                                                checked={roleFilter.includes(String(role.id))}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setRoleFilter([...roleFilter, String(role.id)]);
+                                                    } else {
+                                                        setRoleFilter(roleFilter.filter(r => r !== String(role.id)));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">{role.display_name}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
                         )}
@@ -1300,7 +1308,7 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    {isAdmin && (
+                                                    {(isAdmin || canManageUsers) && (
                                                         <button
                                                             onClick={() => handleToggleStatus(u)}
                                                             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${u.active ? 'bg-green-600' : 'bg-red-600'
@@ -1322,7 +1330,7 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    {isAdmin && (
+                                                    {(isAdmin || canManageUsers) && (
                                                         <>
                                                             <button
                                                                 onClick={() => handleEditUserClick(u)}
@@ -1344,7 +1352,7 @@ const Users = () => {
                                                             </button>
                                                         </>
                                                     )}
-                                                    {(isAdmin || isManager) && (
+                                                    {(isAdmin || canManageUsers) && (
                                                         <button
                                                             onClick={() => handleResetPasswordClick(u)}
                                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow"
@@ -1714,39 +1722,71 @@ const Users = () => {
                                     </div>
                                 )}
 
+                                {editingUserFromPhp && (
+                                    <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                                        <div className="flex items-start gap-3">
+                                            <div className="text-2xl flex-shrink-0">ℹ️</div>
+                                            <div>
+                                                <h4 className="font-semibold text-amber-900 mb-1">User from ABiS System</h4>
+                                                <p className="text-sm text-amber-800">
+                                                    The <span className="font-bold">name and email</span> fields are managed through the ABiS application and cannot be edited here. To update this information, please edit the user profile in the ABiS system.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">First Name</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
+                                        First Name
+                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
+                                    </label>
                                     <input
                                         type="text"
                                         name="firstname"
                                         value={formData.firstname}
                                         onChange={handleFormChange}
                                         placeholder="John"
-                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                        disabled={editingUserFromPhp}
+                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${
+                                            editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                        }`}
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">Last Name</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
+                                        Last Name
+                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
+                                    </label>
                                     <input
                                         type="text"
                                         name="lastname"
                                         value={formData.lastname}
                                         onChange={handleFormChange}
                                         placeholder="Doe"
-                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                        disabled={editingUserFromPhp}
+                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${
+                                            editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                        }`}
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">Email</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
+                                        Email
+                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
+                                    </label>
                                     <input
                                         type="email"
                                         name="email"
                                         value={formData.email}
                                         onChange={handleFormChange}
                                         placeholder="john@example.com"
-                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                        disabled={editingUserFromPhp}
+                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${
+                                            editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                        }`}
                                     />
                                 </div>
 
@@ -1758,10 +1798,12 @@ const Users = () => {
                                         onChange={handleFormChange}
                                         className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                     >
-                                        <option value="4">Employee</option>
-                                        <option value="3">Manager</option>
-                                        <option value="2">Leader</option>
-                                        <option value="1">Admin</option>
+                                        <option value="">Select Role</option>
+                                        {availableRoles.map((role) => (
+                                            <option key={role.id} value={String(role.id)}>
+                                                {role.display_name || role.name}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
 
@@ -1780,11 +1822,11 @@ const Users = () => {
                                     </select>
                                 </div>
 
-                                {/* Manager/Approver Selection - Show for Employee and Manager roles */}
-                                {(formData.role === '4' || formData.role === '3' || formData.role === '2') && (
+                                {/* Manager/Approver Selection - Show for roles that need an approver */}
+                                {formData.role && needsApprover(parseInt(formData.role)) && (
                                     <div>
                                         <label className="block text-base font-medium text-gray-700 mb-1">
-                                            {formData.role === '4' ? 'Manager / Leader / Approving Admin' : formData.role === '3' ? 'Leader / Approving Admin' : 'Approving Admin'}
+                                            {getApproverLabel(parseInt(formData.role))}
                                         </label>
                                         <select
                                             name="approving_manager_id"
@@ -1793,16 +1835,19 @@ const Users = () => {
                                             className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                         >
                                             <option value="">Select Approver</option>
-                                            {managersAndAdmins.map((user) => {
-                                                const isTargetManager = formData.role === '3';
-                                                const isTargetLeader = formData.role === '2';
-                                                const isTargetEmployee = formData.role === '4';
-                                                if (isTargetManager && (user.role !== 1 && user.role !== 2)) return null;
-                                                if (isTargetLeader && (user.role !== 1)) return null;
-                                                if (isTargetEmployee && (user.role !== 1 && user.role !== 2 && user.role !== 3)) return null;
+                                            {managersAndAdmins.map((approver) => {
+                                                // Use hierarchy-based check: approver must be higher in hierarchy than target role
+                                                const targetRoleId = parseInt(formData.role);
+                                                const approverRoleId = approver.role;
+                                                
+                                                // Only show approvers who are higher in hierarchy than the target role
+                                                if (!canBeApproverFor(approverRoleId, targetRoleId)) {
+                                                    return null;
+                                                }
+                                                
                                                 return (
-                                                    <option key={user.staffid} value={user.staffid}>
-                                                        {user.firstname} {user.lastname} ({getRoleName(user.role)})
+                                                    <option key={approver.staffid} value={approver.staffid}>
+                                                        {approver.firstname} {approver.lastname} ({getRoleName(approver.role)})
                                                     </option>
                                                 );
                                             })}

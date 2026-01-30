@@ -12,20 +12,37 @@ import {
     LuActivity,
     LuSmartphone,
     LuShield,
-    LuMail
+    LuMail,
+    LuChevronLeft,
+    LuChevronRight
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageUsers as canManageUsersUtil, canManageActiveOnDuty, canManageSchedule, canViewActivities } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isAdmin = user.role === 1;
-    const isManager = user.role === 2;
+    // Use permission-based checks instead of hardcoded role IDs
+    const isAdmin = hasAdminPermission(user.role);
+    const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
+    const canManageUsersPermission = canManageUsersUtil(user.role); // Users page visibility
+    const canManageRolesPermission = canManageRoles(user.role);
+    const canManageEmailPermission = canManageEmailSettings(user.role);
+    const canManageActiveOnDutyPermission = canManageActiveOnDuty(user.role);
+    const canManageSchedulePermission = canManageSchedule(user.role);
+    const canViewReportsPermission = canViewReports(user.role);
+    const canViewActivitiesPermission = canViewActivities(user.role);
+    // Show Configurations section if user has any configuration permission
+    const hasAnyConfigPermission = canManageUsersPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        const saved = localStorage.getItem('sidebarCollapsed');
+        return saved ? JSON.parse(saved) : false;
+    });
 
     useEffect(() => {
         fetchActiveOnDutyCount();
@@ -38,10 +55,22 @@ const Sidebar = () => {
         return () => clearInterval(interval);
     }, []);
 
+    useEffect(() => {
+        localStorage.setItem('sidebarCollapsed', JSON.stringify(isCollapsed));
+    }, [isCollapsed]);
+
     const fetchActiveOnDutyCount = async () => {
         try {
             const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
             if (!token) return;
+
+            // Check if user has permission to manage active on-duty
+            if (!canManageActiveOnDuty(user.role)) {
+                setActiveOnDutyCount(0);
+                return;
+            }
 
             const response = await axios.get(
                 `${API_BASE_URL}/api/onduty/active-all`,
@@ -58,7 +87,18 @@ const Sidebar = () => {
     const fetchApprovalsCount = async () => {
         try {
             const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
             if (!token) return;
+
+            // Check if user has permission to approve requests
+            const hasLeavePermission = canApproveLeave(user.role);
+            const hasOnDutyPermission = canApproveOnDuty(user.role);
+
+            if (!hasLeavePermission && !hasOnDutyPermission) {
+                setApprovalsCount(0);
+                return;
+            }
 
             const response = await axios.get(
                 `${API_BASE_URL}/api/leave/requests?status=Pending&limit=1000`,
@@ -76,112 +116,227 @@ const Sidebar = () => {
         return location.pathname === path;
     };
 
+    const [hoveredLink, setHoveredLink] = useState(null);
+    const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
+
+    const handleMouseEnter = (to, event) => {
+        if (isCollapsed) {
+            setHoveredLink(to);
+            const rect = event.currentTarget.getBoundingClientRect();
+            setTooltipPos({
+                top: rect.top + rect.height / 2,
+                left: rect.right + 10 // 10px gap from the element
+            });
+        }
+    };
+
+    const handleMouseLeave = () => {
+        setHoveredLink(null);
+    };
+
     const NavLink = ({ to, icon, label, badge }) => (
-        <Link
-            to={to}
-            className={`
-                flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 mx-2
-                ${isActive(to)
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/20'
-                    : 'text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]'
-                }
-            `}
-        >
-            <span className="text-xl">{icon}</span>
-            <span className="font-medium flex-1 tracking-wide text-base">{label}</span>
-            {badge !== undefined && badge > 0 && (
-                <span className={`
-                    px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm
+        <div className="relative group">
+            <Link
+                to={to}
+                onMouseEnter={(e) => handleMouseEnter(to, e)}
+                onMouseLeave={handleMouseLeave}
+                className={`
+                    flex items-center gap-3 px-4 py-1.5 rounded-xl transition-all duration-300 mx-2 relative
+                    ${isCollapsed ? 'justify-center' : ''}
                     ${isActive(to)
-                        ? 'bg-white/20 text-white'
-                        : 'bg-rose-500 text-white'
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/20'
+                        : 'text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]'
                     }
-                `}>
-                    {badge}
-                </span>
+                `}
+            >
+                <span className="text-xl flex-shrink-0">{icon}</span>
+                {!isCollapsed && (
+                    <>
+                        <span className="font-medium flex-1 tracking-wide text-base">{label}</span>
+                        {badge !== undefined && badge > 0 && (
+                            <span className={`
+                                px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm flex-shrink-0
+                                ${isActive(to)
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-rose-500 text-white'
+                                }
+                            `}>
+                                {badge}
+                            </span>
+                        )}
+                    </>
+                )}
+                {isCollapsed && badge !== undefined && badge > 0 && (
+                    <span className={`
+                        absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold
+                        ${isActive(to)
+                            ? 'bg-white/20 text-white'
+                            : 'bg-rose-500 text-white'
+                        }
+                    `}>
+                        {badge}
+                    </span>
+                )}
+            </Link>
+
+            {/* Tooltip - positioned at hovered element */}
+            {isCollapsed && hoveredLink === to && (
+                <div className="fixed bg-gray-900 text-white px-3 py-2 rounded-lg whitespace-nowrap text-sm font-medium shadow-lg z-50 pointer-events-none"
+                    style={{
+                        top: `${tooltipPos.top}px`,
+                        left: `${tooltipPos.left}px`,
+                        transform: 'translateY(-50%)'
+                    }}
+                >
+                    {label}
+                    <div className="absolute -left-1 top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
+                </div>
             )}
-        </Link>
+        </div>
     );
 
     return (
-        <div className="w-72 bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] text-[var(--sidebar-text)] min-h-screen shadow-2xl flex flex-col font-sans transition-colors duration-300">
-            <div className="p-8 pb-6">
-                <Link to="/" className="hover:opacity-90 transition-opacity block">
-                    <BrandLogo />
-                </Link>
+        <div className={`
+            bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] text-[var(--sidebar-text)] min-h-screen shadow-2xl flex flex-col font-sans transition-all duration-300
+            ${isCollapsed ? 'w-20' : 'w-72'}
+        `}>
+            {/* Header with collapse button */}
+            <div className="p-4 pb-6 flex items-center justify-between">
+                {!isCollapsed && (
+                    <Link to="/" className="hover:opacity-90 transition-opacity block flex-1">
+                        <BrandLogo />
+                    </Link>
+                )}
+                <button
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className={`
+                        p-2 rounded-lg transition-all duration-300 
+                        text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]
+                        ${isCollapsed ? 'w-full flex justify-center' : ''}
+                    `}
+                    title={isCollapsed ? 'Expand' : 'Collapse'}
+                >
+                    {isCollapsed ? <LuChevronRight size={20} /> : <LuChevronLeft size={20} />}
+                </button>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-2 space-y-6 overflow-y-auto hide-scrollbar py-4">
-                <div>
-                    <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3">Overview</p>
-                    <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
-                </div>
-
-                <div>
-                    <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Management</p>
-                    {/* Approvals - Both Admin and Manager */}
-                    <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
-                    {/* Active On-Duty - Both Admin and Manager */}
-                    <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
-                    {/* Calendar - Both Admin and Manager */}
-                    <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
-                </div>
-
-                <div>
-                    <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Configurations</p>
-                    {/* Users - Admin & Manager */}
-                    {(isAdmin || isManager) && (
-                        <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
-                    )}
-                    {/* Leave Types - Admin Only */}
-                    {isAdmin && (
-                        <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
-                    )}
-                    {/* Roles - Admin Only */}
-                    {isAdmin && (
-                        <NavLink to="/roles" icon={<LuShield />} label="Roles" />
-                    )}
-                    {isAdmin && (
-                        <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" />
-                    )}
-
-                </div>
-
-                <div>
-                    <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-3 mt-6">Analysis</p>
-                    <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
-                    {/* Activities - Admin Only */}
-                    {isAdmin && (
-                        <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
-                    )}
-
-                    <div className="mt-6 mb-3 px-6 border-t border-[var(--border-color)] pt-6">
-                        <p className="text-sm font-semibold text-blue-400 tracking-widest mb-3">Downloads</p>
-                        <NavLink to="/apk" icon={<LuSmartphone />} label="Mobile App" />
+            <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
+                {!isCollapsed && (
+                    <div>
+                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1">Overview</p>
+                        <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
                     </div>
-                </div>
+                )}
+                {isCollapsed && (
+                    <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                )}
 
-                {/* Role Badge */}
-                <div className="mt-4 px-6 mb-6">
-                    <div className="bg-white/10 dark:bg-slate-800/50 rounded-xl p-4 border border-[var(--border-color)] backdrop-blur-sm">
-                        <p className="text-sm text-[var(--sidebar-muted)] mb-1 font-medium">Signed in as</p>
-                        <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <p className="text-base font-bold text-[var(--sidebar-text)] tracking-wide">
-                                {isAdmin ? 'Administrator' : 'Manager'}
-                            </p>
+                {!isCollapsed && (
+                    <div>
+                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Management</p>
+                        {/* Approvals - Both Admin and Manager */}
+                        <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
+                        {/* Active On-Duty - For users with can_manage_active_onduty permission */}
+                        {canManageActiveOnDutyPermission && (
+                            <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
+                        )}
+                        {/* Calendar/Schedule - For users with can_manage_schedule permission */}
+                        {canManageSchedulePermission && (
+                            <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
+                        )}
+                    </div>
+                )}
+                {isCollapsed && (
+                    <div className="space-y-2">
+                        <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
+                        {canManageActiveOnDutyPermission && (
+                            <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
+                        )}
+                        {canManageSchedulePermission && (
+                            <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
+                        )}
+                    </div>
+                )}
+
+                {/* Configurations - Show if user has any configuration permission */}
+                {!isCollapsed && hasAnyConfigPermission && (
+                    <div>
+                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Configurations</p>
+                        {/* Users - Admin & those who can manage users */}
+                        {canManageUsersPermission && (
+                            <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
+                        )}
+                        {/* Leave Types */}
+                        {canManageLeaveTypes(user.role) && (
+                            <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
+                        )}
+                        {/* Roles */}
+                        {canManageRolesPermission && (
+                            <NavLink to="/roles" icon={<LuShield />} label="Roles" />
+                        )}
+                        {/* Email Settings */}
+                        {canManageEmailPermission && (
+                            <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" />
+                        )}
+                    </div>
+                )}
+                {isCollapsed && hasAnyConfigPermission && (
+                    <div className="space-y-2">
+                        {canManageUsersPermission && (
+                            <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
+                        )}
+                        {canManageLeaveTypes(user.role) && (
+                            <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
+                        )}
+                        {canManageRolesPermission && (
+                            <NavLink to="/roles" icon={<LuShield />} label="Roles" />
+                        )}
+                        {canManageEmailPermission && (
+                            <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" />
+                        )}
+                    </div>
+                )}
+
+                {!isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
+                    <div>
+                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Analysis</p>
+                        {canViewReportsPermission && (
+                            <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        )}
+                        {/* Activities - Based on can_view_activities permission */}
+                        {canViewActivitiesPermission && (
+                            <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
+                        )}
+
+                        <div className="mt-6 mb-3 px-6 border-t border-[var(--border-color)] pt-6">
+                            <p className="text-sm font-semibold text-blue-400 tracking-widest mb-3">Downloads</p>
+                            <NavLink to="/apk" icon={<LuSmartphone />} label="Mobile App" />
                         </div>
                     </div>
-                </div>
+                )}
+                {isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
+                    <div className="space-y-2">
+                        {canViewReportsPermission && (
+                            <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        )}
+                        {canViewActivitiesPermission && (
+                            <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
+                        )}
+                        <NavLink to="/apk" icon={<LuSmartphone />} label="Mobile App" />
+                    </div>
+                )}
+
             </nav>
 
             {/* Footer */}
-            <div className="p-6 border-t border-[var(--border-color)]">
-                <p className="text-[10px] text-[var(--sidebar-text)] text-center font-medium tracking-widest uppercase">
-                    WORKPULSE v{packageJson.version}
-                </p>
-            </div>
+            {!isCollapsed && (
+                <div className="p-6 border-t border-[var(--border-color)]">
+                    <p className="text-[10px] text-[var(--sidebar-text)] text-center font-medium tracking-widest uppercase">
+                        WORKPULSE v{packageJson.version}
+                    </p>
+                </div>
+            )}
         </div>
     );
 };

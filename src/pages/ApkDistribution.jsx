@@ -3,7 +3,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
+import BrandLogo from '../components/BrandLogo';
 import { LuDownload, LuUpload, LuTrash2, LuEye, LuEyeOff, LuSmartphone, LuHistory } from "react-icons/lu";
+import { hasAdminPermission } from '../utils/roleUtils';
 
 const ApkDistribution = () => {
     const [latestApk, setLatestApk] = useState(null);
@@ -16,7 +18,7 @@ const ApkDistribution = () => {
     // Auth state
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const token = localStorage.getItem('token');
-    const isAdmin = user.role === 1;
+    const isAdmin = hasAdminPermission(user.role);
 
     // Form state
     const [file, setFile] = useState(null);
@@ -154,37 +156,34 @@ const ApkDistribution = () => {
     };
 
     return (
-        <div className={`space-y-8 animate-fade-in mb-10 ${!token ? 'min-h-screen bg-gray-50 p-8 flex flex-col items-center justify-center' : ''}`}>
-            {/* Header for non-logged in users */}
-            {!token && (
-                <div className="w-full max-w-4xl flex justify-between items-center mb-8">
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span className="bg-blue-600 text-white p-2 rounded-lg"><LuSmartphone size={24} /></span>
-                        WorkPulse
-                    </h1>
-                    <a href="/login" className="text-blue-600 font-medium hover:underline">
-                        Login to Dashboard
-                    </a>
-                </div>
-            )}
-
-            <div className={token ? "" : "w-full max-w-4xl"}>
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Mobile App Distribution</h1>
-                        <p className="text-gray-500 mt-2">Download the latest version of the WorkPulse mobile app.</p>
+        <div className={`space-y-8 animate-fade-in mb-10 ${!token ? 'min-h-screen bg-gray-50 p-8 flex flex-col items-center justify-between' : ''}`}>
+            <div className={`${!token ? 'w-full max-w-4xl' : ''}`}>
+                {/* Logo only for non-logged in users - minimal header */}
+                {!token && (
+                    <div className="mb-8">
+                        <div className="flex items-center gap-4">
+                            <BrandLogo size={40} />
+                        </div>
                     </div>
-                </div>
+                )}
 
-                {/* Latest Version Card */}
-                <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-12 opacity-10">
-                        <LuSmartphone size={200} />
+                <div className={token ? "" : "w-full"}>
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Mobile App Distribution</h1>
+                            <p className="text-gray-500 mt-2">Download the latest version of the WorkPulse mobile app.</p>
+                        </div>
                     </div>
 
-                    <div className="relative z-10">
-                        {isLoading ? (
-                            <div className="animate-pulse space-y-4">
+                    {/* Latest Version Card */}
+                    <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-12 opacity-10">
+                            <LuSmartphone size={200} />
+                        </div>
+
+                        <div className="relative z-10">
+                            {isLoading ? (
+                                <div className="animate-pulse space-y-4">
                                 <div className="h-8 bg-white/20 w-48 rounded"></div>
                                 <div className="h-4 bg-white/20 w-32 rounded"></div>
                             </div>
@@ -411,7 +410,20 @@ const ApkDistribution = () => {
                         </div>
                     </div>
                 )}
+                </div>
             </div>
+
+            {/* Sign In Button at bottom for non-logged in users */}
+            {!token && (
+                <div className="w-full max-w-4xl mt-auto">
+                    <a 
+                        href="/login" 
+                        className="w-full block px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:shadow-lg text-center shadow-lg"
+                    >
+                        Sign In to Dashboard →
+                    </a>
+                </div>
+            )}
         </div>
     );
 };
