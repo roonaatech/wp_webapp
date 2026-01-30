@@ -62,7 +62,15 @@ const Sidebar = () => {
     const fetchActiveOnDutyCount = async () => {
         try {
             const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
             if (!token) return;
+
+            // Check if user has permission to manage active on-duty
+            if (!canManageActiveOnDuty(user.role)) {
+                setActiveOnDutyCount(0);
+                return;
+            }
 
             const response = await axios.get(
                 `${API_BASE_URL}/api/onduty/active-all`,
@@ -79,7 +87,18 @@ const Sidebar = () => {
     const fetchApprovalsCount = async () => {
         try {
             const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
             if (!token) return;
+
+            // Check if user has permission to approve requests
+            const hasLeavePermission = canApproveLeave(user.role);
+            const hasOnDutyPermission = canApproveOnDuty(user.role);
+
+            if (!hasLeavePermission && !hasOnDutyPermission) {
+                setApprovalsCount(0);
+                return;
+            }
 
             const response = await axios.get(
                 `${API_BASE_URL}/api/leave/requests?status=Pending&limit=1000`,

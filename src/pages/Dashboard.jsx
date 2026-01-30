@@ -11,6 +11,7 @@ import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartL
 import { Doughnut } from 'react-chartjs-2';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
@@ -106,9 +107,18 @@ const Dashboard = () => {
 
     useEffect(() => {
         console.log('Dashboard mounted');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        // Always fetch stats (it's protected by verifyToken only, so accessible to all logged-in users)
         fetchDashboardStats();
+
+        // Conditionally fetch pending approvals
         fetchPendingApprovals();
-        fetchIncompleteProfiles();
+
+        // Only fetch incomplete profiles if user has permission to manage users
+        if (canManageUsers(user.role)) {
+            fetchIncompleteProfiles();
+        }
     }, []);
 
     useEffect(() => {
@@ -145,7 +155,7 @@ const Dashboard = () => {
                 // Use days parameter
                 url += `?days=${days}`;
             }
-            
+
             const response = await axios.get(url, {
                 headers: { 'x-access-token': token }
             });
@@ -196,7 +206,20 @@ const Dashboard = () => {
         try {
             setPendingApprovalsLoading(true);
             const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
             if (!token) {
+                return;
+            }
+
+            // Check permissions before making the call
+            const hasLeavePermission = canApproveLeave(user.role);
+            const hasOnDutyPermission = canApproveOnDuty(user.role);
+
+            // If user has no approval permissions, don't fetch
+            if (!hasLeavePermission && !hasOnDutyPermission) {
+                setPendingApprovals([]);
+                setPendingApprovalsLoading(false);
                 return;
             }
 
@@ -467,8 +490,8 @@ const Dashboard = () => {
                                 <p className="text-orange-800 mb-4 font-medium">
                                     {incompleteProfiles.length} active user(s) have not been assigned a Role or Gender. They will be unable to log in until this is resolved.
                                 </p>
-                                <Link 
-                                    to="/users?status=incomplete" 
+                                <Link
+                                    to="/users?status=incomplete"
                                     className="inline-flex items-center gap-2 px-4 py-2 bg-white text-orange-600 rounded-lg font-bold shadow-sm border border-orange-100 hover:bg-orange-50 hover:shadow-md transition-all"
                                 >
                                     Review & Update Profiles →
@@ -742,8 +765,8 @@ const Dashboard = () => {
                                                         }}
                                                         disabled={trendLoading}
                                                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${trendDuration === days && !showCustomDateRange
-                                                                ? 'bg-blue-700 text-white'
-                                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                            ? 'bg-blue-700 text-white'
+                                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                                             } ${trendLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                     >
                                                         {days}d

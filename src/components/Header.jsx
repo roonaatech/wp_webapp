@@ -4,7 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
-import { getRoleDisplayName } from '../utils/roleUtils';
+import { getRoleDisplayName, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
 
 const Header = () => {
     const [showMenu, setShowMenu] = useState(false);
@@ -40,28 +40,40 @@ const Header = () => {
     const fetchPendingCount = async () => {
         try {
             setLoadingCount(true);
+            setLoadingCount(true);
             const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
             if (!token) return;
 
-            const response = await axios.get(`${API_BASE_URL}/api/leave/requests`,
-                {
-                    params: { status: 'Pending', limit: 1, page: 1 },
-                    headers: { 'x-access-token': token }
-                }
-            );
+            // Get pending leaves count if allowed
+            let pendingLeaves = 0;
+            if (canApproveLeave(user.role)) {
+                try {
+                    const response = await axios.get(`${API_BASE_URL}/api/leave/requests`,
+                        {
+                            params: { status: 'Pending', limit: 1, page: 1 },
+                            headers: { 'x-access-token': token }
+                        }
+                    );
+                    pendingLeaves = response.data.pagination?.totalCount || 0;
+                } catch (e) { console.error('Error fetching leave count:', e); }
+            }
 
-            // Get pending leaves count
-            const pendingLeaves = response.data.pagination?.totalCount || 0;
+            // Get pending on-duty count if allowed
+            let pendingOnDuty = 0;
+            if (canApproveOnDuty(user.role)) {
+                try {
+                    const onDutyResponse = await axios.get(`${API_BASE_URL}/api/onduty`,
+                        {
+                            params: { status: 'Pending', limit: 1, page: 1 },
+                            headers: { 'x-access-token': token }
+                        }
+                    );
+                    pendingOnDuty = onDutyResponse.data.pagination?.totalCount || 0;
+                } catch (e) { console.error('Error fetching on-duty count:', e); }
+            }
 
-            // Get pending on-duty count
-            const onDutyResponse = await axios.get(`${API_BASE_URL}/api/onduty`,
-                {
-                    params: { status: 'Pending', limit: 1, page: 1 },
-                    headers: { 'x-access-token': token }
-                }
-            );
-
-            const pendingOnDuty = onDutyResponse.data.pagination?.totalCount || 0;
             setPendingCount(pendingLeaves + pendingOnDuty);
         } catch (error) {
             console.error('Error fetching pending count:', error);

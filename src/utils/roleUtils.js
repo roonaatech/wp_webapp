@@ -17,26 +17,26 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
  */
 export const fetchRoles = async (forceRefresh = false) => {
     const now = Date.now();
-    
+
     // Return cached data if still valid
     if (!forceRefresh && rolesCache && rolesCacheTime && (now - rolesCacheTime < CACHE_DURATION)) {
         return rolesCache;
     }
-    
+
     try {
         const token = localStorage.getItem('token');
         if (!token) return rolesCache || [];
-        
+
         const response = await axios.get(`${API_BASE_URL}/api/roles`, {
             headers: { 'x-access-token': token }
         });
-        
+
         rolesCache = response.data;
         rolesCacheTime = now;
-        
+
         // Also store in localStorage for initial load before API call
         localStorage.setItem('cachedRoles', JSON.stringify(rolesCache));
-        
+
         return rolesCache;
     } catch (error) {
         console.error('Error fetching roles:', error);
@@ -56,13 +56,13 @@ export const fetchRoles = async (forceRefresh = false) => {
  */
 export const getCachedRoles = () => {
     if (rolesCache) return rolesCache;
-    
+
     const cached = localStorage.getItem('cachedRoles');
     if (cached) {
         rolesCache = JSON.parse(cached);
         return rolesCache;
     }
-    
+
     return [];
 };
 
@@ -92,39 +92,28 @@ export const getRoleDisplayName = (roleId) => {
 export const canAccessWebApp = (roleId) => {
     const role = getRoleById(roleId);
     console.log('canAccessWebApp - checking role:', roleId, 'found:', role);
-    
+
     if (!role) {
         console.log('canAccessWebApp - role not found in cache, checking if roles are loaded');
         const allRoles = getCachedRoles();
         console.log('canAccessWebApp - cached roles:', allRoles);
         return false;
     }
-    
+
     // If role is inactive, deny access
     if (role.active === false) {
         console.log('canAccessWebApp - role is inactive');
         return false;
     }
-    
+
     // Use the explicit can_access_webapp permission
-    // Fallback to checking other permissions for backward compatibility
-    // For enum permissions, check if they're not 'none'
-    const hasAccess = role.can_access_webapp === true || 
-                      (role.can_approve_leave && role.can_approve_leave !== 'none') || 
-                      (role.can_approve_onduty && role.can_approve_onduty !== 'none') || 
-                      (role.can_manage_users && role.can_manage_users !== 'none') || 
-                      role.can_manage_leave_types || 
-                      (role.can_view_reports && role.can_view_reports !== 'none');
-    
+    // Strict check - no fallbacks
+    const hasAccess = role.can_access_webapp === true;
+
     console.log('canAccessWebApp - hasAccess:', hasAccess, 'role details:', {
-        can_access_webapp: role.can_access_webapp,
-        can_approve_leave: role.can_approve_leave,
-        can_approve_onduty: role.can_approve_onduty,
-        can_manage_users: role.can_manage_users,
-        can_manage_leave_types: role.can_manage_leave_types,
-        can_view_reports: role.can_view_reports
+        can_access_webapp: role.can_access_webapp
     });
-    
+
     return hasAccess;
 };
 
@@ -326,9 +315,9 @@ export const isHigherRole = (roleIdA, roleIdB) => {
 export const getApproverRoles = (roleId) => {
     const roles = getCachedRoles();
     const targetLevel = getHierarchyLevel(roleId);
-    
-    return roles.filter(r => 
-        r.hierarchy_level < targetLevel && 
+
+    return roles.filter(r =>
+        r.hierarchy_level < targetLevel &&
         (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none')
     );
 };
@@ -340,7 +329,7 @@ export const canBeApproverFor = (approverRoleId, targetRoleId) => {
     const approverLevel = getHierarchyLevel(approverRoleId);
     const targetLevel = getHierarchyLevel(targetRoleId);
     const approverRole = getRoleById(approverRoleId);
-    
+
     console.log('canBeApproverFor check:', {
         approverRoleId,
         targetRoleId,
@@ -348,13 +337,13 @@ export const canBeApproverFor = (approverRoleId, targetRoleId) => {
         targetLevel,
         approverRole: approverRole ? { name: approverRole.name, can_approve_leave: approverRole.can_approve_leave, can_approve_onduty: approverRole.can_approve_onduty } : null
     });
-    
+
     // Approver must have STRICTLY higher authority (lower level number) and approval permissions
     // e.g., Admin (level 1) can approve Leader (level 2), but Leader cannot approve another Leader
     // For enum permissions, check if they're not 'none'
-    const hasApprovalPermission = approverRole && 
+    const hasApprovalPermission = approverRole &&
         (approverRole.can_approve_leave !== 'none' || approverRole.can_approve_onduty !== 'none');
-    
+
     return approverLevel < targetLevel && hasApprovalPermission;
 };
 
@@ -365,10 +354,10 @@ export const canBeApproverFor = (approverRoleId, targetRoleId) => {
 export const needsApprover = (roleId) => {
     const roles = getCachedRoles();
     const targetLevel = getHierarchyLevel(roleId);
-    
+
     // Check if there's any role with higher authority (lower level) that can approve
-    return roles.some(r => 
-        r.hierarchy_level < targetLevel && 
+    return roles.some(r =>
+        r.hierarchy_level < targetLevel &&
         (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none')
     );
 };
@@ -379,16 +368,16 @@ export const needsApprover = (roleId) => {
 export const getApproverLabel = (targetRoleId) => {
     const roles = getCachedRoles();
     const targetLevel = getHierarchyLevel(targetRoleId);
-    
+
     // Get all roles that can be approvers for this role
-    const approverRoles = roles.filter(r => 
-        r.hierarchy_level < targetLevel && 
+    const approverRoles = roles.filter(r =>
+        r.hierarchy_level < targetLevel &&
         (r.can_approve_leave || r.can_approve_onduty)
     ).sort((a, b) => a.hierarchy_level - b.hierarchy_level);
-    
+
     if (approverRoles.length === 0) return 'Approving Manager';
     if (approverRoles.length === 1) return `Approving ${approverRoles[0].display_name}`;
-    
+
     // Join role names
     const roleNames = approverRoles.map(r => r.display_name);
     return roleNames.join(' / ');
@@ -400,7 +389,7 @@ export const getApproverLabel = (targetRoleId) => {
 export const getRoleColor = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return 'bg-gray-50 text-gray-700';
-    
+
     // Color based on hierarchy level
     if (role.hierarchy_level <= 1) return 'bg-red-50 text-red-700';      // Top level (Admin)
     if (role.hierarchy_level <= 2) return 'bg-blue-50 text-blue-700';    // Second level (Leader)
