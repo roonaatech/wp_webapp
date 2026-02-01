@@ -6,12 +6,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MermaidChart from '../components/MermaidChart';
-import { 
-    hasAdminPermission, 
-    canApproveLeave, 
-    canApproveOnDuty, 
+import {
+    hasAdminPermission,
+    canApproveLeave,
+    canApproveOnDuty,
     canManageUsers as canManageUsersUtil,
-    getRoleDisplayName, 
+    getRoleDisplayName,
     getRoleColor as getRoleColorUtil,
     getHierarchyLevel,
     canBeApproverFor,
@@ -26,7 +26,7 @@ const Users = () => {
     // Permission check state
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
-    
+
     // Leave Types Modal State
     const [showLeaveModal, setShowLeaveModal] = useState(false);
     const [leaveModalUser, setLeaveModalUser] = useState(null);
@@ -211,10 +211,10 @@ const Users = () => {
             try {
                 // Force refresh roles from server to get latest permissions
                 await fetchRoles(true);
-                
+
                 // Now check if user can manage users with fresh data
                 const canManage = canManageUsersUtil(user.role);
-                
+
                 if (!canManage) {
                     navigate('/unauthorized', { replace: true });
                 } else {
@@ -227,7 +227,7 @@ const Users = () => {
                 setPermissionChecked(true);
             }
         };
-        
+
         checkPermission();
     }, [user.role, navigate]);
 
@@ -240,8 +240,10 @@ const Users = () => {
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const statusParam = params.get('status');
-        if (statusParam && statusParam !== statusFilter) {
-            setStatusFilter(statusParam);
+        if (statusParam) {
+            // Split comma-separated values into an array
+            const statusArray = statusParam.split(',').filter(s => s.trim() !== '');
+            setStatusFilter(statusArray);
         }
     }, [location.search]);
 
@@ -614,7 +616,7 @@ const Users = () => {
                 console.log('Editing user ID:', editingUserId);
                 const responseRole = parseInt(response.data.user.role);
                 console.log('Response role:', response.data.user.role, 'Parsed:', responseRole);
-                
+
                 setUsers(users.map(u => {
                     // Compare by staffid since that's the primary key
                     if (String(u.staffid) === String(editingUserId)) {
@@ -629,11 +631,11 @@ const Users = () => {
                     }
                     return u;
                 }));
-                
+
                 // Refetch users from current page to ensure complete data
                 console.log('Refetching users from page:', currentPage);
                 await fetchUsers(currentPage);
-                
+
                 handleCloseModal();
                 toast.success(`User ${payload.firstname} ${payload.lastname} updated successfully`);
             } else {
@@ -1165,8 +1167,8 @@ const Users = () => {
                         <button
                             onClick={() => setLetterFilter('')}
                             className={`px-3 py-1 rounded text-sm font-medium transition-colors ${letterFilter === ''
-                                    ? 'bg-blue-700 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-blue-700 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                         >
                             All
@@ -1178,8 +1180,8 @@ const Users = () => {
                                 key={letter}
                                 onClick={() => handleLetterFilter(letter)}
                                 className={`w-8 h-8 rounded text-sm font-medium transition-colors ${letterFilter === letter
-                                        ? 'bg-blue-700 text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    ? 'bg-blue-700 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                                 title={`Show users whose first name starts with ${letter}`}
                             >
@@ -1748,9 +1750,8 @@ const Users = () => {
                                         onChange={handleFormChange}
                                         placeholder="John"
                                         disabled={editingUserFromPhp}
-                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${
-                                            editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
-                                        }`}
+                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                            }`}
                                     />
                                 </div>
 
@@ -1766,9 +1767,8 @@ const Users = () => {
                                         onChange={handleFormChange}
                                         placeholder="Doe"
                                         disabled={editingUserFromPhp}
-                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${
-                                            editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
-                                        }`}
+                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                            }`}
                                     />
                                 </div>
 
@@ -1784,9 +1784,8 @@ const Users = () => {
                                         onChange={handleFormChange}
                                         placeholder="john@example.com"
                                         disabled={editingUserFromPhp}
-                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${
-                                            editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
-                                        }`}
+                                        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+                                            }`}
                                     />
                                 </div>
 
@@ -1839,12 +1838,12 @@ const Users = () => {
                                                 // Use hierarchy-based check: approver must be higher in hierarchy than target role
                                                 const targetRoleId = parseInt(formData.role);
                                                 const approverRoleId = approver.role;
-                                                
+
                                                 // Only show approvers who are higher in hierarchy than the target role
                                                 if (!canBeApproverFor(approverRoleId, targetRoleId)) {
                                                     return null;
                                                 }
-                                                
+
                                                 return (
                                                     <option key={approver.staffid} value={approver.staffid}>
                                                         {approver.firstname} {approver.lastname} ({getRoleName(approver.role)})
@@ -2110,8 +2109,8 @@ const Users = () => {
                                                 key={zoom}
                                                 onClick={() => setChartZoom(zoom)}
                                                 className={`px-2 py-1 text-xs font-medium rounded transition-colors ${Math.abs(chartZoom - zoom) < 0.05
-                                                        ? 'bg-blue-600 text-white'
-                                                        : 'text-gray-600 hover:bg-white'
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'text-gray-600 hover:bg-white'
                                                     }`}
                                                 title={`Zoom ${Math.round(zoom * 100)}%`}
                                             >
