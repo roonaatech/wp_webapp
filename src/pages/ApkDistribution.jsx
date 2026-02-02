@@ -27,6 +27,9 @@ const ApkDistribution = () => {
     const [isVisible, setIsVisible] = useState(true);
     const [isParsingApk, setIsParsingApk] = useState(false);
     const [versionAutoDetected, setVersionAutoDetected] = useState(false);
+    const [duplicateVersionModal, setDuplicateVersionModal] = useState({ show: false, version: '' });
+    const [parseError, setParseError] = useState(null);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     useEffect(() => {
         fetchData();
@@ -61,6 +64,29 @@ const ApkDistribution = () => {
         }
     };
 
+    // Parse APK with retry logic
+    const parseApkWithRetry = async (formData, retries = 2) => {
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                const response = await axios.post(`${API_BASE_URL}/api/apk/parse`, formData, {
+                    headers: {
+                        'x-access-token': token,
+                        'Content-Type': 'multipart/form-data'
+                    },
+                    timeout: 60000 // 60 second timeout for large APK files
+                });
+                return response;
+            } catch (err) {
+                console.error(`APK parse attempt ${attempt + 1} failed:`, err.message);
+                if (attempt === retries) {
+                    throw err;
+                }
+                // Wait before retry (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+            }
+        }
+    };
+
     const handleFileChange = async (e) => {
         const selectedFile = e.target.files[0];
         if (!selectedFile) {
@@ -68,8 +94,16 @@ const ApkDistribution = () => {
             return;
         }
 
+        // Validate file size (warn if over 50MB)
+        const fileSizeMB = selectedFile.size / (1024 * 1024);
+        if (fileSizeMB > 100) {
+            toast.error("File is too large (over 100MB). Please use a smaller APK.");
+            return;
+        }
+
         setFile(selectedFile);
         setVersionAutoDetected(false);
+        setParseError(null);
         
         // Parse APK to extract version
         setIsParsingApk(true);
@@ -77,27 +111,48 @@ const ApkDistribution = () => {
         formData.append('file', selectedFile);
 
         try {
-            const response = await axios.post(`${API_BASE_URL}/api/apk/parse`, formData, {
-                headers: {
-                    'x-access-token': token,
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
+            const response = await parseApkWithRetry(formData);
 
             if (response.data.success && response.data.version) {
                 // Combine version and build number (e.g., "1.3.0+7")
                 const fullVersion = response.data.versionCode 
                     ? `${response.data.version}+${response.data.versionCode}`
                     : response.data.version;
-                setVersion(fullVersion);
-                setVersionAutoDetected(true);
-                toast.success(`Version ${fullVersion} detected from APK`);
+                
+                // Check if this version already exists
+                const existingVersion = apkList.find(apk => apk.version === fullVersion);
+                if (existingVersion) {
+                    setDuplicateVersionModal({ show: true, version: fullVersion });
+                    setVersion('');
+                    setVersionAutoDetected(false);
+                    // Reset file input
+                    const fileInput = document.getElementById('apkFileInput');
+                    if (fileInput) fileInput.value = '';
+                    setFile(null);
+                } else {
+                    setVersion(fullVersion);
+                    setVersionAutoDetected(true);
+                    toast.success(`Version ${fullVersion} detected from APK`);
+                }
+            } else {
+                setParseError('Could not extract version from APK');
             }
         } catch (err) {
             console.error("Could not parse APK version:", err);
-            // Don't show error toast - user can still enter version manually
+            const errorMsg = err.code === 'ECONNABORTED' 
+                ? 'Request timed out. The server is taking too long to process the APK.'
+                : err.response?.data?.message || 'Failed to parse APK file';
+            setParseError(errorMsg);
         } finally {
             setIsParsingApk(false);
+        }
+    };
+
+    // Retry parsing for the current file
+    const retryParsing = () => {
+        const fileInput = document.getElementById('apkFileInput');
+        if (fileInput && fileInput.files[0]) {
+            handleFileChange({ target: { files: [fileInput.files[0]] } });
         }
     };
 
@@ -107,8 +162,13 @@ const ApkDistribution = () => {
             toast.error("Please provide file and version");
             return;
         }
+        if (!releaseNotes.trim()) {
+            toast.error("Please provide release notes");
+            return;
+        }
 
         setIsUploading(true);
+        setUploadProgress(0);
         const formData = new FormData();
         formData.append('file', file);
         formData.append('version', version);
@@ -120,6 +180,12 @@ const ApkDistribution = () => {
                 headers: {
                     'x-access-token': token,
                     'Content-Type': 'multipart/form-data'
+                },
+                onUploadProgress: (progressEvent) => {
+                    if (progressEvent.total) {
+                        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                        setUploadProgress(percent);
+                    }
                 }
             });
             toast.success("APK uploaded successfully");
@@ -127,6 +193,7 @@ const ApkDistribution = () => {
             setVersion('');
             setReleaseNotes('');
             setVersionAutoDetected(false);
+            setParseError(null);
             // Reset file input
             const fileInput = document.getElementById('apkFileInput');
             if (fileInput) fileInput.value = '';
@@ -135,6 +202,7 @@ const ApkDistribution = () => {
             toast.error(err.response?.data?.message || "Upload failed");
         } finally {
             setIsUploading(false);
+            setUploadProgress(0);
         }
     };
 
@@ -320,22 +388,42 @@ const ApkDistribution = () => {
                                         {isParsingApk && (
                                             <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
                                                 <div className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
-                                                <span>Reading version from APK...</span>
+                                                <span>Reading version from APK... This may take a moment for large files.</span>
+                                            </div>
+                                        )}
+                                        {parseError && !isParsingApk && (
+                                            <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                                <div className="flex items-start gap-2">
+                                                    <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <div className="flex-1">
+                                                        <p className="text-sm text-red-700">{parseError}</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={retryParsing}
+                                                            className="mt-2 text-sm font-medium text-red-600 hover:text-red-800 underline"
+                                                        >
+                                                            Retry parsing
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Version Number</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Version Number <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <input
                                                 type="text"
                                                 value={version}
                                                 onChange={(e) => setVersion(e.target.value)}
-                                                placeholder={isParsingApk ? "Reading from APK..." : "e.g. 1.0.5"}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                placeholder={isParsingApk ? "Reading from APK..." : "Select APK file to auto-detect"}
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-600"
                                                 required
-                                                disabled={isParsingApk}
+                                                disabled={true}
+                                                readOnly
                                             />
                                             {versionAutoDetected && !isParsingApk && (
                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
@@ -343,16 +431,18 @@ const ApkDistribution = () => {
                                                 </span>
                                             )}
                                         </div>
+                                        <p className="text-xs text-gray-500 mt-1">Version is automatically extracted from the APK file</p>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Release Notes</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Release Notes <span className="text-red-500">*</span></label>
                                         <textarea
                                             value={releaseNotes}
                                             onChange={(e) => setReleaseNotes(e.target.value)}
                                             rows="4"
                                             placeholder="What's new in this version?"
                                             className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                            required
                                         ></textarea>
                                     </div>
 
@@ -369,11 +459,21 @@ const ApkDistribution = () => {
 
                                     <button
                                         type="submit"
-                                        disabled={isUploading}
-                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                                        disabled={isUploading || !version}
+                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-70 relative overflow-hidden"
                                     >
                                         {isUploading ? (
-                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                            <>
+                                                {/* Progress bar background */}
+                                                <div 
+                                                    className="absolute inset-0 bg-green-600 transition-all duration-300"
+                                                    style={{ width: `${uploadProgress}%` }}
+                                                ></div>
+                                                <div className="relative flex items-center gap-2">
+                                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                    <span>Uploading... {uploadProgress}%</span>
+                                                </div>
+                                            </>
                                         ) : (
                                             <>Upload Version</>
                                         )}
@@ -480,6 +580,51 @@ const ApkDistribution = () => {
                     >
                         Sign In to Dashboard →
                     </a>
+                </div>
+            )}
+
+            {/* Duplicate Version Modal */}
+            {duplicateVersionModal.show && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+                        <div className="flex flex-col items-center text-center">
+                            {/* Warning Icon */}
+                            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
+                                <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            
+                            {/* Title */}
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                Version Already Exists
+                            </h3>
+                            
+                            {/* Message */}
+                            <p className="text-gray-600 mb-2">
+                                The version <span className="font-semibold text-orange-600">{duplicateVersionModal.version}</span> has already been uploaded.
+                            </p>
+                            <p className="text-gray-500 text-sm mb-6">
+                                Please increment the build number in your Flutter project and rebuild the APK.
+                            </p>
+
+                            {/* Code hint */}
+                            <div className="w-full bg-gray-50 rounded-lg p-3 mb-6 text-left">
+                                <p className="text-xs text-gray-500 mb-1">Example command:</p>
+                                <code className="text-sm text-blue-600 font-mono">
+                                    flutter build apk --build-number=<span className="text-orange-500">[increment]</span>
+                                </code>
+                            </div>
+                            
+                            {/* Button */}
+                            <button
+                                onClick={() => setDuplicateVersionModal({ show: false, version: '' })}
+                                className="w-full bg-gray-900 text-white py-3 px-6 rounded-xl font-semibold hover:bg-black transition-colors"
+                            >
+                                Got it
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
