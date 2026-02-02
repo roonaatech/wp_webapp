@@ -25,6 +25,8 @@ const ApkDistribution = () => {
     const [version, setVersion] = useState('');
     const [releaseNotes, setReleaseNotes] = useState('');
     const [isVisible, setIsVisible] = useState(true);
+    const [isParsingApk, setIsParsingApk] = useState(false);
+    const [versionAutoDetected, setVersionAutoDetected] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -59,6 +61,46 @@ const ApkDistribution = () => {
         }
     };
 
+    const handleFileChange = async (e) => {
+        const selectedFile = e.target.files[0];
+        if (!selectedFile) {
+            setFile(null);
+            return;
+        }
+
+        setFile(selectedFile);
+        setVersionAutoDetected(false);
+        
+        // Parse APK to extract version
+        setIsParsingApk(true);
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        try {
+            const response = await axios.post(`${API_BASE_URL}/api/apk/parse`, formData, {
+                headers: {
+                    'x-access-token': token,
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            if (response.data.success && response.data.version) {
+                // Combine version and build number (e.g., "1.3.0+7")
+                const fullVersion = response.data.versionCode 
+                    ? `${response.data.version}+${response.data.versionCode}`
+                    : response.data.version;
+                setVersion(fullVersion);
+                setVersionAutoDetected(true);
+                toast.success(`Version ${fullVersion} detected from APK`);
+            }
+        } catch (err) {
+            console.error("Could not parse APK version:", err);
+            // Don't show error toast - user can still enter version manually
+        } finally {
+            setIsParsingApk(false);
+        }
+    };
+
     const handleUpload = async (e) => {
         e.preventDefault();
         if (!file || !version) {
@@ -84,6 +126,7 @@ const ApkDistribution = () => {
             setFile(null);
             setVersion('');
             setReleaseNotes('');
+            setVersionAutoDetected(false);
             // Reset file input
             const fileInput = document.getElementById('apkFileInput');
             if (fileInput) fileInput.value = '';
@@ -269,22 +312,37 @@ const ApkDistribution = () => {
                                             id="apkFileInput"
                                             type="file"
                                             accept=".apk"
-                                            onChange={(e) => setFile(e.target.files[0])}
+                                            onChange={handleFileChange}
                                             className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                             required
+                                            disabled={isParsingApk}
                                         />
+                                        {isParsingApk && (
+                                            <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
+                                                <div className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
+                                                <span>Reading version from APK...</span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Version Number</label>
-                                        <input
-                                            type="text"
-                                            value={version}
-                                            onChange={(e) => setVersion(e.target.value)}
-                                            placeholder="e.g. 1.0.5"
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                                            required
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={version}
+                                                onChange={(e) => setVersion(e.target.value)}
+                                                placeholder={isParsingApk ? "Reading from APK..." : "e.g. 1.0.5"}
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                required
+                                                disabled={isParsingApk}
+                                            />
+                                            {versionAutoDetected && !isParsingApk && (
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                                                    Auto-detected
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div>
