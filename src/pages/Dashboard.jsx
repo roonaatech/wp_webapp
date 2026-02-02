@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import '../hide-scrollbar.css';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -104,6 +104,19 @@ const Dashboard = () => {
     const [pendingApprovals, setPendingApprovals] = useState([]);
     const [pendingApprovalsLoading, setPendingApprovalsLoading] = useState(false);
     const [incompleteProfiles, setIncompleteProfiles] = useState([]);
+    const scrollContainerRef = useRef(null);
+
+    const scrollLeft = () => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+        }
+    };
+
+    const scrollRight = () => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+        }
+    };
 
     useEffect(() => {
         console.log('Dashboard mounted');
@@ -509,74 +522,87 @@ const Dashboard = () => {
                 ) : (
                     <div className={`transition-all duration-300 ${(approveModal.show || rejectModal.show) ? 'blur-sm' : ''}`}>
                         <>
-                            {/* Pending Approvals Section */}
+                            {/* Pending Approvals Section - Redesigned */}
                             {!pendingApprovalsLoading && pendingApprovals.length > 0 && (
-                                <div className="mb-12 relative rounded-[2.5rem] overflow-hidden flex flex-col md:flex-row items-stretch bg-white border border-gray-100 shadow-2xl animate-fadeInUp min-h-0">
-                                    {/* Left Side Info Panel */}
-                                    <div className="bg-gradient-to-br from-orange-500 to-red-500 p-10 flex flex-col justify-center min-w-[280px]">
-                                        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-3xl mb-6 backdrop-blur-md border border-white/30 shadow-inner">
-                                            ⚡
+                                <div className="mb-12 animate-fadeInUp">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center text-xl shadow-sm">
+                                                ⚡
+                                            </div>
+                                            <div>
+                                                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Pending Requests</h2>
+                                                <p className="text-gray-500 text-sm font-medium">Review pending leave and on-duty applications.</p>
+                                            </div>
                                         </div>
-                                        <h2 className="text-2xl font-black text-white leading-tight mb-2">Pending Actions</h2>
-                                        <p className="text-orange-100 text-sm font-medium mb-8 leading-relaxed opacity-90">Quickly review and manage urgent employee requests.</p>
                                         <Link
                                             to="/approvals"
-                                            className="inline-flex items-center justify-center px-6 py-3 bg-white text-orange-600 rounded-2xl font-bold text-sm shadow-xl hover:scale-105 transition-transform"
+                                            className="group flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-orange-600 transition-colors bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm hover:shadow-md"
                                         >
-                                            View All Requests
+                                            View All
+                                            <span className="group-hover:translate-x-1 transition-transform">→</span>
                                         </Link>
                                     </div>
 
-                                    {/* Scrollable Requests Panel */}
-                                    <div className="flex-1 flex items-center px-10 py-10 relative bg-gray-50/50">
+                                    <div className="relative group/container">
+                                        {/* Left Navigation Button */}
                                         <button
-                                            type="button"
-                                            className="absolute left-4 z-20 w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-500 hover:scale-110 transition-all focus:outline-none"
-                                            onClick={() => {
-                                                const container = document.getElementById('pending-approvals-scroll');
-                                                if (container) container.scrollBy({ left: -350, behavior: 'smooth' });
-                                            }}
+                                            onClick={scrollLeft}
+                                            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:scale-110 transition-all opacity-0 group-hover/container:opacity-100 focus:outline-none"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-6 h-6">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                                             </svg>
                                         </button>
 
+                                        {/* Horizontal Scroll Container */}
                                         <div
-                                            id="pending-approvals-scroll"
-                                            className="flex gap-8 px-6 hide-scrollbar overflow-x-auto scroll-smooth"
-                                            style={{ overflowY: 'hidden' }}
+                                            ref={scrollContainerRef}
+                                            className="flex gap-6 overflow-x-auto hide-scrollbar pb-4 pt-2 px-1 scroll-smooth"
                                         >
                                             {pendingApprovals.map((item) => (
                                                 <div
                                                     key={item.id}
-                                                    className="bg-white rounded-[2rem] border border-gray-100 shadow-xl px-7 py-8 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 relative group min-w-[260px] max-w-[280px] flex-shrink-0 flex flex-col"
+                                                    className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative group min-w-[280px] max-w-[280px] flex-shrink-0"
                                                 >
-                                                    <div className="flex justify-between items-start mb-6">
-                                                        <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${item.type === 'leave' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-purple-50 text-purple-600 border border-purple-100'}`}>
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${item.type === 'leave'
+                                                                ? 'bg-blue-50 text-blue-600'
+                                                                : 'bg-purple-50 text-purple-600'
+                                                            }`}>
                                                             {item.type}
-                                                        </div>
-                                                        <div className="text-[11px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
+                                                        </span>
+                                                        <span className="text-[11px] font-bold text-gray-400">
                                                             {new Date(item.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                                        </div>
+                                                        </span>
                                                     </div>
 
-                                                    <h3 className="text-lg font-black text-gray-900 leading-tight mb-2 line-clamp-1">{item.name}</h3>
-                                                    <p className="text-gray-500 text-sm font-medium line-clamp-2 mb-8 leading-relaxed italic">"{item.title}"</p>
+                                                    <div className="mb-4">
+                                                        <h3 className="text-base font-bold text-gray-900 leading-snug mb-1 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                                                            {item.name}
+                                                        </h3>
+                                                        <p className="text-xs text-gray-500 font-medium line-clamp-2 italic">
+                                                            "{item.title}"
+                                                        </p>
+                                                    </div>
 
-                                                    <div className="mt-auto flex gap-3">
+                                                    <div className="flex items-center gap-2 mt-2 pt-4 border-t border-gray-50">
                                                         <button
                                                             onClick={() => handleApprove(item, item.type === 'leave')}
-                                                            className="flex-1 py-3 bg-green-500 text-white rounded-2xl font-bold text-xs shadow-lg shadow-green-100 hover:bg-green-600 hover:scale-105 transition-all flex items-center justify-center"
+                                                            className="flex-1 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition-all flex items-center justify-center gap-2 group-hover:shadow-lg"
                                                         >
-                                                            Approve
+                                                            <span>Approve</span>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                                                                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                                                            </svg>
                                                         </button>
                                                         <button
                                                             onClick={() => handleReject(item, item.type === 'leave')}
-                                                            className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl font-bold flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                                            title="Reject"
                                                         >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                                                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
                                                             </svg>
                                                         </button>
                                                     </div>
@@ -584,15 +610,12 @@ const Dashboard = () => {
                                             ))}
                                         </div>
 
+                                        {/* Right Navigation Button */}
                                         <button
-                                            type="button"
-                                            className="absolute right-4 z-20 w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-500 hover:scale-110 transition-all focus:outline-none"
-                                            onClick={() => {
-                                                const container = document.getElementById('pending-approvals-scroll');
-                                                if (container) container.scrollBy({ left: 350, behavior: 'smooth' });
-                                            }}
+                                            onClick={scrollRight}
+                                            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:scale-110 transition-all opacity-0 group-hover/container:opacity-100 focus:outline-none"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-6 h-6">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                                             </svg>
                                         </button>
