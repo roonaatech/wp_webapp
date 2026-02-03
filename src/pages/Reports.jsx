@@ -135,7 +135,7 @@ const Reports = () => {
     };
 
     const calculateDuration = (checkIn, checkOut) => {
-        if (!checkIn) return '—';
+        if (!checkIn) return '-';
         if (!checkOut) return 'In Progress';
 
         const start = new Date(checkIn);
@@ -183,7 +183,14 @@ const Reports = () => {
             const headers = ['Date', 'Staff Name', 'Email', 'Type', 'Start', 'End', 'Duration', 'Status', 'Approved/Rejected By'];
             const rows = exportData.map(report => {
                 const isLeave = report.type === 'leave'; // Backend adds 'type' field
-                const duration = calculateDuration(report.check_in_time, report.check_out_time);
+                // Calculate duration based on type
+                let duration;
+                if (isLeave) {
+                    const days = calculateLeaveDays(report.start_date, report.end_date);
+                    duration = days + ' day' + (days > 1 ? 's' : '');
+                } else {
+                    duration = calculateDuration(report.check_in_time, report.check_out_time);
+                }
                 const status = isLeave ? report.status : (report.check_out_time ? 'Completed' : 'Active');
                 const approver = report.approver
                     ? `${report.approver.firstname} ${report.approver.lastname} (${report.approver.email})`
@@ -206,7 +213,9 @@ const Reports = () => {
                 ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
             ].join('\n');
 
-            const blob = new Blob([csv], { type: 'text/csv' });
+            // Add UTF-8 BOM for proper Excel compatibility
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
