@@ -202,83 +202,82 @@ const Calendar = () => {
     if (loading) return <ModernLoader />;
 
     return (
-        <div className="min-h-screen bg-gray-50 p-8">
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Calendar</h1>
-                    <p className="text-gray-600 mt-1">
-                        {isAdmin 
-                            ? 'View all staff leave and on-duty schedules' 
-                            : "View your reportees' leave and on-duty schedules"}
-                    </p>
+        <div>
+            {/* Header */}
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-gray-900">Calendar</h1>
+                <p className="text-gray-600 mt-1">
+                    {isAdmin 
+                        ? 'View all staff leave and on-duty schedules' 
+                        : "View your reportees' leave and on-duty schedules"}
+                </p>
+            </div>
+
+            {error && (
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-red-800 font-medium">⚠️ {error}</p>
                 </div>
+            )}
 
-                {error && (
-                    <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                        <p className="text-red-800 font-medium">⚠️ {error}</p>
+            {/* Filter Section */}
+            <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Employee</label>
+                        <select
+                            value={selectedEmployee}
+                            onChange={(e) => setSelectedEmployee(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        >
+                            <option value="">All Employees</option>
+                            {getUniqueEmployees().map((employee) => (
+                                <option key={employee} value={employee}>
+                                    {employee}
+                                </option>
+                            ))}
+                        </select>
                     </div>
-                )}
-
-                {/* Filter Section */}
-                <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Employee</label>
-                            <select
-                                value={selectedEmployee}
-                                onChange={(e) => setSelectedEmployee(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                            >
-                                <option value="">All Employees</option>
-                                {getUniqueEmployees().map((employee) => (
-                                    <option key={employee} value={employee}>
-                                        {employee}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Type</label>
-                            <select
-                                value={selectedEventType}
-                                onChange={(e) => setSelectedEventType(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                            >
-                                <option value="">All Types</option>
-                                <option value="leave">Leave</option>
-                                <option value="on_duty">On-Duty</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Status</label>
-                            <select
-                                value={selectedStatus}
-                                onChange={(e) => setSelectedStatus(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                            >
-                                <option value="">All Statuses</option>
-                                <option value="Approved">Approved</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Rejected">Rejected</option>
-                            </select>
-                        </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Type</label>
+                        <select
+                            value={selectedEventType}
+                            onChange={(e) => setSelectedEventType(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        >
+                            <option value="">All Types</option>
+                            <option value="leave">Leave</option>
+                            <option value="on_duty">On-Duty</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Status</label>
+                        <select
+                            value={selectedStatus}
+                            onChange={(e) => setSelectedStatus(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        >
+                            <option value="">All Statuses</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
                     </div>
                 </div>
+            </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Calendar */}
-                    <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={handlePrevMonth}
-                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                >
-                                    <span className="text-2xl">←</span>
-                                </button>
-                                <button
-                                    onClick={handleNextMonth}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Calendar */}
+                <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handlePrevMonth}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <span className="text-2xl">←</span>
+                            </button>
+                            <button
+                                onClick={handleNextMonth}
                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                                 >
                                     <span className="text-2xl">→</span>
@@ -508,7 +507,6 @@ const Calendar = () => {
                         </div>
                     </div>
                 </div>
-            </div>
         </div>
     );
 };
