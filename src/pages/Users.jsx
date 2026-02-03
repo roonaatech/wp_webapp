@@ -57,9 +57,13 @@ const Users = () => {
             userTypesRes.data.forEach(lt => {
                 if (lt.assigned) assignedMap[lt.leave_type_id] = lt;
             });
-            // Filter leave types based on gender restriction
+            // Filter leave types based on gender restriction AND active status
             const userGender = user.gender;
             const filteredLeaveTypes = allTypesRes.data.filter(lt => {
+                // Only show active leave types
+                if (!lt.status) {
+                    return false;
+                }
                 // If no gender restriction or empty array, show to all
                 if (!lt.gender_restriction || lt.gender_restriction.length === 0) {
                     return true;

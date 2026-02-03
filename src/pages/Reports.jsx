@@ -180,7 +180,23 @@ const Reports = () => {
                 return;
             }
 
-            const headers = ['Date', 'Staff Name', 'Email', 'Type', 'Start', 'End', 'Duration', 'Status', 'Approved/Rejected By'];
+            const headers = [
+                'Date', 
+                'Staff ID',
+                'Staff Name', 
+                'Email', 
+                'Type', 
+                'Leave Type / Client',
+                'Start', 
+                'End', 
+                'Duration', 
+                'Location',
+                'Reason / Purpose',
+                'Status', 
+                'Approval Status',
+                'Approved/Rejected By',
+                'Rejection Reason'
+            ];
             const rows = exportData.map(report => {
                 const isLeave = report.type === 'leave'; // Backend adds 'type' field
                 // Calculate duration based on type
@@ -191,20 +207,27 @@ const Reports = () => {
                 } else {
                     duration = calculateDuration(report.check_in_time, report.check_out_time);
                 }
-                const status = isLeave ? report.status : (report.check_out_time ? 'Completed' : 'Active');
+                const activityStatus = isLeave ? 'N/A' : (report.check_out_time ? 'Completed' : 'Active');
+                const approvalStatus = report.status || 'N/A';
                 const approver = report.approver
                     ? `${report.approver.firstname} ${report.approver.lastname} (${report.approver.email})`
                     : 'N/A';
                 return [
                     report.date || 'N/A',
+                    report.tblstaff?.staffid || report.staff_id || 'N/A',
                     `${report.tblstaff?.firstname || ''} ${report.tblstaff?.lastname || ''}`.trim() || 'Unknown',
                     report.tblstaff?.email || 'N/A',
                     isLeave ? 'Leave' : 'On-Duty',
+                    isLeave ? (report.leave_type || 'N/A') : (report.client_name || 'N/A'),
                     isLeave ? report.start_date : (report.check_in_time ? new Date(report.check_in_time).toLocaleString() : 'N/A'),
                     isLeave ? report.end_date : (report.check_out_time ? new Date(report.check_out_time).toLocaleString() : 'N/A'),
                     duration,
-                    status,
-                    approver
+                    isLeave ? 'N/A' : (report.location || 'N/A'),
+                    isLeave ? (report.reason || 'N/A') : (report.purpose || 'N/A'),
+                    activityStatus,
+                    approvalStatus,
+                    approver,
+                    report.rejection_reason || 'N/A'
                 ];
             });
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiX } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { fetchRoles, canManageLeaveTypes } from '../utils/roleUtils';
@@ -24,6 +24,14 @@ export default function LeaveTypes() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [confirmationModal, setConfirmationModal] = useState({
+    show: false,
+    title: '',
+    message: '',
+    confirmText: '',
+    confirmButtonColor: '',
+    data: null
+  });
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   // Check permission first
@@ -170,30 +178,54 @@ export default function LeaveTypes() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this leave type?')) return;
+  const handleToggleStatus = (leaveType) => {
+    const newStatus = !leaveType.status;
+    const action = newStatus ? 'Activate' : 'Deactivate';
+    
+    setConfirmationModal({
+      show: true,
+      title: `${action} Leave Type`,
+      message: `Are you sure you want to ${action.toLowerCase()} '${leaveType.name}'?`,
+      confirmText: action,
+      confirmButtonColor: newStatus ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700',
+      data: leaveType
+    });
+  };
+
+  const confirmAction = async () => {
+    if (!confirmationModal.data) return;
+
+    const leaveType = confirmationModal.data;
+    const newStatus = !leaveType.status;
+    const action = newStatus ? 'activate' : 'deactivate';
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${API_BASE_URL}/api/leavetypes/${id}`, {
-        headers: { 'x-access-token': token }
-      });
-      const successMsg = 'Leave type deleted successfully';
-      setSuccess(successMsg);
+      await axios.put(`${API_BASE_URL}/api/leavetypes/${leaveType.id}`, 
+        { status: newStatus },
+        { headers: { 'x-access-token': token } }
+      );
+      
+      closeConfirmationModal();
+      const successMsg = `Leave type '${leaveType.name}' ${action}d successfully`;
       toast.success(successMsg, {
         style: {
-            background: '#dc2626', // Red for delete
-            color: '#fff'
+          background: newStatus ? '#059669' : '#4b5563',
+          color: '#fff'
         }
       });
       fetchLeaveTypes();
     } catch (err) {
       console.error('Error:', err);
-      const errorMsg = err.response?.data?.message || 'Failed to delete leave type';
-      setError(errorMsg);
-      toast.error(errorMsg);
+      toast.error(err.response?.data?.message || `Failed to ${action} leave type`);
     }
   };
+
+  const closeConfirmationModal = () => {
+    setConfirmationModal({ ...confirmationModal, show: false });
+  };
+
+
 
   // Show loading while checking permissions
   if (!permissionChecked) {
@@ -279,30 +311,23 @@ export default function LeaveTypes() {
                   <td className="px-6 py-4 text-gray-600">{leaveType.description || '-'}</td>
                   <td className="px-6 py-4 text-gray-600">{leaveType.gender_restriction?.join(', ') || 'All'}</td>
                   <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        leaveType.status
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
+                    <button
+                      onClick={() => handleToggleStatus(leaveType)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${leaveType.status ? 'bg-green-600' : 'bg-red-500'}`}
+                      title={leaveType.status ? 'Click to deactivate' : 'Click to activate'}
                     >
-                      {leaveType.status ? 'Active' : 'Inactive'}
-                    </span>
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${leaveType.status ? 'translate-x-5' : 'translate-x-0'}`}
+                      />
+                    </button>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={() => openEditModal(leaveType)}
-                      className="inline-flex items-center gap-2 px-3 py-1 mr-2 text-sm rounded hover:opacity-70 transition text-blue-600 bg-blue-50"
+                      className="inline-flex items-center gap-2 px-3 py-1 text-sm rounded hover:opacity-70 transition text-blue-600 bg-blue-50"
                     >
                       <FiEdit2 size={16} />
                       Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(leaveType.id)}
-                      className="inline-flex items-center gap-2 px-3 py-1 text-sm rounded hover:opacity-70 transition text-red-600 bg-red-50"
-                    >
-                      <FiTrash2 size={16} />
-                      Delete
                     </button>
                   </td>
                 </tr>
@@ -420,20 +445,6 @@ export default function LeaveTypes() {
                 <p className="text-xs text-gray-500 mt-2">If none are selected, it will be available for all genders.</p>
               </div>
 
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="status"
-                  name="status"
-                  checked={formData.status}
-                  onChange={handleInputChange}
-                  className="w-4 h-4 rounded accent-blue-700"
-                />
-                <label htmlFor="status" className="ml-2 text-sm font-medium text-gray-700">
-                  Active
-                </label>
-              </div>
-
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
@@ -450,6 +461,37 @@ export default function LeaveTypes() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmationModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-lg shadow-2xl max-w-sm w-full transform transition-all scale-100">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-blue-100 rounded-full mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-center text-gray-900 mb-2">{confirmationModal.title}</h3>
+              <p className="text-sm text-center text-gray-500 mb-6">{confirmationModal.message}</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={closeConfirmationModal}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmAction}
+                  className={`px-4 py-2 text-white rounded-lg font-medium shadow-sm transition-colors ${confirmationModal.confirmButtonColor}`}
+                >
+                  {confirmationModal.confirmText}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
