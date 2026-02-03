@@ -230,10 +230,27 @@ const Reports = () => {
 
     const getStatusBadge = (report) => {
         if (report.on_duty) { // Backend still sends on_duty boolean
-            if (report.check_out_time) {
-                return <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">Completed</span>;
+            // For on-duty, show both activity status and approval status
+            const activityBadge = report.check_out_time 
+                ? <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">Completed</span>
+                : <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded">Active</span>;
+            
+            // Show approval status if not approved yet
+            let approvalBadge = null;
+            if (report.status === 'Pending') {
+                approvalBadge = <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded">Pending Approval</span>;
+            } else if (report.status === 'Approved') {
+                approvalBadge = <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">Approved</span>;
+            } else if (report.status === 'Rejected') {
+                approvalBadge = <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded">Rejected</span>;
             }
-            return <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded">Active</span>;
+            
+            return (
+                <div className="flex gap-1 flex-wrap">
+                    {activityBadge}
+                    {approvalBadge}
+                </div>
+            );
         }
         // For leave records
         if (report.type === 'leave') {

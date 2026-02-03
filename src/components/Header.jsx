@@ -182,33 +182,23 @@ const Header = () => {
                                     <p className="text-sm font-bold text-[var(--text-main)] uppercase">{user.firstname || 'Admin'}</p>
                                     <p className="text-xs text-[var(--text-muted)] truncate">{user.email}</p>
                                 </div>
-                                <button className="w-full text-left px-3 py-2.5 text-sm text-[var(--text-main)] hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-3">
-                                    <span className="text-lg">⚙️</span>
-                                    <span className="font-medium">Settings</span>
+                                <button
+                                    onClick={handleLogout}
+                                    disabled={isLoggingOut}
+                                    className="w-full text-left px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-all disabled:opacity-60 flex items-center gap-3 font-bold"
+                                >
+                                    {isLoggingOut ? (
+                                        <>
+                                            <span className="inline-block w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></span>
+                                            <span>Logging out...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-lg">🚪</span>
+                                            <span>Sign Out</span>
+                                        </>
+                                    )}
                                 </button>
-                                <button className="w-full text-left px-3 py-2.5 text-sm text-[var(--text-main)] hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-3">
-                                    <span className="text-lg">❓</span>
-                                    <span className="font-medium">Support</span>
-                                </button>
-                                <div className="border-t border-[var(--border-color)] my-1 pt-1">
-                                    <button
-                                        onClick={handleLogout}
-                                        disabled={isLoggingOut}
-                                        className="w-full text-left px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-all disabled:opacity-60 flex items-center gap-3 font-bold"
-                                    >
-                                        {isLoggingOut ? (
-                                            <>
-                                                <span className="inline-block w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></span>
-                                                <span>Logging out...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span className="text-lg">🚪</span>
-                                                <span>Sign Out</span>
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
                             </div>
                         )}
                     </div>

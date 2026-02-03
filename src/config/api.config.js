@@ -25,7 +25,7 @@ const API_CONFIG = {
     description: 'UAT/Test Server'
   },
   production: {
-    baseUrl: ENV_API_URL || 'https://api.roonaa.in:3343',
+    baseUrl: ENV_API_URL || 'https://api-workpulse.roonaa.in:3343',
     description: 'Production Server'
   }
 };
