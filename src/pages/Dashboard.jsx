@@ -11,6 +11,8 @@ import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartL
 import { Doughnut } from 'react-chartjs-2';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import OnDutyLocationMap from '../components/OnDutyLocationMap';
+import { calculateLeaveDays } from '../utils/dateUtils';
 import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
@@ -82,8 +84,21 @@ const Dashboard = () => {
     // Modal state for approve/reject actions
     const [approveModal, setApproveModal] = useState({ show: false, item: null, isLeave: false });
     const [rejectModal, setRejectModal] = useState({ show: false, item: null, isLeave: false, reason: '' });
+    const [detailsModal, setDetailsModal] = useState({ show: false, item: null, isLeave: false });
     const [modalError, setModalError] = useState('');
     const [processingId, setProcessingId] = useState(null);
+    
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    // Open details modal when clicking a card
+    const handleOpenDetails = (item, isLeave) => {
+        setDetailsModal({
+            show: true,
+            item: item,
+            isLeave: isLeave
+        });
+    };
+    
     const [stats, setStats] = useState({
         pendingLeaves: 0,
         approvedLeaves: 0,
@@ -258,11 +273,22 @@ const Dashboard = () => {
                     id: item.id,
                     type: item.type,
                     name: name,
+                    staff_id: item.staff_id,
                     title: item.type === 'leave' ? item.title : item.title.replace('On-Duty: ', ''),
                     start_date: item.start_date,
                     end_date: item.end_date,
                     status: item.status,
-                    createdAt: item.createdAt
+                    createdAt: item.createdAt,
+                    // Additional fields for modal
+                    reason: item.reason,
+                    purpose: item.purpose,
+                    start_time: item.start_time,
+                    end_time: item.end_time,
+                    location: item.location,
+                    start_lat: item.start_lat,
+                    start_long: item.start_long,
+                    end_lat: item.end_lat,
+                    end_long: item.end_long
                 };
             });
 
@@ -563,7 +589,8 @@ const Dashboard = () => {
                                             {pendingApprovals.map((item) => (
                                                 <div
                                                     key={item.id}
-                                                    className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative group min-w-[280px] max-w-[280px] flex-shrink-0"
+                                                    onClick={() => handleOpenDetails(item, item.type === 'leave')}
+                                                    className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative group min-w-[280px] max-w-[280px] flex-shrink-0 cursor-pointer"
                                                 >
                                                     <div className="flex justify-between items-start mb-4">
                                                         <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${item.type === 'leave'
@@ -588,7 +615,7 @@ const Dashboard = () => {
 
                                                     <div className="flex items-center gap-2 mt-2 pt-4 border-t border-gray-50">
                                                         <button
-                                                            onClick={() => handleApprove(item, item.type === 'leave')}
+                                                            onClick={(e) => { e.stopPropagation(); handleApprove(item, item.type === 'leave'); }}
                                                             className="flex-1 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition-all flex items-center justify-center gap-2 group-hover:shadow-lg"
                                                         >
                                                             <span>Approve</span>
@@ -597,7 +624,7 @@ const Dashboard = () => {
                                                             </svg>
                                                         </button>
                                                         <button
-                                                            onClick={() => handleReject(item, item.type === 'leave')}
+                                                            onClick={(e) => { e.stopPropagation(); handleReject(item, item.type === 'leave'); }}
                                                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                                                             title="Reject"
                                                         >
@@ -961,9 +988,190 @@ const Dashboard = () => {
                         </div>
                     </div>
                 )}
+
+                {/* Details Modal */}
+                {detailsModal.show && detailsModal.item && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-fadeIn">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn border border-gray-200">
+                            {/* Header Panel */}
+                            <div className="p-6 bg-[#2E5090] text-white relative">
+                                <button
+                                    onClick={() => setDetailsModal({ ...detailsModal, show: false })}
+                                    className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl font-bold shadow-inner border border-white/20">
+                                        {detailsModal.isLeave ? '📄' : '📍'}
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold">{detailsModal.isLeave ? 'Leave Request Details' : 'On-Duty Details'}</h2>
+                                        <p className="text-white/80 text-xs font-semibold tracking-wide">
+                                            {detailsModal.isLeave ? 'Leave Application Details' : 'On-Duty Transaction Details'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 mt-4">
+                                    <span className="px-3 py-1 rounded-md text-[10px] font-bold tracking-wide border bg-orange-500/20 border-orange-400/30 text-orange-100">
+                                        Pending Approval
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-white/70 tracking-wide">
+                                        System ID: {detailsModal.item.id}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Content Scrollable */}
+                            <div className="p-8 overflow-y-auto hide-scrollbar space-y-8">
+                                {/* Employee Header */}
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-full bg-[#2E5090]/10 flex items-center justify-center text-xl font-bold text-[#2E5090]">
+                                        {detailsModal.item.name?.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-900">{detailsModal.item.name}</h3>
+                                        <p className="text-sm text-gray-500 font-medium">Employee ID: {detailsModal.item.staff_id}</p>
+                                    </div>
+                                </div>
+
+                                {/* Main Info Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 border-t border-b border-gray-100 py-8">
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-bold text-[#2E5090] tracking-wide">Category Type</p>
+                                        <p className="text-base font-semibold text-gray-900">
+                                            {detailsModal.item.title}
+                                        </p>
+                                        {!detailsModal.isLeave && detailsModal.item.location && (
+                                            <p className="text-sm text-[#2E5090] font-medium flex items-center gap-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                                    <path fillRule="evenodd" d="m9.69 18.94.027.013a2.358 2.358 0 0 0 2.566-.013l.027-.013c.12-.058.214-.144.3-.23.111-.11.23-.235.343-.352l.006-.006c.928-.971 1.636-1.742 2.146-2.583.506-.833.76-1.614.76-2.345 0-2.433-2.029-4.409-4.528-4.409-2.5 0-4.528 1.976-4.528 4.409 0 .731.254 1.512.759 2.345.51.841 1.218 1.612 2.147 2.583l.006.006c.113.117.232.243.343.352.086.086.18.172.3.23ZM10 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+                                                </svg>
+                                                {detailsModal.item.location}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
+                                        <p className="text-base font-semibold text-gray-900">
+                                            {detailsModal.isLeave
+                                                ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date)} Day(s)`
+                                                : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time)
+                                            }
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective Start</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-base font-semibold text-gray-900">
+                                                {detailsModal.isLeave ? detailsModal.item.start_date : formatApprovalDate(detailsModal.item.start_time)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective End</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-base font-semibold text-gray-900">
+                                                {detailsModal.isLeave ? detailsModal.item.end_date : formatApprovalDate(detailsModal.item.end_time)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Reason Section */}
+                                <div className="space-y-3">
+                                    <p className="text-xs font-bold text-[#2E5090] tracking-wide">Applied Reason / Purpose</p>
+                                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-100 text-gray-700 leading-relaxed font-medium">
+                                        {detailsModal.isLeave ? detailsModal.item.reason : detailsModal.item.purpose || 'Task documentation provided.'}
+                                    </div>
+                                </div>
+
+                                {/* Location Map for On-Duty */}
+                                {!detailsModal.isLeave && (
+                                    <div className="space-y-3">
+                                        <p className="text-xs font-bold text-[#2E5090] tracking-wide">Location Tracking</p>
+                                        <OnDutyLocationMap
+                                            startLat={detailsModal.item.start_lat}
+                                            startLong={detailsModal.item.start_long}
+                                            endLat={detailsModal.item.end_lat}
+                                            endLong={detailsModal.item.end_long}
+                                            clientName={detailsModal.item.title}
+                                            location={detailsModal.item.location}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Timestamps */}
+                                <div className="pt-4 flex justify-between text-[10px] font-bold text-gray-500 tracking-wide border-t border-gray-100">
+                                    <span>Requested On: {formatApprovalDate(detailsModal.item.createdAt)}</span>
+                                </div>
+                            </div>
+
+                            {/* Footer Controls */}
+                            <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                                <div className="text-[10px] font-semibold text-gray-500 tracking-wide">
+                                    Logged: {formatApprovalDate(detailsModal.item.createdAt)}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setDetailsModal({ ...detailsModal, show: false })}
+                                        className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-gray-100 transition-all shadow-sm"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setDetailsModal({ ...detailsModal, show: false });
+                                            handleReject(detailsModal.item, detailsModal.isLeave);
+                                        }}
+                                        className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md"
+                                    >
+                                        Reject
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setDetailsModal({ ...detailsModal, show: false });
+                                            handleApprove(detailsModal.item, detailsModal.isLeave);
+                                        }}
+                                        className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-green-700 transition-all shadow-md shadow-green-100"
+                                    >
+                                        Approve Request
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
+};
+
+const calculateOnDutyDuration = (startTime, endTime) => {
+    if (!startTime || !endTime) return 'In Progress';
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diffMs = end - start;
+    const diffMins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+
+    if (hours > 0) {
+        return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+};
+
+const formatApprovalDate = (dateString) => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) +
+        ' ' +
+        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 export default Dashboard;
