@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.3.0](https://github.com/roonaatech/wp_webapp/compare/v0.2.0...v0.3.0) (2026-02-03)
+
+
+### Features
+
+* Add activities permission checks and integrate into Sidebar, Activities, and Roles components ([7fe4466](https://github.com/roonaatech/wp_webapp/commit/7fe44666b8f2214d61e44f3bb5b4ed697a2f7675))
+* Add APK version parsing functionality and auto-detection for version input in ApkDistribution ([4ff96d7](https://github.com/roonaatech/wp_webapp/commit/4ff96d7ec37b2ad982c693fefe88800cac420477))
+* Add confirmation modal for toggling leave type status and enhance leave type management ([04433f4](https://github.com/roonaatech/wp_webapp/commit/04433f487981fc53989de454e23ccd3595a47d92))
+* Add details modal for leave and on-duty requests with enhanced information display ([d7a402f](https://github.com/roonaatech/wp_webapp/commit/d7a402ffee41843b3ab1a3ea8c96213e0be73406))
+* Add padding to navigation buttons and adjust scroll container styling ([ff2c554](https://github.com/roonaatech/wp_webapp/commit/ff2c55435589c97cc83f2a273c918ddd752a5ca4))
+* Add pagination and lower version warning modal in ApkDistribution ([4ee1bb0](https://github.com/roonaatech/wp_webapp/commit/4ee1bb0ba069245694ab5bf5fbdc3eef9d27effb))
+* Add permissions for managing active on-duty records and schedules, update role utilities and components accordingly ([8a49ddb](https://github.com/roonaatech/wp_webapp/commit/8a49ddb6e0cec4d85c6c9e311db46eacd9bd5ad4))
+* Add user role display and tooltip in Header, enhance Sidebar with custom date range for trends, and improve Login form layout ([4fbb35b](https://github.com/roonaatech/wp_webapp/commit/4fbb35b6103240546dc5ec8aadaca35568febcef))
+* enable multiple status filters on the Users page by parsing comma-separated URL parameters ([ad4871e](https://github.com/roonaatech/wp_webapp/commit/ad4871e72edf86859baa6293cb58ffcce4a26047))
+* Enhance APK parsing with retry logic, duplicate version handling, and upload progress tracking ([c97f7a0](https://github.com/roonaatech/wp_webapp/commit/c97f7a0b3edd7d87b406d231e943b4fa580ae422))
+* Enhance login error handling with not authorized modal for access restrictions ([130dfc0](https://github.com/roonaatech/wp_webapp/commit/130dfc0c888c75f1e3ba132c2f689b2a26229dbf))
+* Enhance report duration calculation and improve CSV export compatibility ([b777051](https://github.com/roonaatech/wp_webapp/commit/b77705104956fd54426b87804293823093440ee4))
+* Enhance role management with hierarchical permissions and update permission checks in Sidebar and Roles components ([58fa074](https://github.com/roonaatech/wp_webapp/commit/58fa0741b0701c757c3464825a21a3df1b130e7e))
+* Implement click outside to close menu in Header component ([6cc4d36](https://github.com/roonaatech/wp_webapp/commit/6cc4d36ed3f2abb807ebe346e44bcf149a2fed9a))
+* Implement role-based access control and caching for roles in the application ([bcbb18f](https://github.com/roonaatech/wp_webapp/commit/bcbb18ff9751b49629072eb7e8c4dce035307492))
+* Implement role-based permission checks for conditional data fetching and UI rendering across components, and refactor the reports page with pagination. ([eaf584b](https://github.com/roonaatech/wp_webapp/commit/eaf584bf6d9d14bd27ca9838cc7c1fbcfaf4fd65))
+* Implement syntax-highlighted HTML editor and preview mode for email templates in email settings. ([8fb35b0](https://github.com/roonaatech/wp_webapp/commit/8fb35b01be08544b62e163c1f8569e608fd31715))
+* Implement unauthorized access handling and permission checks across various pages ([8dd9b94](https://github.com/roonaatech/wp_webapp/commit/8dd9b9402bb0a85d6aafca2c56b2c6e11c3caced))
+* Redesign pending approvals section on Dashboard with horizontal scroll navigation and updated card styles. ([04ea9d1](https://github.com/roonaatech/wp_webapp/commit/04ea9d1d5633b640083170148ce14f005b75f32b))
+* Refactor Calendar component layout and improve filter section styling ([0c24225](https://github.com/roonaatech/wp_webapp/commit/0c242251200ddd58d89665444c260552cd087ba5))
+* Refactor navigation button styles and enhance scroll container layout ([4263a34](https://github.com/roonaatech/wp_webapp/commit/4263a3408c0f42552c0d3cecb3cb7c9af672f209))
+* Update logout button styling and enhance report status display with approval badges ([b4e07ea](https://github.com/roonaatech/wp_webapp/commit/b4e07ea322cc5021b8d76300494fd2ddadfe7749))
+* Update navigation buttons to modern floating style and enhance scroll container padding ([159656b](https://github.com/roonaatech/wp_webapp/commit/159656b323403848c9907c00b0ac0e6a33204c04))
+* Update role color mapping to include Super Admin level ([c0c7e2e](https://github.com/roonaatech/wp_webapp/commit/c0c7e2eb37bc6058a816cdb380f6f919e8bbc089))
+
 ## [0.2.0](https://github.com/roonaatech/wp_webapp/compare/v0.1.0...v0.2.0) (2026-01-27)
 
 
