@@ -544,11 +544,11 @@ const Dashboard = () => {
                                         </Link>
                                     </div>
 
-                                    <div className="flex items-stretch group/container">
-                                        {/* Left Navigation Button */}
+                                    <div className="relative group/container">
+                                        {/* Left Navigation Button - Modern Floating Style */}
                                         <button
                                             onClick={scrollLeft}
-                                            className="flex-shrink-0 w-10 bg-gray-50 border border-gray-200 border-r-0 flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-all focus:outline-none rounded-l-2xl shadow-sm"
+                                            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -558,7 +558,7 @@ const Dashboard = () => {
                                         {/* Horizontal Scroll Container */}
                                         <div
                                             ref={scrollContainerRef}
-                                            className="flex-1 flex gap-6 overflow-x-auto hide-scrollbar px-4 scroll-smooth items-stretch"
+                                            className="flex gap-6 overflow-x-auto hide-scrollbar px-6 py-2 scroll-smooth"
                                         >
                                             {pendingApprovals.map((item) => (
                                                 <div
@@ -610,10 +610,10 @@ const Dashboard = () => {
                                             ))}
                                         </div>
 
-                                        {/* Right Navigation Button */}
+                                        {/* Right Navigation Button - Modern Floating Style */}
                                         <button
                                             onClick={scrollRight}
-                                            className="flex-shrink-0 w-10 bg-gray-50 border border-gray-200 border-l-0 flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-all focus:outline-none rounded-r-2xl shadow-sm"
+                                            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
