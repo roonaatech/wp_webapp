@@ -544,11 +544,11 @@ const Dashboard = () => {
                                         </Link>
                                     </div>
 
-                                    <div className="relative group/container">
+                                    <div className="relative group/container px-12">
                                         {/* Left Navigation Button */}
                                         <button
                                             onClick={scrollLeft}
-                                            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:scale-110 transition-all opacity-0 group-hover/container:opacity-100 focus:outline-none"
+                                            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:scale-110 transition-all opacity-0 group-hover/container:opacity-100 focus:outline-none"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -558,7 +558,7 @@ const Dashboard = () => {
                                         {/* Horizontal Scroll Container */}
                                         <div
                                             ref={scrollContainerRef}
-                                            className="flex gap-6 overflow-x-auto hide-scrollbar pb-4 pt-2 px-1 scroll-smooth"
+                                            className="flex gap-6 overflow-x-auto hide-scrollbar pb-4 pt-2 scroll-smooth"
                                         >
                                             {pendingApprovals.map((item) => (
                                                 <div
@@ -613,7 +613,7 @@ const Dashboard = () => {
                                         {/* Right Navigation Button */}
                                         <button
                                             onClick={scrollRight}
-                                            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:scale-110 transition-all opacity-0 group-hover/container:opacity-100 focus:outline-none"
+                                            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:scale-110 transition-all opacity-0 group-hover/container:opacity-100 focus:outline-none"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
