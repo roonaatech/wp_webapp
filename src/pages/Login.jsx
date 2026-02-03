@@ -13,6 +13,7 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showInactiveModal, setShowInactiveModal] = useState(false);
+    const [showNotAuthorizedModal, setShowNotAuthorizedModal] = useState(false);
     const [showWelcomeModal, setShowWelcomeModal] = useState(false);
     const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, message: '' });
     const navigate = useNavigate();
@@ -111,8 +112,18 @@ const Login = () => {
         } else if (err.response?.status === 401) {
             errorMsg = 'Invalid password.';
         } else if (err.response?.status === 403) {
-            setShowInactiveModal(true);
-            errorMsg = 'Account is inactive.';
+            // Check the actual error message to differentiate between inactive and not authorized
+            const serverMessage = err.response?.data?.message || '';
+            if (serverMessage.toLowerCase().includes('access denied') || 
+                serverMessage.toLowerCase().includes('permission')) {
+                // User is active but doesn't have webapp access permission
+                setShowNotAuthorizedModal(true);
+                errorMsg = 'You do not have permission to access the web application.';
+            } else {
+                // Account is inactive
+                setShowInactiveModal(true);
+                errorMsg = 'Account is inactive.';
+            }
         } else if (err.message === 'Network Error' || !err.response) {
             errorMsg = 'Cannot connect to server. Please make sure the backend is running on port 3000.';
         } else {
@@ -334,6 +345,29 @@ const Login = () => {
                         </p>
                         <button
                             onClick={() => setShowInactiveModal(false)}
+                            className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Not Authorized Modal - for users without webapp access permission */}
+            {showNotAuthorizedModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in">
+                        <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <span className="text-4xl">🔒</span>
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h3>
+                        <p className="text-gray-500 mb-8 leading-relaxed">
+                            You do not have permission to access the web application.
+                            <br />
+                            <span className="text-amber-600 font-semibold mt-2 block">Please contact your administrator to request access.</span>
+                        </p>
+                        <button
+                            onClick={() => setShowNotAuthorizedModal(false)}
                             className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all transform hover:-translate-y-0.5 active:translate-y-0"
                         >
                             Close

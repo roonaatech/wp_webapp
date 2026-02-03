@@ -135,7 +135,7 @@ const Reports = () => {
     };
 
     const calculateDuration = (checkIn, checkOut) => {
-        if (!checkIn) return '—';
+        if (!checkIn) return '-';
         if (!checkOut) return 'In Progress';
 
         const start = new Date(checkIn);
@@ -180,24 +180,54 @@ const Reports = () => {
                 return;
             }
 
-            const headers = ['Date', 'Staff Name', 'Email', 'Type', 'Start', 'End', 'Duration', 'Status', 'Approved/Rejected By'];
+            const headers = [
+                'Date', 
+                'Staff ID',
+                'Staff Name', 
+                'Email', 
+                'Type', 
+                'Leave Type / Client',
+                'Start', 
+                'End', 
+                'Duration', 
+                'Location',
+                'Reason / Purpose',
+                'Status', 
+                'Approval Status',
+                'Approved/Rejected By',
+                'Rejection Reason'
+            ];
             const rows = exportData.map(report => {
                 const isLeave = report.type === 'leave'; // Backend adds 'type' field
-                const duration = calculateDuration(report.check_in_time, report.check_out_time);
-                const status = isLeave ? report.status : (report.check_out_time ? 'Completed' : 'Active');
+                // Calculate duration based on type
+                let duration;
+                if (isLeave) {
+                    const days = calculateLeaveDays(report.start_date, report.end_date);
+                    duration = days + ' day' + (days > 1 ? 's' : '');
+                } else {
+                    duration = calculateDuration(report.check_in_time, report.check_out_time);
+                }
+                const activityStatus = isLeave ? 'N/A' : (report.check_out_time ? 'Completed' : 'Active');
+                const approvalStatus = report.status || 'N/A';
                 const approver = report.approver
                     ? `${report.approver.firstname} ${report.approver.lastname} (${report.approver.email})`
                     : 'N/A';
                 return [
                     report.date || 'N/A',
+                    report.tblstaff?.staffid || report.staff_id || 'N/A',
                     `${report.tblstaff?.firstname || ''} ${report.tblstaff?.lastname || ''}`.trim() || 'Unknown',
                     report.tblstaff?.email || 'N/A',
                     isLeave ? 'Leave' : 'On-Duty',
+                    isLeave ? (report.leave_type || 'N/A') : (report.client_name || 'N/A'),
                     isLeave ? report.start_date : (report.check_in_time ? new Date(report.check_in_time).toLocaleString() : 'N/A'),
                     isLeave ? report.end_date : (report.check_out_time ? new Date(report.check_out_time).toLocaleString() : 'N/A'),
                     duration,
-                    status,
-                    approver
+                    isLeave ? 'N/A' : (report.location || 'N/A'),
+                    isLeave ? (report.reason || 'N/A') : (report.purpose || 'N/A'),
+                    activityStatus,
+                    approvalStatus,
+                    approver,
+                    report.rejection_reason || 'N/A'
                 ];
             });
 
@@ -206,7 +236,9 @@ const Reports = () => {
                 ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
             ].join('\n');
 
-            const blob = new Blob([csv], { type: 'text/csv' });
+            // Add UTF-8 BOM for proper Excel compatibility
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -221,10 +253,27 @@ const Reports = () => {
 
     const getStatusBadge = (report) => {
         if (report.on_duty) { // Backend still sends on_duty boolean
-            if (report.check_out_time) {
-                return <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">Completed</span>;
+            // For on-duty, show both activity status and approval status
+            const activityBadge = report.check_out_time 
+                ? <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">Completed</span>
+                : <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded">Active</span>;
+            
+            // Show approval status if not approved yet
+            let approvalBadge = null;
+            if (report.status === 'Pending') {
+                approvalBadge = <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded">Pending Approval</span>;
+            } else if (report.status === 'Approved') {
+                approvalBadge = <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">Approved</span>;
+            } else if (report.status === 'Rejected') {
+                approvalBadge = <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded">Rejected</span>;
             }
-            return <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded">Active</span>;
+            
+            return (
+                <div className="flex gap-1 flex-wrap">
+                    {activityBadge}
+                    {approvalBadge}
+                </div>
+            );
         }
         // For leave records
         if (report.type === 'leave') {

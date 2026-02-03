@@ -391,10 +391,11 @@ export const getRoleColor = (roleId) => {
     if (!role) return 'bg-gray-50 text-gray-700';
 
     // Color based on hierarchy level
-    if (role.hierarchy_level <= 1) return 'bg-red-50 text-red-700';      // Top level (Admin)
-    if (role.hierarchy_level <= 2) return 'bg-blue-50 text-blue-700';    // Second level (Leader)
-    if (role.hierarchy_level <= 3) return 'bg-green-50 text-green-700';  // Third level (Manager)
-    return 'bg-gray-50 text-gray-700';                                    // Lower levels
+    if (role.hierarchy_level === 0) return 'bg-purple-50 text-purple-700'; // Super Admin
+    if (role.hierarchy_level === 1) return 'bg-red-50 text-red-700';       // Admin
+    if (role.hierarchy_level <= 2) return 'bg-blue-50 text-blue-700';      // Second level (Leader)
+    if (role.hierarchy_level <= 3) return 'bg-green-50 text-green-700';    // Third level (Manager)
+    return 'bg-gray-50 text-gray-700';                                      // Lower levels
 };
 
 /**

@@ -7,6 +7,12 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { fetchRoles, getRoleById } from '../utils/roleUtils';
 
+// Syntax Highlighting
+import Editor from 'react-simple-code-editor';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-markup'; // For HTML support
+import 'prismjs/themes/prism.css'; // Standard light theme
+
 export default function EmailSettings() {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
@@ -35,6 +41,34 @@ export default function EmailSettings() {
     // Templates State
     const [templates, setTemplates] = useState([]);
     const [editingTemplate, setEditingTemplate] = useState(null);
+    const [editMode, setEditMode] = useState('edit'); // 'edit' or 'preview'
+
+    const PREVIEW_DATA = {
+        firstname: 'John',
+        lastname: 'Doe',
+        name: 'John Doe',
+        days: '3',
+        department: 'Engineering',
+        start_date: '2026-02-01',
+        end_date: '2026-02-03',
+        reason: 'Family event',
+        status: 'Approved',
+        type: 'Sick Leave',
+        staffid: '1234',
+        manager_name: 'Jane Smith',
+        applied_at: '2026-01-25',
+        approver_name: 'Jane Smith',
+        description: 'Testing the email template preview system.'
+    };
+
+    const getPreviewHtml = (body) => {
+        let html = body || '';
+        Object.keys(PREVIEW_DATA).forEach(key => {
+            const regex = new RegExp(`{{${key}}}`, 'g');
+            html = html.replace(regex, PREVIEW_DATA[key]);
+        });
+        return html;
+    };
 
     // Check permission first
     useEffect(() => {
@@ -426,13 +460,54 @@ export default function EmailSettings() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Body (HTML)</label>
-                                    <textarea
-                                        value={editingTemplate.body}
-                                        onChange={(e) => setEditingTemplate({ ...editingTemplate, body: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 font-mono text-sm"
-                                        rows="10"
-                                    />
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-sm font-medium text-gray-700">Body (HTML)</label>
+                                        <div className="flex bg-gray-100 rounded-lg p-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditMode('edit')}
+                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${editMode === 'edit' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                            >
+                                                EDIT
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditMode('preview')}
+                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${editMode === 'preview' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                            >
+                                                PREVIEW
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {editMode === 'edit' ? (
+                                        <div className="border border-gray-300 rounded-lg overflow-hidden bg-white focus-within:ring-2 focus-within:ring-blue-700">
+                                            <Editor
+                                                value={editingTemplate.body}
+                                                onValueChange={code => setEditingTemplate({ ...editingTemplate, body: code })}
+                                                highlight={code => Prism.highlight(code, Prism.languages.markup, 'markup')}
+                                                padding={20}
+                                                style={{
+                                                    fontFamily: '"Fira code", "Fira Mono", monospace',
+                                                    fontSize: 14,
+                                                    minHeight: '400px',
+                                                }}
+                                                className="outline-none"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="w-full border border-gray-300 rounded-lg overflow-hidden bg-gray-50">
+                                            <div className="bg-white p-6 min-h-[400px] overflow-auto shadow-inner">
+                                                <div
+                                                    className="preview-content"
+                                                    dangerouslySetInnerHTML={{ __html: getPreviewHtml(editingTemplate.body) }}
+                                                />
+                                            </div>
+                                            <div className="bg-blue-50 px-4 py-2 border-t border-gray-200 text-[10px] text-blue-600 font-medium uppercase tracking-wider">
+                                                Visual Rendering Preview (Placeholders Filled with Sample Data)
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {editingTemplate.variables_hint && (

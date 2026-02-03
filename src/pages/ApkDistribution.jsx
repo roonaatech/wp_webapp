@@ -25,12 +25,21 @@ const ApkDistribution = () => {
     const [version, setVersion] = useState('');
     const [releaseNotes, setReleaseNotes] = useState('');
     const [isVisible, setIsVisible] = useState(true);
+    const [isParsingApk, setIsParsingApk] = useState(false);
+    const [versionAutoDetected, setVersionAutoDetected] = useState(false);
+    const [duplicateVersionModal, setDuplicateVersionModal] = useState({ show: false, version: '' });
+    const [lowerVersionModal, setLowerVersionModal] = useState({ show: false, version: '', currentLatest: '' });
+    const [parseError, setParseError] = useState(null);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pagination, setPagination] = useState(null);
+    const [allVersions, setAllVersions] = useState([]); // For duplicate check
 
     useEffect(() => {
         fetchData();
     }, []);
 
-    const fetchData = async () => {
+    const fetchData = async (page = 1) => {
         setIsLoading(true);
         try {
             const headers = token ? { 'x-access-token': token } : {};
@@ -49,13 +58,112 @@ const ApkDistribution = () => {
 
             // Fetch list if admin
             if (isAdmin && token) {
-                const listRes = await axios.get(`${API_BASE_URL}/api/apk/list`, { headers });
-                setApkList(listRes.data);
+                const listRes = await axios.get(`${API_BASE_URL}/api/apk/list?page=${page}&limit=5`, { headers });
+                setApkList(listRes.data.data || []);
+                setPagination(listRes.data.pagination || null);
+                
+                // Fetch all versions for duplicate check (just versions, no pagination)
+                const allRes = await axios.get(`${API_BASE_URL}/api/apk/list?limit=1000`, { headers });
+                setAllVersions(allRes.data.data || []);
             }
         } catch (err) {
             console.error(err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // Parse APK with retry logic
+    const parseApkWithRetry = async (fileToUpload, retries = 2) => {
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                // Create fresh FormData for each attempt to avoid ERR_UPLOAD_FILE_CHANGED
+                const formData = new FormData();
+                formData.append('file', fileToUpload);
+                
+                const response = await axios.post(`${API_BASE_URL}/api/apk/parse`, formData, {
+                    headers: {
+                        'x-access-token': token,
+                        'Content-Type': 'multipart/form-data'
+                    },
+                    timeout: 60000 // 60 second timeout for large APK files
+                });
+                return response;
+            } catch (err) {
+                console.error(`APK parse attempt ${attempt + 1} failed:`, err.message);
+                if (attempt === retries) {
+                    throw err;
+                }
+                // Wait before retry (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+            }
+        }
+    };
+
+    const handleFileChange = async (e) => {
+        const selectedFile = e.target.files[0];
+        if (!selectedFile) {
+            setFile(null);
+            return;
+        }
+
+        // Validate file size (warn if over 50MB)
+        const fileSizeMB = selectedFile.size / (1024 * 1024);
+        if (fileSizeMB > 100) {
+            toast.error("File is too large (over 100MB). Please use a smaller APK.");
+            return;
+        }
+
+        setFile(selectedFile);
+        setVersionAutoDetected(false);
+        setParseError(null);
+        
+        // Parse APK to extract version
+        setIsParsingApk(true);
+
+        try {
+            const response = await parseApkWithRetry(selectedFile);
+
+            if (response.data.success && response.data.version) {
+                // Combine version and build number (e.g., "1.3.0+7")
+                const fullVersion = response.data.versionCode 
+                    ? `${response.data.version}+${response.data.versionCode}`
+                    : response.data.version;
+                
+                // Check if this version already exists (check all versions, not just current page)
+                const existingVersion = allVersions.find(apk => apk.version === fullVersion);
+                if (existingVersion) {
+                    setDuplicateVersionModal({ show: true, version: fullVersion });
+                    setVersion('');
+                    setVersionAutoDetected(false);
+                    // Reset file input
+                    const fileInput = document.getElementById('apkFileInput');
+                    if (fileInput) fileInput.value = '';
+                    setFile(null);
+                } else {
+                    setVersion(fullVersion);
+                    setVersionAutoDetected(true);
+                    toast.success(`Version ${fullVersion} detected from APK`);
+                }
+            } else {
+                setParseError('Could not extract version from APK');
+            }
+        } catch (err) {
+            console.error("Could not parse APK version:", err);
+            const errorMsg = err.code === 'ECONNABORTED' 
+                ? 'Request timed out. The server is taking too long to process the APK.'
+                : err.response?.data?.message || 'Failed to parse APK file';
+            setParseError(errorMsg);
+        } finally {
+            setIsParsingApk(false);
+        }
+    };
+
+    // Retry parsing for the current file
+    const retryParsing = () => {
+        const fileInput = document.getElementById('apkFileInput');
+        if (fileInput && fileInput.files[0]) {
+            handleFileChange({ target: { files: [fileInput.files[0]] } });
         }
     };
 
@@ -65,8 +173,13 @@ const ApkDistribution = () => {
             toast.error("Please provide file and version");
             return;
         }
+        if (!releaseNotes.trim()) {
+            toast.error("Please provide release notes");
+            return;
+        }
 
         setIsUploading(true);
+        setUploadProgress(0);
         const formData = new FormData();
         formData.append('file', file);
         formData.append('version', version);
@@ -78,20 +191,41 @@ const ApkDistribution = () => {
                 headers: {
                     'x-access-token': token,
                     'Content-Type': 'multipart/form-data'
+                },
+                onUploadProgress: (progressEvent) => {
+                    if (progressEvent.total) {
+                        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                        setUploadProgress(percent);
+                    }
                 }
             });
             toast.success("APK uploaded successfully");
             setFile(null);
             setVersion('');
             setReleaseNotes('');
+            setVersionAutoDetected(false);
+            setParseError(null);
             // Reset file input
             const fileInput = document.getElementById('apkFileInput');
             if (fileInput) fileInput.value = '';
-            fetchData();
+            setCurrentPage(1); // Go to first page to see new upload
+            fetchData(1);
         } catch (err) {
-            toast.error(err.response?.data?.message || "Upload failed");
+            const errorType = err.response?.data?.errorType;
+            if (errorType === 'DUPLICATE_VERSION') {
+                setDuplicateVersionModal({ show: true, version: version });
+            } else if (errorType === 'LOWER_VERSION') {
+                setLowerVersionModal({ 
+                    show: true, 
+                    version: version, 
+                    currentLatest: err.response?.data?.currentLatest || 'unknown'
+                });
+            } else {
+                toast.error(err.response?.data?.message || "Upload failed");
+            }
         } finally {
             setIsUploading(false);
+            setUploadProgress(0);
         }
     };
 
@@ -112,13 +246,16 @@ const ApkDistribution = () => {
                 }
             });
 
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+            // Use proper MIME type for APK files
+            const blob = new Blob([response.data], { type: 'application/vnd.android.package-archive' });
+            const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', filename);
+            link.setAttribute('download', filename.endsWith('.apk') ? filename : `${filename}.apk`);
             document.body.appendChild(link);
             link.click();
             link.remove();
+            window.URL.revokeObjectURL(url);
             toast.success("Download complete!");
         } catch (err) {
             toast.error("Download failed");
@@ -269,32 +406,69 @@ const ApkDistribution = () => {
                                             id="apkFileInput"
                                             type="file"
                                             accept=".apk"
-                                            onChange={(e) => setFile(e.target.files[0])}
+                                            onChange={handleFileChange}
                                             className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                             required
+                                            disabled={isParsingApk}
                                         />
+                                        {isParsingApk && (
+                                            <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
+                                                <div className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
+                                                <span>Reading version from APK... This may take a moment for large files.</span>
+                                            </div>
+                                        )}
+                                        {parseError && !isParsingApk && (
+                                            <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                                <div className="flex items-start gap-2">
+                                                    <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <div className="flex-1">
+                                                        <p className="text-sm text-red-700">{parseError}</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={retryParsing}
+                                                            className="mt-2 text-sm font-medium text-red-600 hover:text-red-800 underline"
+                                                        >
+                                                            Retry parsing
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Version Number</label>
-                                        <input
-                                            type="text"
-                                            value={version}
-                                            onChange={(e) => setVersion(e.target.value)}
-                                            placeholder="e.g. 1.0.5"
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                                            required
-                                        />
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Version Number <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={version}
+                                                onChange={(e) => setVersion(e.target.value)}
+                                                placeholder={isParsingApk ? "Reading from APK..." : "Select APK file to auto-detect"}
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-600"
+                                                required
+                                                disabled={true}
+                                                readOnly
+                                            />
+                                            {versionAutoDetected && !isParsingApk && (
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                                                    Auto-detected
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-1">Version is automatically extracted from the APK file</p>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Release Notes</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Release Notes <span className="text-red-500">*</span></label>
                                         <textarea
                                             value={releaseNotes}
                                             onChange={(e) => setReleaseNotes(e.target.value)}
                                             rows="4"
                                             placeholder="What's new in this version?"
                                             className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                            required
                                         ></textarea>
                                     </div>
 
@@ -311,11 +485,21 @@ const ApkDistribution = () => {
 
                                     <button
                                         type="submit"
-                                        disabled={isUploading}
-                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                                        disabled={isUploading || !version}
+                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-70 relative overflow-hidden"
                                     >
                                         {isUploading ? (
-                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                            <>
+                                                {/* Progress bar background */}
+                                                <div 
+                                                    className="absolute inset-0 bg-green-600 transition-all duration-300"
+                                                    style={{ width: `${uploadProgress}%` }}
+                                                ></div>
+                                                <div className="relative flex items-center gap-2">
+                                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                    <span>Uploading... {uploadProgress}%</span>
+                                                </div>
+                                            </>
                                         ) : (
                                             <>Upload Version</>
                                         )}
@@ -406,6 +590,65 @@ const ApkDistribution = () => {
                                         </tbody>
                                     </table>
                                 </div>
+
+                                {/* Pagination Controls */}
+                                {pagination && pagination.totalPages > 1 && (
+                                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                                        <div className="text-sm text-gray-500">
+                                            Showing {((currentPage - 1) * pagination.itemsPerPage) + 1} to {Math.min(currentPage * pagination.itemsPerPage, pagination.totalItems)} of {pagination.totalItems} versions
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    const newPage = currentPage - 1;
+                                                    setCurrentPage(newPage);
+                                                    fetchData(newPage);
+                                                }}
+                                                disabled={!pagination.hasPrevPage}
+                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                    pagination.hasPrevPage
+                                                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                        : 'bg-gray-50 text-gray-300 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                Previous
+                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
+                                                    <button
+                                                        key={page}
+                                                        onClick={() => {
+                                                            setCurrentPage(page);
+                                                            fetchData(page);
+                                                        }}
+                                                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                                                            page === currentPage
+                                                                ? 'bg-blue-600 text-white'
+                                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                        }`}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const newPage = currentPage + 1;
+                                                    setCurrentPage(newPage);
+                                                    fetchData(newPage);
+                                                }}
+                                                disabled={!pagination.hasNextPage}
+                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                    pagination.hasNextPage
+                                                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                        : 'bg-gray-50 text-gray-300 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -422,6 +665,96 @@ const ApkDistribution = () => {
                     >
                         Sign In to Dashboard →
                     </a>
+                </div>
+            )}
+
+            {/* Duplicate Version Modal */}
+            {duplicateVersionModal.show && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+                        <div className="flex flex-col items-center text-center">
+                            {/* Warning Icon */}
+                            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
+                                <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            
+                            {/* Title */}
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                Version Already Exists
+                            </h3>
+                            
+                            {/* Message */}
+                            <p className="text-gray-600 mb-2">
+                                The version <span className="font-semibold text-orange-600">{duplicateVersionModal.version}</span> has already been uploaded.
+                            </p>
+                            <p className="text-gray-500 text-sm mb-6">
+                                Please increment the build number in your Flutter project and rebuild the APK.
+                            </p>
+
+                            {/* Code hint */}
+                            <div className="w-full bg-gray-50 rounded-lg p-3 mb-6 text-left">
+                                <p className="text-xs text-gray-500 mb-1">Example command:</p>
+                                <code className="text-sm text-blue-600 font-mono">
+                                    flutter build apk --build-number=<span className="text-orange-500">[increment]</span>
+                                </code>
+                            </div>
+                            
+                            {/* Button */}
+                            <button
+                                onClick={() => setDuplicateVersionModal({ show: false, version: '' })}
+                                className="w-full bg-gray-900 text-white py-3 px-6 rounded-xl font-semibold hover:bg-black transition-colors"
+                            >
+                                Got it
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Lower Version Modal */}
+            {lowerVersionModal.show && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+                        <div className="flex flex-col items-center text-center">
+                            {/* Error Icon */}
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </div>
+                            
+                            {/* Title */}
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                Version Too Low
+                            </h3>
+                            
+                            {/* Message */}
+                            <p className="text-gray-600 mb-2">
+                                The version <span className="font-semibold text-red-600">{lowerVersionModal.version}</span> is lower than the current latest version.
+                            </p>
+                            <p className="text-gray-500 text-sm mb-6">
+                                Current latest: <span className="font-semibold text-green-600">{lowerVersionModal.currentLatest}</span>
+                            </p>
+
+                            {/* Code hint */}
+                            <div className="w-full bg-gray-50 rounded-lg p-3 mb-6 text-left">
+                                <p className="text-xs text-gray-500 mb-1">Please build with a higher version:</p>
+                                <code className="text-sm text-blue-600 font-mono">
+                                    flutter build apk --build-name=<span className="text-green-500">[higher]</span> --build-number=<span className="text-green-500">[increment]</span>
+                                </code>
+                            </div>
+                            
+                            {/* Button */}
+                            <button
+                                onClick={() => setLowerVersionModal({ show: false, version: '', currentLatest: '' })}
+                                className="w-full bg-gray-900 text-white py-3 px-6 rounded-xl font-semibold hover:bg-black transition-colors"
+                            >
+                                Got it
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
