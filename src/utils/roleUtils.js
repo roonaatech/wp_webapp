@@ -310,14 +310,14 @@ export const isHigherRole = (roleIdA, roleIdB) => {
 
 /**
  * Get all roles that can approve a given role
- * (roles with lower hierarchy_level)
+ * (roles with equal or lower hierarchy_level)
  */
 export const getApproverRoles = (roleId) => {
     const roles = getCachedRoles();
     const targetLevel = getHierarchyLevel(roleId);
 
     return roles.filter(r =>
-        r.hierarchy_level < targetLevel &&
+        r.hierarchy_level <= targetLevel &&
         (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none')
     );
 };
@@ -338,26 +338,26 @@ export const canBeApproverFor = (approverRoleId, targetRoleId) => {
         approverRole: approverRole ? { name: approverRole.name, can_approve_leave: approverRole.can_approve_leave, can_approve_onduty: approverRole.can_approve_onduty } : null
     });
 
-    // Approver must have STRICTLY higher authority (lower level number) and approval permissions
-    // e.g., Admin (level 1) can approve Leader (level 2), but Leader cannot approve another Leader
+    // Approver must have equal or higher authority (lower or same level number) and approval permissions
+    // e.g., Admin (level 1) can approve Leader (level 2), and Leader can also approve another Leader
     // For enum permissions, check if they're not 'none'
     const hasApprovalPermission = approverRole &&
         (approverRole.can_approve_leave !== 'none' || approverRole.can_approve_onduty !== 'none');
 
-    return approverLevel < targetLevel && hasApprovalPermission;
+    return approverLevel <= targetLevel && hasApprovalPermission;
 };
 
 /**
  * Check if a role needs an approving manager
- * A role needs an approver if there's at least one role with higher authority that can approve
+ * A role needs an approver if there's at least one role with equal or higher authority that can approve
  */
 export const needsApprover = (roleId) => {
     const roles = getCachedRoles();
     const targetLevel = getHierarchyLevel(roleId);
 
-    // Check if there's any role with higher authority (lower level) that can approve
+    // Check if there's any role with equal or higher authority (lower or same level) that can approve
     return roles.some(r =>
-        r.hierarchy_level < targetLevel &&
+        r.hierarchy_level <= targetLevel &&
         (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none')
     );
 };
@@ -369,9 +369,9 @@ export const getApproverLabel = (targetRoleId) => {
     const roles = getCachedRoles();
     const targetLevel = getHierarchyLevel(targetRoleId);
 
-    // Get all roles that can be approvers for this role
+    // Get all roles that can be approvers for this role (including same role)
     const approverRoles = roles.filter(r =>
-        r.hierarchy_level < targetLevel &&
+        r.hierarchy_level <= targetLevel &&
         (r.can_approve_leave || r.can_approve_onduty)
     ).sort((a, b) => a.hierarchy_level - b.hierarchy_level);
 
