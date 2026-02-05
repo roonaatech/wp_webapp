@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.4.0](https://github.com/roonaatech/wp_webapp/compare/v1.3.1...v1.4.0) (2026-02-05)
+
+
+### Features
+
+* add user view permissions and update sidebar role checks ([b3172d8](https://github.com/roonaatech/wp_webapp/commit/b3172d8babf149a6b15df52cdcf20579773bc03c))
+
+
+### Bug Fixes
+
+* update role approval logic to include equal hierarchy levels ([fa995dc](https://github.com/roonaatech/wp_webapp/commit/fa995dcbf54cda71143db413a2895c1bedd6e8b0))
+
 ### [1.3.1](https://github.com/roonaatech/wp_webapp/compare/v1.3.0...v1.3.1) (2026-02-03)
 
 ## [1.3.0](https://github.com/roonaatech/wp_webapp/compare/v1.2.0...v1.3.0) (2026-02-03)
