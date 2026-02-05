@@ -35,6 +35,7 @@ const Roles = () => {
         can_approve_leave: 'none',
         can_approve_onduty: 'none',
         can_manage_users: 'none',
+        can_view_users: 'none',
         can_view_reports: 'none',
         can_manage_active_onduty: 'none',
         can_manage_schedule: 'none',
@@ -118,6 +119,7 @@ const Roles = () => {
                 can_approve_leave: role.can_approve_leave || 'none',
                 can_approve_onduty: role.can_approve_onduty || 'none',
                 can_manage_users: role.can_manage_users || 'none',
+                can_view_users: role.can_view_users || 'none',
                 can_view_reports: role.can_view_reports || 'none',
                 can_manage_active_onduty: role.can_manage_active_onduty || 'none',
                 can_manage_schedule: role.can_manage_schedule || 'none',
@@ -140,6 +142,7 @@ const Roles = () => {
                 can_approve_leave: 'none',
                 can_approve_onduty: 'none',
                 can_manage_users: 'none',
+                can_view_users: 'none',
                 can_view_reports: 'none',
                 can_manage_active_onduty: 'none',
                 can_manage_schedule: 'none',
@@ -702,6 +705,35 @@ const Roles = () => {
                                                         checked={formData.can_manage_users === 'all'}
                                                         onChange={(e) => {
                                                             setFormData(prev => ({ ...prev, can_manage_users: e.target.checked ? 'all' : (prev.can_manage_users === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* View Users (read-only) */}
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">View Users (Read Only)</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_view_users === 'subordinates' || formData.can_view_users === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_view_users: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_view_users: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_view_users === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_view_users: e.target.checked ? 'all' : (prev.can_view_users === 'all' ? 'subordinates' : 'none') }));
                                                         }}
                                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                                     />

@@ -209,6 +209,32 @@ export const canManageUsersAll = (roleId) => {
 };
 
 /**
+ * Check if user can view users (any level - subordinates or all)
+ * This is view-only access without edit/manage capabilities
+ */
+export const canViewUsers = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_users === 'subordinates' || role.can_view_users === 'all';
+};
+
+/**
+ * Check if user can view all users
+ */
+export const canViewUsersAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_users === 'all';
+};
+
+/**
+ * Check if user has any access to users page (manage or view)
+ */
+export const canAccessUsersPage = (roleId) => {
+    return canManageUsers(roleId) || canViewUsers(roleId);
+};
+
+/**
  * Check if user can manage active on-duty records (any level - subordinates or all)
  */
 export const canManageActiveOnDuty = (roleId) => {
@@ -417,6 +443,9 @@ export default {
     canApproveLeave,
     canApproveOnDuty,
     canViewReports,
+    canManageUsers,
+    canViewUsers,
+    canAccessUsersPage,
     getHierarchyLevel,
     isHigherRole,
     getApproverRoles,
