@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/roonaatech/wp_webapp/compare/v1.4.0...v1.5.0) (2026-02-06)
+
+
+### Features
+
+* enhance user management permissions to include hierarchy checks ([754b5e0](https://github.com/roonaatech/wp_webapp/commit/754b5e07ce884553323f0e7e733707dc53ede3da))
+
 ## [1.4.0](https://github.com/roonaatech/wp_webapp/compare/v1.3.1...v1.4.0) (2026-02-05)
 
 
