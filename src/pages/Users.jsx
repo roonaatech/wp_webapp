@@ -248,11 +248,32 @@ const Users = () => {
 
     // Helper function to check if current user can manage a specific user
     // Returns true if: isAdmin OR canManageAllUsers OR (canManageUsers && user is a subordinate)
+    // Also checks hierarchy: users can only manage users with LOWER authority (higher hierarchy_level)
+    // Exception: Can manage same-role users if current user is their approving manager
     const canManageSpecificUser = (targetUser) => {
+        if (!canManageUsers && !isAdmin) return false;
+        
+        // Get hierarchy levels
+        const currentUserLevel = getHierarchyLevel(user.role);
+        const targetUserLevel = getHierarchyLevel(targetUser.role);
+        const isApprovingManager = targetUser.approving_manager_id === user.staffid;
+        
+        // Super admin (level 0) can edit anyone
+        if (currentUserLevel === 0) return true;
+        
+        // Cannot edit users with higher authority (lower hierarchy level)
+        if (targetUserLevel < currentUserLevel) return false;
+        
+        // For same level: only allow if current user is the approving manager
+        if (targetUserLevel === currentUserLevel) {
+            return isApprovingManager;
+        }
+        
+        // Now check manage permissions for lower authority users
         if (isAdmin || canManageAllUsers) return true;
-        if (!canManageUsers) return false;
+        
         // Can only manage subordinates (users where approving_manager_id === current user's staffid)
-        return targetUser.approving_manager_id === user.staffid;
+        return isApprovingManager;
     };
 
     useEffect(() => {
