@@ -1843,11 +1843,19 @@ const Users = () => {
                                         className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                     >
                                         <option value="">Select Role</option>
-                                        {availableRoles.map((role) => (
-                                            <option key={role.id} value={String(role.id)}>
-                                                {role.display_name || role.name}
-                                            </option>
-                                        ))}
+                                        {availableRoles
+                                            .filter(role => {
+                                                // Filter roles: only show roles with lower authority (higher hierarchy_level)
+                                                // Super Admin (level 0) can see all roles
+                                                const currentUserLevel = getHierarchyLevel(user.role);
+                                                if (currentUserLevel === 0) return true;
+                                                return role.hierarchy_level > currentUserLevel;
+                                            })
+                                            .map((role) => (
+                                                <option key={role.id} value={String(role.id)}>
+                                                    {role.display_name || role.name}
+                                                </option>
+                                            ))}
                                     </select>
                                 </div>
 
