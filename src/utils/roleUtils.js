@@ -209,6 +209,32 @@ export const canManageUsersAll = (roleId) => {
 };
 
 /**
+ * Check if user can view users (any level - subordinates or all)
+ * This is view-only access without edit/manage capabilities
+ */
+export const canViewUsers = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_users === 'subordinates' || role.can_view_users === 'all';
+};
+
+/**
+ * Check if user can view all users
+ */
+export const canViewUsersAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_users === 'all';
+};
+
+/**
+ * Check if user has any access to users page (manage or view)
+ */
+export const canAccessUsersPage = (roleId) => {
+    return canManageUsers(roleId) || canViewUsers(roleId);
+};
+
+/**
  * Check if user can manage active on-duty records (any level - subordinates or all)
  */
 export const canManageActiveOnDuty = (roleId) => {
@@ -310,14 +336,14 @@ export const isHigherRole = (roleIdA, roleIdB) => {
 
 /**
  * Get all roles that can approve a given role
- * (roles with lower hierarchy_level)
+ * (roles with equal or lower hierarchy_level)
  */
 export const getApproverRoles = (roleId) => {
     const roles = getCachedRoles();
     const targetLevel = getHierarchyLevel(roleId);
 
     return roles.filter(r =>
-        r.hierarchy_level < targetLevel &&
+        r.hierarchy_level <= targetLevel &&
         (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none')
     );
 };
@@ -338,26 +364,26 @@ export const canBeApproverFor = (approverRoleId, targetRoleId) => {
         approverRole: approverRole ? { name: approverRole.name, can_approve_leave: approverRole.can_approve_leave, can_approve_onduty: approverRole.can_approve_onduty } : null
     });
 
-    // Approver must have STRICTLY higher authority (lower level number) and approval permissions
-    // e.g., Admin (level 1) can approve Leader (level 2), but Leader cannot approve another Leader
+    // Approver must have equal or higher authority (lower or same level number) and approval permissions
+    // e.g., Admin (level 1) can approve Leader (level 2), and Leader can also approve another Leader
     // For enum permissions, check if they're not 'none'
     const hasApprovalPermission = approverRole &&
         (approverRole.can_approve_leave !== 'none' || approverRole.can_approve_onduty !== 'none');
 
-    return approverLevel < targetLevel && hasApprovalPermission;
+    return approverLevel <= targetLevel && hasApprovalPermission;
 };
 
 /**
  * Check if a role needs an approving manager
- * A role needs an approver if there's at least one role with higher authority that can approve
+ * A role needs an approver if there's at least one role with equal or higher authority that can approve
  */
 export const needsApprover = (roleId) => {
     const roles = getCachedRoles();
     const targetLevel = getHierarchyLevel(roleId);
 
-    // Check if there's any role with higher authority (lower level) that can approve
+    // Check if there's any role with equal or higher authority (lower or same level) that can approve
     return roles.some(r =>
-        r.hierarchy_level < targetLevel &&
+        r.hierarchy_level <= targetLevel &&
         (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none')
     );
 };
@@ -369,9 +395,9 @@ export const getApproverLabel = (targetRoleId) => {
     const roles = getCachedRoles();
     const targetLevel = getHierarchyLevel(targetRoleId);
 
-    // Get all roles that can be approvers for this role
+    // Get all roles that can be approvers for this role (including same role)
     const approverRoles = roles.filter(r =>
-        r.hierarchy_level < targetLevel &&
+        r.hierarchy_level <= targetLevel &&
         (r.can_approve_leave || r.can_approve_onduty)
     ).sort((a, b) => a.hierarchy_level - b.hierarchy_level);
 
@@ -393,9 +419,10 @@ export const getRoleColor = (roleId) => {
     // Color based on hierarchy level
     if (role.hierarchy_level === 0) return 'bg-purple-50 text-purple-700'; // Super Admin
     if (role.hierarchy_level === 1) return 'bg-red-50 text-red-700';       // Admin
-    if (role.hierarchy_level <= 2) return 'bg-blue-50 text-blue-700';      // Second level (Leader)
-    if (role.hierarchy_level <= 3) return 'bg-green-50 text-green-700';    // Third level (Manager)
-    return 'bg-gray-50 text-gray-700';                                      // Lower levels
+    if (role.hierarchy_level === 2) return 'bg-blue-50 text-blue-700';      // HR/Second level
+    if (role.hierarchy_level === 3) return 'bg-green-50 text-green-700';    // Manager/Supervisor
+    if (role.hierarchy_level === 4) return 'bg-yellow-50 text-yellow-700';  // Employee
+    return 'bg-gray-50 text-gray-700';                                       // Other levels
 };
 
 /**
@@ -417,6 +444,9 @@ export default {
     canApproveLeave,
     canApproveOnDuty,
     canViewReports,
+    canManageUsers,
+    canViewUsers,
+    canAccessUsersPage,
     getHierarchyLevel,
     isHigherRole,
     getApproverRoles,

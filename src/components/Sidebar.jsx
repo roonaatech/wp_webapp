@@ -20,7 +20,7 @@ import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageUsers as canManageUsersUtil, canManageActiveOnDuty, canManageSchedule, canViewActivities } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -28,7 +28,8 @@ const Sidebar = () => {
     // Use permission-based checks instead of hardcoded role IDs
     const isAdmin = hasAdminPermission(user.role);
     const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
-    const canManageUsersPermission = canManageUsersUtil(user.role); // Users page visibility
+    const canManageUsersPermission = canManageUsersUtil(user.role); // Users page edit visibility
+    const canAccessUsersPermission = canAccessUsersPage(user.role); // Users page visibility (view or manage)
     const canManageRolesPermission = canManageRoles(user.role);
     const canManageEmailPermission = canManageEmailSettings(user.role);
     const canManageActiveOnDutyPermission = canManageActiveOnDuty(user.role);
@@ -36,7 +37,7 @@ const Sidebar = () => {
     const canViewReportsPermission = canViewReports(user.role);
     const canViewActivitiesPermission = canViewActivities(user.role);
     // Show Configurations section if user has any configuration permission
-    const hasAnyConfigPermission = canManageUsersPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission;
+    const hasAnyConfigPermission = canAccessUsersPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -263,8 +264,8 @@ const Sidebar = () => {
                 {!isCollapsed && hasAnyConfigPermission && (
                     <div>
                         <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Configurations</p>
-                        {/* Users - Admin & those who can manage users */}
-                        {canManageUsersPermission && (
+                        {/* Users - Admin & those who can manage or view users */}
+                        {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
                         )}
                         {/* Leave Types */}
@@ -283,7 +284,7 @@ const Sidebar = () => {
                 )}
                 {isCollapsed && hasAnyConfigPermission && (
                     <div className="space-y-2">
-                        {canManageUsersPermission && (
+                        {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
                         )}
                         {canManageLeaveTypes(user.role) && (

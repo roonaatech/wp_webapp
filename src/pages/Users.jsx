@@ -11,6 +11,9 @@ import {
     canApproveLeave,
     canApproveOnDuty,
     canManageUsers as canManageUsersUtil,
+    canManageUsersAll as canManageUsersAllUtil,
+    canViewUsers as canViewUsersUtil,
+    canAccessUsersPage,
     getRoleDisplayName,
     getRoleColor as getRoleColorUtil,
     getHierarchyLevel,
@@ -216,10 +219,10 @@ const Users = () => {
                 // Force refresh roles from server to get latest permissions
                 await fetchRoles(true);
 
-                // Now check if user can manage users with fresh data
-                const canManage = canManageUsersUtil(user.role);
+                // Now check if user can manage or view users with fresh data
+                const canAccess = canAccessUsersPage(user.role);
 
-                if (!canManage) {
+                if (!canAccess) {
                     navigate('/unauthorized', { replace: true });
                 } else {
                     setHasPermission(true);
@@ -239,7 +242,39 @@ const Users = () => {
     const isAdmin = hasAdminPermission(user.role);
     const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
     const canManageUsers = canManageUsersUtil(user.role);
+    const canManageAllUsers = canManageUsersAllUtil(user.role);
+    const canViewUsersOnly = canViewUsersUtil(user.role) && !canManageUsers; // View-only if has view but not manage
     const isAllowed = hasPermission; // Only use the verified permission
+
+    // Helper function to check if current user can manage a specific user
+    // Returns true if: isAdmin OR canManageAllUsers OR (canManageUsers && user is a subordinate)
+    // Also checks hierarchy: users can only manage users with LOWER authority (higher hierarchy_level)
+    // Exception: Can manage same-role users if current user is their approving manager
+    const canManageSpecificUser = (targetUser) => {
+        if (!canManageUsers && !isAdmin) return false;
+        
+        // Get hierarchy levels
+        const currentUserLevel = getHierarchyLevel(user.role);
+        const targetUserLevel = getHierarchyLevel(targetUser.role);
+        const isApprovingManager = targetUser.approving_manager_id === user.staffid;
+        
+        // Super admin (level 0) can edit anyone
+        if (currentUserLevel === 0) return true;
+        
+        // Cannot edit users with higher authority (lower hierarchy level)
+        if (targetUserLevel < currentUserLevel) return false;
+        
+        // For same level: only allow if current user is the approving manager
+        if (targetUserLevel === currentUserLevel) {
+            return isApprovingManager;
+        }
+        
+        // Now check manage permissions for lower authority users
+        if (isAdmin || canManageAllUsers) return true;
+        
+        // Can only manage subordinates (users where approving_manager_id === current user's staffid)
+        return isApprovingManager;
+    };
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -985,12 +1020,14 @@ const Users = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
                         <p className="text-gray-600 mt-1">
-                            {isAdmin
+                            {!canManageUsers
+                                ? 'View users and their information (read-only)'
+                                : isAdmin
                                 ? 'Manage all system users and their permissions'
                                 : 'Manage your team members and their leave balances'}
                         </p>
                     </div>
-                    {isAdmin && (
+                    {isAdmin && canManageUsers && (
                         <button
                             onClick={handleAddUserClick}
                             className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium flex items-center gap-2">
@@ -1268,13 +1305,15 @@ const Users = () => {
                                         )}
                                     </div>
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-white">Actions</th>
+                                {canManageUsers && (
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-white">Actions</th>
+                                )}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="7" className="px-6 py-8 text-center">
+                                    <td colSpan={canManageUsers ? 7 : 6} className="px-6 py-8 text-center">
                                         <ModernLoader size="md" message="Loading Users..." />
                                     </td>
                                 </tr>
@@ -1314,7 +1353,7 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    {(isAdmin || canManageUsers) && (
+                                                    {canManageSpecificUser(u) && (
                                                         <button
                                                             onClick={() => handleToggleStatus(u)}
                                                             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${u.active ? 'bg-green-600' : 'bg-red-600'
@@ -1334,9 +1373,10 @@ const Users = () => {
                                                     </span>
                                                 </div>
                                             </td>
+                                            {canManageUsers && (
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    {(isAdmin || canManageUsers) && (
+                                                    {canManageSpecificUser(u) && (
                                                         <>
                                                             <button
                                                                 onClick={() => handleEditUserClick(u)}
@@ -1358,7 +1398,7 @@ const Users = () => {
                                                             </button>
                                                         </>
                                                     )}
-                                                    {(isAdmin || canManageUsers) && (
+                                                    {canManageSpecificUser(u) && (
                                                         <button
                                                             onClick={() => handleResetPasswordClick(u)}
                                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow"
@@ -1372,12 +1412,13 @@ const Users = () => {
                                                     )}
                                                 </div>
                                             </td>
+                                            )}
                                         </tr>
 
                                         {/* Leave Balance Child Row */}
                                         {expandedUserId === u.staffid && (
                                             <tr className="bg-slate-50 border-t border-slate-200 shadow-inner">
-                                                <td colSpan="7" className="px-6 py-6">
+                                                <td colSpan={canManageUsers ? 7 : 6} className="px-6 py-6">
                                                     {loadingBalance[u.staffid] ? (
                                                         <div className="flex flex-col items-center justify-center py-8">
                                                             <ModernLoader size="md" message="Loading leave balance..." />
@@ -1484,7 +1525,7 @@ const Users = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                                    <td colSpan={canManageUsers ? 7 : 6} className="px-6 py-8 text-center text-gray-500">
                                         No users found
                                     </td>
                                 </tr>
@@ -1802,11 +1843,19 @@ const Users = () => {
                                         className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                     >
                                         <option value="">Select Role</option>
-                                        {availableRoles.map((role) => (
-                                            <option key={role.id} value={String(role.id)}>
-                                                {role.display_name || role.name}
-                                            </option>
-                                        ))}
+                                        {availableRoles
+                                            .filter(role => {
+                                                // Filter roles: only show roles with lower authority (higher hierarchy_level)
+                                                // Super Admin (level 0) can see all roles
+                                                const currentUserLevel = getHierarchyLevel(user.role);
+                                                if (currentUserLevel === 0) return true;
+                                                return role.hierarchy_level > currentUserLevel;
+                                            })
+                                            .map((role) => (
+                                                <option key={role.id} value={String(role.id)}>
+                                                    {role.display_name || role.name}
+                                                </option>
+                                            ))}
                                     </select>
                                 </div>
 
