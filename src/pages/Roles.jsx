@@ -177,7 +177,7 @@ const Roles = () => {
 
         try {
             const token = localStorage.getItem('token');
-            
+
             if (editingRole) {
                 // Update existing role
                 await axios.put(
@@ -199,7 +199,7 @@ const Roles = () => {
             // Clear and refresh the global roles cache
             clearRolesCache();
             await refreshRolesCache(true);
-            
+
             fetchRoles();
             fetchStatistics();
             handleCloseModal();
@@ -222,11 +222,11 @@ const Roles = () => {
                 headers: { 'x-access-token': token }
             });
             toast.success('Role deleted successfully');
-            
+
             // Clear and refresh the global roles cache
             clearRolesCache();
             await refreshRolesCache(true);
-            
+
             fetchRoles();
             fetchStatistics();
         } catch (err) {
@@ -254,7 +254,7 @@ const Roles = () => {
     const handleDragOver = (e, index) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        
+
         if (draggedIndex !== null && draggedIndex !== index) {
             setDragOverIndex(index);
         }
@@ -267,7 +267,7 @@ const Roles = () => {
 
     const handleDrop = (e, dropIndex) => {
         e.preventDefault();
-        
+
         if (draggedIndex === null || draggedIndex === dropIndex) {
             setDragOverIndex(null);
             return;
@@ -275,12 +275,12 @@ const Roles = () => {
 
         const newRoles = [...hierarchyRoles];
         const draggedRole = newRoles[draggedIndex];
-        
+
         // Remove dragged item
         newRoles.splice(draggedIndex, 1);
         // Insert at new position
         newRoles.splice(dropIndex, 0, draggedRole);
-        
+
         setHierarchyRoles(newRoles);
         setDraggedIndex(null);
         setDragOverIndex(null);
@@ -307,11 +307,11 @@ const Roles = () => {
 
             toast.success('Hierarchy updated successfully');
             setHierarchyMode(false);
-            
+
             // Clear and refresh the global roles cache since hierarchy changed
             clearRolesCache();
             await refreshRolesCache(true);
-            
+
             fetchRoles();
         } catch (err) {
             const errorMsg = err.response?.data?.message || 'Failed to update hierarchy';
@@ -354,11 +354,10 @@ const Roles = () => {
             <div className="mb-4 flex justify-between items-center">
                 <button
                     onClick={handleToggleHierarchyMode}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                        hierarchyMode
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${hierarchyMode
                             ? 'bg-gray-600 text-white hover:bg-gray-700'
                             : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                    }`}
+                        }`}
                 >
                     <FiMove className="inline mr-2" />
                     {hierarchyMode ? 'Cancel Hierarchy Edit' : 'Edit Hierarchy'}
@@ -409,8 +408,8 @@ const Roles = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {(hierarchyMode ? hierarchyRoles : roles).map((role, index) => (
-                            <tr 
-                                key={role.id} 
+                            <tr
+                                key={role.id}
                                 draggable={hierarchyMode}
                                 onDragStart={hierarchyMode ? (e) => handleDragStart(e, index) : undefined}
                                 onDragOver={hierarchyMode ? (e) => handleDragOver(e, index) : undefined}
@@ -465,6 +464,11 @@ const Roles = () => {
                                                 Users {role.can_manage_users === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
+                                        {role.can_view_users && role.can_view_users !== 'none' && (
+                                            <span className={`px-2 py-1 text-xs rounded ${role.can_view_users === 'all' ? 'bg-indigo-100 text-indigo-800' : 'bg-indigo-50 text-indigo-700'}`}>
+                                                View Users {role.can_view_users === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
+                                        )}
                                         {role.can_manage_leave_types && (
                                             <span className="px-2 py-1 text-xs rounded bg-purple-100 text-purple-800">LeaveTypes</span>
                                         )}
@@ -491,11 +495,10 @@ const Roles = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                        role.active
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${role.active
                                             ? 'bg-green-100 text-green-800'
                                             : 'bg-red-100 text-red-800'
-                                    }`}>
+                                        }`}>
                                         {role.active ? 'Active' : 'Inactive'}
                                     </span>
                                 </td>
@@ -545,7 +548,7 @@ const Roles = () => {
                             {/* Basic Information */}
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
-                                
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -613,7 +616,7 @@ const Roles = () => {
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold text-gray-900">Hierarchical Permissions</h3>
                                 <p className="text-sm text-gray-500">Select access level for each permission. "Subordinates" allows access to direct reports only, "All" allows access to everyone.</p>
-                                
+
                                 <div className="overflow-x-auto">
                                     <table className="w-full border border-gray-200 rounded-lg">
                                         <thead className="bg-gray-50">
@@ -652,7 +655,7 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
-                                            
+
                                             {/* Approve On-Duty */}
                                             <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">Approve On-Duty Requests</td>
@@ -681,7 +684,7 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
-                                            
+
                                             {/* Manage Users */}
                                             <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">Manage Users</td>
@@ -710,7 +713,7 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
-                                            
+
                                             {/* View Users (read-only) */}
                                             <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Users (Read Only)</td>
@@ -739,7 +742,7 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
-                                            
+
                                             {/* View Reports */}
                                             <tr className="hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Reports</td>
@@ -768,7 +771,7 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
-                                            
+
                                             {/* View Active On-Duty */}
                                             <tr className="hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Active On-Duty</td>
@@ -797,7 +800,7 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
-                                            
+
                                             {/* View Schedule */}
                                             <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Schedule</td>
@@ -826,7 +829,7 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
-                                            
+
                                             {/* View Activities */}
                                             <tr className="hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Activities</td>
@@ -864,7 +867,7 @@ const Roles = () => {
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold text-gray-900">Global Permissions</h3>
                                 <p className="text-sm text-gray-500">These permissions apply globally (not hierarchy-based).</p>
-                                
+
                                 <div className="overflow-x-auto">
                                     <table className="w-full border border-gray-200 rounded-lg">
                                         <thead className="bg-gray-50">
