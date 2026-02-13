@@ -614,9 +614,9 @@ const MyRequests = () => {
 
     // ─── TAB CONFIG ───────────────────────────────────
     const tabs = [
-        { id: 'leave', label: 'Leave', icon: '📋', color: 'from-blue-500 to-blue-600' },
-        { id: 'onduty', label: 'On-Duty', icon: '🚗', color: 'from-purple-500 to-purple-600' },
-        { id: 'timeoff', label: 'Time-Off', icon: '⏰', color: 'from-teal-500 to-teal-600' },
+        { id: 'leave', label: 'Leave', icon: '🏖', color: 'from-blue-500 to-blue-600', textColor: 'text-blue-600' },
+        { id: 'timeoff', label: 'Time-Off', icon: '⏱', color: 'from-teal-500 to-teal-600', textColor: 'text-teal-600' },
+        { id: 'onduty', label: 'On-Duty', icon: '💼', color: 'from-purple-500 to-purple-600', textColor: 'text-purple-600' },
     ];
 
     // ─── Render ───────────────────────────────────
@@ -658,10 +658,10 @@ const MyRequests = () => {
                         <button
                             key={tab.id}
                             onClick={() => { setActiveTab(tab.id); setActiveView('apply'); }}
-                            className={`flex-1 py-3 flex flex-col items-center gap-1 relative transition-all duration-300 ${activeTab === tab.id ? 'text-blue-600' : 'text-gray-400'}`}
+                            className={`flex-1 py-3 flex flex-col items-center gap-1 relative transition-all duration-300 ${activeTab === tab.id ? tab.textColor : 'text-gray-400'}`}
                         >
-                            <span className="text-lg">{tab.icon}</span>
-                            <span className="text-[11px] font-bold tracking-wide">{tab.label}</span>
+                            <span className="text-2xl mb-1">{tab.icon}</span>
+                            <span className="text-sm font-bold tracking-wide uppercase">{tab.label}</span>
                             {activeTab === tab.id && (
                                 <div className={`absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r ${tab.color} rounded-full`}></div>
                             )}
