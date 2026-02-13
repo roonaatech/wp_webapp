@@ -329,7 +329,8 @@ const MyRequests = () => {
             setToEndTime('');
             setToReason('');
         } catch (e) {
-            toast.error(e.response?.data?.message || 'Failed to apply time-off');
+            const msg = e.response?.data?.message || e.response?.data?.error || 'Failed to apply time-off';
+            toast.error(msg);
         } finally { setToSubmitting(false); }
     };
 
