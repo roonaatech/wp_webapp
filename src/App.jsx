@@ -19,6 +19,7 @@ import Calendar from './pages/Calendar';
 import ActiveOnDuty from './pages/ActiveOnDuty';
 import ApkDistribution from './pages/ApkDistribution';
 import EmailSettings from './pages/EmailSettings';
+import MyRequests from './pages/MyRequests';
 import { fetchRoles } from './utils/roleUtils';
 
 
@@ -30,7 +31,7 @@ const ProtectedLayout = ({ children }) => {
       fetchRoles();
     }
   }, []);
-  
+
   return (
     <ProtectedRoute>
       <div className="flex h-screen bg-transparent transition-colors duration-300">
@@ -112,6 +113,9 @@ function App() {
           <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
           <Route path="/email-settings" element={<ProtectedLayout><EmailSettings /></ProtectedLayout>} />
           <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
+
+          {/* Self-Service Route (all authenticated users, no sidebar/header) */}
+          <Route path="/my-requests" element={<ProtectedRoute skipWebAppCheck><MyRequests /></ProtectedRoute>} />
 
 
           {/* Catch all */}

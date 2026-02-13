@@ -335,6 +335,33 @@ export const canManageEmailSettings = (roleId) => {
 };
 
 /**
+ * Check if a user is "self-service only" - i.e. has NO management/admin/approval permissions.
+ * These users should be directed to the My Requests page instead of the full dashboard.
+ * Returns true if the user has NONE of the management permissions.
+ */
+export const isSelfServiceOnly = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return true; // If role not found, treat as self-service
+
+    // Check all management/admin permissions
+    const hasAnyManagement =
+        role.can_manage_users === 'subordinates' || role.can_manage_users === 'all' ||
+        role.can_view_users === 'subordinates' || role.can_view_users === 'all' ||
+        role.can_approve_leave === 'subordinates' || role.can_approve_leave === 'all' ||
+        role.can_approve_onduty === 'subordinates' || role.can_approve_onduty === 'all' ||
+        role.can_approve_timeoff === 'subordinates' || role.can_approve_timeoff === 'all' ||
+        role.can_view_reports === 'subordinates' || role.can_view_reports === 'all' ||
+        role.can_manage_active_onduty === 'subordinates' || role.can_manage_active_onduty === 'all' ||
+        role.can_manage_schedule === 'subordinates' || role.can_manage_schedule === 'all' ||
+        role.can_view_activities === 'subordinates' || role.can_view_activities === 'all' ||
+        role.can_manage_leave_types === true ||
+        role.can_manage_roles === true ||
+        role.can_manage_email_settings === true;
+
+    return !hasAnyManagement;
+};
+
+/**
  * Get hierarchy level for a role (lower = higher authority)
  */
 export const getHierarchyLevel = (roleId) => {
