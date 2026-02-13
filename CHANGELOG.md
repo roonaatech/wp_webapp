@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.0.0](https://github.com/roonaatech/wp_webapp/compare/v1.5.4...v2.0.0) (2026-02-13)
+
+
+### Features
+
+* Add Time Off Request support to the Activities and Approvals pages, including new filters, display logic, and approval workflows. ([56dc504](https://github.com/roonaatech/wp_webapp/commit/56dc504cd8867f590de69330343d5041b9ba3b63))
+* introduce a self-service "My Requests" page and update authentication flows to support self-service-only user access. ([4877ce5](https://github.com/roonaatech/wp_webapp/commit/4877ce522cb5be38ada6e20edff40178e98ab253))
+
+
+### Chores
+
+* **release:** 1.6.0 ([669a5f8](https://github.com/roonaatech/wp_webapp/commit/669a5f8be5f427a7ae35bcb23e0ee063e41c11dd))
+
 ## [1.6.0](https://github.com/roonaatech/wp_webapp/compare/v1.5.4...v1.6.0) (2026-02-13)
 
 
