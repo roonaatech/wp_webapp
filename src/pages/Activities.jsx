@@ -9,7 +9,7 @@ const Activities = () => {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
-    
+
     // Get today's date in YYYY-MM-DD format
     const getTodayDate = () => {
         const today = new Date();
@@ -63,7 +63,7 @@ const Activities = () => {
 
     useEffect(() => {
         if (!hasPermission) return;
-        
+
         // Fetch with today's date by default
         fetchActivities(1, {
             action: '',
@@ -214,6 +214,7 @@ const Activities = () => {
             'User': 'bg-indigo-100 text-indigo-800',
             'LeaveRequest': 'bg-blue-100 text-blue-800',
             'OnDutyLog': 'bg-purple-100 text-purple-800',
+            'TimeOffRequest': 'bg-orange-100 text-orange-800',
             'LeaveType': 'bg-blue-100 text-blue-800',
             'Approval': 'bg-green-100 text-green-800'
         };
@@ -357,6 +358,7 @@ const Activities = () => {
                             <option value="User">User</option>
                             <option value="LeaveRequest">Leave Request</option>
                             <option value="OnDutyLog">On-Duty Log</option>
+                            <option value="TimeOffRequest">Time-Off Request</option>
                             <option value="LeaveType">Leave Type</option>
                             <option value="Approval">Approval</option>
                         </select>
@@ -520,11 +522,10 @@ const Activities = () => {
                                             <button
                                                 key={page}
                                                 onClick={() => fetchActivities(page)}
-                                                className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                                                    currentPage === page
+                                                className={`px-3 py-1 rounded-lg text-sm transition-colors ${currentPage === page
                                                         ? 'bg-blue-600 text-white'
                                                         : 'border border-gray-300 hover:bg-gray-200'
-                                                }`}
+                                                    }`}
                                             >
                                                 {page}
                                             </button>

@@ -181,49 +181,57 @@ const Reports = () => {
             }
 
             const headers = [
-                'Date', 
+                'Date',
                 'Staff ID',
-                'Staff Name', 
-                'Email', 
-                'Type', 
+                'Staff Name',
+                'Email',
+                'Type',
                 'Leave Type / Client',
-                'Start', 
-                'End', 
-                'Duration', 
+                'Start',
+                'End',
+                'Duration',
                 'Location',
                 'Reason / Purpose',
-                'Status', 
+                'Status',
                 'Approval Status',
                 'Approved/Rejected By',
                 'Rejection Reason'
             ];
             const rows = exportData.map(report => {
-                const isLeave = report.type === 'leave'; // Backend adds 'type' field
+                const isLeave = report.type === 'leave';
+                const isTimeOff = report.type === 'timeoff';
                 // Calculate duration based on type
                 let duration;
                 if (isLeave) {
                     const days = calculateLeaveDays(report.start_date, report.end_date);
                     duration = days + ' day' + (days > 1 ? 's' : '');
+                } else if (isTimeOff) {
+                    duration = `${report.start_time || ''} - ${report.end_time || ''}`;
                 } else {
                     duration = calculateDuration(report.check_in_time, report.check_out_time);
                 }
-                const activityStatus = isLeave ? 'N/A' : (report.check_out_time ? 'Completed' : 'Active');
+                const activityStatus = isLeave || isTimeOff ? 'N/A' : (report.check_out_time ? 'Completed' : 'Active');
                 const approvalStatus = report.status || 'N/A';
                 const approver = report.approver
                     ? `${report.approver.firstname} ${report.approver.lastname} (${report.approver.email})`
                     : 'N/A';
+
+                let typeName = 'On-Duty';
+                if (isLeave) typeName = 'Leave';
+                if (isTimeOff) typeName = 'Time-Off';
+
                 return [
                     report.date || 'N/A',
                     report.tblstaff?.staffid || report.staff_id || 'N/A',
                     `${report.tblstaff?.firstname || ''} ${report.tblstaff?.lastname || ''}`.trim() || 'Unknown',
                     report.tblstaff?.email || 'N/A',
-                    isLeave ? 'Leave' : 'On-Duty',
-                    isLeave ? (report.leave_type || 'N/A') : (report.client_name || 'N/A'),
-                    isLeave ? report.start_date : (report.check_in_time ? new Date(report.check_in_time).toLocaleString() : 'N/A'),
-                    isLeave ? report.end_date : (report.check_out_time ? new Date(report.check_out_time).toLocaleString() : 'N/A'),
+                    typeName,
+                    isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'N/A' : (report.client_name || 'N/A'),
+                    isLeave ? report.start_date : isTimeOff ? report.start_time : (report.check_in_time ? new Date(report.check_in_time).toLocaleString() : 'N/A'),
+                    isLeave ? report.end_date : isTimeOff ? report.end_time : (report.check_out_time ? new Date(report.check_out_time).toLocaleString() : 'N/A'),
                     duration,
-                    isLeave ? 'N/A' : (report.location || 'N/A'),
-                    isLeave ? (report.reason || 'N/A') : (report.purpose || 'N/A'),
+                    isLeave || isTimeOff ? 'N/A' : (report.location || 'N/A'),
+                    isLeave ? (report.reason || 'N/A') : isTimeOff ? (report.reason || 'N/A') : (report.purpose || 'N/A'),
                     activityStatus,
                     approvalStatus,
                     approver,
@@ -254,10 +262,10 @@ const Reports = () => {
     const getStatusBadge = (report) => {
         if (report.on_duty) { // Backend still sends on_duty boolean
             // For on-duty, show both activity status and approval status
-            const activityBadge = report.check_out_time 
+            const activityBadge = report.check_out_time
                 ? <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">Completed</span>
                 : <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded">Active</span>;
-            
+
             // Show approval status if not approved yet
             let approvalBadge = null;
             if (report.status === 'Pending') {
@@ -267,7 +275,7 @@ const Reports = () => {
             } else if (report.status === 'Rejected') {
                 approvalBadge = <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded">Rejected</span>;
             }
-            
+
             return (
                 <div className="flex gap-1 flex-wrap">
                     {activityBadge}
@@ -275,8 +283,8 @@ const Reports = () => {
                 </div>
             );
         }
-        // For leave records
-        if (report.type === 'leave') {
+        // For leave and time-off records
+        if (report.type === 'leave' || report.type === 'timeoff') {
             if (report.status === 'Approved') {
                 return <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">Approved</span>;
             }
@@ -356,9 +364,10 @@ const Reports = () => {
                             onChange={(e) => handleFilterChange(setTypeFilter, e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                         >
-                            <option value="both">Both (Leave & On-Duty)</option>
+                            <option value="both">All (Leave, On-Duty & Time-Off)</option>
                             <option value="leave">Leave Only</option>
                             <option value="onduty">On-Duty Only</option>
+                            <option value="timeoff">Time-Off Only</option>
                         </select>
                     </div>
                     <div>
@@ -414,7 +423,9 @@ const Reports = () => {
                 ) : reports.length > 0 ? (
                     reports.map((report) => {
                         const isLeave = report.type === 'leave';
-                        const uniqueKey = `${isLeave ? 'lv' : 'od'}_${report.id}`;
+                        const isTimeOff = report.type === 'timeoff';
+                        const isOnDuty = report.type === 'onduty';
+                        const uniqueKey = `${isLeave ? 'lv' : isTimeOff ? 'to' : 'od'}_${report.id}`;
                         const staffName = `${report.tblstaff?.firstname || 'Unknown'} ${report.tblstaff?.lastname || ''}`;
                         const isExpanded = expandedRows[uniqueKey];
 
@@ -423,10 +434,23 @@ const Reports = () => {
                         if (isLeave) {
                             const days = calculateLeaveDays(report.start_date, report.end_date);
                             summaryText = `${report.start_date} → ${report.end_date} (${days} days, ${report.leave_type || 'N/A'})`;
+                        } else if (isTimeOff) {
+                            summaryText = `${report.date} | ${report.start_time || ''} - ${report.end_time || ''}`;
                         } else {
                             const startTime = report.check_in_time ? new Date(report.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
                             const duration = calculateDuration(report.check_in_time, report.check_out_time);
                             summaryText = `${report.date} | ${startTime} | ${duration} | ${report.client_name || 'N/A'}`;
+                        }
+
+                        // Type badge style
+                        let typeBadgeClass = 'bg-purple-100 text-purple-700';
+                        let typeLabel = 'On-Duty';
+                        if (isLeave) {
+                            typeBadgeClass = 'bg-blue-100 text-blue-700';
+                            typeLabel = 'Leave';
+                        } else if (isTimeOff) {
+                            typeBadgeClass = 'bg-orange-100 text-orange-700';
+                            typeLabel = 'Time-Off';
                         }
 
                         return (
@@ -439,9 +463,8 @@ const Reports = () => {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                                                 <h3 className="font-semibold text-gray-900 text-sm">{staffName}</h3>
-                                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${isLeave ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                                                    }`}>
-                                                    {isLeave ? 'Leave' : 'On-Duty'}
+                                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${typeBadgeClass}`}>
+                                                    {typeLabel}
                                                 </span>
                                                 {getStatusBadge(report)}
                                             </div>
@@ -489,6 +512,43 @@ const Reports = () => {
                                                                 <p className="text-gray-500 font-medium">Reason</p>
                                                                 <p className="text-gray-700">{report.reason || 'N/A'}</p>
                                                             </div>
+                                                            {report.approver && (
+                                                                <div className="col-span-2 md:col-span-4 pt-2 border-t">
+                                                                    <p className="text-gray-500 font-medium">
+                                                                        {report.status === 'Approved' ? 'Approved By' : 'Rejected By'}
+                                                                    </p>
+                                                                    <p className="text-gray-700">{report.approver.firstname} {report.approver.lastname}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : isTimeOff ? (
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-2 pt-2 border-t">
+                                                            <div>
+                                                                <p className="text-gray-500 font-medium">Date</p>
+                                                                <p className="text-gray-900">{report.date}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-gray-500 font-medium">Start Time</p>
+                                                                <p className="text-gray-900">{report.start_time || 'N/A'}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-gray-500 font-medium">End Time</p>
+                                                                <p className="text-gray-900">{report.end_time || 'N/A'}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-gray-500 font-medium">Status</p>
+                                                                <p className="text-gray-900">{report.status || 'N/A'}</p>
+                                                            </div>
+                                                            <div className="col-span-2 md:col-span-4">
+                                                                <p className="text-gray-500 font-medium">Reason</p>
+                                                                <p className="text-gray-700">{report.reason || 'N/A'}</p>
+                                                            </div>
+                                                            {report.rejection_reason && (
+                                                                <div className="col-span-2 md:col-span-4">
+                                                                    <p className="text-gray-500 font-medium">Rejection Reason</p>
+                                                                    <p className="text-red-600">{report.rejection_reason}</p>
+                                                                </div>
+                                                            )}
                                                             {report.approver && (
                                                                 <div className="col-span-2 md:col-span-4 pt-2 border-t">
                                                                     <p className="text-gray-500 font-medium">

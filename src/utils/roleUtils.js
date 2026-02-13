@@ -173,6 +173,24 @@ export const canApproveOnDutyAll = (roleId) => {
 };
 
 /**
+ * Check if user can approve time-off requests (any level - subordinates or all)
+ */
+export const canApproveTimeOff = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_approve_timeoff === 'subordinates' || role.can_approve_timeoff === 'all';
+};
+
+/**
+ * Check if user can approve time-off for all users
+ */
+export const canApproveTimeOffAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_approve_timeoff === 'all';
+};
+
+/**
  * Check if user can view reports (any level - subordinates or all)
  */
 export const canViewReports = (roleId) => {
@@ -344,7 +362,7 @@ export const getApproverRoles = (roleId) => {
 
     return roles.filter(r =>
         r.hierarchy_level <= targetLevel &&
-        (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none')
+        (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none' || r.can_approve_timeoff !== 'none')
     );
 };
 
@@ -361,14 +379,14 @@ export const canBeApproverFor = (approverRoleId, targetRoleId) => {
         targetRoleId,
         approverLevel,
         targetLevel,
-        approverRole: approverRole ? { name: approverRole.name, can_approve_leave: approverRole.can_approve_leave, can_approve_onduty: approverRole.can_approve_onduty } : null
+        approverRole: approverRole ? { name: approverRole.name, can_approve_leave: approverRole.can_approve_leave, can_approve_onduty: approverRole.can_approve_onduty, can_approve_timeoff: approverRole.can_approve_timeoff } : null
     });
 
     // Approver must have equal or higher authority (lower or same level number) and approval permissions
     // e.g., Admin (level 1) can approve Leader (level 2), and Leader can also approve another Leader
     // For enum permissions, check if they're not 'none'
     const hasApprovalPermission = approverRole &&
-        (approverRole.can_approve_leave !== 'none' || approverRole.can_approve_onduty !== 'none');
+        (approverRole.can_approve_leave !== 'none' || approverRole.can_approve_onduty !== 'none' || approverRole.can_approve_timeoff !== 'none');
 
     return approverLevel <= targetLevel && hasApprovalPermission;
 };
@@ -384,7 +402,7 @@ export const needsApprover = (roleId) => {
     // Check if there's any role with equal or higher authority (lower or same level) that can approve
     return roles.some(r =>
         r.hierarchy_level <= targetLevel &&
-        (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none')
+        (r.can_approve_leave !== 'none' || r.can_approve_onduty !== 'none' || r.can_approve_timeoff !== 'none')
     );
 };
 
@@ -398,7 +416,7 @@ export const getApproverLabel = (targetRoleId) => {
     // Get all roles that can be approvers for this role (including same role)
     const approverRoles = roles.filter(r =>
         r.hierarchy_level <= targetLevel &&
-        (r.can_approve_leave || r.can_approve_onduty)
+        (r.can_approve_leave || r.can_approve_onduty || r.can_approve_timeoff)
     ).sort((a, b) => a.hierarchy_level - b.hierarchy_level);
 
     if (approverRoles.length === 0) return 'Approving Manager';
@@ -443,6 +461,7 @@ export default {
     canManageLeaveTypes,
     canApproveLeave,
     canApproveOnDuty,
+    canApproveTimeOff,
     canViewReports,
     canManageUsers,
     canViewUsers,
