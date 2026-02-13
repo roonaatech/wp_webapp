@@ -34,6 +34,7 @@ const Roles = () => {
         // Hierarchical permissions - 'none', 'subordinates', 'all'
         can_approve_leave: 'none',
         can_approve_onduty: 'none',
+        can_approve_timeoff: 'none',
         can_manage_users: 'none',
         can_view_users: 'none',
         can_view_reports: 'none',
@@ -118,6 +119,7 @@ const Roles = () => {
                 // Hierarchical permissions
                 can_approve_leave: role.can_approve_leave || 'none',
                 can_approve_onduty: role.can_approve_onduty || 'none',
+                can_approve_timeoff: role.can_approve_timeoff || 'none',
                 can_manage_users: role.can_manage_users || 'none',
                 can_view_users: role.can_view_users || 'none',
                 can_view_reports: role.can_view_reports || 'none',
@@ -141,6 +143,7 @@ const Roles = () => {
                 // Hierarchical permissions
                 can_approve_leave: 'none',
                 can_approve_onduty: 'none',
+                can_approve_timeoff: 'none',
                 can_manage_users: 'none',
                 can_view_users: 'none',
                 can_view_reports: 'none',
@@ -355,8 +358,8 @@ const Roles = () => {
                 <button
                     onClick={handleToggleHierarchyMode}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${hierarchyMode
-                            ? 'bg-gray-600 text-white hover:bg-gray-700'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        ? 'bg-gray-600 text-white hover:bg-gray-700'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
                         }`}
                 >
                     <FiMove className="inline mr-2" />
@@ -459,6 +462,11 @@ const Roles = () => {
                                                 OnDuty {role.can_approve_onduty === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
+                                        {role.can_approve_timeoff && role.can_approve_timeoff !== 'none' && (
+                                            <span className={`px-2 py-1 text-xs rounded ${role.can_approve_timeoff === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
+                                                TimeOff {role.can_approve_timeoff === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
+                                        )}
                                         {role.can_manage_users && role.can_manage_users !== 'none' && (
                                             <span className={`px-2 py-1 text-xs rounded ${role.can_manage_users === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
                                                 Users {role.can_manage_users === 'subordinates' ? '(Sub)' : '(All)'}
@@ -496,8 +504,8 @@ const Roles = () => {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${role.active
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-red-100 text-red-800'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-red-100 text-red-800'
                                         }`}>
                                         {role.active ? 'Active' : 'Inactive'}
                                     </span>
@@ -679,6 +687,35 @@ const Roles = () => {
                                                         checked={formData.can_approve_onduty === 'all'}
                                                         onChange={(e) => {
                                                             setFormData(prev => ({ ...prev, can_approve_onduty: e.target.checked ? 'all' : (prev.can_approve_onduty === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+
+                                            {/* Approve Time-Off */}
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Approve Time-Off Requests</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_approve_timeoff === 'subordinates' || formData.can_approve_timeoff === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_approve_timeoff: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_approve_timeoff: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_approve_timeoff === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_approve_timeoff: e.target.checked ? 'all' : (prev.can_approve_timeoff === 'all' ? 'subordinates' : 'none') }));
                                                         }}
                                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                                     />

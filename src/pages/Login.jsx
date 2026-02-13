@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 import { LuSmartphone } from "react-icons/lu";
-import { fetchRoles, canAccessWebApp, getRoleDisplayName } from '../utils/roleUtils';
+import { fetchRoles, canAccessWebApp, isSelfServiceOnly, getRoleDisplayName } from '../utils/roleUtils';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -43,20 +43,24 @@ const Login = () => {
         // Fetch roles from API and cache them for permission checks
         // Store token temporarily to make the API call
         localStorage.setItem('token', data.accessToken);
-        
+
         try {
             const roles = await fetchRoles(true); // Force refresh roles cache
             console.log('Fetched roles for permission check:', roles);
             console.log('User role ID:', user.role, 'Type:', typeof user.role);
-            
+
             // Check if user has permission to access webapp (based on role permissions)
             const hasAccess = canAccessWebApp(user.role);
             console.log('canAccessWebApp result:', hasAccess);
-            
+
             if (!hasAccess) {
-                localStorage.removeItem('token'); // Remove token since access is denied
-                setError('Access denied. Your role does not have permission to access this system. Please ensure your role has the necessary permissions enabled.');
-                setLoading(false);
+                // User doesn't have full webapp access but can still use My Requests
+                localStorage.setItem('user', JSON.stringify(user));
+                toast.success(`Welcome, ${user.firstname}!`, {
+                    style: { background: '#059669', color: '#fff' },
+                    icon: '👋'
+                });
+                navigate('/my-requests');
                 return;
             }
         } catch (roleError) {
@@ -66,6 +70,17 @@ const Login = () => {
         }
 
         localStorage.setItem('user', JSON.stringify(user));
+
+        // Check if user is self-service only (no management permissions)
+        // These users go to /my-requests even if they have can_access_webapp
+        if (isSelfServiceOnly(user.role)) {
+            toast.success(`Welcome, ${user.firstname}!`, {
+                style: { background: '#059669', color: '#fff' },
+                icon: '👋'
+            });
+            navigate('/my-requests');
+            return;
+        }
 
         toast.success(`Welcome back, ${user.firstname}!`, {
             style: {
@@ -114,7 +129,7 @@ const Login = () => {
         } else if (err.response?.status === 403) {
             // Check the actual error message to differentiate between inactive and not authorized
             const serverMessage = err.response?.data?.message || '';
-            if (serverMessage.toLowerCase().includes('access denied') || 
+            if (serverMessage.toLowerCase().includes('access denied') ||
                 serverMessage.toLowerCase().includes('permission')) {
                 // User is active but doesn't have webapp access permission
                 setShowNotAuthorizedModal(true);

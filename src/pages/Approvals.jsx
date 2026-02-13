@@ -16,18 +16,21 @@ const Approvals = () => {
     const [hasPermission, setHasPermission] = useState(false);
     const [leaveApprovals, setLeaveApprovals] = useState([]);
     const [onDutyApprovals, setOnDutyApprovals] = useState([]);
+    const [timeOffApprovals, setTimeOffApprovals] = useState([]); // New State
     const [statusFilter, setStatusFilter] = useState('Pending');
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState(null);
     const [error, setError] = useState(null);
     const [expandedSections, setExpandedSections] = useState({
         leave: true,
-        onDuty: false
+        onDuty: false,
+        timeOff: false // New Section
     });
     const [leaveTypeFilter, setLeaveTypeFilter] = useState('All');
     const [nameFilter, setNameFilter] = useState('All');
     const [leaveSortConfig, setLeaveSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
     const [onDutySortConfig, setOnDutySortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+    const [timeOffSortConfig, setTimeOffSortConfig] = useState({ key: 'createdAt', direction: 'desc' }); // New Sort Config
     const [rowsPerPage, setRowsPerPage] = useState(() => {
         const saved = localStorage.getItem('approvalsRowsPerPage');
         return saved ? parseInt(saved) : 10;
@@ -41,27 +44,11 @@ const Approvals = () => {
         hasPrevPage: false,
         hasNextPage: false
     });
-    const [rejectionModal, setRejectionModal] = useState({
-        show: false,
-        item: null,
-        isLeave: false,
-        reason: '',
-        showError: false
-    });
-    const [editReasonModal, setEditReasonModal] = useState({
-        show: false,
-        item: null,
-        isLeave: false,
-        reason: ''
-    });
     const [selectedItems, setSelectedItems] = useState(new Set());
-    const [bulkProcessing, setBulkProcessing] = useState(false);
-    const [bulkRejectionModal, setBulkRejectionModal] = useState({
-        show: false,
-        reason: '',
-        action: null,
-        showError: false
-    });
+
+    // Modals State
+    const [detailsModal, setDetailsModal] = useState({ show: false, item: null, type: null });
+    const [rejectionModal, setRejectionModal] = useState({ show: false, item: null, type: null, reason: '', showError: false });
     const [confirmationModal, setConfirmationModal] = useState({
         show: false,
         title: '',
@@ -70,50 +57,54 @@ const Approvals = () => {
         confirmButtonColor: '',
         action: null
     });
-    const [detailsModal, setDetailsModal] = useState({
-        show: false,
-        item: null,
-        isLeave: false
-    });
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const [editReasonModal, setEditReasonModal] = useState({ show: false, item: null, type: null, reason: '' });
 
-    const getStatusColor = (status = statusFilter) => {
-        switch (status) {
-            case 'Pending': return 'amber';
-            case 'Approved': return 'emerald';
-            case 'Rejected': return 'rose';
-            default: return 'blue';
-        }
-    };
+    // Bulk Action State
+    const [bulkRejectionModal, setBulkRejectionModal] = useState({ show: false, reason: '', action: '', showError: false });
+    const [bulkProcessing, setBulkProcessing] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
 
-    // Check permission first
     useEffect(() => {
         const checkPermission = async () => {
+            const token = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+
+            if (!token || !userStr) {
+                navigate('/login');
+                return;
+            }
+
             try {
-                await fetchRoles(true);
+                const user = JSON.parse(userStr);
+                setCurrentUser(user);
+                await fetchRoles(); // Ensure roles are loaded
+
                 const canApproveL = canApproveLeave(user.role);
-                const canApproveO = canApproveOnDuty(user.role);
-                if (!canApproveL && !canApproveO) {
-                    navigate('/unauthorized', { replace: true });
-                } else {
-                    setHasPermission(true);
+                const canApproveOD = canApproveOnDuty(user.role);
+
+                if (!canApproveL && !canApproveOD) {
+                    toast.error('You do not have permission to access the approvals page');
+                    navigate('/dashboard');
+                    return;
                 }
+
+                setHasPermission(true);
             } catch (error) {
                 console.error('Error checking permissions:', error);
-                navigate('/unauthorized', { replace: true });
+                navigate('/login');
             } finally {
                 setPermissionChecked(true);
             }
         };
+
         checkPermission();
-    }, [user.role, navigate]);
+    }, [navigate]);
 
     useEffect(() => {
-        if (hasPermission) {
-            fetchApprovals(1);
-            setSelectedItems(new Set()); // Clear selections when status changes
+        if (permissionChecked && hasPermission) {
+            fetchApprovals(currentPage);
         }
-    }, [statusFilter, rowsPerPage, hasPermission]);
+    }, [permissionChecked, hasPermission, statusFilter, rowsPerPage, currentPage]);
 
     const fetchApprovals = async (page = 1) => {
         try {
@@ -135,7 +126,7 @@ const Approvals = () => {
             const allRequests = response.data.items || [];
             const paginationData = response.data.pagination || {};
 
-            // Separate leave and on-duty requests
+            // Separate requests
             const leaves = allRequests.filter(item => item.type === 'leave').map(item => ({
                 id: item.id,
                 staff_id: item.staff_id,
@@ -153,7 +144,6 @@ const Approvals = () => {
             }));
 
             const onDuty = allRequests.filter(item => item.type === 'on_duty').map(item => {
-                // Extract location from reason string format: "purpose (location)"
                 const reasonMatch = item.reason.match(/^(.+?)\s*\((.+?)\)$/);
                 const location = reasonMatch ? reasonMatch[2] : '';
                 return {
@@ -178,8 +168,27 @@ const Approvals = () => {
                 };
             });
 
+            const timeOff = allRequests.filter(item => item.type === 'time_off').map(item => ({
+                id: item.id,
+                staff_id: item.staff_id,
+                tblstaff: item.tblstaff,
+                // Time-Off specific fields parsing
+                type: 'time_off',
+                date: item.date,
+                start_time: item.start_time,
+                end_time: item.end_time,
+                reason: item.reason.replace(`${item.start_time} - ${item.end_time}: `, ''), // content comes formatted from backend
+                status: item.status,
+                rejection_reason: item.rejection_reason,
+                manager_id: item.manager_id,
+                approver: item.approver,
+                createdAt: item.createdAt,
+                updatedAt: item.updatedAt
+            }));
+
             setLeaveApprovals(leaves);
             setOnDutyApprovals(onDuty);
+            setTimeOffApprovals(timeOff); // Set new state
             setPagination(paginationData);
         } catch (error) {
             console.error('Error fetching approvals:', error);
@@ -196,13 +205,14 @@ const Approvals = () => {
         }));
     };
 
-    const handleUpdateStatus = async (item, status, isLeave) => {
+    const handleUpdateStatus = async (item, status, type) => {
+        // type: 'leave' | 'onduty' | 'timeoff'
         // If rejecting, show modal to get reason
         if (status === 'rejected') {
             setRejectionModal({
                 show: true,
                 item: item,
-                isLeave: isLeave,
+                type: type, // 'leave', 'onduty', 'timeoff'
                 reason: '',
                 showError: false
             });
@@ -211,14 +221,14 @@ const Approvals = () => {
 
         if (status === 'approved') {
             const employeeName = `${item.tblstaff?.firstname} ${item.tblstaff?.lastname}`;
-            const type = isLeave ? 'Leave' : 'On-Duty';
+            const typeLabel = type === 'leave' ? 'Leave' : (type === 'timeoff' ? 'Time-Off' : 'On-Duty');
             setConfirmationModal({
                 show: true,
                 title: 'Confirm Approval',
-                message: `Are you sure you want to approve this ${type} request for ${employeeName}?`,
+                message: `Are you sure you want to approve this ${typeLabel} request for ${employeeName}?`,
                 confirmText: 'Approve',
                 confirmButtonColor: 'bg-green-600 hover:bg-green-700',
-                action: () => performStatusUpdate(item, status, isLeave, null)
+                action: () => performStatusUpdate(item, status, type, null)
             });
             return;
         }
@@ -231,17 +241,17 @@ const Approvals = () => {
                 message: 'Are you sure you want to move this request back to pending status?',
                 confirmText: 'Revert',
                 confirmButtonColor: 'bg-red-600 hover:bg-red-700',
-                action: () => performStatusUpdate(item, status, isLeave, null)
+                action: () => performStatusUpdate(item, status, type, null)
             });
             return;
         }
 
-        // Proceed directly for other cases (though usually only rejected reaches here but it's handled above)
-        await performStatusUpdate(item, status, isLeave, null);
+        // Proceed directly
+        await performStatusUpdate(item, status, type, null);
     };
 
-    const performStatusUpdate = async (item, status, isLeave, rejectionReason = null) => {
-        const itemKey = `${isLeave ? 'leave' : 'onduty'}-${item.id}-${status}`;
+    const performStatusUpdate = async (item, status, type, rejectionReason = null) => {
+        const itemKey = `${type}-${item.id}-${status}`;
         setProcessingId(itemKey);
         try {
             const token = localStorage.getItem('token');
@@ -251,9 +261,10 @@ const Approvals = () => {
                 return;
             }
 
-            const endpoint = isLeave
-                ? `${API_BASE_URL}/api/leave/${item.id}/status`
-                : `${API_BASE_URL}/api/onduty/${item.id}/status`;
+            let endpoint = '';
+            if (type === 'leave') endpoint = `${API_BASE_URL}/api/leave/${item.id}/status`;
+            else if (type === 'timeoff') endpoint = `${API_BASE_URL}/api/timeoff/${item.id}/status`;
+            else endpoint = `${API_BASE_URL}/api/onduty/${item.id}/status`;
 
             let statusStr = 'Pending';
             if (status === 'approved') statusStr = 'Approved';
@@ -270,18 +281,21 @@ const Approvals = () => {
             );
 
             // Remove from local state
-            if (isLeave) {
+            if (type === 'leave') {
                 setLeaveApprovals(leaveApprovals.filter(a => a.id !== item.id));
+            } else if (type === 'timeoff') {
+                setTimeOffApprovals(timeOffApprovals.filter(a => a.id !== item.id));
             } else {
                 setOnDutyApprovals(onDutyApprovals.filter(a => a.id !== item.id));
             }
 
-            // Dispatch event to notify Header to refresh pending count
+            // Dispatch event to notify Header
             window.dispatchEvent(new Event('approvalStatusChanged'));
 
             setError(null);
             const employeeName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : 'Request';
-            toast.success(`${employeeName}'s ${isLeave ? 'leave' : 'on-duty'} ${statusStr.toLowerCase()} successfully`, {
+            const typeLabel = type === 'leave' ? 'leave' : (type === 'timeoff' ? 'time-off' : 'on-duty');
+            toast.success(`${employeeName}'s ${typeLabel} ${statusStr.toLowerCase()} successfully`, {
                 style: {
                     background: statusStr === 'Approved' ? '#059669' : '#dc2626',
                     color: '#fff'
@@ -297,11 +311,11 @@ const Approvals = () => {
         }
     };
 
-    const handleOpenDetails = (item, isLeave) => {
+    const handleOpenDetails = (item, type) => {
         setDetailsModal({
             show: true,
             item: item,
-            isLeave: isLeave
+            type: type // 'leave', 'onduty', 'timeoff'
         });
     };
 
@@ -315,11 +329,16 @@ const Approvals = () => {
         setSelectedItems(newSelected);
     };
 
-    const handleSelectAll = (isLeave) => {
-        const items = isLeave ? leaveApprovals : onDutyApprovals;
+    const handleSelectAll = (type) => {
+        // type: 'leave', 'onduty', 'timeoff'
+        let items = [];
+        if (type === 'leave') items = leaveApprovals;
+        else if (type === 'timeoff') items = timeOffApprovals;
+        else items = onDutyApprovals;
+
         const newSelected = new Set(selectedItems);
 
-        const allKeys = items.map(item => `${isLeave ? 'leave' : 'onduty'}-${item.id}`);
+        const allKeys = items.map(item => `${type}-${item.id}`);
         const allSelected = allKeys.every(key => newSelected.has(key));
 
         if (allSelected) {
@@ -361,16 +380,20 @@ const Approvals = () => {
 
             const updates = Array.from(selectedItems).map(key => {
                 const [type, id] = key.split('-');
-                const isLeave = type === 'leave';
-                const items = isLeave ? leaveApprovals : onDutyApprovals;
-                const item = items.find(i => i.id === parseInt(id));
-                return { item, isLeave };
-            });
+                let items = [];
+                if (type === 'leave') items = leaveApprovals;
+                else if (type === 'timeoff') items = timeOffApprovals;
+                else items = onDutyApprovals;
 
-            for (const { item, isLeave } of updates) {
-                const endpoint = isLeave
-                    ? `${API_BASE_URL}/api/leave/${item.id}/status`
-                    : `${API_BASE_URL}/api/onduty/${item.id}/status`;
+                const item = items.find(i => i.id === parseInt(id));
+                return { item, type };
+            }).filter(u => u.item); // Filter out any undefined items
+
+            for (const { item, type } of updates) {
+                let endpoint = '';
+                if (type === 'leave') endpoint = `${API_BASE_URL}/api/leave/${item.id}/status`;
+                else if (type === 'timeoff') endpoint = `${API_BASE_URL}/api/timeoff/${item.id}/status`;
+                else endpoint = `${API_BASE_URL}/api/onduty/${item.id}/status`;
 
                 let statusStr = 'Pending';
                 if (status === 'approved') statusStr = 'Approved';
@@ -385,8 +408,9 @@ const Approvals = () => {
             }
 
             // Remove all approved/rejected items from local state
-            setLeaveApprovals(leaveApprovals.filter(a => !selectedItems.has(`leave-${a.id}`)));
-            setOnDutyApprovals(onDutyApprovals.filter(a => !selectedItems.has(`onduty-${a.id}`)));
+            setLeaveApprovals(prev => prev.filter(a => !selectedItems.has(`leave-${a.id}`)));
+            setTimeOffApprovals(prev => prev.filter(a => !selectedItems.has(`timeoff-${a.id}`)));
+            setOnDutyApprovals(prev => prev.filter(a => !selectedItems.has(`onduty-${a.id}`)));
             setSelectedItems(new Set());
             setBulkRejectionModal({ show: false, reason: '', action: null });
 
@@ -409,8 +433,8 @@ const Approvals = () => {
         }
     };
 
-    const updateRejectionReason = async (item, isLeave, newReason) => {
-        const itemKey = `${isLeave ? 'leave' : 'onduty'}-${item.id}-edit`;
+    const updateRejectionReason = async (item, type, newReason) => {
+        const itemKey = `${type}-${item.id}-edit`;
         setProcessingId(itemKey);
         try {
             const token = localStorage.getItem('token');
@@ -420,9 +444,10 @@ const Approvals = () => {
                 return;
             }
 
-            const endpoint = isLeave
-                ? `${API_BASE_URL}/api/leave/${item.id}/status`
-                : `${API_BASE_URL}/api/onduty/${item.id}/status`;
+            let endpoint = '';
+            if (type === 'leave') endpoint = `${API_BASE_URL}/api/leave/${item.id}/status`;
+            else if (type === 'timeoff') endpoint = `${API_BASE_URL}/api/timeoff/${item.id}/status`;
+            else endpoint = `${API_BASE_URL}/api/onduty/${item.id}/status`;
 
             // Update only the rejection_reason without changing the status
             await axios.put(endpoint,
@@ -431,8 +456,12 @@ const Approvals = () => {
             );
 
             // Update local state - update the item's rejection_reason
-            if (isLeave) {
+            if (type === 'leave') {
                 setLeaveApprovals(leaveApprovals.map(a =>
+                    a.id === item.id ? { ...a, rejection_reason: newReason } : a
+                ));
+            } else if (type === 'timeoff') {
+                setTimeOffApprovals(timeOffApprovals.map(a =>
                     a.id === item.id ? { ...a, rejection_reason: newReason } : a
                 ));
             } else {
@@ -499,9 +528,16 @@ const Approvals = () => {
         return matchesName;
     });
 
+    const filteredTimeOffApprovals = timeOffApprovals.filter(item => { // New Filter
+        const staffName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : '';
+        const matchesName = nameFilter === 'All' || staffName === nameFilter;
+        return matchesName;
+    });
+
     // Apply sorting to filtered data
     const sortedAndFilteredLeaveApprovals = sortData(filteredLeaveApprovals, leaveSortConfig.key, leaveSortConfig.direction);
     const sortedAndFilteredOnDutyApprovals = sortData(filteredOnDutyApprovals, onDutySortConfig.key, onDutySortConfig.direction);
+    const sortedAndFilteredTimeOffApprovals = sortData(filteredTimeOffApprovals, timeOffSortConfig.key, timeOffSortConfig.direction); // New Sort
 
     const getUniqueLeaveTypes = () => {
         const types = new Set(leaveApprovals.map(item => item.leave_type));
@@ -639,14 +675,14 @@ const Approvals = () => {
                     ].map((tab) => {
                         const isActive = statusFilter === tab.id;
                         const colorClasses = {
-                            amber: isActive 
-                                ? 'bg-amber-500 dark:bg-amber-600 text-white border-0 shadow-lg shadow-amber-500/30' 
+                            amber: isActive
+                                ? 'bg-amber-500 dark:bg-amber-600 text-white border-0 shadow-lg shadow-amber-500/30'
                                 : 'text-black dark:text-black border-2 border-black dark:border-black bg-white dark:bg-white hover:bg-gray-100 dark:hover:bg-gray-100',
-                            emerald: isActive 
-                                ? 'bg-emerald-500 dark:bg-emerald-600 text-white border-0 shadow-lg shadow-emerald-500/30' 
+                            emerald: isActive
+                                ? 'bg-emerald-500 dark:bg-emerald-600 text-white border-0 shadow-lg shadow-emerald-500/30'
                                 : 'text-black dark:text-black border-2 border-black dark:border-black bg-white dark:bg-white hover:bg-gray-100 dark:hover:bg-gray-100',
-                            rose: isActive 
-                                ? 'bg-rose-500 dark:bg-rose-600 text-white border-0 shadow-lg shadow-rose-500/30' 
+                            rose: isActive
+                                ? 'bg-rose-500 dark:bg-rose-600 text-white border-0 shadow-lg shadow-rose-500/30'
                                 : 'text-black dark:text-black border-2 border-black dark:border-black bg-white dark:bg-white hover:bg-gray-100 dark:hover:bg-gray-100'
                         };
 
@@ -655,7 +691,7 @@ const Approvals = () => {
                                 key={tab.id}
                                 onClick={() => {
                                     setStatusFilter(tab.id);
-                                    setExpandedSections({ leave: true, onDuty: false });
+                                    setExpandedSections({ leave: true, onDuty: false, timeOff: false });
                                 }}
                                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black transition-all duration-300 transform hover:scale-105 ${colorClasses[tab.color]}`}
                             >
@@ -683,7 +719,7 @@ const Approvals = () => {
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[var(--header-bg)] p-4 rounded-xl shadow-sm border border-[var(--border-color)]">
                         <div className="flex gap-2">
                             <button
-                                onClick={() => setExpandedSections({ leave: true, onDuty: false })}
+                                onClick={() => setExpandedSections({ leave: true, onDuty: false, timeOff: false })}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.leave
                                     ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
                                     : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
@@ -692,7 +728,16 @@ const Approvals = () => {
                                 Leave Requests ({pagination.leaveCount !== undefined ? pagination.leaveCount : leaveApprovals.length})
                             </button>
                             <button
-                                onClick={() => setExpandedSections({ leave: false, onDuty: true })}
+                                onClick={() => setExpandedSections({ leave: false, onDuty: false, timeOff: true })}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.timeOff
+                                    ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
+                                    : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
+                                    }`}
+                            >
+                                Time-Off Requests ({timeOffApprovals.length})
+                            </button>
+                            <button
+                                onClick={() => setExpandedSections({ leave: false, onDuty: true, timeOff: false })}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.onDuty
                                     ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
                                     : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
@@ -748,7 +793,7 @@ const Approvals = () => {
 
                     {/* Main Table */}
                     <div className="bg-[var(--header-bg)] rounded-xl shadow-lg overflow-hidden border border-[var(--border-color)]">
-                        {expandedSections.leave ? (
+                        {expandedSections.leave && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead className="bg-[#2E5090] text-white">
@@ -757,7 +802,7 @@ const Approvals = () => {
                                                 <th className="px-6 py-3 w-10">
                                                     <input
                                                         type="checkbox"
-                                                        onChange={() => handleSelectAll(true)}
+                                                        onChange={() => handleSelectAll('leave')}
                                                         checked={leaveApprovals.length > 0 && selectedItems.size === leaveApprovals.map(i => `leave-${i.id}`).filter(k => selectedItems.has(k)).length}
                                                         className="w-4 h-4 rounded accent-blue-600"
                                                     />
@@ -779,7 +824,7 @@ const Approvals = () => {
                                                 <tr
                                                     key={`l-${req.id}`}
                                                     className="hover:bg-gray-50 transition-colors cursor-pointer group"
-                                                    onClick={() => handleOpenDetails(req, true)}
+                                                    onClick={() => handleOpenDetails(req, 'leave')}
                                                 >
                                                     {statusFilter === 'Pending' && (
                                                         <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
@@ -836,14 +881,14 @@ const Approvals = () => {
                                                         {!isHistory ? (
                                                             <div className="flex justify-end gap-2">
                                                                 <button
-                                                                    onClick={() => handleUpdateStatus(req, 'approved', true)}
+                                                                    onClick={() => handleUpdateStatus(req, 'approved', 'leave')}
                                                                     disabled={processingId === `leave-${req.id}-approved`}
                                                                     className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
                                                                 >
                                                                     {processingId === `leave-${req.id}-approved` ? '...' : 'Approve'}
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => handleUpdateStatus(req, 'rejected', true)}
+                                                                    onClick={() => handleUpdateStatus(req, 'rejected', 'leave')}
                                                                     disabled={processingId === `leave-${req.id}-rejected`}
                                                                     className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
                                                                 >
@@ -853,19 +898,19 @@ const Approvals = () => {
                                                         ) : (
                                                             <div className="flex items-center justify-end gap-3">
                                                                 <button
-                                                                    onClick={() => handleUpdateStatus(req, 'pending', true)}
+                                                                    onClick={() => handleUpdateStatus(req, 'pending', 'leave')}
                                                                     disabled={processingId === `leave-${req.id}-pending`}
                                                                     className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 transition-colors"
                                                                     title="Revert to Pending"
                                                                 >
                                                                     Revert
                                                                 </button>
-                                                                {statusFilter === 'Rejected' && req.manager_id && (Number(user.id) === Number(req.manager_id) || Number(user.staffid) === Number(req.manager_id)) && (
+                                                                {statusFilter === 'Rejected' && req.manager_id && currentUser && (Number(currentUser.id) === Number(req.manager_id) || Number(currentUser.staffid) === Number(req.manager_id)) && (
                                                                     <button
                                                                         onClick={() => setEditReasonModal({
                                                                             show: true,
                                                                             item: req,
-                                                                            isLeave: true,
+                                                                            type: 'leave',
                                                                             reason: req.rejection_reason || ''
                                                                         })}
                                                                         className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
@@ -889,7 +934,150 @@ const Approvals = () => {
                                     </tbody>
                                 </table>
                             </div>
-                        ) : (
+                        )}
+
+                        {expandedSections.timeOff && (
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fadeIn">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-bold">
+                                            {statusFilter === 'Pending' && (
+                                                <th className="px-6 py-3 w-10">
+                                                    <input
+                                                        type="checkbox"
+                                                        onChange={() => handleSelectAll('timeoff')}
+                                                        checked={timeOffApprovals.length > 0 && selectedItems.size === timeOffApprovals.map(i => `timeoff-${i.id}`).filter(k => selectedItems.has(k)).length}
+                                                        className="w-4 h-4 rounded accent-blue-600"
+                                                    />
+                                                </th>
+                                            )}
+                                            <th className="px-6 py-3">Employee</th>
+                                            <th className="px-6 py-3">Date</th>
+                                            <th className="px-6 py-3">Duration</th>
+                                            <th className="px-6 py-3">Time</th>
+                                            <th className="px-6 py-3">Reason</th>
+                                            {statusFilter === 'Approved' && <th className="px-6 py-3">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-6 py-3">Rejection Reason</th>}
+                                            <th className="px-6 py-3 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {sortedAndFilteredTimeOffApprovals.length > 0 ? (
+                                            sortedAndFilteredTimeOffApprovals.map((req) => (
+                                                <tr
+                                                    key={`t-${req.id}`}
+                                                    className="hover:bg-gray-50 transition-colors cursor-pointer group"
+                                                    onClick={() => handleOpenDetails(req, 'timeoff')}
+                                                >
+                                                    {statusFilter === 'Pending' && (
+                                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedItems.has(`timeoff-${req.id}`)}
+                                                                onChange={() => handleSelectItem(`timeoff-${req.id}`)}
+                                                                className="w-4 h-4 rounded accent-[#2E5090]"
+                                                            />
+                                                        </td>
+                                                    )}
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-sm">
+                                                                {req.tblstaff?.firstname?.charAt(0)}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium text-gray-900">{req.tblstaff?.firstname} {req.tblstaff?.lastname}</p>
+                                                                <p className="text-xs text-gray-500">ID: {req.staff_id}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-gray-900">
+                                                        {new Date(req.date).toLocaleDateString()}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded text-sm font-medium">
+                                                            {calculateTimeOffDuration(req.start_time, req.end_time)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                                        {req.start_time} - {req.end_time}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs">
+                                                        <div className="line-clamp-2" title={req.reason}>
+                                                            {req.reason || '-'}
+                                                        </div>
+                                                    </td>
+                                                    {statusFilter === 'Approved' && (
+                                                        <td className="px-6 py-4 text-sm text-gray-700">
+                                                            {req.approver ? `${req.approver.firstname} ${req.approver.lastname}` : '-'}
+                                                        </td>
+                                                    )}
+                                                    {statusFilter === 'Rejected' && (
+                                                        <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs" title={req.rejection_reason}>
+                                                            {req.rejection_reason && req.rejection_reason.length > 120
+                                                                ? `${req.rejection_reason.substring(0, 120)}...`
+                                                                : req.rejection_reason || '-'}
+                                                        </td>
+                                                    )}
+                                                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                                        {!isHistory ? (
+                                                            <div className="flex justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => handleUpdateStatus(req, 'approved', 'timeoff')}
+                                                                    disabled={processingId === `timeoff-${req.id}-approved`}
+                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
+                                                                >
+                                                                    {processingId === `timeoff-${req.id}-approved` ? '...' : 'Approve'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleUpdateStatus(req, 'rejected', 'timeoff')}
+                                                                    disabled={processingId === `timeoff-${req.id}-rejected`}
+                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
+                                                                >
+                                                                    {processingId === `timeoff-${req.id}-rejected` ? '...' : 'Reject'}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-end gap-3">
+                                                                <button
+                                                                    onClick={() => handleUpdateStatus(req, 'pending', 'timeoff')}
+                                                                    disabled={processingId === `timeoff-${req.id}-pending`}
+                                                                    className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 transition-colors"
+                                                                    title="Revert to Pending"
+                                                                >
+                                                                    Revert
+                                                                </button>
+                                                                {statusFilter === 'Rejected' && req.manager_id && currentUser && (Number(currentUser.id) === Number(req.manager_id) || Number(currentUser.staffid) === Number(req.manager_id)) && (
+                                                                    <button
+                                                                        onClick={() => setEditReasonModal({
+                                                                            show: true,
+                                                                            item: req,
+                                                                            type: 'timeoff',
+                                                                            reason: req.rejection_reason || ''
+                                                                        })}
+                                                                        className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
+                                                                    >
+                                                                        Edit Reason
+                                                                    </button>
+                                                                )}
+
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
+                                                    No time-off requests found
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {expandedSections.onDuty && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead className="bg-[#2E5090] text-white">
@@ -919,7 +1107,7 @@ const Approvals = () => {
                                                 <tr
                                                     key={`o-${req.id}`}
                                                     className="hover:bg-gray-50 transition-colors cursor-pointer group"
-                                                    onClick={() => handleOpenDetails(req, false)}
+                                                    onClick={() => handleOpenDetails(req, 'onduty')}
                                                 >
                                                     {statusFilter === 'Pending' && (
                                                         <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
@@ -970,14 +1158,14 @@ const Approvals = () => {
                                                         {!isHistory ? (
                                                             <div className="flex justify-end gap-2">
                                                                 <button
-                                                                    onClick={() => handleUpdateStatus(req, 'approved', false)}
+                                                                    onClick={() => handleUpdateStatus(req, 'approved', 'onduty')}
                                                                     disabled={processingId === `onduty-${req.id}-approved`}
                                                                     className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
                                                                 >
                                                                     {processingId === `onduty-${req.id}-approved` ? '...' : 'Approve'}
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => handleUpdateStatus(req, 'rejected', false)}
+                                                                    onClick={() => handleUpdateStatus(req, 'rejected', 'onduty')}
                                                                     disabled={processingId === `onduty-${req.id}-rejected`}
                                                                     className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
                                                                 >
@@ -987,19 +1175,19 @@ const Approvals = () => {
                                                         ) : (
                                                             <div className="flex items-center justify-end gap-3">
                                                                 <button
-                                                                    onClick={() => handleUpdateStatus(req, 'pending', false)}
+                                                                    onClick={() => handleUpdateStatus(req, 'pending', 'onduty')}
                                                                     disabled={processingId === `onduty-${req.id}-pending`}
                                                                     className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 transition-colors"
                                                                     title="Revert to Pending"
                                                                 >
                                                                     Revert
                                                                 </button>
-                                                                {statusFilter === 'Rejected' && req.manager_id && (Number(user.id) === Number(req.manager_id) || Number(user.staffid) === Number(req.manager_id)) && (
+                                                                {statusFilter === 'Rejected' && req.manager_id && currentUser && (Number(currentUser.id) === Number(req.manager_id) || Number(currentUser.staffid) === Number(req.manager_id)) && (
                                                                     <button
                                                                         onClick={() => setEditReasonModal({
                                                                             show: true,
                                                                             item: req,
-                                                                            isLeave: false,
+                                                                            type: 'onduty',
                                                                             reason: req.rejection_reason || ''
                                                                         })}
                                                                         className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
@@ -1071,7 +1259,7 @@ const Approvals = () => {
                                             setRejectionModal({ ...rejectionModal, showError: true });
                                             return;
                                         }
-                                        performStatusUpdate(rejectionModal.item, 'rejected', rejectionModal.isLeave, rejectionModal.reason);
+                                        performStatusUpdate(rejectionModal.item, 'rejected', rejectionModal.type, rejectionModal.reason);
                                         setRejectionModal({ ...rejectionModal, show: false, reason: '', showError: false });
                                     }}
                                     className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md shadow-red-100"
@@ -1161,7 +1349,7 @@ const Approvals = () => {
                                 </button>
                                 <button
                                     onClick={() => {
-                                        updateRejectionReason(editReasonModal.item, editReasonModal.isLeave, editReasonModal.reason);
+                                        updateRejectionReason(editReasonModal.item, editReasonModal.type, editReasonModal.reason);
                                         setEditReasonModal({ ...editReasonModal, show: false });
                                     }}
                                     className="px-6 py-2.5 bg-[#2E5090] text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-blue-800 transition-all shadow-md"
@@ -1222,12 +1410,14 @@ const Approvals = () => {
 
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl font-bold shadow-inner border border-white/20">
-                                    {detailsModal.isLeave ? '📄' : '📍'}
+                                    {detailsModal.type === 'leave' ? '📄' : (detailsModal.type === 'timeoff' ? '⏱️' : '📍')}
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold">{detailsModal.isLeave ? 'Leave Request Details' : 'On-Duty Details'}</h2>
+                                    <h2 className="text-xl font-bold">
+                                        {detailsModal.type === 'leave' ? 'Leave Request Details' : (detailsModal.type === 'timeoff' ? 'Time-Off Details' : 'On-Duty Details')}
+                                    </h2>
                                     <p className="text-white/80 text-xs font-semibold tracking-wide">
-                                        {detailsModal.isLeave ? 'Leave Application Details' : 'On-Duty Transaction Details'}
+                                        {detailsModal.type === 'leave' ? 'Leave Application Details' : (detailsModal.type === 'timeoff' ? 'Hourly Permission Details' : 'On-Duty Transaction Details')}
                                     </p>
                                 </div>
                             </div>
@@ -1263,9 +1453,9 @@ const Approvals = () => {
                                 <div className="space-y-1">
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Category Type</p>
                                     <p className="text-base font-semibold text-gray-900">
-                                        {detailsModal.isLeave ? detailsModal.item.leave_type : detailsModal.item.client_name}
+                                        {detailsModal.type === 'leave' ? detailsModal.item.leave_type : (detailsModal.type === 'timeoff' ? 'Time-Off' : detailsModal.item.client_name)}
                                     </p>
-                                    {!detailsModal.isLeave && (
+                                    {detailsModal.type === 'onduty' && (
                                         <p className="text-sm text-[#2E5090] font-medium flex items-center gap-1">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                                 <path fillRule="evenodd" d="m9.69 18.94.027.013a2.358 2.358 0 0 0 2.566-.013l.027-.013c.12-.058.214-.144.3-.23.111-.11.23-.235.343-.352l.006-.006c.928-.971 1.636-1.742 2.146-2.583.506-.833.76-1.614.76-2.345 0-2.433-2.029-4.409-4.528-4.409-2.5 0-4.528 1.976-4.528 4.409 0 .731.254 1.512.759 2.345.51.841 1.218 1.612 2.147 2.583l.006.006c.113.117.232.243.343.352.086.086.18.172.3.23ZM10 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
@@ -1277,9 +1467,11 @@ const Approvals = () => {
                                 <div className="space-y-1">
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                     <p className="text-base font-semibold text-gray-900">
-                                        {detailsModal.isLeave
+                                        {detailsModal.type === 'leave'
                                             ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date)} Day(s)`
-                                            : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time)
+                                            : (detailsModal.type === 'timeoff'
+                                                ? calculateTimeOffDuration(detailsModal.item.start_time, detailsModal.item.end_time)
+                                                : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time))
                                         }
                                     </p>
                                 </div>
@@ -1287,7 +1479,9 @@ const Approvals = () => {
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective Start</p>
                                     <div className="flex items-center gap-2">
                                         <p className="text-base font-semibold text-gray-900">
-                                            {detailsModal.isLeave ? detailsModal.item.start_date : formatApprovalDate(detailsModal.item.start_time)}
+                                            {detailsModal.type === 'leave'
+                                                ? detailsModal.item.start_date
+                                                : (detailsModal.type === 'timeoff' ? `${detailsModal.item.start_time} (On ${new Date(detailsModal.item.date).toLocaleDateString()})` : formatApprovalDate(detailsModal.item.start_time))}
                                         </p>
                                     </div>
                                 </div>
@@ -1295,7 +1489,9 @@ const Approvals = () => {
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective End</p>
                                     <div className="flex items-center gap-2">
                                         <p className="text-base font-semibold text-gray-900">
-                                            {detailsModal.isLeave ? detailsModal.item.end_date : formatApprovalDate(detailsModal.item.end_time)}
+                                            {detailsModal.type === 'leave'
+                                                ? detailsModal.item.end_date
+                                                : (detailsModal.type === 'timeoff' ? detailsModal.item.end_time : formatApprovalDate(detailsModal.item.end_time))}
                                         </p>
                                     </div>
                                 </div>
@@ -1304,13 +1500,12 @@ const Approvals = () => {
                             {/* Reason Section */}
                             <div className="space-y-3">
                                 <p className="text-xs font-bold text-[#2E5090] tracking-wide">Applied Reason / Purpose</p>
-                                <div className="p-5 bg-gray-50 rounded-xl border border-gray-100 text-gray-700 leading-relaxed font-medium">
-                                    {detailsModal.isLeave ? detailsModal.item.reason : detailsModal.item.purpose || 'Task documentation provided.'}
-                                </div>
+                                <p className="text-sm font-medium text-gray-800 bg-gray-50 p-3 rounded-lg border border-gray-100 leading-relaxed">
+                                    {detailsModal.type === 'onduty' ? (detailsModal.item.purpose || 'No purpose specified.') : (detailsModal.item.reason || 'No reason provided.')}
+                                </p>
                             </div>
-
                             {/* Location Map for On-Duty */}
-                            {!detailsModal.isLeave && (
+                            {detailsModal.type === 'onduty' && (
                                 <div className="space-y-3">
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Location Tracking</p>
                                     <OnDutyLocationMap
@@ -1346,14 +1541,14 @@ const Approvals = () => {
                                         <div className="pt-3 border-t border-red-100">
                                             <div className="flex justify-between items-center mb-2">
                                                 <span className="text-xs font-bold text-red-600 tracking-wide block">Rejection Justification:</span>
-                                                {detailsModal.item.manager_id && (Number(user.id) === Number(detailsModal.item.manager_id) || Number(user.staffid) === Number(detailsModal.item.manager_id)) && (
+                                                {detailsModal.item.manager_id && currentUser && (Number(currentUser.id) === Number(detailsModal.item.manager_id) || Number(currentUser.staffid) === Number(detailsModal.item.manager_id)) && (
                                                     <button
                                                         onClick={() => {
                                                             setDetailsModal({ ...detailsModal, show: false });
                                                             setEditReasonModal({
                                                                 show: true,
                                                                 item: detailsModal.item,
-                                                                isLeave: detailsModal.isLeave,
+                                                                type: detailsModal.type,
                                                                 reason: detailsModal.item.rejection_reason || ''
                                                             });
                                                         }}
@@ -1393,8 +1588,8 @@ const Approvals = () => {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => {
+                                                handleUpdateStatus(detailsModal.item, 'rejected', detailsModal.type);
                                                 setDetailsModal({ ...detailsModal, show: false });
-                                                handleUpdateStatus(detailsModal.item, 'rejected', detailsModal.isLeave);
                                             }}
                                             className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md"
                                         >
@@ -1402,8 +1597,8 @@ const Approvals = () => {
                                         </button>
                                         <button
                                             onClick={() => {
+                                                handleUpdateStatus(detailsModal.item, 'approved', detailsModal.type);
                                                 setDetailsModal({ ...detailsModal, show: false });
-                                                handleUpdateStatus(detailsModal.item, 'approved', detailsModal.isLeave);
                                             }}
                                             className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-green-700 transition-all shadow-md shadow-green-100"
                                         >
@@ -1433,6 +1628,20 @@ const calculateOnDutyDuration = (startTime, endTime) => {
     if (hours > 0) {
         return `${hours}h ${mins}m`;
     }
+    return `${mins}m`;
+};
+
+const calculateTimeOffDuration = (startTime, endTime) => {
+    if (!startTime || !endTime) return '-';
+    // Format: HH:MM:SS
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    const start = startH * 60 + startM;
+    const end = endH * 60 + endM;
+    const diff = end - start;
+    const hours = Math.floor(diff / 60);
+    const mins = diff % 60;
+    if (hours > 0) return `${hours}h ${mins}m`;
     return `${mins}m`;
 };
 

@@ -14,7 +14,8 @@ import {
     LuShield,
     LuMail,
     LuChevronLeft,
-    LuChevronRight
+    LuChevronRight,
+    LuClipboardPen
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
@@ -246,6 +247,8 @@ const Sidebar = () => {
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                         )}
+                        {/* My Requests - Self-service page */}
+                        <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
                     </div>
                 )}
                 {isCollapsed && (
@@ -257,6 +260,7 @@ const Sidebar = () => {
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                         )}
+                        <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
                     </div>
                 )}
 

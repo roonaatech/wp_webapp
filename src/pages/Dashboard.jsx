@@ -87,9 +87,9 @@ const Dashboard = () => {
     const [detailsModal, setDetailsModal] = useState({ show: false, item: null, isLeave: false });
     const [modalError, setModalError] = useState('');
     const [processingId, setProcessingId] = useState(null);
-    
+
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    
+
     // Open details modal when clicking a card
     const handleOpenDetails = (item, isLeave) => {
         setDetailsModal({
@@ -98,7 +98,7 @@ const Dashboard = () => {
             isLeave: isLeave
         });
     };
-    
+
     const [stats, setStats] = useState({
         pendingLeaves: 0,
         approvedLeaves: 0,
@@ -106,7 +106,10 @@ const Dashboard = () => {
         pendingOnDuty: 0,
         approvedOnDuty: 0,
         rejectedOnDuty: 0,
-        activeOnDuty: 0
+        activeOnDuty: 0,
+        pendingTimeOff: 0,
+        approvedTimeOff: 0,
+        rejectedTimeOff: 0
     });
     const [trendData, setTrendData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -216,7 +219,10 @@ const Dashboard = () => {
                 pendingOnDuty: Number(response.data.pendingOnDuty) || 0,
                 approvedOnDuty: Number(response.data.approvedOnDuty) || 0,
                 rejectedOnDuty: Number(response.data.rejectedOnDuty) || 0,
-                activeOnDuty: Number(response.data.activeOnDuty) || 0
+                activeOnDuty: Number(response.data.activeOnDuty) || 0,
+                pendingTimeOff: Number(response.data.pendingTimeOff) || 0,
+                approvedTimeOff: Number(response.data.approvedTimeOff) || 0,
+                rejectedTimeOff: Number(response.data.rejectedTimeOff) || 0
             };
             setStats(cleanedData);
 
@@ -274,7 +280,7 @@ const Dashboard = () => {
                     type: item.type,
                     name: name,
                     staff_id: item.staff_id,
-                    title: item.type === 'leave' ? item.title : item.title.replace('On-Duty: ', ''),
+                    title: item.type === 'leave' ? item.title : (item.type === 'time_off' ? 'Time-Off' : item.title.replace('On-Duty: ', '')),
                     start_date: item.start_date,
                     end_date: item.end_date,
                     status: item.status,
@@ -347,6 +353,7 @@ const Dashboard = () => {
         for (let i = 0; i < days; i++) {
             if (i < dataPoints && totalApprovals > 0) {
                 // Actual data points
+                // On the last data point, ensure we reach the total
                 const variance = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
                 let dailyLeaves = Math.max(0, baseLeaves + variance);
                 let dailyOnDuty = Math.max(0, baseOnDuty + variance);
@@ -364,6 +371,7 @@ const Dashboard = () => {
                     day: trendDays[i],
                     leaves: dailyLeaves,
                     onDuty: dailyOnDuty,
+                    timeOff: 0, // Simplified for now
                     total: dailyLeaves + dailyOnDuty
                 });
             } else {
@@ -436,6 +444,18 @@ const Dashboard = () => {
         datasets: [{
             data: [stats.activeOnDuty, stats.pendingOnDuty, stats.approvedOnDuty, stats.rejectedOnDuty],
             backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444'],
+            borderColor: '#fff',
+            borderWidth: 3,
+            hoverBorderWidth: 4,
+            hoverOffset: 5
+        }]
+    };
+
+    const timeOffDoughnutData = {
+        labels: ['Pending', 'Approved', 'Rejected'],
+        datasets: [{
+            data: [stats.pendingTimeOff, stats.approvedTimeOff, stats.rejectedTimeOff],
+            backgroundColor: ['#f59e0b', '#14b8a6', '#ef4444'],
             borderColor: '#fff',
             borderWidth: 3,
             hoverBorderWidth: 4,
@@ -594,8 +614,8 @@ const Dashboard = () => {
                                                 >
                                                     <div className="flex justify-between items-start mb-4">
                                                         <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${item.type === 'leave'
-                                                                ? 'bg-blue-50 text-blue-600'
-                                                                : 'bg-purple-50 text-purple-600'
+                                                            ? 'bg-blue-50 text-blue-600'
+                                                            : (item.type === 'time_off' ? 'bg-teal-50 text-teal-600' : 'bg-purple-50 text-purple-600')
                                                             }`}>
                                                             {item.type}
                                                         </span>
@@ -658,8 +678,8 @@ const Dashboard = () => {
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <StatCard
-                                        title="Total Leave Requests"
-                                        value={stats.pendingLeaves + stats.approvedLeaves + stats.rejectedLeaves}
+                                        title="Total Requests"
+                                        value={stats.pendingLeaves + stats.approvedLeaves + stats.rejectedLeaves + stats.pendingTimeOff + stats.approvedTimeOff + stats.rejectedTimeOff}
                                         icon="📄"
                                         color="text-blue-600"
                                         footer="Engagement overview"
@@ -747,6 +767,40 @@ const Dashboard = () => {
                                         icon="🚫"
                                         color="text-red-600"
                                         footer="Policy violation"
+                                        gradient="bg-gradient-to-br from-red-400 to-rose-600"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Time-Off Section */}
+                            <div className="mb-12">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-2 h-8 bg-teal-500 rounded-full"></div>
+                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">Time-Off Management</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <StatCard
+                                        title="Pending Review"
+                                        value={stats.pendingTimeOff}
+                                        icon="⏳"
+                                        color="text-orange-600"
+                                        footer="Action Required"
+                                        gradient="bg-gradient-to-br from-orange-400 to-amber-500"
+                                    />
+                                    <StatCard
+                                        title="Approved"
+                                        value={stats.approvedTimeOff}
+                                        icon="✨"
+                                        color="text-teal-600"
+                                        footer="Total approved"
+                                        gradient="bg-gradient-to-br from-teal-400 to-emerald-600"
+                                    />
+                                    <StatCard
+                                        title="Rejected"
+                                        value={stats.rejectedTimeOff}
+                                        icon="🚨"
+                                        color="text-red-600"
+                                        footer="Total rejected"
                                         gradient="bg-gradient-to-br from-red-400 to-rose-600"
                                     />
                                 </div>
@@ -853,13 +907,14 @@ const Dashboard = () => {
                                                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
                                                 <Bar dataKey="leaves" fill="#10b981" radius={[8, 8, 0, 0]} name="Leave Approvals" />
                                                 <Bar dataKey="onDuty" fill="#3b82f6" radius={[8, 8, 0, 0]} name="On-Duty Approvals" />
+                                                <Bar dataKey="timeOff" fill="#14b8a6" radius={[8, 8, 0, 0]} name="Time-Off Approvals" />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>
                                 </div>
 
                                 {/* Doughnut Charts Grid (Chart.js) */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                                     {/* Leave Distribution Doughnut Chart */}
                                     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
                                         <h3 className="text-lg font-bold text-gray-900 mb-2">Leave Request Distribution</h3>
@@ -875,6 +930,15 @@ const Dashboard = () => {
                                         <p className="text-sm text-gray-600 mb-4">Breakdown of all on-duty logs by status - shows active, pending, approved, and rejected entries.</p>
                                         <div style={{ height: '350px', position: 'relative' }}>
                                             <Doughnut data={onDutyDoughnutData} options={doughnutOptions} />
+                                        </div>
+                                    </div>
+
+                                    {/* Time-Off Distribution Doughnut Chart */}
+                                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">Time-Off Distribution</h3>
+                                        <p className="text-sm text-gray-600 mb-4">Breakdown of all time-off requests by status - shows pending, approved, and rejected entries.</p>
+                                        <div style={{ height: '350px', position: 'relative' }}>
+                                            <Doughnut data={timeOffDoughnutData} options={doughnutOptions} />
                                         </div>
                                     </div>
                                 </div>
