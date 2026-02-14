@@ -8,11 +8,22 @@ import { getRoleDisplayName } from '../utils/roleUtils';
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
     if (!dateStr) return '';
+    // If dateStr is an ISO string like "2026-02-14T01:43:14.000Z", take only "2026-02-14"
+    const actualDateStr = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+
     // Parse as local date to avoid timezone issues
-    // If dateStr is "2026-02-14", we want to display Feb 14, not Feb 13
-    const [year, month, day] = dateStr.split('-');
-    const d = new Date(year, month - 1, day); // month is 0-indexed
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const parts = String(actualDateStr).split('-');
+    if (parts.length === 3) {
+        const [year, month, day] = parts;
+        const d = new Date(year, month - 1, day); // month is 0-indexed
+        if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+    }
+
+    // Fallback to standard parsing if split fails or result is invalid
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? 'Invalid Date' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const formatTime12 = (timeStr) => {

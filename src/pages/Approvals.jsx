@@ -13,10 +13,15 @@ import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtil
 // Helper to format dates without timezone conversion
 const formatDateLocal = (dateStr) => {
     if (!dateStr) return '';
-    const [year, month, day] = dateStr.split('-');
-    if (!year || !month || !day) return new Date(dateStr).toLocaleDateString();
-    const d = new Date(year, month - 1, day);
-    return d.toLocaleDateString();
+    // Handle timestamps by taking only the date part
+    const actualDateStr = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const parts = String(actualDateStr).split('-');
+    if (parts.length === 3) {
+        const [year, month, day] = parts;
+        const d = new Date(year, month - 1, day);
+        if (!isNaN(d.getTime())) return d.toLocaleDateString();
+    }
+    return new Date(dateStr).toLocaleDateString();
 };
 
 
