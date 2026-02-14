@@ -4,7 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName } from '../utils/roleUtils';
-import { formatInTimezone } from '../utils/timezone.util';
+import { formatInTimezone, getAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
@@ -43,8 +43,14 @@ const formatTime12 = (timeStr) => {
 const calculateLeaveDaysExcludingSunday = (start, end) => {
     if (!start || !end) return 0;
     let count = 0;
-    let current = new Date(start);
-    const endDate = new Date(end);
+
+    // Split YYYY-MM-DD to avoid UTC shift
+    const [sY, sM, sD] = start.split('-').map(Number);
+    const [eY, eM, eD] = end.split('-').map(Number);
+
+    let current = new Date(sY, sM - 1, sD);
+    const endDate = new Date(eY, eM - 1, eD);
+
     while (current <= endDate) {
         if (current.getDay() !== 0) count++; // 0 = Sunday
         current.setDate(current.getDate() + 1);
@@ -227,6 +233,24 @@ const MyRequests = () => {
             else if (activeTab === 'timeoff') fetchMyTimeOffs();
         }
     }, [activeView, activeTab]);
+
+    // Handle settingsLoaded event to refresh timezone context
+    useEffect(() => {
+        const handleSettingsUpdate = () => {
+            setCurrentAppTime(getCurrentInAppTimezone());
+        };
+        window.addEventListener('settingsLoaded', handleSettingsUpdate);
+        return () => window.removeEventListener('settingsLoaded', handleSettingsUpdate);
+    }, []);
+
+    // Auto-initialize Time-Off form with current app time
+    useEffect(() => {
+        if (activeTab === 'timeoff' && activeView === 'apply') {
+            const nowInApp = getCurrentInAppTimezone();
+            if (!toDate) setToDate(nowInApp.date);
+            if (!toStartTime) setToStartTime(nowInApp.time);
+        }
+    }, [activeTab, activeView, toDate, toStartTime]);
 
     // ─── Submit Handlers ───────────────────────────────────
     const handleLeaveSubmit = async (e) => {
@@ -546,8 +570,17 @@ const MyRequests = () => {
         return `${minutes}m`;
     };
 
-    // Today's date in yyyy-mm-dd for min attribute
-    const today = new Date().toISOString().split('T')[0];
+    // Today's date in yyyy-mm-dd for min attribute - using app timezone
+    const today = getCurrentInAppTimezone().date;
+
+    // Real-time clock for the UI to show application time
+    const [currentAppTime, setCurrentAppTime] = useState(getCurrentInAppTimezone());
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentAppTime(getCurrentInAppTimezone());
+        }, 10000); // update every 10s
+        return () => clearInterval(interval);
+    }, []);
 
     // ── Calendar Logic ──
     const [calendarOpen, setCalendarOpen] = useState(false);
@@ -575,11 +608,21 @@ const MyRequests = () => {
     const leaveDateStatusMap = React.useMemo(() => {
         const map = {};
         myLeaves.filter(l => l.type === 'leave' && l.status !== 'Rejected').forEach(leave => {
-            const start = new Date(leave.start_date || leave.start);
-            const end = new Date(leave.end_date || leave.end);
-            const current = new Date(start);
-            while (current <= end) {
-                const key = current.toISOString().split('T')[0];
+            const startStr = leave.start_date || leave.start;
+            const endStr = leave.end_date || leave.end;
+            if (!startStr || !endStr) return;
+
+            const [sY, sM, sD] = startStr.split('T')[0].split('-').map(Number);
+            const [eY, eM, eD] = endStr.split('T')[0].split('-').map(Number);
+
+            const current = new Date(sY, sM - 1, sD);
+            const endDate = new Date(eY, eM - 1, eD);
+
+            while (current <= endDate) {
+                const y = current.getFullYear();
+                const m = String(current.getMonth() + 1).padStart(2, '0');
+                const d = String(current.getDate()).padStart(2, '0');
+                const key = `${y}-${m}-${d}`;
                 map[key] = leave.status; // 'Approved' or 'Pending'
                 current.setDate(current.getDate() + 1);
             }
@@ -961,6 +1004,14 @@ const MyRequests = () => {
                         ) : (
                             /* ── Start On-Duty Form ── */
                             <form onSubmit={handleStartOnDuty} className="space-y-4">
+                                {/* Timezone Indicator */}
+                                <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4">
+                                    <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-1">Current App Time ({getAppTimezone().split('/').pop().replace('_', ' ')})</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <p className="text-lg font-black text-purple-800 tabular-nums">{currentAppTime.time}</p>
+                                        <p className="text-[10px] text-purple-600 font-medium">{formatDate(currentAppTime.date)}</p>
+                                    </div>
+                                </div>
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Client Name</label>
                                     <div className="relative">
@@ -1110,6 +1161,29 @@ const MyRequests = () => {
                 {/* ═══════════════════════════════════════════ */}
                 {activeTab === 'timeoff' && activeView === 'apply' && (
                     <form onSubmit={handleTimeOffSubmit} className="space-y-4 animate-fadeIn">
+                        {/* Timezone Indicator */}
+                        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-4 flex items-center justify-between">
+                            <div>
+                                <p className="text-[10px] font-bold text-teal-600 uppercase tracking-widest mb-1">Current App Time ({getAppTimezone().split('/').pop().replace('_', ' ')})</p>
+                                <p className="text-lg font-black text-teal-800 tabular-nums">{currentAppTime.time}</p>
+                                <p className="text-[10px] text-teal-600/70 font-medium">{formatDate(currentAppTime.date)}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setToDate(currentAppTime.date);
+                                    setToStartTime(currentAppTime.time);
+                                    // Default end time + 1 hour
+                                    const [h, m] = currentAppTime.time.split(':');
+                                    const endH = (parseInt(h) + 1) % 24;
+                                    setToEndTime(`${String(endH).padStart(2, '0')}:${m}`);
+                                }}
+                                className="px-3 py-2 bg-white text-teal-600 text-[11px] font-bold rounded-xl shadow-sm hover:shadow-md active:scale-95 transition-all border border-teal-100"
+                            >
+                                Use Current
+                            </button>
+                        </div>
+
                         {/* Date */}
                         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Date</label>
