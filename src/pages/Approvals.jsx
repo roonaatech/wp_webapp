@@ -10,6 +10,16 @@ import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
 import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
 
+// Helper to format dates without timezone conversion
+const formatDateLocal = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    if (!year || !month || !day) return new Date(dateStr).toLocaleDateString();
+    const d = new Date(year, month - 1, day);
+    return d.toLocaleDateString();
+};
+
+
 const Approvals = () => {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
@@ -991,7 +1001,7 @@ const Approvals = () => {
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 text-sm text-gray-900">
-                                                        {new Date(req.date).toLocaleDateString()}
+                                                        {formatDateLocal(req.date)}
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded text-sm font-medium">

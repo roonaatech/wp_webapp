@@ -19,6 +19,7 @@ import Calendar from './pages/Calendar';
 import ActiveOnDuty from './pages/ActiveOnDuty';
 import ApkDistribution from './pages/ApkDistribution';
 import EmailSettings from './pages/EmailSettings';
+import Settings from './pages/Settings';
 import MyRequests from './pages/MyRequests';
 import { fetchRoles } from './utils/roleUtils';
 
@@ -112,6 +113,7 @@ function App() {
           <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
           <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
           <Route path="/email-settings" element={<ProtectedLayout><EmailSettings /></ProtectedLayout>} />
+          <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
           <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
 
           {/* Self-Service Route (all authenticated users, no sidebar/header) */}

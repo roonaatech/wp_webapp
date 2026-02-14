@@ -335,6 +335,15 @@ export const canManageEmailSettings = (roleId) => {
 };
 
 /**
+ * Check if user can manage system settings (enum: none/all)
+ */
+export const canManageSystemSettings = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_system_settings === 'all';
+};
+
+/**
  * Check if a user is "self-service only" - i.e. has NO management/admin/approval permissions.
  * These users should be directed to the My Requests page instead of the full dashboard.
  * Returns true if the user has NONE of the management permissions.
@@ -356,7 +365,8 @@ export const isSelfServiceOnly = (roleId) => {
         role.can_view_activities === 'subordinates' || role.can_view_activities === 'all' ||
         role.can_manage_leave_types === true ||
         role.can_manage_roles === true ||
-        role.can_manage_email_settings === true;
+        role.can_manage_email_settings === true ||
+        role.can_manage_system_settings === 'all';
 
     return !hasAnyManagement;
 };
@@ -489,6 +499,7 @@ export default {
     canApproveLeave,
     canApproveOnDuty,
     canApproveTimeOff,
+    canManageSystemSettings,
     canViewReports,
     canManageUsers,
     canViewUsers,

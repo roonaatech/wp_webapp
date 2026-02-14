@@ -182,6 +182,20 @@ const Header = () => {
                                     <p className="text-sm font-bold text-[var(--text-main)] uppercase">{user.firstname || 'Admin'}</p>
                                     <p className="text-xs text-[var(--text-muted)] truncate">{user.email}</p>
                                 </div>
+
+                                {/* My Requests */}
+                                <button
+                                    onClick={() => {
+                                        navigate('/my-requests');
+                                        setShowMenu(false);
+                                    }}
+                                    className="w-full text-left px-3 py-2.5 text-sm text-[var(--text-main)] hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-all flex items-center gap-3 font-medium"
+                                >
+                                    <span className="text-lg">📋</span>
+                                    <span>My Requests</span>
+                                </button>
+
+                                {/* Sign Out */}
                                 <button
                                     onClick={handleLogout}
                                     disabled={isLoggingOut}

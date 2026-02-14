@@ -15,13 +15,14 @@ import {
     LuMail,
     LuChevronLeft,
     LuChevronRight,
-    LuClipboardPen
+    LuClipboardPen,
+    LuSettings
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -33,17 +34,23 @@ const Sidebar = () => {
     const canAccessUsersPermission = canAccessUsersPage(user.role); // Users page visibility (view or manage)
     const canManageRolesPermission = canManageRoles(user.role);
     const canManageEmailPermission = canManageEmailSettings(user.role);
+    const canManageSystemPermission = canManageSystemSettings(user.role);
     const canManageActiveOnDutyPermission = canManageActiveOnDuty(user.role);
     const canManageSchedulePermission = canManageSchedule(user.role);
     const canViewReportsPermission = canViewReports(user.role);
     const canViewActivitiesPermission = canViewActivities(user.role);
     // Show Configurations section if user has any configuration permission
-    const hasAnyConfigPermission = canAccessUsersPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission;
+    const hasAnyConfigPermission = canAccessUsersPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState(() => {
         const saved = localStorage.getItem('sidebarCollapsed');
         return saved ? JSON.parse(saved) : false;
+    });
+
+    // Default settings menu to open if one of the setting pages is active
+    const [isSettingsOpen, setIsSettingsOpen] = useState(() => {
+        return location.pathname === '/email-settings' || location.pathname === '/settings';
     });
 
     useEffect(() => {
@@ -60,6 +67,13 @@ const Sidebar = () => {
     useEffect(() => {
         localStorage.setItem('sidebarCollapsed', JSON.stringify(isCollapsed));
     }, [isCollapsed]);
+
+    // Constructively open settings menu if user navigates to a sub-page
+    useEffect(() => {
+        if (location.pathname === '/email-settings' || location.pathname === '/settings') {
+            setIsSettingsOpen(true);
+        }
+    }, [location.pathname]);
 
     const fetchActiveOnDutyCount = async () => {
         try {
@@ -136,7 +150,7 @@ const Sidebar = () => {
         setHoveredLink(null);
     };
 
-    const NavLink = ({ to, icon, label, badge }) => (
+    const NavLink = ({ to, icon, label, badge, indent = false }) => (
         <div className="relative group">
             <Link
                 to={to}
@@ -149,9 +163,10 @@ const Sidebar = () => {
                         ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/20'
                         : 'text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]'
                     }
+                    ${indent && !isCollapsed ? 'ml-8 text-sm' : ''}
                 `}
             >
-                <span className="text-xl flex-shrink-0">{icon}</span>
+                <span className={`${indent && !isCollapsed ? 'text-lg' : 'text-xl'} flex-shrink-0`}>{icon}</span>
                 {!isCollapsed && (
                     <>
                         <span className="font-medium flex-1 tracking-wide text-base">{label}</span>
@@ -247,8 +262,7 @@ const Sidebar = () => {
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                         )}
-                        {/* My Requests - Self-service page */}
-                        <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
+
                     </div>
                 )}
                 {isCollapsed && (
@@ -260,7 +274,7 @@ const Sidebar = () => {
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                         )}
-                        <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
+
                     </div>
                 )}
 
@@ -280,12 +294,40 @@ const Sidebar = () => {
                         {canManageRolesPermission && (
                             <NavLink to="/roles" icon={<LuShield />} label="Roles" />
                         )}
-                        {/* Email Settings */}
-                        {canManageEmailPermission && (
-                            <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" />
+
+                        {/* Nested Settings Menu */}
+                        {(canManageEmailPermission || canManageSystemPermission) && (
+                            <div>
+                                <button
+                                    onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                                    className={`
+                                        w-full flex items-center gap-3 px-4 py-1.5 rounded-xl transition-all duration-300 mx-2 relative mb-1
+                                        text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]
+                                    `}
+                                >
+                                    <span className="text-xl flex-shrink-0"><LuSettings /></span>
+                                    <span className="font-medium flex-1 tracking-wide text-base text-left">Settings</span>
+                                    <span className={`transition-transform duration-300 ${isSettingsOpen ? 'rotate-90' : ''}`}>
+                                        <LuChevronRight />
+                                    </span>
+                                </button>
+
+                                <div className={`transition-all duration-300 overflow-hidden ${isSettingsOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    {/* Email Settings */}
+                                    {canManageEmailPermission && (
+                                        <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" indent={true} />
+                                    )}
+                                    {/* System Settings */}
+                                    {canManageSystemPermission && (
+                                        <NavLink to="/settings" icon={<LuSettings />} label="System Settings" indent={true} />
+                                    )}
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}
+
+                {/* Collapsed Mode - Configurations */}
                 {isCollapsed && hasAnyConfigPermission && (
                     <div className="space-y-2">
                         {canAccessUsersPermission && (
@@ -297,8 +339,12 @@ const Sidebar = () => {
                         {canManageRolesPermission && (
                             <NavLink to="/roles" icon={<LuShield />} label="Roles" />
                         )}
+                        {/* When collapsed, we show items individually for better UX */}
                         {canManageEmailPermission && (
                             <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" />
+                        )}
+                        {canManageSystemPermission && (
+                            <NavLink to="/settings" icon={<LuSettings />} label="System Settings" />
                         )}
                     </div>
                 )}

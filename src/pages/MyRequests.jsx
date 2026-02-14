@@ -8,7 +8,10 @@ import { getRoleDisplayName } from '../utils/roleUtils';
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
+    // Parse as local date to avoid timezone issues
+    // If dateStr is "2026-02-14", we want to display Feb 14, not Feb 13
+    const [year, month, day] = dateStr.split('-');
+    const d = new Date(year, month - 1, day); // month is 0-indexed
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 

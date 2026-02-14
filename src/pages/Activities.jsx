@@ -216,7 +216,8 @@ const Activities = () => {
             'OnDutyLog': 'bg-purple-100 text-purple-800',
             'TimeOffRequest': 'bg-orange-100 text-orange-800',
             'LeaveType': 'bg-blue-100 text-blue-800',
-            'Approval': 'bg-green-100 text-green-800'
+            'Approval': 'bg-green-100 text-green-800',
+            'Setting': 'bg-yellow-100 text-yellow-800'
         };
         return colors[entity] || 'bg-gray-100 text-gray-800';
     };
@@ -361,6 +362,7 @@ const Activities = () => {
                             <option value="TimeOffRequest">Time-Off Request</option>
                             <option value="LeaveType">Leave Type</option>
                             <option value="Approval">Approval</option>
+                            <option value="Setting">System Setting</option>
                         </select>
                     </div>
 
@@ -523,8 +525,8 @@ const Activities = () => {
                                                 key={page}
                                                 onClick={() => fetchActivities(page)}
                                                 className={`px-3 py-1 rounded-lg text-sm transition-colors ${currentPage === page
-                                                        ? 'bg-blue-600 text-white'
-                                                        : 'border border-gray-300 hover:bg-gray-200'
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'border border-gray-300 hover:bg-gray-200'
                                                     }`}
                                             >
                                                 {page}
