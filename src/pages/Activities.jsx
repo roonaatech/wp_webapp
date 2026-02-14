@@ -4,6 +4,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { canViewActivities, fetchRoles } from '../utils/roleUtils';
+import { formatInTimezone } from '../utils/timezone.util';
 
 const Activities = () => {
     const navigate = useNavigate();
@@ -473,7 +474,7 @@ const Activities = () => {
                                         {activities.map((activity) => (
                                             <tr key={activity.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                                                    {new Date(activity.createdAt).toLocaleString()}
+                                                    {formatInTimezone(activity.createdAt)}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm">
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${getActionBadgeColor(activity.action)}`}>

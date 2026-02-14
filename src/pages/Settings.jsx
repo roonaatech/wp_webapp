@@ -127,6 +127,16 @@ export default function Settings() {
             }, {
                 headers: { 'x-access-token': token }
             });
+
+            // Update local storage if timezone was changed
+            if (key === 'application_timezone') {
+                const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
+                existingSettings.application_timezone = value;
+                localStorage.setItem('settings', JSON.stringify(existingSettings));
+                // Dispatch event to notify other components
+                window.dispatchEvent(new Event('settingsLoaded'));
+            }
+
             toast.success('Setting saved successfully');
         } catch (err) {
             console.error('Error saving setting:', err);
@@ -136,6 +146,35 @@ export default function Settings() {
             setSavingKey(null);
         }
     };
+
+    // Add a real-time clock preview for the selected timezone
+    const [currentTimePreview, setCurrentTimePreview] = useState('');
+
+    useEffect(() => {
+        const updatePreview = () => {
+            try {
+                const tz = settings.application_timezone || 'America/Chicago';
+                const now = new Date();
+                const formatted = new Intl.DateTimeFormat('en-US', {
+                    timeZone: tz,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true,
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                }).format(now);
+                setCurrentTimePreview(formatted);
+            } catch (e) {
+                setCurrentTimePreview('Invalid Timezone');
+            }
+        };
+
+        updatePreview();
+        const interval = setInterval(updatePreview, 1000);
+        return () => clearInterval(interval);
+    }, [settings.application_timezone]);
 
     // Show loading while checking permissions
     if (!permissionChecked) {
@@ -214,18 +253,25 @@ export default function Settings() {
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2 max-w-xs">
                                                         {setting.type === 'select' ? (
-                                                            <select
-                                                                value={settings[setting.key] || ''}
-                                                                onChange={(e) => handleSettingChange(setting.key, e.target.value)}
-                                                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
-                                                            >
-                                                                <option value="">{setting.placeholder || 'Select an option'}</option>
-                                                                {setting.options?.map((option) => (
-                                                                    <option key={option.value} value={option.value}>
-                                                                        {option.label}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
+                                                            <div className="flex-1 space-y-2">
+                                                                <select
+                                                                    value={settings[setting.key] || ''}
+                                                                    onChange={(e) => handleSettingChange(setting.key, e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                                                >
+                                                                    <option value="">{setting.placeholder || 'Select an option'}</option>
+                                                                    {setting.options?.map((option) => (
+                                                                        <option key={option.value} value={option.value}>
+                                                                            {option.label}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                                {setting.key === 'application_timezone' && (
+                                                                    <p className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block animate-pulse">
+                                                                        Current Time: {currentTimePreview}
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                         ) : (
                                                             <input
                                                                 type={setting.type}

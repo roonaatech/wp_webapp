@@ -8,6 +8,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
+import { formatInTimezone } from '../utils/timezone.util';
 import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
 
 // Helper to format dates without timezone conversion
@@ -1150,7 +1151,7 @@ const Approvals = () => {
                                                         <p className="text-xs text-gray-500">{req.location || 'Remote'}</p>
                                                     </td>
                                                     <td className="px-6 py-4 text-sm text-gray-900">
-                                                        {new Date(req.start_time).toLocaleDateString()}
+                                                        {formatInTimezone(req.start_time, null, { month: '2-digit', day: '2-digit', year: 'numeric', hour: undefined, minute: undefined })}
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <span className="px-2 py-1 bg-violet-50 text-violet-700 rounded text-sm font-medium">
@@ -1496,7 +1497,7 @@ const Approvals = () => {
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.type === 'leave'
                                                 ? detailsModal.item.start_date
-                                                : (detailsModal.type === 'timeoff' ? `${detailsModal.item.start_time} (On ${new Date(detailsModal.item.date).toLocaleDateString()})` : formatApprovalDate(detailsModal.item.start_time))}
+                                                : (detailsModal.type === 'timeoff' ? `${detailsModal.item.start_time} (On ${formatInTimezone(detailsModal.item.date, null, { month: '2-digit', day: '2-digit', year: 'numeric', hour: undefined, minute: undefined })})` : formatApprovalDate(detailsModal.item.start_time))}
                                         </p>
                                     </div>
                                 </div>
@@ -1662,10 +1663,7 @@ const calculateTimeOffDuration = (startTime, endTime) => {
 
 const formatApprovalDate = (dateString) => {
     if (!dateString) return '—';
-    const date = new Date(dateString);
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) +
-        ' ' +
-        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return formatInTimezone(dateString);
 };
 
 export default Approvals;

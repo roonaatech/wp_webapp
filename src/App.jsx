@@ -5,6 +5,8 @@ import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import AxiosInterceptorSetup from './components/AxiosInterceptorSetup';
 import { Toaster } from 'react-hot-toast';
+import axios from 'axios';
+import API_BASE_URL from './config/api.config';
 import Login from './pages/Login';
 import SessionExpired from './pages/SessionExpired';
 import Unauthorized from './pages/Unauthorized';
@@ -25,11 +27,21 @@ import { fetchRoles } from './utils/roleUtils';
 
 
 const ProtectedLayout = ({ children }) => {
-  // Fetch roles on app load to populate the cache
+  // Fetch roles and settings on app load to populate the cache
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       fetchRoles();
+      // Fetch application settings
+      axios.get(`${API_BASE_URL}/api/settings`, {
+        headers: { 'x-access-token': token }
+      }).then(response => {
+        if (response.data && response.data.map) {
+          localStorage.setItem('settings', JSON.stringify(response.data.map));
+          // Dispatch event to notify components that settings are loaded
+          window.dispatchEvent(new Event('settingsLoaded'));
+        }
+      }).catch(err => console.error('Error fetching settings:', err));
     }
   }, []);
 

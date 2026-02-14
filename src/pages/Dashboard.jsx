@@ -13,6 +13,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
+import { formatInTimezone } from '../utils/timezone.util';
 import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
@@ -308,8 +309,7 @@ const Dashboard = () => {
 
     const formatDateForModal = (dateString) => {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleString('en-US', {
+        return formatInTimezone(dateString, null, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
@@ -620,7 +620,7 @@ const Dashboard = () => {
                                                             {item.type}
                                                         </span>
                                                         <span className="text-[11px] font-bold text-gray-400">
-                                                            {new Date(item.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                            {formatInTimezone(item.start_date, null, { month: 'short', day: 'numeric' })}
                                                         </span>
                                                     </div>
 

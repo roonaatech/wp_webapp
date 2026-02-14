@@ -5,6 +5,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { calculateLeaveDays } from '../utils/dateUtils';
 import { fetchRoles, canViewReports } from '../utils/roleUtils';
+import { formatInTimezone } from '../utils/timezone.util';
 
 const Reports = () => {
     const navigate = useNavigate();
@@ -227,8 +228,8 @@ const Reports = () => {
                     report.tblstaff?.email || 'N/A',
                     typeName,
                     isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'N/A' : (report.client_name || 'N/A'),
-                    isLeave ? report.start_date : isTimeOff ? report.start_time : (report.check_in_time ? new Date(report.check_in_time).toLocaleString() : 'N/A'),
-                    isLeave ? report.end_date : isTimeOff ? report.end_time : (report.check_out_time ? new Date(report.check_out_time).toLocaleString() : 'N/A'),
+                    isLeave ? report.start_date : isTimeOff ? report.start_time : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A'),
+                    isLeave ? report.end_date : isTimeOff ? report.end_time : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A'),
                     duration,
                     isLeave || isTimeOff ? 'N/A' : (report.location || 'N/A'),
                     isLeave ? (report.reason || 'N/A') : isTimeOff ? (report.reason || 'N/A') : (report.purpose || 'N/A'),
@@ -437,7 +438,7 @@ const Reports = () => {
                         } else if (isTimeOff) {
                             summaryText = `${report.date} | ${report.start_time || ''} - ${report.end_time || ''}`;
                         } else {
-                            const startTime = report.check_in_time ? new Date(report.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+                            const startTime = report.check_in_time ? formatInTimezone(report.check_in_time, null, { hour: '2-digit', minute: '2-digit', hour12: true, day: undefined, month: undefined, year: undefined }) : 'N/A';
                             const duration = calculateDuration(report.check_in_time, report.check_out_time);
                             summaryText = `${report.date} | ${startTime} | ${duration} | ${report.client_name || 'N/A'}`;
                         }
@@ -564,7 +565,7 @@ const Reports = () => {
                                                             <div>
                                                                 <p className="text-gray-500 font-medium">Start</p>
                                                                 <p className="text-gray-900">
-                                                                    {report.check_in_time ? new Date(report.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                                                                    {report.check_in_time ? formatInTimezone(report.check_in_time, null, { hour: '2-digit', minute: '2-digit', hour12: true, day: undefined, month: undefined, year: undefined }) : 'N/A'}
                                                                 </p>
                                                             </div>
                                                             {/* ... */}
