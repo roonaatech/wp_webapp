@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.1.0](https://github.com/roonaatech/wp_webapp/compare/v2.0.0...v2.1.0) (2026-02-15)
+
+
+### Features
+
+* Centralize date and time display across the application using a new timezone utility and add a real-time preview to timezone settings. ([614dc33](https://github.com/roonaatech/wp_webapp/commit/614dc33c2928bac835a4efc6f9f60e83cc8c71a6))
+* Enhance timezone utility for accurate date string parsing and integrate app-timezone-aware date/time handling into MyRequests page forms and displays. ([54ffb21](https://github.com/roonaatech/wp_webapp/commit/54ffb211b6618d9627ef81793b4cf40ea36e5083))
+* Integrate timezone utilities across various components for consistent date/time handling and formatting ([502eaa7](https://github.com/roonaatech/wp_webapp/commit/502eaa7a09c8f3ca4a53aa50abc01397d18b0362))
+* Introduce a dedicated System Settings page for managing application-wide configurations like timezone and time-off rules, including necessary permission checks and utility updates. ([780d64a](https://github.com/roonaatech/wp_webapp/commit/780d64a980ed0ca85d1993205293006f3a1ae2f1))
+
+
+### Bug Fixes
+
+* fall back to `e.response?.data?.error` for time-off application failure messages. ([2f56467](https://github.com/roonaatech/wp_webapp/commit/2f564670cb08a3af4887c0fa5dc66af670d38f28))
+* Robustify date formatting functions to correctly parse ISO date strings and handle invalid date inputs. ([d23df17](https://github.com/roonaatech/wp_webapp/commit/d23df17cdac6465d3388d39565b98de9d9f3f422))
+
+
+### Code Refactoring
+
+* Update tab icons, reorder tab definitions, and enhance tab button styling with dynamic text colors in MyRequests.jsx. ([26e916f](https://github.com/roonaatech/wp_webapp/commit/26e916fc64c8ddf30fa21f9758504e0b4345673a))
+
 ## [2.0.0](https://github.com/roonaatech/wp_webapp/compare/v1.5.4...v2.0.0) (2026-02-13)
 
 
