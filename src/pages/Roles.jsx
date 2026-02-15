@@ -46,6 +46,7 @@ const Roles = () => {
         can_access_webapp: false,
         can_manage_roles: false,
         can_manage_email_settings: false,
+        can_manage_system_settings: 'none',
         active: true
     });
 
@@ -112,6 +113,7 @@ const Roles = () => {
         if (role) {
             setEditingRole(role);
             setFormData({
+                id: role.id,  // Add id to formData
                 name: role.name,
                 display_name: role.display_name,
                 description: role.description || '',
@@ -131,6 +133,7 @@ const Roles = () => {
                 can_access_webapp: role.can_access_webapp,
                 can_manage_roles: role.can_manage_roles,
                 can_manage_email_settings: role.can_manage_email_settings,
+                can_manage_system_settings: role.can_manage_system_settings,
                 active: role.active
             });
         } else {
@@ -155,6 +158,7 @@ const Roles = () => {
                 can_access_webapp: false,
                 can_manage_roles: false,
                 can_manage_email_settings: false,
+                can_manage_system_settings: 'none',
                 active: true
             });
         }
@@ -499,6 +503,12 @@ const Roles = () => {
                                             <span className={`px-2 py-1 text-xs rounded ${role.can_view_activities === 'all' ? 'bg-cyan-100 text-cyan-800' : 'bg-cyan-50 text-cyan-700'}`}>
                                                 Activities {role.can_view_activities === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
+                                        )}
+                                        {role.can_manage_email_settings && (
+                                            <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">Email Config</span>
+                                        )}
+                                        {role.can_manage_system_settings === 'all' && (
+                                            <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">System Settings</span>
                                         )}
                                     </div>
                                 </td>
@@ -962,6 +972,25 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
+                                            {/* Only show System Settings permission for Super Admin and Admin */}
+                                            {(formData.id === 1 || formData.id === 3) && (
+                                                <tr className="border-b hover:bg-gray-50">
+                                                    <td className="px-4 py-3 text-sm text-gray-700">Manage System Settings</td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={formData.can_manage_system_settings === 'all'}
+                                                            onChange={(e) => {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    can_manage_system_settings: e.target.checked ? 'all' : 'none'
+                                                                }));
+                                                            }}
+                                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>

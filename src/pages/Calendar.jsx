@@ -4,16 +4,19 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { hasAdminPermission, fetchRoles, canManageSchedule } from '../utils/roleUtils';
+import { getCurrentInAppTimezone, getAppTimezone, mirrorToTimezone, formatTimeOnly } from '../utils/timezone.util';
 
 const Calendar = () => {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
-    const [currentDate, setCurrentDate] = useState(new Date());
+    // Memoize 'now' to prevent infinite effect loops
+    const now = React.useMemo(() => getCurrentInAppTimezone().full, []);
+    const [currentDate, setCurrentDate] = useState(now);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedDate, setSelectedDate] = useState(new Date().getDate());
+    const [selectedDate, setSelectedDate] = useState(now.getDate());
     const [selectedEvents, setSelectedEvents] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState('');
     const [selectedEventType, setSelectedEventType] = useState('');
@@ -48,9 +51,8 @@ const Calendar = () => {
         }
     }, [currentDate, hasPermission]);
 
-    // Auto-select today's date and show details on mount
     useEffect(() => {
-        const today = new Date();
+        const today = now; // Use the mirrored 'now'
         if (today.getFullYear() === currentDate.getFullYear() &&
             today.getMonth() === currentDate.getMonth()) {
             const todayDate = today.getDate();
@@ -63,7 +65,7 @@ const Calendar = () => {
             const todayEvents = events.filter(event => event.date === dateStr);
             setSelectedEvents(todayEvents);
         }
-    }, [events, currentDate]); // Run when events are loaded
+    }, [events, currentDate, now]); // Run when events are loaded, include now in dependencies
 
     // Listen for approval status changes (on-duty completion)
     useEffect(() => {
@@ -100,8 +102,28 @@ const Calendar = () => {
                 { headers: { 'x-access-token': token } }
             );
 
-            console.log('Calendar events:', response.data);
-            setEvents(response.data);
+            // Process events to fix timezone issues
+            const appTimezone = getAppTimezone();
+            const processedEvents = response.data.map(event => {
+                // Fix date for On-Duty events (convert UTC start_time to App Timezone Date)
+                if (event.type === 'on_duty' && event.start_time) {
+                    try {
+                        const d = new Date(event.start_time);
+                        const mirrored = mirrorToTimezone(d, appTimezone);
+                        const y = mirrored.getFullYear();
+                        const m = String(mirrored.getMonth() + 1).padStart(2, '0');
+                        const day = String(mirrored.getDate()).padStart(2, '0');
+                        return { ...event, date: `${y}-${m}-${day}` };
+                    } catch (e) {
+                        console.error('Error processing on-duty date:', e);
+                        return event;
+                    }
+                }
+                return event;
+            });
+
+            console.log('Processed Calendar events:', processedEvents);
+            setEvents(processedEvents);
         } catch (error) {
             console.error('Error fetching calendar events:', error);
             setError(error.response?.data?.message || error.message || 'Failed to fetch calendar events');
@@ -147,7 +169,7 @@ const Calendar = () => {
     };
 
     const handleTodayClick = () => {
-        setCurrentDate(new Date());
+        setCurrentDate(now); // Use the mirrored 'now'
     };
 
     const handleDateClickInternal = (day) => {
@@ -184,6 +206,7 @@ const Calendar = () => {
                 events: [],
                 hasLeave: false,
                 hasOnDuty: false,
+                hasTimeOff: false,
             };
         }
         acc[key].events.push(event);
@@ -315,7 +338,7 @@ const Calendar = () => {
 
                         {/* Calendar days */}
                         {days.map((day) => {
-                            const today = new Date();
+                            const today = getCurrentInAppTimezone().full;
                             const isToday = today.getFullYear() === currentDate.getFullYear() &&
                                 today.getMonth() === currentDate.getMonth() &&
                                 today.getDate() === day;
@@ -514,22 +537,39 @@ const Calendar = () => {
                                                                     {statusLabel}
                                                                 </span>
                                                             </div>
-                                                            {event.type === 'on_duty' && event.start_time && event.end_time && (
-                                                                <p className="text-xs text-gray-600 mt-1">
-                                                                    Duration: {(() => {
-                                                                        const start = new Date(event.start_time);
-                                                                        const end = new Date(event.end_time);
-                                                                        const diffMs = end - start;
-                                                                        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-                                                                        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                                                                        if (diffHours > 0) return `${diffHours}h ${diffMinutes}m`;
-                                                                        return `${diffMinutes}m`;
-                                                                    })()}
-                                                                </p>
+                                                            {event.type === 'on_duty' && event.start_time && (
+                                                                <div className="mt-1">
+                                                                    <p className="text-xs text-gray-600">
+                                                                        Time: {formatTimeOnly(new Date(event.start_time))} - {event.end_time ? formatTimeOnly(new Date(event.end_time)) : <span className="text-green-600 font-bold">In Progress</span>}
+                                                                    </p>
+                                                                    {event.end_time && (
+                                                                        <p className="text-xs text-gray-500">
+                                                                            Duration: {(() => {
+                                                                                const start = new Date(event.start_time);
+                                                                                const end = new Date(event.end_time);
+                                                                                const diffMs = end - start;
+                                                                                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                                                                                const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                                                                                if (diffHours > 0) return `${diffHours}h ${diffMinutes}m`;
+                                                                                return `${diffMinutes}m`;
+                                                                            })()}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
                                                             )}
                                                             {event.type === 'time_off' && event.start_time && event.end_time && (
                                                                 <p className="text-xs text-gray-600 mt-1">
-                                                                    Time: {event.start_time.substring(0, 5)} - {event.end_time.substring(0, 5)}
+                                                                    Time: {(() => {
+                                                                        const formatTime = (t) => {
+                                                                            if (!t) return '';
+                                                                            const [h, m] = t.split(':');
+                                                                            const hour = parseInt(h, 10);
+                                                                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                                                                            const hour12 = hour % 12 || 12;
+                                                                            return `${hour12}:${m} ${ampm}`;
+                                                                        };
+                                                                        return `${formatTime(event.start_time)} - ${formatTime(event.end_time)}`;
+                                                                    })()}
                                                                 </p>
                                                             )}
                                                             {event.reason && <p className="text-xs text-gray-600 mt-1">Reason: {event.reason}</p>}

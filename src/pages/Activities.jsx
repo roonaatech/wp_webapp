@@ -4,6 +4,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { canViewActivities, fetchRoles } from '../utils/roleUtils';
+import { formatInTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 
 const Activities = () => {
     const navigate = useNavigate();
@@ -12,11 +13,7 @@ const Activities = () => {
 
     // Get today's date in YYYY-MM-DD format
     const getTodayDate = () => {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return getCurrentInAppTimezone().date;
     };
 
     const [activities, setActivities] = useState([]);
@@ -185,7 +182,7 @@ const Activities = () => {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `activity_logs_${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute('download', `activity_logs_${getCurrentInAppTimezone().date}.csv`);
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -216,7 +213,8 @@ const Activities = () => {
             'OnDutyLog': 'bg-purple-100 text-purple-800',
             'TimeOffRequest': 'bg-orange-100 text-orange-800',
             'LeaveType': 'bg-blue-100 text-blue-800',
-            'Approval': 'bg-green-100 text-green-800'
+            'Approval': 'bg-green-100 text-green-800',
+            'Setting': 'bg-yellow-100 text-yellow-800'
         };
         return colors[entity] || 'bg-gray-100 text-gray-800';
     };
@@ -361,6 +359,7 @@ const Activities = () => {
                             <option value="TimeOffRequest">Time-Off Request</option>
                             <option value="LeaveType">Leave Type</option>
                             <option value="Approval">Approval</option>
+                            <option value="Setting">System Setting</option>
                         </select>
                     </div>
 
@@ -471,7 +470,7 @@ const Activities = () => {
                                         {activities.map((activity) => (
                                             <tr key={activity.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                                                    {new Date(activity.createdAt).toLocaleString()}
+                                                    {formatInTimezone(activity.createdAt)}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm">
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${getActionBadgeColor(activity.action)}`}>
@@ -509,7 +508,8 @@ const Activities = () => {
                                 <div className="text-sm text-gray-600">
                                     Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} activities
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 items-center">
+                                    {/* Previous Button */}
                                     <button
                                         onClick={() => fetchActivities(currentPage - 1)}
                                         disabled={currentPage === 1}
@@ -517,20 +517,105 @@ const Activities = () => {
                                     >
                                         Previous
                                     </button>
+
+                                    {/* Page Numbers with Smart Ellipsis */}
                                     <div className="flex items-center gap-1">
-                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                            <button
-                                                key={page}
-                                                onClick={() => fetchActivities(page)}
-                                                className={`px-3 py-1 rounded-lg text-sm transition-colors ${currentPage === page
-                                                        ? 'bg-blue-600 text-white'
-                                                        : 'border border-gray-300 hover:bg-gray-200'
-                                                    }`}
-                                            >
-                                                {page}
-                                            </button>
-                                        ))}
+                                        {(() => {
+                                            const pageNumbers = [];
+                                            const showEllipsis = totalPages > 7;
+
+                                            if (!showEllipsis) {
+                                                // Show all pages if <= 7
+                                                for (let i = 1; i <= totalPages; i++) {
+                                                    pageNumbers.push(
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => fetchActivities(i)}
+                                                            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                                                                currentPage === i
+                                                                    ? 'bg-blue-600 text-white font-semibold'
+                                                                    : 'border border-gray-300 hover:bg-gray-200'
+                                                            }`}
+                                                        >
+                                                            {i}
+                                                        </button>
+                                                    );
+                                                }
+                                            } else {
+                                                // Always show first page
+                                                pageNumbers.push(
+                                                    <button
+                                                        key={1}
+                                                        onClick={() => fetchActivities(1)}
+                                                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                                                            currentPage === 1
+                                                                ? 'bg-blue-600 text-white font-semibold'
+                                                                : 'border border-gray-300 hover:bg-gray-200'
+                                                        }`}
+                                                    >
+                                                        1
+                                                    </button>
+                                                );
+
+                                                // Left ellipsis
+                                                if (currentPage > 3) {
+                                                    pageNumbers.push(
+                                                        <span key="left-ellipsis" className="px-2 text-gray-500">
+                                                            ...
+                                                        </span>
+                                                    );
+                                                }
+
+                                                // Pages around current
+                                                const start = Math.max(2, currentPage - 1);
+                                                const end = Math.min(totalPages - 1, currentPage + 1);
+
+                                                for (let i = start; i <= end; i++) {
+                                                    pageNumbers.push(
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => fetchActivities(i)}
+                                                            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                                                                currentPage === i
+                                                                    ? 'bg-blue-600 text-white font-semibold'
+                                                                    : 'border border-gray-300 hover:bg-gray-200'
+                                                            }`}
+                                                        >
+                                                            {i}
+                                                        </button>
+                                                    );
+                                                }
+
+                                                // Right ellipsis
+                                                if (currentPage < totalPages - 2) {
+                                                    pageNumbers.push(
+                                                        <span key="right-ellipsis" className="px-2 text-gray-500">
+                                                            ...
+                                                        </span>
+                                                    );
+                                                }
+
+                                                // Always show last page
+                                                pageNumbers.push(
+                                                    <button
+                                                        key={totalPages}
+                                                        onClick={() => fetchActivities(totalPages)}
+                                                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                                                            currentPage === totalPages
+                                                                ? 'bg-blue-600 text-white font-semibold'
+                                                                : 'border border-gray-300 hover:bg-gray-200'
+                                                        }`}
+                                                    >
+                                                        {totalPages}
+                                                    </button>
+                                                );
+                                            }
+
+                                            return pageNumbers;
+                                        })()}
                                     </div>
+
+                                    {/* Next Button */}
                                     <button
                                         onClick={() => fetchActivities(currentPage + 1)}
                                         disabled={currentPage === totalPages}

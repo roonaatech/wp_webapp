@@ -4,28 +4,58 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName } from '../utils/roleUtils';
+import { formatInTimezone, formatTimeOnly, getAppTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    
+    // Check if this is a timezone-formatted string from backend (YYYY-MM-DD HH:mm:ss)
+    // If so, extract and format the date part directly
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(dateStr)) {
+        const datePart = dateStr.split(' ')[0]; // Extract "YYYY-MM-DD"
+        const [y, m, d] = datePart.split('-');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
+    }
+    
+    const formatted = formatInTimezone(dateStr, null, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: undefined,
+        minute: undefined,
+        hour12: undefined
+    });
+    // If it's a numeric string like "2026-02-14 09:00:00", formatInTimezone might return it raw
+    if (typeof formatted === 'string' && formatted.includes('-') && formatted.split('-').length === 3) {
+        const parts = formatted.split(/[ T]/)[0].split('-');
+        if (parts[0].length === 4) { // YYYY-MM-DD
+            const [y, m, d] = parts;
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${d} ${months[parseInt(m) - 1]} ${y}`;
+        }
+    }
+    return formatted;
 };
 
 const formatTime12 = (timeStr) => {
     if (!timeStr) return '';
-    const [h, m] = timeStr.split(':');
-    const hour = parseInt(h);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${m} ${ampm}`;
+    // Use the central utility which handles backend timezone-formatted strings
+    return formatTimeOnly(timeStr);
 };
 
 const calculateLeaveDaysExcludingSunday = (start, end) => {
     if (!start || !end) return 0;
     let count = 0;
-    let current = new Date(start);
-    const endDate = new Date(end);
+
+    // Split YYYY-MM-DD to avoid UTC shift
+    const [sY, sM, sD] = start.split('-').map(Number);
+    const [eY, eM, eD] = end.split('-').map(Number);
+
+    let current = new Date(sY, sM - 1, sD);
+    const endDate = new Date(eY, eM - 1, eD);
+
     while (current <= endDate) {
         if (current.getDay() !== 0) count++; // 0 = Sunday
         current.setDate(current.getDate() + 1);
@@ -163,7 +193,8 @@ const MyRequests = () => {
                 setOdClientName(res.data.data.client_name || '');
                 setOdLocation(res.data.data.location || '');
                 setOdPurpose(res.data.data.purpose || '');
-                setOdStartTime(new Date(res.data.data.start_time));
+                // Handle various date formats from backend
+                setOdStartTime(res.data.data.start_time);
             } else {
                 setIsOnDuty(false);
                 setActiveOnDutyData(null);
@@ -208,6 +239,24 @@ const MyRequests = () => {
             else if (activeTab === 'timeoff') fetchMyTimeOffs();
         }
     }, [activeView, activeTab]);
+
+    // Handle settingsLoaded event to refresh timezone context
+    useEffect(() => {
+        const handleSettingsUpdate = () => {
+            setCurrentAppTime(getCurrentInAppTimezone());
+        };
+        window.addEventListener('settingsLoaded', handleSettingsUpdate);
+        return () => window.removeEventListener('settingsLoaded', handleSettingsUpdate);
+    }, []);
+
+    // Auto-initialize Time-Off form with current app time
+    useEffect(() => {
+        if (activeTab === 'timeoff' && activeView === 'apply') {
+            const nowInApp = getCurrentInAppTimezone();
+            if (!toDate) setToDate(nowInApp.date);
+            if (!toStartTime) setToStartTime(nowInApp.time);
+        }
+    }, [activeTab, activeView, toDate, toStartTime]);
 
     // ─── Submit Handlers ───────────────────────────────────
     const handleLeaveSubmit = async (e) => {
@@ -276,7 +325,7 @@ const MyRequests = () => {
             }, { headers });
             toast.success('On-Duty started!');
             setIsOnDuty(true);
-            setOdStartTime(new Date());
+            setOdStartTime(getCurrentInAppTimezone().full);
             fetchActiveOnDuty();
         } catch (e) {
             toast.error(e.response?.data?.message || 'Failed to start on-duty');
@@ -507,7 +556,17 @@ const MyRequests = () => {
     // Duration formatter for active on-duty
     const formatDuration = (start) => {
         if (!start) return '';
-        const diff = Date.now() - new Date(start).getTime();
+        // Use the current application time (shifted local date) as 'now'
+        // to match the shifted 'start' date for correct subtraction.
+        const now = getCurrentInAppTimezone().full;
+
+        // Use parseAppTimezone to get a consistent Date object (shifted local)
+        const startDate = (typeof start === 'string') ? parseAppTimezone(start) : start;
+        if (!startDate) return '';
+
+        const diff = now.getTime() - startDate.getTime();
+        if (diff < 0) return '0 min'; // Guard against slight clock drifts
+
         const hours = Math.floor(diff / 3600000);
         const minutes = Math.floor((diff % 3600000) / 60000);
         return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
@@ -527,12 +586,21 @@ const MyRequests = () => {
         return `${minutes}m`;
     };
 
-    // Today's date in yyyy-mm-dd for min attribute
-    const today = new Date().toISOString().split('T')[0];
+    // Today's date in yyyy-mm-dd for min attribute - using app timezone
+    const today = getCurrentInAppTimezone().date;
+
+    // Real-time clock for the UI to show application time
+    const [currentAppTime, setCurrentAppTime] = useState(getCurrentInAppTimezone());
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentAppTime(getCurrentInAppTimezone());
+        }, 10000); // update every 10s
+        return () => clearInterval(interval);
+    }, []);
 
     // ── Calendar Logic ──
     const [calendarOpen, setCalendarOpen] = useState(false);
-    const [calendarMonth, setCalendarMonth] = useState(new Date());
+    const [calendarMonth, setCalendarMonth] = useState(getCurrentInAppTimezone().full);
     const [rangeStep, setRangeStep] = useState(0); // 0 = pick start, 1 = pick end
     const [tempCalStart, setTempCalStart] = useState('');
     const [tempCalEnd, setTempCalEnd] = useState('');
@@ -556,11 +624,21 @@ const MyRequests = () => {
     const leaveDateStatusMap = React.useMemo(() => {
         const map = {};
         myLeaves.filter(l => l.type === 'leave' && l.status !== 'Rejected').forEach(leave => {
-            const start = new Date(leave.start_date || leave.start);
-            const end = new Date(leave.end_date || leave.end);
-            const current = new Date(start);
-            while (current <= end) {
-                const key = current.toISOString().split('T')[0];
+            const startStr = leave.start_date || leave.start;
+            const endStr = leave.end_date || leave.end;
+            if (!startStr || !endStr) return;
+
+            const [sY, sM, sD] = startStr.split('T')[0].split('-').map(Number);
+            const [eY, eM, eD] = endStr.split('T')[0].split('-').map(Number);
+
+            const current = new Date(sY, sM - 1, sD);
+            const endDate = new Date(eY, eM - 1, eD);
+
+            while (current <= endDate) {
+                const y = current.getFullYear();
+                const m = String(current.getMonth() + 1).padStart(2, '0');
+                const d = String(current.getDate()).padStart(2, '0');
+                const key = `${y}-${m}-${d}`;
                 map[key] = leave.status; // 'Approved' or 'Pending'
                 current.setDate(current.getDate() + 1);
             }
@@ -572,7 +650,7 @@ const MyRequests = () => {
     const calendarMon = calendarMonth.getMonth();
     const daysInMonth = new Date(calendarYear, calendarMon + 1, 0).getDate();
     const firstDayOfWeek = new Date(calendarYear, calendarMon, 1).getDay(); // 0=Sun
-    const monthName = calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const monthName = formatInTimezone(calendarMonth, null, { month: 'long', year: 'numeric', day: undefined, hour: undefined, minute: undefined });
 
     const handleCalendarDayClick = (dateStr) => {
         if (rangeStep === 0) {
@@ -913,7 +991,7 @@ const MyRequests = () => {
                                             <div className="text-center flex-1">
                                                 <p className="text-[10px] text-blue-500 font-bold mb-1">STARTED AT</p>
                                                 <p className="text-2xl font-black text-blue-600">
-                                                    {odStartTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                    {formatTime12(odStartTime)}
                                                 </p>
                                             </div>
                                             <div className="w-px h-12 bg-blue-100"></div>
@@ -937,11 +1015,18 @@ const MyRequests = () => {
                                         </span>
                                     ) : '⏹️ End On-Duty'}
                                 </button>
-                                <p className="text-[10px] text-gray-400 text-center mt-1">📍 Exact GPS location will be captured</p>
                             </>
                         ) : (
                             /* ── Start On-Duty Form ── */
                             <form onSubmit={handleStartOnDuty} className="space-y-4">
+                                {/* Timezone Indicator */}
+                                <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4">
+                                    <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-1">Current App Time ({getAppTimezone().split('/').pop().replace('_', ' ')})</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <p className="text-lg font-black text-purple-800 tabular-nums">{currentAppTime.time}</p>
+                                        <p className="text-[10px] text-purple-600 font-medium">{formatDate(currentAppTime.date)}</p>
+                                    </div>
+                                </div>
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Client Name</label>
                                     <div className="relative">
@@ -996,7 +1081,6 @@ const MyRequests = () => {
                                         </span>
                                     ) : '▶️ Start On-Duty'}
                                 </button>
-                                <p className="text-[10px] text-gray-400 text-center mt-1">📍 Exact GPS location will be captured</p>
                             </form>
                         )}
                     </div>
@@ -1091,6 +1175,29 @@ const MyRequests = () => {
                 {/* ═══════════════════════════════════════════ */}
                 {activeTab === 'timeoff' && activeView === 'apply' && (
                     <form onSubmit={handleTimeOffSubmit} className="space-y-4 animate-fadeIn">
+                        {/* Timezone Indicator */}
+                        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-4 flex items-center justify-between">
+                            <div>
+                                <p className="text-[10px] font-bold text-teal-600 uppercase tracking-widest mb-1">Current App Time ({getAppTimezone().split('/').pop().replace('_', ' ')})</p>
+                                <p className="text-lg font-black text-teal-800 tabular-nums">{currentAppTime.time}</p>
+                                <p className="text-[10px] text-teal-600/70 font-medium">{formatDate(currentAppTime.date)}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setToDate(currentAppTime.date);
+                                    setToStartTime(currentAppTime.time);
+                                    // Default end time + 1 hour
+                                    const [h, m] = currentAppTime.time.split(':');
+                                    const endH = (parseInt(h) + 1) % 24;
+                                    setToEndTime(`${String(endH).padStart(2, '0')}:${m}`);
+                                }}
+                                className="px-3 py-2 bg-white text-teal-600 text-[11px] font-bold rounded-xl shadow-sm hover:shadow-md active:scale-95 transition-all border border-teal-100"
+                            >
+                                Use Current
+                            </button>
+                        </div>
+
                         {/* Date */}
                         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Date</label>

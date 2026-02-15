@@ -13,6 +13,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
+import { formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
@@ -308,8 +309,7 @@ const Dashboard = () => {
 
     const formatDateForModal = (dateString) => {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleString('en-US', {
+        return formatInTimezone(dateString, null, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
@@ -320,7 +320,7 @@ const Dashboard = () => {
     };
 
     const generateTrendData = (statsData, days = 7) => {
-        const today = new Date();
+        const today = getCurrentInAppTimezone().full;
         const trendDays = [];
 
         // Generate dates for the selected duration in DD/MM/YY format
@@ -620,7 +620,7 @@ const Dashboard = () => {
                                                             {item.type}
                                                         </span>
                                                         <span className="text-[11px] font-bold text-gray-400">
-                                                            {new Date(item.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                            {formatInTimezone(item.start_date, null, { month: 'short', day: 'numeric' })}
                                                         </span>
                                                     </div>
 
@@ -1217,9 +1217,11 @@ const Dashboard = () => {
 
 const calculateOnDutyDuration = (startTime, endTime) => {
     if (!startTime || !endTime) return 'In Progress';
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    const diffMs = end - start;
+    const start = parseAppTimezone(startTime);
+    const end = parseAppTimezone(endTime);
+    if (!start || !end) return 'In Progress';
+
+    const diffMs = end.getTime() - start.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const hours = Math.floor(diffMins / 60);
     const mins = diffMins % 60;
@@ -1232,10 +1234,14 @@ const calculateOnDutyDuration = (startTime, endTime) => {
 
 const formatApprovalDate = (dateString) => {
     if (!dateString) return '—';
-    const date = new Date(dateString);
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) +
-        ' ' +
-        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return formatInTimezone(dateString, null, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    });
 };
 
 export default Dashboard;
