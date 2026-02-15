@@ -41,7 +41,7 @@ export const getAppTimezone = () => {
  * Helper to mirror an absolute Date object into a target timezone's numbers.
  * Returns a local Date object where local hours/minutes/etc match the target timezone.
  */
-const mirrorToTimezone = (absoluteDate, timezone) => {
+export const mirrorToTimezone = (absoluteDate, timezone) => {
     if (!absoluteDate || isNaN(absoluteDate.getTime())) return absoluteDate;
 
     try {
@@ -116,7 +116,7 @@ export const formatTimeOnly = (date, timezone = null) => {
             return `${String(hour12).padStart(2, '0')}:${m} ${ampm}`;
         }
     }
-    
+
     // Otherwise use the standard timezone conversion (for Date objects and other formats)
     return formatInTimezone(date, timezone, {
         year: undefined, month: undefined, day: undefined,
