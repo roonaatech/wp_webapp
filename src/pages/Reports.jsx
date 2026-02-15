@@ -152,6 +152,39 @@ const Reports = () => {
         return `${mins}m`;
     };
 
+    // Calculate duration from time strings in HH:MM format
+    const calculateTimeOffDuration = (startTime, endTime) => {
+        if (!startTime || !endTime) return '-';
+
+        try {
+            // Parse HH:MM format
+            const [startHour, startMin] = startTime.split(':').map(Number);
+            const [endHour, endMin] = endTime.split(':').map(Number);
+
+            // Convert to minutes
+            const startTotalMins = startHour * 60 + startMin;
+            const endTotalMins = endHour * 60 + endMin;
+
+            // Calculate difference
+            const diffMins = endTotalMins - startTotalMins;
+
+            if (diffMins <= 0) return '-';
+
+            const hours = Math.floor(diffMins / 60);
+            const mins = diffMins % 60;
+
+            if (hours > 0 && mins > 0) {
+                return `${hours}hrs ${mins}mins`;
+            } else if (hours > 0) {
+                return `${hours}hrs`;
+            } else {
+                return `${mins}mins`;
+            }
+        } catch (err) {
+            return '-';
+        }
+    };
+
     const toggleRow = (id) => {
         setExpandedRows(prev => ({
             ...prev,
@@ -209,7 +242,7 @@ const Reports = () => {
                     const days = calculateLeaveDays(report.start_date, report.end_date);
                     duration = days + ' day' + (days > 1 ? 's' : '');
                 } else if (isTimeOff) {
-                    duration = `${report.start_time || ''} - ${report.end_time || ''}`;
+                    duration = calculateTimeOffDuration(report.start_time, report.end_time);
                 } else {
                     duration = calculateDuration(report.check_in_time, report.check_out_time);
                 }
@@ -602,77 +635,125 @@ const Reports = () => {
 
             {/* Pagination Controls */}
             {reports.length > 0 && (
-                <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-3 sm:px-6 mt-4 rounded-b-lg">
-                    <div className="flex flex-1 justify-between sm:hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 mt-4 rounded-b-lg">
+                    <div className="text-sm text-gray-600">
+                        Showing page {page} of {totalPages} ({totalItems} total records)
+                    </div>
+                    <div className="flex gap-2 items-center">
+                        {/* Previous Button */}
                         <button
                             onClick={() => setPage(p => Math.max(1, p - 1))}
                             disabled={page === 1}
-                            className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            className="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Previous
                         </button>
+
+                        {/* Page Numbers with Smart Ellipsis */}
+                        <div className="flex items-center gap-1">
+                            {(() => {
+                                const pageNumbers = [];
+                                const showEllipsis = totalPages > 7;
+
+                                if (!showEllipsis) {
+                                    // Show all pages if <= 7
+                                    for (let i = 1; i <= totalPages; i++) {
+                                        pageNumbers.push(
+                                            <button
+                                                key={i}
+                                                onClick={() => setPage(i)}
+                                                className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                                                    page === i
+                                                        ? 'bg-blue-600 text-white font-semibold'
+                                                        : 'border border-gray-300 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                {i}
+                                            </button>
+                                        );
+                                    }
+                                } else {
+                                    // Always show first page
+                                    pageNumbers.push(
+                                        <button
+                                            key={1}
+                                            onClick={() => setPage(1)}
+                                            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                                                page === 1
+                                                    ? 'bg-blue-600 text-white font-semibold'
+                                                    : 'border border-gray-300 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            1
+                                        </button>
+                                    );
+
+                                    // Left ellipsis
+                                    if (page > 3) {
+                                        pageNumbers.push(
+                                            <span key="left-ellipsis" className="px-2 text-gray-500">
+                                                ...
+                                            </span>
+                                        );
+                                    }
+
+                                    // Pages around current
+                                    const start = Math.max(2, page - 1);
+                                    const end = Math.min(totalPages - 1, page + 1);
+
+                                    for (let i = start; i <= end; i++) {
+                                        pageNumbers.push(
+                                            <button
+                                                key={i}
+                                                onClick={() => setPage(i)}
+                                                className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                                                    page === i
+                                                        ? 'bg-blue-600 text-white font-semibold'
+                                                        : 'border border-gray-300 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                {i}
+                                            </button>
+                                        );
+                                    }
+
+                                    // Right ellipsis
+                                    if (page < totalPages - 2) {
+                                        pageNumbers.push(
+                                            <span key="right-ellipsis" className="px-2 text-gray-500">
+                                                ...
+                                            </span>
+                                        );
+                                    }
+
+                                    // Always show last page
+                                    pageNumbers.push(
+                                        <button
+                                            key={totalPages}
+                                            onClick={() => setPage(totalPages)}
+                                            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                                                page === totalPages
+                                                    ? 'bg-blue-600 text-white font-semibold'
+                                                    : 'border border-gray-300 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            {totalPages}
+                                        </button>
+                                    );
+                                }
+
+                                return pageNumbers;
+                            })()}
+                        </div>
+
+                        {/* Next Button */}
                         <button
                             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                             disabled={page === totalPages}
-                            className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            className="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Next
                         </button>
-                    </div>
-                    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                        <div>
-                            <p className="text-sm text-gray-700">
-                                Showing page <span className="font-medium">{page}</span> of <span className="font-medium">{totalPages}</span>
-                            </p>
-                        </div>
-                        <div>
-                            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                                <button
-                                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={page === 1}
-                                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
-                                >
-                                    <span className="sr-only">Previous</span>
-                                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
-
-                                {/* Page Numbers (simplified) */}
-                                {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                                    // Show a window of pages around current page
-                                    let p = page;
-                                    if (totalPages <= 5) p = i + 1;
-                                    else if (page <= 3) p = i + 1;
-                                    else if (page >= totalPages - 2) p = totalPages - 4 + i;
-                                    else p = page - 2 + i;
-
-                                    return (
-                                        <button
-                                            key={p}
-                                            onClick={() => setPage(p)}
-                                            className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${p === page
-                                                ? 'z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
-                                                : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                                                }`}
-                                        >
-                                            {p}
-                                        </button>
-                                    );
-                                })}
-
-                                <button
-                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={page === totalPages}
-                                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
-                                >
-                                    <span className="sr-only">Next</span>
-                                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
-                            </nav>
-                        </div>
                     </div>
                 </div>
             )}
