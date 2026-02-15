@@ -348,8 +348,8 @@ const Reports = () => {
             <div className="mb-8">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Attendance Reports</h1>
-                        <p className="text-gray-600 mt-1">View and export attendance records</p>
+                        <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
+                        <p className="text-gray-600 mt-1">View and export the report for leave, on-duty and time-off records</p>
                     </div>
                     <button
                         onClick={downloadCSV}
