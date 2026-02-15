@@ -26,6 +26,16 @@ const Reports = () => {
     // Filter & Pagination States
     const [selectedUserId, setSelectedUserId] = useState('');
     const [dateFilter, setDateFilter] = useState('all');
+    const getThisMonthRange = () => {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0,10);
+        return { start, end };
+    };
+    const { start: defaultStart, end: defaultEnd } = getThisMonthRange();
+    const [datePreset, setDatePreset] = useState('thismonth');
+    const [startDate, setStartDate] = useState(defaultStart);
+    const [endDate, setEndDate] = useState(defaultEnd);
     const [statusFilter, setStatusFilter] = useState('all');
     const [typeFilter, setTypeFilter] = useState('both');
     const [page, setPage] = useState(1);
@@ -66,7 +76,7 @@ const Reports = () => {
         if (hasPermission) {
             fetchReports();
         }
-    }, [hasPermission, selectedUserId, dateFilter, statusFilter, typeFilter, page, limit]);
+    }, [hasPermission, selectedUserId, datePreset, startDate, endDate, statusFilter, typeFilter, page, limit]);
 
     const fetchUsersList = async () => {
         try {
@@ -95,9 +105,16 @@ const Reports = () => {
                 limit,
                 type: typeFilter,
                 userId: selectedUserId,
-                dateFilter,
                 status: statusFilter
             };
+
+            // Date range handling: custom start/end takes precedence
+            if (datePreset === 'custom' && startDate && endDate) {
+                params.startDate = startDate;
+                params.endDate = endDate;
+            } else {
+                params.dateFilter = datePreset || 'all';
+            }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/reports`, {
                 headers: { 'x-access-token': token },
@@ -392,7 +409,7 @@ const Reports = () => {
 
             {/* Filters */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Record Type</label>
                         <select
@@ -423,16 +440,75 @@ const Reports = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-                        <select
-                            value={dateFilter}
-                            onChange={(e) => handleFilterChange(setDateFilter, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                        >
-                            <option value="all">All Time</option>
-                            <option value="7days">Last 7 Days</option>
-                            <option value="30days">Last 30 Days</option>
-                            <option value="90days">Last 90 Days</option>
-                        </select>
+                        <div>
+                            <select
+                                value={datePreset}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setDatePreset(val);
+                                    setPage(1);
+                                    if (val === 'today') {
+                                        const d = new Date().toISOString().slice(0,10);
+                                        setStartDate(d); setEndDate(d);
+                                    } else if (val === 'thismonth') {
+                                        const now = new Date();
+                                        const s = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+                                        const e = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0,10);
+                                        setStartDate(s); setEndDate(e);
+                                    } else if (val === 'lastmonth') {
+                                        const now = new Date();
+                                        const s = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0,10);
+                                        const e = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0,10);
+                                        setStartDate(s); setEndDate(e);
+                                    } else if (val === 'thisyear') {
+                                        const now = new Date();
+                                        const s = new Date(now.getFullYear(), 0, 1).toISOString().slice(0,10);
+                                        const e = new Date(now.getFullYear(), 11, 31).toISOString().slice(0,10);
+                                        setStartDate(s); setEndDate(e);
+                                    } else if (val === 'lastyear') {
+                                        const now = new Date();
+                                        const s = new Date(now.getFullYear() - 1, 0, 1).toISOString().slice(0,10);
+                                        const e = new Date(now.getFullYear() - 1, 11, 31).toISOString().slice(0,10);
+                                        setStartDate(s); setEndDate(e);
+                                    } else if (val === 'thisquarter' || val === 'lastquarter') {
+                                        const now = new Date();
+                                        let qStartMonth = Math.floor(now.getMonth() / 3) * 3;
+                                        let year = now.getFullYear();
+                                        if (val === 'lastquarter') {
+                                            qStartMonth -= 3;
+                                            if (qStartMonth < 0) { qStartMonth += 12; year -= 1; }
+                                        }
+                                        const s = new Date(year, qStartMonth, 1).toISOString().slice(0,10);
+                                        const e = new Date(year, qStartMonth + 3, 0).toISOString().slice(0,10);
+                                        setStartDate(s); setEndDate(e);
+                                    } else if (val === 'custom') {
+                                        setStartDate(''); setEndDate('');
+                                    } else {
+                                        setStartDate(''); setEndDate('');
+                                    }
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                            >
+                                <option value="today">Today</option>
+                                <option value="7days">Last 7 Days</option>
+                                <option value="30days">Last 30 Days</option>
+                                <option value="90days">Last 90 Days</option>
+                                <option value="thismonth">This Month</option>
+                                <option value="lastmonth">Last Month</option>
+                                <option value="thisquarter">This Quarter</option>
+                                <option value="lastquarter">Last Quarter</option>
+                                <option value="thisyear">This Year</option>
+                                <option value="lastyear">Last Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+
+                            {datePreset === 'custom' && (
+                                <div className="flex gap-2 mt-2">
+                                    <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} className="w-1/2 px-2 py-1 border border-gray-300 rounded" />
+                                    <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} className="w-1/2 px-2 py-1 border border-gray-300 rounded" />
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
@@ -452,184 +528,137 @@ const Reports = () => {
                 </div>
             </div>
 
-            {/* Reports Grid */}
-            <div className="space-y-2">
+            {/* Reports Table */}
+            <div className="overflow-x-auto bg-white rounded-lg border border-gray-100">
                 {loading ? (
-                    <ModernLoader size="lg" message="Loading Reports..." fullScreen={false} />
-                ) : reports.length > 0 ? (
-                    reports.map((report) => {
-                        const isLeave = report.type === 'leave';
-                        const isTimeOff = report.type === 'timeoff';
-                        const isOnDuty = report.type === 'onduty';
-                        const uniqueKey = `${isLeave ? 'lv' : isTimeOff ? 'to' : 'od'}_${report.id}`;
-                        const staffName = `${report.tblstaff?.firstname || 'Unknown'} ${report.tblstaff?.lastname || ''}`;
-                        const isExpanded = expandedRows[uniqueKey];
-
-                        // Prepare summary line based on type
-                        let summaryText = '';
-                        if (isLeave) {
-                            const days = calculateLeaveDays(report.start_date, report.end_date);
-                            summaryText = `${report.start_date} → ${report.end_date} (${days} days, ${report.leave_type || 'N/A'})`;
-                        } else if (isTimeOff) {
-                            summaryText = `${report.date} | ${report.start_time || ''} - ${report.end_time || ''}`;
-                        } else {
-                            const startTime = report.check_in_time ? formatInTimezone(report.check_in_time, null, { hour: '2-digit', minute: '2-digit', hour12: true, day: undefined, month: undefined, year: undefined }) : 'N/A';
-                            const duration = calculateDuration(report.check_in_time, report.check_out_time);
-                            summaryText = `${report.date} | ${startTime} | ${duration} | ${report.client_name || 'N/A'}`;
-                        }
-
-                        // Type badge style
-                        let typeBadgeClass = 'bg-purple-100 text-purple-700';
-                        let typeLabel = 'On-Duty';
-                        if (isLeave) {
-                            typeBadgeClass = 'bg-blue-100 text-blue-700';
-                            typeLabel = 'Leave';
-                        } else if (isTimeOff) {
-                            typeBadgeClass = 'bg-orange-100 text-orange-700';
-                            typeLabel = 'Time-Off';
-                        }
-
-                        return (
-                            <div key={uniqueKey} className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 hover:shadow-md transition-shadow">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex items-start gap-2 flex-1">
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold flex-shrink-0 text-sm">
-                                            {report.tblstaff?.firstname?.charAt(0) || 'U'}
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                <h3 className="font-semibold text-gray-900 text-sm">{staffName}</h3>
-                                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${typeBadgeClass}`}>
-                                                    {typeLabel}
-                                                </span>
-                                                {getStatusBadge(report)}
-                                            </div>
-
-                                            {/* Summary Line */}
-                                            <div className="flex items-center justify-between gap-2 mb-1">
-                                                <p className="text-xs text-gray-600 truncate">{summaryText}</p>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggleRow(uniqueKey)}
-                                                    className="text-xs text-blue-700 hover:text-blue-800 font-medium whitespace-nowrap ml-2 cursor-pointer bg-none border-none p-0"
-                                                >
-                                                    {isExpanded ? 'Show Less' : 'Show More'}
-                                                </button>
-                                            </div>
-
-                                            {/* Expanded Details */}
-                                            {isExpanded && (
-                                                <>
-                                                    <p className="text-xs text-gray-500 mb-2">{report.tblstaff?.email || 'N/A'}</p>
-                                                    {isLeave ? (
-                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-2 pt-2 border-t">
-                                                            <div>
-                                                                <p className="text-gray-500 font-medium">Start</p>
-                                                                <p className="text-gray-900">{report.start_date}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-gray-500 font-medium">End</p>
-                                                                <p className="text-gray-900">{report.end_date}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-gray-500 font-medium">Days</p>
-                                                                <p className="text-gray-900">
-                                                                    {report.start_date && report.end_date
-                                                                        ? calculateLeaveDays(report.start_date, report.end_date)
-                                                                        : 'N/A'}
-                                                                </p>
-                                                            </div>
-                                                            {/* ... rest of leave details ... */}
-                                                            <div>
-                                                                <p className="text-gray-500 font-medium">Type</p>
-                                                                <p className="text-gray-900">{report.leave_type || 'N/A'}</p>
-                                                            </div>
-                                                            <div className="col-span-2 md:col-span-4">
-                                                                <p className="text-gray-500 font-medium">Reason</p>
-                                                                <p className="text-gray-700">{report.reason || 'N/A'}</p>
-                                                            </div>
-                                                            {report.approver && (
-                                                                <div className="col-span-2 md:col-span-4 pt-2 border-t">
-                                                                    <p className="text-gray-500 font-medium">
-                                                                        {report.status === 'Approved' ? 'Approved By' : 'Rejected By'}
-                                                                    </p>
-                                                                    <p className="text-gray-700">{report.approver.firstname} {report.approver.lastname}</p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ) : isTimeOff ? (
-                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-2 pt-2 border-t">
-                                                            <div>
-                                                                <p className="text-gray-500 font-medium">Date</p>
-                                                                <p className="text-gray-900">{report.date}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-gray-500 font-medium">Start Time</p>
-                                                                <p className="text-gray-900">{report.start_time || 'N/A'}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-gray-500 font-medium">End Time</p>
-                                                                <p className="text-gray-900">{report.end_time || 'N/A'}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-gray-500 font-medium">Status</p>
-                                                                <p className="text-gray-900">{report.status || 'N/A'}</p>
-                                                            </div>
-                                                            <div className="col-span-2 md:col-span-4">
-                                                                <p className="text-gray-500 font-medium">Reason</p>
-                                                                <p className="text-gray-700">{report.reason || 'N/A'}</p>
-                                                            </div>
-                                                            {report.rejection_reason && (
-                                                                <div className="col-span-2 md:col-span-4">
-                                                                    <p className="text-gray-500 font-medium">Rejection Reason</p>
-                                                                    <p className="text-red-600">{report.rejection_reason}</p>
-                                                                </div>
-                                                            )}
-                                                            {report.approver && (
-                                                                <div className="col-span-2 md:col-span-4 pt-2 border-t">
-                                                                    <p className="text-gray-500 font-medium">
-                                                                        {report.status === 'Approved' ? 'Approved By' : 'Rejected By'}
-                                                                    </p>
-                                                                    <p className="text-gray-700">{report.approver.firstname} {report.approver.lastname}</p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-2 pt-2 border-t">
-                                                            {/* ... on duty details ... */}
-                                                            <div>
-                                                                <p className="text-gray-500 font-medium">Start</p>
-                                                                <p className="text-gray-900">
-                                                                    {report.check_in_time ? formatInTimezone(report.check_in_time, null, { hour: '2-digit', minute: '2-digit', hour12: true, day: undefined, month: undefined, year: undefined }) : 'N/A'}
-                                                                </p>
-                                                            </div>
-                                                            {/* ... */}
-                                                            <div>
-                                                                <p className="text-gray-500 font-medium">Date</p>
-                                                                <p className="text-gray-900">{report.date}</p>
-                                                            </div>
-                                                            <div className="col-span-2">
-                                                                <p className="text-gray-500 font-medium">Client</p>
-                                                                <p className="text-gray-700">{report.client_name || 'N/A'}</p>
-                                                            </div>
-                                                            <div className="col-span-4">
-                                                                <p className="text-gray-500 font-medium">Purpose</p>
-                                                                <p className="text-gray-700">{report.purpose || 'N/A'}</p>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })
+                    <div className="p-6"><ModernLoader size="lg" message="Loading Reports..." fullScreen={false} /></div>
+                ) : reports.length === 0 ? (
+                    <div className="p-6 text-center text-gray-500">No reports found</div>
                 ) : (
-                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                        <p className="text-gray-500 font-medium">No reports found</p>
-                    </div>
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500"> </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Staff ID</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Name</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Email</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Type</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Detail</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Start</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">End</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Duration</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Location</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                            {reports.map((report) => {
+                                const isLeave = report.type === 'leave';
+                                const isTimeOff = report.type === 'timeoff';
+                                const isOnDuty = report.type === 'onduty';
+                                const uniqueKey = `${isLeave ? 'lv' : isTimeOff ? 'to' : 'od'}_${report.id}`;
+                                const staffName = `${report.tblstaff?.firstname || 'Unknown'} ${report.tblstaff?.lastname || ''}`.trim();
+                                const isExpanded = !!expandedRows[uniqueKey];
+
+                                // compute primary cells
+                                const dateCell = report.date || report.start_date || (report.check_in_time ? formatInTimezone(report.check_in_time, null, { year: 'numeric', month: 'short', day: '2-digit' }) : 'N/A');
+                                const staffId = report.tblstaff?.staffid || report.staff_id || 'N/A';
+                                const detail = isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'Time-Off' : (report.client_name || 'N/A');
+                                const startCell = isLeave ? report.start_date : isTimeOff ? (report.start_time || 'N/A') : (report.check_in_time ? formatInTimezone(report.check_in_time, null, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A');
+                                const endCell = isLeave ? report.end_date : isTimeOff ? (report.end_time || 'N/A') : (report.check_out_time ? formatInTimezone(report.check_out_time, null, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A');
+                                const durationCell = isLeave ? (report.start_date && report.end_date ? `${calculateLeaveDays(report.start_date, report.end_date)} day(s)` : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
+                                const locationCell = isLeave || isTimeOff ? 'N/A' : (report.location || report.client_name || 'N/A');
+                                const statusCell = (report.type === 'leave' || report.type === 'timeoff') ? (report.status || 'N/A') : (report.check_out_time ? 'Completed' : 'Active');
+
+                                // Timestamps: backend may return camelCase or snake_case fields
+                                const createdAtVal = report.createdAt || report.created_at || report.created_on || report.created || report.date_created || null;
+                                const updatedAtVal = report.updatedAt || report.updated_at || report.decision_at || report.updated || report.date_updated || null;
+
+                                return (
+                                    <React.Fragment key={uniqueKey}>
+                                        <tr className="hover:bg-gray-50">
+                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                                <button onClick={() => toggleRow(uniqueKey)} className="text-blue-600 font-bold">{isExpanded ? '- ' : '+ '}</button>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{dateCell}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{staffId}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{staffName}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-500">{report.tblstaff?.email || 'N/A'}</td>
+                                            <td className="px-4 py-3 text-sm">
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${isLeave ? 'bg-blue-100 text-blue-700' : isTimeOff ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>{isLeave ? 'Leave' : isTimeOff ? 'Time-Off' : 'On-Duty'}</span>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{detail}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{startCell}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{endCell}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{durationCell}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{locationCell}</td>
+                                            <td className="px-4 py-3 text-sm">{getStatusBadge(report)}</td>
+                                        </tr>
+
+                                        {isExpanded && (
+                                            <tr>
+                                                <td colSpan={12} className="bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Full Name</p>
+                                                            <p className="text-sm text-gray-900">{staffName}</p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Email</p>
+                                                            <p className="text-sm text-gray-900">{report.tblstaff?.email || 'N/A'}</p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Type / Detail</p>
+                                                            <p className="text-sm text-gray-900">{detail}</p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Location</p>
+                                                            <p className="text-sm text-gray-900">{locationCell}</p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Reason / Purpose</p>
+                                                            <p className="text-sm text-gray-900">{report.reason || report.purpose || 'N/A'}</p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Approver</p>
+                                                            <p className="text-sm text-gray-900">{report.approver ? `${report.approver.firstname} ${report.approver.lastname} (${report.approver.email})` : 'N/A'}</p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Submitted</p>
+                                                            <p className="text-sm text-gray-900">{createdAtVal ? formatInTimezone(createdAtVal, null, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'}</p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Decision</p>
+                                                            {report.status && (report.status === 'Approved' || report.status === 'Rejected') ? (
+                                                                <p className="text-sm text-gray-900">{`${report.status === 'Approved' ? 'Approved At' : 'Rejected At'}: ${updatedAtVal ? formatInTimezone(updatedAtVal, null, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'}`}</p>
+                                                            ) : (
+                                                                <p className="text-sm text-gray-900">{report.status || 'N/A'}</p>
+                                                            )}
+
+                                                            {report.rejection_reason && (
+                                                                <>
+                                                                    <p className="text-xs text-red-500 mt-2">Rejection Reason</p>
+                                                                    <p className="text-sm text-red-700">{report.rejection_reason}</p>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 )}
             </div>
 
