@@ -4,7 +4,9 @@ import { FiMapPin } from 'react-icons/fi';
 const OnDutyLocationMap = ({ startLat, startLong, endLat, endLong, clientName, location }) => {
     // Debug logging
     console.log('OnDutyLocationMap props:', { startLat, startLong, endLat, endLong, clientName, location });
-    
+
+    const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
     const hasStartLocation = startLat && startLong && startLat !== '0.0' && startLong !== '0.0';
     const hasEndLocation = endLat && endLong && endLat !== '0.0' && endLong !== '0.0';
 
@@ -121,8 +123,8 @@ const OnDutyLocationMap = ({ startLat, startLong, endLat, endLong, clientName, l
                         referrerPolicy="no-referrer-when-downgrade"
                         src={
                             hasStartLocation && hasEndLocation
-                                ? `https://www.google.com/maps/embed/v1/directions?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&origin=${startLat},${startLong}&destination=${endLat},${endLong}`
-                                : `https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${hasStartLocation ? startLat : endLat},${hasStartLocation ? startLong : endLong}&zoom=15`
+                                ? `https://www.google.com/maps/embed/v1/directions?key=${GOOGLE_MAPS_API_KEY}&origin=${startLat},${startLong}&destination=${endLat},${endLong}`
+                                : `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${hasStartLocation ? startLat : endLat},${hasStartLocation ? startLong : endLong}&zoom=15`
                         }
                         title="On-Duty Location Map"
                     />
