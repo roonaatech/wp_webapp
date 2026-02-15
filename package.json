@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:uat": "vite build --mode uat",
     "build:prod": "vite build --mode production",
+    "deploy:uat": "npm run build:uat && ssh -p 1117 jenkins@91.108.105.10 'rm -rf /apps/attendance/src/webapp/*' && scp -P 1117 -r dist/* jenkins@91.108.105.10:/apps/attendance/src/webapp",
     "lint": "eslint .",
     "preview": "vite preview",
     "release": "standard-version",

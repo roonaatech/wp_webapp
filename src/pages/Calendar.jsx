@@ -4,16 +4,18 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { hasAdminPermission, fetchRoles, canManageSchedule } from '../utils/roleUtils';
+import { getCurrentInAppTimezone } from '../utils/timezone.util';
 
 const Calendar = () => {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
-    const [currentDate, setCurrentDate] = useState(new Date());
+    const now = getCurrentInAppTimezone().full;
+    const [currentDate, setCurrentDate] = useState(now);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedDate, setSelectedDate] = useState(new Date().getDate());
+    const [selectedDate, setSelectedDate] = useState(now.getDate());
     const [selectedEvents, setSelectedEvents] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState('');
     const [selectedEventType, setSelectedEventType] = useState('');
@@ -48,9 +50,8 @@ const Calendar = () => {
         }
     }, [currentDate, hasPermission]);
 
-    // Auto-select today's date and show details on mount
     useEffect(() => {
-        const today = new Date();
+        const today = now; // Use the mirrored 'now'
         if (today.getFullYear() === currentDate.getFullYear() &&
             today.getMonth() === currentDate.getMonth()) {
             const todayDate = today.getDate();
@@ -63,7 +64,7 @@ const Calendar = () => {
             const todayEvents = events.filter(event => event.date === dateStr);
             setSelectedEvents(todayEvents);
         }
-    }, [events, currentDate]); // Run when events are loaded
+    }, [events, currentDate, now]); // Run when events are loaded, include now in dependencies
 
     // Listen for approval status changes (on-duty completion)
     useEffect(() => {
@@ -147,7 +148,7 @@ const Calendar = () => {
     };
 
     const handleTodayClick = () => {
-        setCurrentDate(new Date());
+        setCurrentDate(now); // Use the mirrored 'now'
     };
 
     const handleDateClickInternal = (day) => {
@@ -315,7 +316,7 @@ const Calendar = () => {
 
                         {/* Calendar days */}
                         {days.map((day) => {
-                            const today = new Date();
+                            const today = getCurrentInAppTimezone().full;
                             const isToday = today.getFullYear() === currentDate.getFullYear() &&
                                 today.getMonth() === currentDate.getMonth() &&
                                 today.getDate() === day;

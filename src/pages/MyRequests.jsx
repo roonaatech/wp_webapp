@@ -4,12 +4,22 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName } from '../utils/roleUtils';
-import { formatInTimezone, getAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatTimeOnly, getAppTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    return formatInTimezone(dateStr, null, {
+    
+    // Check if this is a timezone-formatted string from backend (YYYY-MM-DD HH:mm:ss)
+    // If so, extract and format the date part directly
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(dateStr)) {
+        const datePart = dateStr.split(' ')[0]; // Extract "YYYY-MM-DD"
+        const [y, m, d] = datePart.split('-');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
+    }
+    
+    const formatted = formatInTimezone(dateStr, null, {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -17,27 +27,22 @@ const formatDate = (dateStr) => {
         minute: undefined,
         hour12: undefined
     });
+    // If it's a numeric string like "2026-02-14 09:00:00", formatInTimezone might return it raw
+    if (typeof formatted === 'string' && formatted.includes('-') && formatted.split('-').length === 3) {
+        const parts = formatted.split(/[ T]/)[0].split('-');
+        if (parts[0].length === 4) { // YYYY-MM-DD
+            const [y, m, d] = parts;
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${d} ${months[parseInt(m) - 1]} ${y}`;
+        }
+    }
+    return formatted;
 };
 
 const formatTime12 = (timeStr) => {
     if (!timeStr) return '';
-    // If it's a full ISO timestamp
-    if (timeStr.includes('T')) {
-        return formatInTimezone(timeStr, null, {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-            day: undefined,
-            month: undefined,
-            year: undefined
-        });
-    }
-    // For raw time strings like "09:00:00" - keep as is since they are usually local
-    const [h, m] = timeStr.split(':');
-    const hour = parseInt(h);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${m} ${ampm}`;
+    // Use the central utility which handles backend timezone-formatted strings
+    return formatTimeOnly(timeStr);
 };
 
 const calculateLeaveDaysExcludingSunday = (start, end) => {
@@ -188,7 +193,8 @@ const MyRequests = () => {
                 setOdClientName(res.data.data.client_name || '');
                 setOdLocation(res.data.data.location || '');
                 setOdPurpose(res.data.data.purpose || '');
-                setOdStartTime(new Date(res.data.data.start_time));
+                // Handle various date formats from backend
+                setOdStartTime(res.data.data.start_time);
             } else {
                 setIsOnDuty(false);
                 setActiveOnDutyData(null);
@@ -319,7 +325,7 @@ const MyRequests = () => {
             }, { headers });
             toast.success('On-Duty started!');
             setIsOnDuty(true);
-            setOdStartTime(new Date());
+            setOdStartTime(getCurrentInAppTimezone().full);
             fetchActiveOnDuty();
         } catch (e) {
             toast.error(e.response?.data?.message || 'Failed to start on-duty');
@@ -550,7 +556,17 @@ const MyRequests = () => {
     // Duration formatter for active on-duty
     const formatDuration = (start) => {
         if (!start) return '';
-        const diff = Date.now() - new Date(start).getTime();
+        // Use the current application time (shifted local date) as 'now'
+        // to match the shifted 'start' date for correct subtraction.
+        const now = getCurrentInAppTimezone().full;
+
+        // Use parseAppTimezone to get a consistent Date object (shifted local)
+        const startDate = (typeof start === 'string') ? parseAppTimezone(start) : start;
+        if (!startDate) return '';
+
+        const diff = now.getTime() - startDate.getTime();
+        if (diff < 0) return '0 min'; // Guard against slight clock drifts
+
         const hours = Math.floor(diff / 3600000);
         const minutes = Math.floor((diff % 3600000) / 60000);
         return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
@@ -584,7 +600,7 @@ const MyRequests = () => {
 
     // ── Calendar Logic ──
     const [calendarOpen, setCalendarOpen] = useState(false);
-    const [calendarMonth, setCalendarMonth] = useState(new Date());
+    const [calendarMonth, setCalendarMonth] = useState(getCurrentInAppTimezone().full);
     const [rangeStep, setRangeStep] = useState(0); // 0 = pick start, 1 = pick end
     const [tempCalStart, setTempCalStart] = useState('');
     const [tempCalEnd, setTempCalEnd] = useState('');
@@ -634,7 +650,7 @@ const MyRequests = () => {
     const calendarMon = calendarMonth.getMonth();
     const daysInMonth = new Date(calendarYear, calendarMon + 1, 0).getDate();
     const firstDayOfWeek = new Date(calendarYear, calendarMon, 1).getDay(); // 0=Sun
-    const monthName = calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const monthName = formatInTimezone(calendarMonth, null, { month: 'long', year: 'numeric', day: undefined, hour: undefined, minute: undefined });
 
     const handleCalendarDayClick = (dateStr) => {
         if (rangeStep === 0) {
@@ -975,7 +991,7 @@ const MyRequests = () => {
                                             <div className="text-center flex-1">
                                                 <p className="text-[10px] text-blue-500 font-bold mb-1">STARTED AT</p>
                                                 <p className="text-2xl font-black text-blue-600">
-                                                    {odStartTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                    {formatTime12(odStartTime)}
                                                 </p>
                                             </div>
                                             <div className="w-px h-12 bg-blue-100"></div>
@@ -999,7 +1015,6 @@ const MyRequests = () => {
                                         </span>
                                     ) : '⏹️ End On-Duty'}
                                 </button>
-                                <p className="text-[10px] text-gray-400 text-center mt-1">📍 Exact GPS location will be captured</p>
                             </>
                         ) : (
                             /* ── Start On-Duty Form ── */
@@ -1066,7 +1081,6 @@ const MyRequests = () => {
                                         </span>
                                     ) : '▶️ Start On-Duty'}
                                 </button>
-                                <p className="text-[10px] text-gray-400 text-center mt-1">📍 Exact GPS location will be captured</p>
                             </form>
                         )}
                     </div>

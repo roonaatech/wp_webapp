@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { canViewActivities, fetchRoles } from '../utils/roleUtils';
-import { formatInTimezone } from '../utils/timezone.util';
+import { formatInTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 
 const Activities = () => {
     const navigate = useNavigate();
@@ -13,11 +13,7 @@ const Activities = () => {
 
     // Get today's date in YYYY-MM-DD format
     const getTodayDate = () => {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return getCurrentInAppTimezone().date;
     };
 
     const [activities, setActivities] = useState([]);
@@ -186,7 +182,7 @@ const Activities = () => {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `activity_logs_${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute('download', `activity_logs_${getCurrentInAppTimezone().date}.csv`);
             document.body.appendChild(link);
             link.click();
             link.remove();

@@ -30,178 +30,181 @@ export const TIMEZONE_OPTIONS = [
 export const getAppTimezone = () => {
     try {
         const settings = JSON.parse(localStorage.getItem('settings') || '{}');
-        return settings.application_timezone || 'America/Chicago';
+        // Default to Asia/Kolkata (IST) as it's the primary region for this app
+        return settings.application_timezone || 'Asia/Kolkata';
     } catch (e) {
-        return 'America/Chicago';
+        return 'Asia/Kolkata';
     }
 };
 
 /**
- * Format a date/time in the application's configured timezone
- * @param {Date|string} date - Date to format
- * @param {string} timezone - Optional specific IANA timezone string
- * @param {object} options - Intl.DateTimeFormat options
- * @returns {string} Formatted date string
+ * Helper to mirror an absolute Date object into a target timezone's numbers.
+ * Returns a local Date object where local hours/minutes/etc match the target timezone.
+ */
+const mirrorToTimezone = (absoluteDate, timezone) => {
+    if (!absoluteDate || isNaN(absoluteDate.getTime())) return absoluteDate;
+
+    try {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            year: 'numeric', month: 'numeric', day: 'numeric',
+            hour: 'numeric', minute: 'numeric', second: 'numeric',
+            hour12: false
+        }).formatToParts(absoluteDate);
+
+        const p = {};
+        parts.forEach(part => { p[part.type] = part.value; });
+
+        // Construct a Date object whose local time represents the numbers from the target timezone
+        return new Date(
+            parseInt(p.year),
+            parseInt(p.month) - 1,
+            parseInt(p.day),
+            parseInt(p.hour),
+            parseInt(p.minute),
+            parseInt(p.second)
+        );
+    } catch (e) {
+        console.error('Error mirroring date:', e);
+        return absoluteDate;
+    }
+};
+
+/**
+ * Format a date/time in the application's configured timezone.
+ * Uses Numerical Mirroring to ensure consistent display across all browsers.
  */
 export const formatInTimezone = (date, timezone = null, options = {}) => {
     try {
+        if (!date) return '—';
         const targetTimezone = timezone || getAppTimezone();
-        let dateObj;
 
-        if (typeof date === 'string') {
-            // Check if it's a pure date string (YYYY-MM-DD)
-            if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-                const [year, month, day] = date.split('-').map(Number);
-                dateObj = new Date(year, month - 1, day, 12, 0, 0);
-            } else if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(date) && !date.includes('Z') && !/[+-]\d{2}:\d{2}$/.test(date)) {
-                // This is a date string without timezone info (like from our new DB format)
-                // Treat it as being in the target timezone to avoid shifting numbers
-                // Hack: We append the target timezone offset or just use the parts
-                const [dPart, tPart] = date.split(/[ T]/);
-                const [year, month, day] = dPart.split('-').map(Number);
-                const [hour, minute, second] = tPart.split(':').map(Number);
-
-                // Construct a date that will result in these numbers in the target timezone
-                // The easiest way is to use the Intl parts logic but reversed (complex)
-                // Or just use the original string if we just want the numbers back.
-                return date.split('.')[0]; // Temporary simple return for "numbers-in, numbers-out"
-            } else {
-                dateObj = new Date(date);
-            }
-        } else {
-            dateObj = date;
-        }
-
-        if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
-            // If we returned a string above, it won't hit here
-            if (typeof dateObj === 'string') return dateObj;
-            return 'Invalid Date';
-        }
+        // Always parse into a mirrored IST date first
+        const mirrored = parseAppTimezone(date, targetTimezone);
+        if (!mirrored || isNaN(mirrored.getTime())) return String(date);
 
         const defaultOptions = {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-            timeZone: targetTimezone
+            year: 'numeric', month: 'short', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: true
         };
 
-        const formatOptions = { ...defaultOptions, ...options };
-
-        return new Intl.DateTimeFormat('en-US', formatOptions).format(dateObj);
+        // Format the mirrored date using local browser time (which now matches target numbers)
+        return new Intl.DateTimeFormat('en-US', { ...defaultOptions, ...options }).format(mirrored);
     } catch (error) {
-        console.error('Error formatting date in timezone:', error);
-        return new Date(date).toLocaleString();
+        console.error('Error in formatInTimezone:', error);
+        return String(date);
     }
 };
 
-/**
- * Format date only (no time)
- * @param {Date|string} date - Date to format
- * @param {string} timezone - IANA timezone string
- * @returns {string} Formatted date string (MM/DD/YYYY)
- */
 export const formatDateOnly = (date, timezone = null) => {
     return formatInTimezone(date, timezone, {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: undefined,
-        minute: undefined,
-        hour12: undefined
+        year: 'numeric', month: 'short', day: '2-digit',
+        hour: undefined, minute: undefined, hour12: undefined
     });
 };
 
-/**
- * Format time only (no date)
- * @param {Date|string} date - Date to format
- * @param {string} timezone - Optional specific IANA timezone string
- * @returns {string} Formatted time string (HH:MM AM/PM)
- */
 export const formatTimeOnly = (date, timezone = null) => {
+    // Check if this is a timezone-formatted string from backend (YYYY-MM-DD HH:mm:ss)
+    // These strings are already in the app timezone, so extract time directly without conversion
+    if (typeof date === 'string') {
+        const match = date.match(/^\d{4}-\d{2}-\d{2}\s(\d{2}):(\d{2}):(\d{2})/);;
+        if (match) {
+            const h = parseInt(match[1], 10);
+            const m = match[2];
+            const hour12 = h % 12 || 12;
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            return `${String(hour12).padStart(2, '0')}:${m} ${ampm}`;
+        }
+    }
+    
+    // Otherwise use the standard timezone conversion (for Date objects and other formats)
     return formatInTimezone(date, timezone, {
-        year: undefined,
-        month: undefined,
-        day: undefined,
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
+        year: undefined, month: undefined, day: undefined,
+        hour: '2-digit', minute: '2-digit', hour12: true
     });
 };
 
-/**
- * Get timezone offset string (e.g., "GMT-6")
- * @param {string} timezone - Optional specific IANA timezone string
- * @returns {string} Offset string
- */
 export const getTimezoneOffset = (timezone = null) => {
     try {
         const targetTimezone = timezone || getAppTimezone();
-        const date = new Date();
-        const formatter = new Intl.DateTimeFormat('en-US', {
+        return new Intl.DateTimeFormat('en-US', {
             timeZone: targetTimezone,
             timeZoneName: 'short'
-        });
-        const parts = formatter.formatToParts(date);
-        const timeZoneName = parts.find(part => part.type === 'timeZoneName');
-        return timeZoneName ? timeZoneName.value : '';
-    } catch (error) {
-        console.error('Error getting timezone offset:', error);
-        return '';
-    }
+        }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || '';
+    } catch (e) { return ''; }
 };
 
 /**
- * Get current date and time parts in application timezone
- * Useful for initializing form inputs
- * @returns {object} { date: "YYYY-MM-DD", time: "HH:mm", full: Date }
+ * Get current date and time parts in application timezone.
+ * Returns a mirrored Date object for safe UI use and duration math.
  */
 export const getCurrentInAppTimezone = () => {
     try {
         const tz = getAppTimezone();
         const now = new Date();
-
-        // Use Intl to get strings in the target timezone
-        const dateStr = now.toLocaleDateString('en-CA', { timeZone: tz }); // en-CA gives YYYY-MM-DD
-        const timeStr = now.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' }); // en-GB gives HH:mm
+        const mirrored = mirrorToTimezone(now, tz);
 
         return {
-            date: dateStr,
-            time: timeStr
+            date: `${mirrored.getFullYear()}-${String(mirrored.getMonth() + 1).padStart(2, '0')}-${String(mirrored.getDate()).padStart(2, '0')}`,
+            time: `${String(mirrored.getHours()).padStart(2, '0')}:${String(mirrored.getMinutes()).padStart(2, '0')}`,
+            full: mirrored
         };
     } catch (error) {
-        console.error('Error getting current time in app timezone:', error);
+        console.error('Error in getCurrentInAppTimezone:', error);
+        const now = new Date();
         return {
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toTimeString().split(' ')[0].substring(0, 5)
+            date: now.toISOString().split('T')[0],
+            time: now.toTimeString().split(' ')[0].substring(0, 5),
+            full: now
         };
     }
 };
 
 /**
- * Parse a date string as being in the application's timezone
- * @param {string} dateStr - Date string (e.g. "2026-02-14 09:00:00")
- * @returns {Date} Date object
+ * Parse a date string into a "mirrored" Date object.
+ * Handles ISO strings (absolute) and DB strings (naked numbers).
  */
-export const parseAppTimezone = (dateStr) => {
+/**
+ * Parse a date string into a "mirrored" Date object.
+ * CRITICAL: We aggressively strip 'Z', 'T' and offsets to prevent browser timezone shifting.
+ * We treat ALL inputs as "Application Timezone Numbers" by default.
+ * This is necessary because the backend creates strings in the target timezone (e.g. IST)
+ * but the DB/ORM layer often appends 'Z', causing a "Double Shift" if parsed as UTC.
+ */
+export const parseAppTimezone = (dateStr, timezone = null) => {
     if (!dateStr) return null;
+    const targetTz = timezone || getAppTimezone();
+
     try {
-        const tz = getAppTimezone();
-        // If it's already an ISO string with Z or offset, new Date() is fine
-        if (dateStr.includes('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
-            return new Date(dateStr);
+        if (dateStr instanceof Date) return mirrorToTimezone(dateStr, targetTz);
+
+        const str = String(dateStr);
+
+        // AGGRESSIVE STRIP: Remove Z, T, and offsets.
+        // Input: "2026-02-14T15:30:00.000Z" (IST time labeled as UTC)
+        // Output: "2026-02-14 15:30:00" (Naked string)
+        let cleanStr = str
+            .replace('T', ' ')
+            .replace('Z', '')
+            .replace(/\.\d+$/, '') // strip milliseconds
+            .split('+')[0]         // strip +00:00
+            .split('-').slice(0, 3).join('-') + (str.split('-')[3] ? '' : '') // hacky check, better to just regex
+            ;
+
+        // Robust Regex Cleanup: Keep only Digits, Space, Colon, Dash
+        cleanStr = str.replace(/[TZ]/g, ' ').split('.')[0].trim();
+
+        const parts = cleanStr.split(/[ :\-]/);
+        if (parts.length >= 3) {
+            const [y, m, d, hh, mm, ss] = parts.map(val => parseInt(val, 10));
+            // Construct as local Date using the numbers exactly as they are.
+            return new Date(y, m - 1, d, hh || 0, mm || 0, ss || 0);
         }
 
-        // Otherwise, treat it as being in 'tz'
-        // This is tricky in vanilla JS, but we can use Intl to get offset
-        // or just append the offset if we know it.
-        // A simpler way for display purposes is to use formatInTimezone which handles strings.
-        return new Date(dateStr + 'Z'); // Hack: if we store it as "IST but in UTC column"
-        // Wait, if we stored it as IST numbers in the DB, and we read it, 
-        // we want to display it correctly.
+        // Fallback
+        return mirrorToTimezone(new Date(str), targetTz);
     } catch (e) {
+        console.error('Error in parseAppTimezone:', e);
         return new Date(dateStr);
     }
 };

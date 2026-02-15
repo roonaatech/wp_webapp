@@ -14,15 +14,15 @@ import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtil
 // Helper to format dates without timezone conversion
 const formatDateLocal = (dateStr) => {
     if (!dateStr) return '';
-    // Handle timestamps by taking only the date part
-    const actualDateStr = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-    const parts = String(actualDateStr).split('-');
-    if (parts.length === 3) {
-        const [year, month, day] = parts;
-        const d = new Date(year, month - 1, day);
-        if (!isNaN(d.getTime())) return d.toLocaleDateString();
-    }
-    return new Date(dateStr).toLocaleDateString();
+    // Use formatInTimezone without hour/minute to get a clean date in the app's timezone
+    return formatInTimezone(dateStr, null, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: undefined,
+        minute: undefined,
+        hour12: undefined
+    });
 };
 
 

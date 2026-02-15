@@ -5,7 +5,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { calculateLeaveDays } from '../utils/dateUtils';
 import { fetchRoles, canViewReports } from '../utils/roleUtils';
-import { formatInTimezone } from '../utils/timezone.util';
+import { formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 
 const Reports = () => {
     const navigate = useNavigate();
@@ -139,9 +139,11 @@ const Reports = () => {
         if (!checkIn) return '-';
         if (!checkOut) return 'In Progress';
 
-        const start = new Date(checkIn);
-        const end = new Date(checkOut);
-        const diffMs = end - start;
+        const start = parseAppTimezone(checkIn);
+        const end = parseAppTimezone(checkOut);
+        if (!start || !end) return '-';
+
+        const diffMs = end.getTime() - start.getTime();
         const diffMins = Math.floor(diffMs / 60000);
         const hours = Math.floor(diffMins / 60);
         const mins = diffMins % 60;
@@ -251,7 +253,7 @@ const Reports = () => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `attendance-report-${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = `attendance-report-${getCurrentInAppTimezone().date}.csv`;
             a.click();
             window.URL.revokeObjectURL(url);
         } catch (err) {

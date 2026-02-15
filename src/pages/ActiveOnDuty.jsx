@@ -5,6 +5,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { hasAdminPermission, fetchRoles, canManageActiveOnDuty } from '../utils/roleUtils';
+import { formatInTimezone, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 
 const ActiveOnDuty = () => {
     const navigate = useNavigate();
@@ -116,22 +117,23 @@ const ActiveOnDuty = () => {
 
     const formatTime = (dateString) => {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleString('en-IN', {
+        return formatInTimezone(dateString, null, {
             year: 'numeric',
             month: 'short',
             day: '2-digit',
             hour: '2-digit',
             minute: '2-digit',
-            second: '2-digit'
+            second: '2-digit',
+            hour12: true
         });
     };
 
     const formatDuration = (startTime) => {
         if (!startTime) return 'N/A';
-        const start = new Date(startTime);
-        const now = new Date();
-        const diffMs = now - start;
+        const now = getCurrentInAppTimezone().full;
+        const start = parseAppTimezone(startTime);
+        if (!start) return 'N/A';
+        const diffMs = now.getTime() - start.getTime();
         const diffMins = Math.floor(diffMs / 60000);
 
         if (diffMins < 60) {
@@ -253,9 +255,8 @@ const ActiveOnDuty = () => {
                                 {sortedRecords.map((record, index) => (
                                     <React.Fragment key={record.id}>
                                         <tr
-                                            className={`border-b border-gray-200 hover:bg-blue-50 transition-colors ${
-                                                index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                                            }`}
+                                            className={`border-b border-gray-200 hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                                                }`}
                                         >
                                             <td className="px-6 py-4">
                                                 <div>

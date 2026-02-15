@@ -26,8 +26,7 @@ import MyRequests from './pages/MyRequests';
 import { fetchRoles } from './utils/roleUtils';
 
 
-const ProtectedLayout = ({ children }) => {
-  // Fetch roles and settings on app load to populate the cache
+const GlobalInit = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -45,6 +44,10 @@ const ProtectedLayout = ({ children }) => {
     }
   }, []);
 
+  return children;
+};
+
+const ProtectedLayout = ({ children }) => {
   return (
     <ProtectedRoute>
       <div className="flex h-screen bg-transparent transition-colors duration-300">
@@ -74,67 +77,69 @@ function App() {
   return (
     <Router>
       <AxiosInterceptorSetup>
-        <Toaster
-          position="top-right"
-          reverseOrder={false}
-          toastOptions={{
-            duration: 4000,
-            style: {
-              padding: '12px 16px',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: '500',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-            },
-            success: {
+        <GlobalInit>
+          <Toaster
+            position="top-right"
+            reverseOrder={false}
+            toastOptions={{
+              duration: 4000,
               style: {
-                background: '#059669',
-                color: '#ffffff',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '500',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
               },
-              iconTheme: {
-                primary: '#ffffff',
-                secondary: '#059669',
+              success: {
+                style: {
+                  background: '#059669',
+                  color: '#ffffff',
+                },
+                iconTheme: {
+                  primary: '#ffffff',
+                  secondary: '#059669',
+                },
               },
-            },
-            error: {
-              style: {
-                background: '#dc2626',
-                color: '#ffffff',
+              error: {
+                style: {
+                  background: '#dc2626',
+                  color: '#ffffff',
+                },
+                iconTheme: {
+                  primary: '#ffffff',
+                  secondary: '#dc2626',
+                },
               },
-              iconTheme: {
-                primary: '#ffffff',
-                secondary: '#dc2626',
-              },
-            },
-          }}
-        />
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/session-expired" element={<SessionExpired />} />
-          <Route path="/unauthorized" element={<Unauthorized />} />
+            }}
+          />
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/session-expired" element={<SessionExpired />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Protected Routes */}
-          <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
-          <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
-          <Route path="/approvals" element={<ProtectedLayout><Approvals /></ProtectedLayout>} />
-          <Route path="/calendar" element={<ProtectedLayout><Calendar /></ProtectedLayout>} />
-          <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
-          <Route path="/activities" element={<ProtectedLayout><Activities /></ProtectedLayout>} />
-          <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
-          <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
-          <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
-          <Route path="/email-settings" element={<ProtectedLayout><EmailSettings /></ProtectedLayout>} />
-          <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
-          <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
+            {/* Protected Routes */}
+            <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+            <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
+            <Route path="/approvals" element={<ProtectedLayout><Approvals /></ProtectedLayout>} />
+            <Route path="/calendar" element={<ProtectedLayout><Calendar /></ProtectedLayout>} />
+            <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
+            <Route path="/activities" element={<ProtectedLayout><Activities /></ProtectedLayout>} />
+            <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
+            <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
+            <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
+            <Route path="/email-settings" element={<ProtectedLayout><EmailSettings /></ProtectedLayout>} />
+            <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
+            <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
 
-          {/* Self-Service Route (all authenticated users, no sidebar/header) */}
-          <Route path="/my-requests" element={<ProtectedRoute skipWebAppCheck><MyRequests /></ProtectedRoute>} />
+            {/* Self-Service Route (all authenticated users, no sidebar/header) */}
+            <Route path="/my-requests" element={<ProtectedRoute skipWebAppCheck><MyRequests /></ProtectedRoute>} />
 
 
-          {/* Catch all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            {/* Catch all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </GlobalInit>
       </AxiosInterceptorSetup>
     </Router>
   );
