@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.1.1](https://github.com/roonaatech/wp_webapp/compare/v2.1.0...v2.1.1) (2026-02-15)
+
+
+### Features
+
+* Implement smart pagination with ellipsis for Reports and Activities pages ([978dd42](https://github.com/roonaatech/wp_webapp/commit/978dd42f7b98c453a313307785779e99c631eebb))
+* Update header and description for Attendance Reports page to enhance clarity ([d47b140](https://github.com/roonaatech/wp_webapp/commit/d47b1400c3e3047c0f287872d6cee39c7b0a3d4c))
+
 ## [2.1.0](https://github.com/roonaatech/wp_webapp/compare/v2.0.0...v2.1.0) (2026-02-15)
 
 
