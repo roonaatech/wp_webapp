@@ -5,12 +5,14 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import { getRoleDisplayName, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
+import ChangePasswordModal from './ChangePasswordModal';
 
 const Header = () => {
     const [showMenu, setShowMenu] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
     const [loadingCount, setLoadingCount] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
     const menuRef = useRef(null);
     const navigate = useNavigate();
     const location = useLocation();
@@ -195,6 +197,20 @@ const Header = () => {
                                     <span>My Requests</span>
                                 </button>
 
+                                {/* Change Password - Only for WorkPulse-only users */}
+                                {user.userid == null && (
+                                    <button
+                                        onClick={() => {
+                                            setShowChangePasswordModal(true);
+                                            setShowMenu(false);
+                                        }}
+                                        className="w-full text-left px-3 py-2.5 text-sm text-[var(--text-main)] hover:bg-purple-50 dark:hover:bg-purple-950/30 rounded-lg transition-all flex items-center gap-3 font-medium"
+                                    >
+                                        <span className="text-lg">🔑</span>
+                                        <span>Change Password</span>
+                                    </button>
+                                )}
+
                                 {/* Sign Out */}
                                 <button
                                     onClick={handleLogout}
@@ -218,6 +234,13 @@ const Header = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Change Password Modal */}
+            {showChangePasswordModal && (
+                <ChangePasswordModal
+                    onClose={() => setShowChangePasswordModal(false)}
+                />
+            )}
         </header>
     );
 };

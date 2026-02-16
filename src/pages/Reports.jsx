@@ -536,23 +536,21 @@ const Reports = () => {
                     <div className="p-6 text-center text-gray-500">No reports found</div>
                 ) : (
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-[#2E5090] text-white">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500"> </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Staff ID</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Name</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Email</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Type</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Detail</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Start</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">End</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Duration</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Location</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Status</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Details</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Date</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Employee</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Type</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Detail</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Start</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">End</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Duration</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Location</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Status</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-100">
+                        <tbody className="divide-y divide-gray-200">
                             {reports.map((report) => {
                                 const isLeave = report.type === 'leave';
                                 const isTimeOff = report.type === 'timeoff';
@@ -577,29 +575,48 @@ const Reports = () => {
 
                                 return (
                                     <React.Fragment key={uniqueKey}>
-                                        <tr className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 text-sm text-gray-600">
-                                                <button onClick={() => toggleRow(uniqueKey)} className="text-blue-600 font-bold">{isExpanded ? '- ' : '+ '}</button>
+                                        <tr className="hover:bg-gray-50 transition-colors group">
+                                            <td className="px-4 py-4 text-sm">
+                                                <button
+                                                    onClick={() => toggleRow(uniqueKey)}
+                                                    className="text-[#2E5090] hover:text-blue-800 font-semibold"
+                                                >
+                                                    {isExpanded ? '− Hide' : '+ View'}
+                                                </button>
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{dateCell}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{staffId}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{staffName}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-500">{report.tblstaff?.email || 'N/A'}</td>
-                                            <td className="px-4 py-3 text-sm">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${isLeave ? 'bg-blue-100 text-blue-700' : isTimeOff ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>{isLeave ? 'Leave' : isTimeOff ? 'Time-Off' : 'On-Duty'}</span>
+                                            <td className="px-4 py-4 text-sm text-gray-700">{dateCell}</td>
+                                            <td className="px-4 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                                                        isLeave ? 'bg-blue-100 text-blue-700' :
+                                                        isTimeOff ? 'bg-orange-100 text-orange-700' :
+                                                        'bg-purple-100 text-purple-700'
+                                                    }`}>
+                                                        {report.tblstaff?.firstname?.charAt(0) || 'U'}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-gray-900">{staffName}</p>
+                                                        <p className="text-xs text-gray-500">ID: {staffId}</p>
+                                                    </div>
+                                                </div>
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{detail}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{startCell}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{endCell}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{durationCell}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{locationCell}</td>
-                                            <td className="px-4 py-3 text-sm">{getStatusBadge(report)}</td>
+                                            <td className="px-4 py-4 text-sm">
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${isLeave ? 'bg-blue-100 text-blue-700' : isTimeOff ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                    {isLeave ? 'Leave' : isTimeOff ? 'Time-Off' : 'On-Duty'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-4 text-sm text-gray-700">{detail}</td>
+                                            <td className="px-4 py-4 text-sm text-gray-700">{startCell}</td>
+                                            <td className="px-4 py-4 text-sm text-gray-700">{endCell}</td>
+                                            <td className="px-4 py-4 text-sm text-gray-700">{durationCell}</td>
+                                            <td className="px-4 py-4 text-sm text-gray-700">{locationCell}</td>
+                                            <td className="px-4 py-4 text-sm">{getStatusBadge(report)}</td>
                                         </tr>
 
                                         {isExpanded && (
                                             <tr>
-                                                <td colSpan={12} className="bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                                                <td colSpan={10} className="bg-blue-50 px-6 py-4 text-sm text-gray-700">
+                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                                         <div>
                                                             <p className="text-xs text-gray-500">Full Name</p>
                                                             <p className="text-sm text-gray-900">{staffName}</p>

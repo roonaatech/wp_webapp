@@ -145,8 +145,8 @@ const ActiveOnDuty = () => {
     };
 
     const SortIcon = ({ column }) => {
-        if (sortConfig.key !== column) return <span className="text-gray-400 text-sm">⬍</span>;
-        return sortConfig.direction === 'asc' ? <span className="text-blue-500">↑</span> : <span className="text-blue-500">↓</span>;
+        if (sortConfig.key !== column) return <span className="text-gray-300 text-sm">⬍</span>;
+        return sortConfig.direction === 'asc' ? <span className="text-white">↑</span> : <span className="text-white">↓</span>;
     };
 
     // Show loading while checking permissions
@@ -212,58 +212,62 @@ const ActiveOnDuty = () => {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead>
-                                <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                                    <th className="px-6 py-4 text-left">
+                            <thead className="bg-[#2E5090] text-white">
+                                <tr>
+                                    <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('staffName')}
-                                            className="flex items-center gap-2 font-semibold text-gray-700 hover:text-gray-900"
+                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
                                         >
                                             Employee <SortIcon column="staffName" />
                                         </button>
                                     </th>
-                                    <th className="px-6 py-4 text-left">
+                                    <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('client_name')}
-                                            className="flex items-center gap-2 font-semibold text-gray-700 hover:text-gray-900"
+                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
                                         >
                                             Client <SortIcon column="client_name" />
                                         </button>
                                     </th>
-                                    <th className="px-6 py-4 text-left">
+                                    <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('location')}
-                                            className="flex items-center gap-2 font-semibold text-gray-700 hover:text-gray-900"
+                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
                                         >
                                             Location <SortIcon column="location" />
                                         </button>
                                     </th>
-                                    <th className="px-6 py-4 text-left">
+                                    <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('start_time')}
-                                            className="flex items-center gap-2 font-semibold text-gray-700 hover:text-gray-900"
+                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
                                         >
                                             Started <SortIcon column="start_time" />
                                         </button>
                                     </th>
-                                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Duration</th>
-                                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Purpose</th>
-                                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Actions</th>
+                                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
+                                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Purpose</th>
+                                    <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {sortedRecords.map((record, index) => (
+                            <tbody className="divide-y divide-gray-200">
+                                {sortedRecords.map((record) => (
                                     <React.Fragment key={record.id}>
                                         <tr
-                                            className={`border-b border-gray-200 hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                                                }`}
+                                            className="hover:bg-gray-50 transition-colors group"
                                         >
                                             <td className="px-6 py-4">
-                                                <div>
-                                                    <p className="font-semibold text-gray-900">
-                                                        {record.tblstaff?.firstname} {record.tblstaff?.lastname}
-                                                    </p>
-                                                    <p className="text-sm text-gray-500">{record.tblstaff?.email}</p>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#2E5090] font-bold text-sm">
+                                                        {record.tblstaff?.firstname?.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-gray-900">
+                                                            {record.tblstaff?.firstname} {record.tblstaff?.lastname}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">{record.tblstaff?.email}</p>
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
@@ -284,15 +288,15 @@ const ActiveOnDuty = () => {
                                             <td className="px-6 py-4 text-gray-700 max-w-xs truncate">
                                                 {record.purpose}
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-6 py-4 text-right">
                                                 <button
                                                     onClick={() => {
                                                         console.log('Record details:', record);
                                                         setExpandedRowId(expandedRowId === record.id ? null : record.id);
                                                     }}
-                                                    className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                                    className="text-[#2E5090] hover:text-blue-800 font-medium text-sm"
                                                 >
-                                                    {expandedRowId === record.id ? 'Hide' : 'Details'}
+                                                    {expandedRowId === record.id ? 'Hide Details' : 'View Details'}
                                                 </button>
                                             </td>
                                         </tr>

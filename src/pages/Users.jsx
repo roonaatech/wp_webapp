@@ -165,6 +165,8 @@ const Users = () => {
     const [showStatusDropdown, setShowStatusDropdown] = useState(false); // Toggle status dropdown
     const [roleFilter, setRoleFilter] = useState([]); // Array of selected role ids
     const [showRoleDropdown, setShowRoleDropdown] = useState(false); // Toggle role dropdown
+    const [userTypeFilter, setUserTypeFilter] = useState(''); // '' = all, 'workpulse' = WorkPulse-only, 'external' = PHP app users
+    const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false); // Toggle user type dropdown
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
@@ -297,7 +299,7 @@ const Users = () => {
     // Reset page on filter change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter]);
+    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter]);
 
     // Fetch Users when params change
     useEffect(() => {
@@ -307,7 +309,7 @@ const Users = () => {
             }, 300); // Debounce
             return () => clearTimeout(timeoutId);
         }
-    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter]);
+    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter]);
 
     const fetchUsers = async (page) => {
         try {
@@ -334,6 +336,11 @@ const Users = () => {
             // Add role filter if any roles are selected
             if (roleFilter.length > 0) {
                 queryParams.append('role', roleFilter.join(','));
+            }
+
+            // Add user type filter
+            if (userTypeFilter) {
+                queryParams.append('userType', userTypeFilter);
             }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/users?${queryParams.toString()}`, {
@@ -1193,6 +1200,69 @@ const Users = () => {
                                             <span className="text-sm font-medium text-gray-700">{role.display_name}</span>
                                         </label>
                                     ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* User Type Filter Dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowUserTypeDropdown(!showUserTypeDropdown)}
+                            className="px-4 py-2 rounded-lg font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-2"
+                        >
+                            <span>Access:</span>
+                            <span className="font-semibold">
+                                {userTypeFilter === '' ? 'All' : userTypeFilter === 'workpulse' ? 'WorkPulse Only' : 'External System'}
+                            </span>
+                            <svg className={`w-4 h-4 transition-transform ${showUserTypeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                        </button>
+
+                        {showUserTypeDropdown && (
+                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-56">
+                                <div className="p-3 space-y-2">
+                                    <button
+                                        onClick={() => {
+                                            setUserTypeFilter('');
+                                            setShowUserTypeDropdown(false);
+                                        }}
+                                        className={`w-full text-left p-2 rounded ${userTypeFilter === '' ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50'}`}
+                                    >
+                                        <span className="text-sm">All Users</span>
+                                    </button>
+                                    <hr className="my-2" />
+                                    <button
+                                        onClick={() => {
+                                            setUserTypeFilter('workpulse');
+                                            setShowUserTypeDropdown(false);
+                                        }}
+                                        className={`w-full text-left p-2 rounded ${userTypeFilter === 'workpulse' ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50'}`}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg">🔑</span>
+                                            <div>
+                                                <div className="text-sm font-medium">WorkPulse Only</div>
+                                                <div className="text-xs text-gray-500">Native users with password</div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setUserTypeFilter('external');
+                                            setShowUserTypeDropdown(false);
+                                        }}
+                                        className={`w-full text-left p-2 rounded ${userTypeFilter === 'external' ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50'}`}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg">🔗</span>
+                                            <div>
+                                                <div className="text-sm font-medium">External System</div>
+                                                <div className="text-xs text-gray-500">Synced from PHP app</div>
+                                            </div>
+                                        </div>
+                                    </button>
                                 </div>
                             </div>
                         )}
