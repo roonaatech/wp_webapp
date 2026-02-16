@@ -35,6 +35,11 @@ const ApkDistribution = () => {
     const [pagination, setPagination] = useState(null);
     const [allVersions, setAllVersions] = useState([]); // For duplicate check
 
+    // Edit release notes state
+    const [isEditingReleaseNotes, setIsEditingReleaseNotes] = useState(false);
+    const [editedReleaseNotes, setEditedReleaseNotes] = useState('');
+    const [isSavingReleaseNotes, setIsSavingReleaseNotes] = useState(false);
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -292,6 +297,39 @@ const ApkDistribution = () => {
         }
     };
 
+    const handleEditReleaseNotes = () => {
+        setEditedReleaseNotes(latestApk?.release_notes || '');
+        setIsEditingReleaseNotes(true);
+    };
+
+    const handleCancelEditReleaseNotes = () => {
+        setIsEditingReleaseNotes(false);
+        setEditedReleaseNotes('');
+    };
+
+    const handleSaveReleaseNotes = async () => {
+        if (!editedReleaseNotes.trim()) {
+            toast.error("Release notes cannot be empty");
+            return;
+        }
+
+        setIsSavingReleaseNotes(true);
+        try {
+            await axios.put(
+                `${API_BASE_URL}/api/apk/${latestApk.id}/release-notes`,
+                { release_notes: editedReleaseNotes },
+                { headers: { 'x-access-token': token } }
+            );
+            toast.success("Release notes updated successfully");
+            setIsEditingReleaseNotes(false);
+            fetchData();
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to update release notes");
+        } finally {
+            setIsSavingReleaseNotes(false);
+        }
+    };
+
     return (
         <div className={`space-y-8 animate-fade-in mb-10 ${!token ? 'min-h-screen bg-gray-50 p-8 flex flex-col items-center justify-between' : ''}`}>
             <div className={`${!token ? 'w-full max-w-4xl' : ''}`}>
@@ -335,10 +373,66 @@ const ApkDistribution = () => {
                                         <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">Latest Stable</span>
                                     </div>
                                     <p className="text-blue-100 mb-4">Released on {new Date(latestApk.upload_date).toLocaleDateString()}</p>
-                                    {latestApk.release_notes && (
+                                    {(latestApk.release_notes || isEditingReleaseNotes) && (
                                         <div className="bg-black/20 rounded-xl p-4 mb-6 max-w-2xl backdrop-blur-sm">
-                                            <h3 className="font-semibold mb-2 text-sm uppercase tracking-wider text-blue-200">Release Notes</h3>
-                                            <p className="text-sm whitespace-pre-wrap">{latestApk.release_notes}</p>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h3 className="font-semibold text-sm uppercase tracking-wider text-blue-200">Release Notes</h3>
+                                                {isAdmin && !isEditingReleaseNotes && (
+                                                    <button
+                                                        onClick={handleEditReleaseNotes}
+                                                        className="text-blue-200 hover:text-white text-xs px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-all flex items-center gap-1"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                        </svg>
+                                                        Edit
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {isEditingReleaseNotes ? (
+                                                <div className="space-y-3">
+                                                    <textarea
+                                                        value={editedReleaseNotes}
+                                                        onChange={(e) => setEditedReleaseNotes(e.target.value)}
+                                                        rows="6"
+                                                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/30"
+                                                        placeholder="Enter release notes..."
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={handleSaveReleaseNotes}
+                                                            disabled={isSavingReleaseNotes}
+                                                            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                        >
+                                                            {isSavingReleaseNotes ? (
+                                                                <>
+                                                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                    </svg>
+                                                                    Saving...
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                    </svg>
+                                                                    Save
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                        <button
+                                                            onClick={handleCancelEditReleaseNotes}
+                                                            disabled={isSavingReleaseNotes}
+                                                            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm whitespace-pre-wrap">{latestApk.release_notes}</p>
+                                            )}
                                         </div>
                                     )}
 
