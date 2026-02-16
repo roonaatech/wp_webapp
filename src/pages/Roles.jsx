@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiPlus, FiX, FiMove, FiCheck, FiSave } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiX, FiCheck, FiSave, FiMove } from 'react-icons/fi';
 import { MdDragIndicator } from 'react-icons/md';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
-import { clearRolesCache, fetchRoles as refreshRolesCache, getRoleById } from '../utils/roleUtils';
+import { fetchRoles as fetchRolesUtil, canManageRoles, getRoleById } from '../utils/roleUtils';
+import TableSortIcon from '../components/TableSortIcon';
 
 const Roles = () => {
     const navigate = useNavigate();
@@ -15,6 +16,7 @@ const Roles = () => {
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'hierarchy_level', direction: 'asc' });
     const [showModal, setShowModal] = useState(false);
     const [editingRole, setEditingRole] = useState(null);
     const [saving, setSaving] = useState(false);
@@ -54,7 +56,7 @@ const Roles = () => {
     useEffect(() => {
         const checkPermission = async () => {
             try {
-                await refreshRolesCache(true);
+                await fetchRolesUtil(true);
                 const role = getRoleById(user.role);
                 const canManage = role?.can_manage_roles === true;
                 if (!canManage) {
@@ -242,6 +244,32 @@ const Roles = () => {
         }
     };
 
+    const handleSort = (key) => {
+        setSortConfig(prevConfig => ({
+            key,
+            direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const sortedRoles = React.useMemo(() => {
+        if (hierarchyMode) return hierarchyRoles; // Don't sort in hierarchy mode
+
+        const sorted = [...roles];
+        sorted.sort((a, b) => {
+            let aValue = a[sortConfig.key];
+            let bValue = b[sortConfig.key];
+
+            // Handle null/undefined values
+            if (aValue == null) aValue = '';
+            if (bValue == null) bValue = '';
+
+            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return sorted;
+    }, [roles, sortConfig, hierarchyMode, hierarchyRoles]);
+
     const handleToggleHierarchyMode = () => {
         if (hierarchyMode) {
             // Exiting hierarchy mode - reset
@@ -404,17 +432,61 @@ const Roles = () => {
                     <thead className="bg-gray-50">
                         <tr>
                             {hierarchyMode && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drag</th>}
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Display Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hierarchy</th>
+                            <th className="px-6 py-3 text-left">
+                                {!hierarchyMode ? (
+                                    <button
+                                        onClick={() => handleSort('display_name')}
+                                        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                                    >
+                                        Display Name <TableSortIcon column="display_name" sortConfig={sortConfig} />
+                                    </button>
+                                ) : (
+                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Display Name</span>
+                                )}
+                            </th>
+                            <th className="px-6 py-3 text-left">
+                                {!hierarchyMode ? (
+                                    <button
+                                        onClick={() => handleSort('name')}
+                                        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                                    >
+                                        Name <TableSortIcon column="name" sortConfig={sortConfig} />
+                                    </button>
+                                ) : (
+                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name</span>
+                                )}
+                            </th>
+                            <th className="px-6 py-3 text-left">
+                                {!hierarchyMode ? (
+                                    <button
+                                        onClick={() => handleSort('hierarchy_level')}
+                                        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                                    >
+                                        Hierarchy <TableSortIcon column="hierarchy_level" sortConfig={sortConfig} />
+                                    </button>
+                                ) : (
+                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Hierarchy</span>
+                                )}
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissions</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-left">
+                                {!hierarchyMode ? (
+                                    <button
+                                        onClick={() => handleSort('active')}
+                                        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                                    >
+                                        Status <TableSortIcon column="active" sortConfig={sortConfig} />
+                                    </button>
+                                ) : (
+                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</span>
+                                )}
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {(hierarchyMode ? hierarchyRoles : roles).map((role, index) => (
+                        {(hierarchyMode ? hierarchyRoles : sortedRoles).map((role, index) => (
                             <tr
                                 key={role.id}
                                 draggable={hierarchyMode}

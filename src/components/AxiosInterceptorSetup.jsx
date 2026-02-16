@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setupGlobalAxiosInterceptors } from '../utils/axiosInterceptor';
 
@@ -8,9 +8,13 @@ import { setupGlobalAxiosInterceptors } from '../utils/axiosInterceptor';
  */
 const AxiosInterceptorSetup = ({ children }) => {
     const navigate = useNavigate();
+    const isSetup = useRef(false);
 
     useEffect(() => {
-        setupGlobalAxiosInterceptors(navigate);
+        if (!isSetup.current) {
+            setupGlobalAxiosInterceptors(navigate);
+            isSetup.current = true;
+        }
     }, [navigate]);
 
     return children;

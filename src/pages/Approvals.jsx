@@ -10,6 +10,7 @@ import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
 import { formatInTimezone } from '../utils/timezone.util';
 import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
+import TableSortIcon from '../components/TableSortIcon';
 
 // Helper to format dates without timezone conversion
 const formatDateLocal = (dateStr) => {
@@ -561,7 +562,7 @@ const Approvals = () => {
     };
     const SortableHeader = ({ label, sortKey, sortConfig, setSortConfig, align = 'left' }) => (
         <th
-            className={`px-6 py-3 text-sm font-semibold text-white cursor-pointer hover:bg-white/10 transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
+            className={`px-6 py-3 text-sm font-semibold text-white cursor-pointer hover:text-gray-200 transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
             onClick={() => {
                 const direction = sortConfig.key === sortKey && sortConfig.direction === 'asc' ? 'desc' : 'asc';
                 setSortConfig({ key: sortKey, direction });
@@ -569,9 +570,7 @@ const Approvals = () => {
         >
             <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
                 {label}
-                {sortConfig.key === sortKey && (
-                    <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                )}
+                <TableSortIcon column={sortKey} sortConfig={sortConfig} />
             </div>
         </th>
     );
@@ -953,10 +952,10 @@ const Approvals = () => {
                         )}
 
                         {expandedSections.timeOff && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fadeIn">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-bold">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-[#2E5090] text-white">
+                                        <tr>
                                             {statusFilter === 'Pending' && (
                                                 <th className="px-6 py-3 w-10">
                                                     <input
@@ -967,14 +966,14 @@ const Approvals = () => {
                                                     />
                                                 </th>
                                             )}
-                                            <th className="px-6 py-3">Employee</th>
-                                            <th className="px-6 py-3">Date</th>
-                                            <th className="px-6 py-3">Duration</th>
-                                            <th className="px-6 py-3">Time</th>
-                                            <th className="px-6 py-3">Reason</th>
-                                            {statusFilter === 'Approved' && <th className="px-6 py-3">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-6 py-3">Rejection Reason</th>}
-                                            <th className="px-6 py-3 text-right">Actions</th>
+                                            <SortableHeader label="Employee" sortKey="staffName" sortConfig={timeOffSortConfig} setSortConfig={setTimeOffSortConfig} />
+                                            <SortableHeader label="Date" sortKey="date" sortConfig={timeOffSortConfig} setSortConfig={setTimeOffSortConfig} />
+                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
+                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Time</th>
+                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Reason</th>
+                                            {statusFilter === 'Approved' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Rejection Reason</th>}
+                                            <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">

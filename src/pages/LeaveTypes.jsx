@@ -6,6 +6,7 @@ import { FiEdit2, FiPlus, FiX } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { fetchRoles, canManageLeaveTypes } from '../utils/roleUtils';
+import TableSortIcon from '../components/TableSortIcon';
 
 export default function LeaveTypes() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function LeaveTypes() {
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [modalType, setModalType] = useState('create'); // 'create' or 'edit'
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -100,42 +102,67 @@ export default function LeaveTypes() {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (name === 'gender_restriction') {
-        setFormData(prev => {
-            const genders = [...prev.gender_restriction];
-            if (checked) {
-                if (!genders.includes(value)) {
-                    genders.push(value);
-                }
-            } else {
-                const index = genders.indexOf(value);
-                if (index > -1) {
-                    genders.splice(index, 1);
-                }
-            }
-            return { ...prev, gender_restriction: genders };
-        });
+      setFormData(prev => {
+        const genders = [...prev.gender_restriction];
+        if (checked) {
+          if (!genders.includes(value)) {
+            genders.push(value);
+          }
+        } else {
+          const index = genders.indexOf(value);
+          if (index > -1) {
+            genders.splice(index, 1);
+          }
+        }
+        return { ...prev, gender_restriction: genders };
+      });
     } else {
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
     }
   };
 
   const handleSelectAllGenders = (e) => {
     const { checked } = e.target;
     if (checked) {
-        setFormData(prev => ({
-            ...prev,
-            gender_restriction: ['Male', 'Female', 'Transgender']
-        }));
+      setFormData(prev => ({
+        ...prev,
+        gender_restriction: ['Male', 'Female', 'Transgender']
+      }));
     } else {
-        setFormData(prev => ({
-            ...prev,
-            gender_restriction: []
-        }));
+      setFormData(prev => ({
+        ...prev,
+        gender_restriction: []
+      }));
     }
   };
+
+  const handleSort = (key) => {
+    setSortConfig(prevConfig => ({
+      key,
+      direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const sortedLeaveTypes = React.useMemo(() => {
+    const sorted = [...leaveTypes];
+    sorted.sort((a, b) => {
+      let aValue = a[sortConfig.key] || '';
+      let bValue = b[sortConfig.key] || '';
+
+      if (sortConfig.key === 'gender_restriction') {
+        aValue = (a.gender_restriction || []).join(', ');
+        bValue = (b.gender_restriction || []).join(', ');
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [leaveTypes, sortConfig]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -161,10 +188,10 @@ export default function LeaveTypes() {
         const successMsg = `Leave type '${formData.name}' updated successfully`;
         setSuccess(successMsg);
         toast.success(successMsg, {
-            style: {
-                background: '#2563eb', // Blue for updates
-                color: '#fff'
-            }
+          style: {
+            background: '#2563eb', // Blue for updates
+            color: '#fff'
+          }
         });
       }
 
@@ -181,7 +208,7 @@ export default function LeaveTypes() {
   const handleToggleStatus = (leaveType) => {
     const newStatus = !leaveType.status;
     const action = newStatus ? 'Activate' : 'Deactivate';
-    
+
     setConfirmationModal({
       show: true,
       title: `${action} Leave Type`,
@@ -201,11 +228,11 @@ export default function LeaveTypes() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_BASE_URL}/api/leavetypes/${leaveType.id}`, 
+      await axios.put(`${API_BASE_URL}/api/leavetypes/${leaveType.id}`,
         { status: newStatus },
         { headers: { 'x-access-token': token } }
       );
-      
+
       closeConfirmationModal();
       const successMsg = `Leave type '${leaveType.name}' ${action}d successfully`;
       toast.success(successMsg, {
@@ -290,10 +317,38 @@ export default function LeaveTypes() {
         <table className="w-full">
           <thead className="bg-[#2E5090]">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white">Name</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white">Description</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white">Gender Restriction</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white">Status</th>
+              <th className="px-6 py-3 text-left">
+                <button
+                  onClick={() => handleSort('name')}
+                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                >
+                  Name <TableSortIcon column="name" sortConfig={sortConfig} />
+                </button>
+              </th>
+              <th className="px-6 py-3 text-left">
+                <button
+                  onClick={() => handleSort('description')}
+                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                >
+                  Description <TableSortIcon column="description" sortConfig={sortConfig} />
+                </button>
+              </th>
+              <th className="px-6 py-3 text-left">
+                <button
+                  onClick={() => handleSort('gender_restriction')}
+                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                >
+                  Gender <TableSortIcon column="gender_restriction" sortConfig={sortConfig} />
+                </button>
+              </th>
+              <th className="px-6 py-3 text-left">
+                <button
+                  onClick={() => handleSort('status')}
+                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                >
+                  Status <TableSortIcon column="status" sortConfig={sortConfig} />
+                </button>
+              </th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
             </tr>
           </thead>
@@ -305,7 +360,7 @@ export default function LeaveTypes() {
                 </td>
               </tr>
             ) : (
-              leaveTypes.map((leaveType, index) => (
+              sortedLeaveTypes.map((leaveType, index) => (
                 <tr key={leaveType.id} className="border-b border-gray-200">
                   <td className="px-6 py-4 font-medium text-gray-900">{leaveType.name}</td>
                   <td className="px-6 py-4 text-gray-600">{leaveType.description || '-'}</td>

@@ -9,13 +9,25 @@ const api = axios.create();
 // Flag to prevent multiple redirects
 let isRedirecting = false;
 
+// Store interceptor IDs to allow cleanup
+let apiRequestInterceptorId = null;
+let apiResponseInterceptorId = null;
+
 /**
  * Setup axios interceptors for global error handling
  * This should be called once when the app initializes
  */
 export const setupAxiosInterceptors = (navigate) => {
+    // Eject previous interceptors if they exist
+    if (apiRequestInterceptorId !== null) {
+        api.interceptors.request.eject(apiRequestInterceptorId);
+    }
+    if (apiResponseInterceptorId !== null) {
+        api.interceptors.response.eject(apiResponseInterceptorId);
+    }
+
     // Request interceptor - add token to all requests
-    api.interceptors.request.use(
+    apiRequestInterceptorId = api.interceptors.request.use(
         (config) => {
             const token = localStorage.getItem('token');
             if (token) {
@@ -29,15 +41,16 @@ export const setupAxiosInterceptors = (navigate) => {
     );
 
     // Response interceptor - handle 401/403 errors
-    api.interceptors.response.use(
+    apiResponseInterceptorId = api.interceptors.response.use(
         (response) => response,
         (error) => {
             const status = error.response?.status;
             const message = error.response?.data?.message?.toLowerCase() || '';
 
-            // DON'T redirect if this is a login request
+            // DON'T redirect if this is a login or password change request
             const isLoginRequest = error.config?.url?.includes('auth/signin');
-            if (isLoginRequest) {
+            const isPasswordChangeRequest = error.config?.url?.includes('auth/change-password');
+            if (isLoginRequest || isPasswordChangeRequest) {
                 return Promise.reject(error);
             }
 
@@ -96,21 +109,43 @@ export const setupAxiosInterceptors = (navigate) => {
     );
 };
 
+// Store interceptor ID to allow cleanup
+let globalResponseInterceptorId = null;
+
 /**
  * Also setup interceptor on the global axios instance
  * This handles cases where axios is used directly instead of the api instance
  */
 export const setupGlobalAxiosInterceptors = (navigate) => {
+    // Eject previous interceptor if it exists
+    if (globalResponseInterceptorId !== null) {
+        axios.interceptors.response.eject(globalResponseInterceptorId);
+    }
+
     // Response interceptor for global axios
-    axios.interceptors.response.use(
+    globalResponseInterceptorId = axios.interceptors.response.use(
         (response) => response,
         (error) => {
             const status = error.response?.status;
             const message = error.response?.data?.message?.toLowerCase() || '';
+            const requestUrl = error.config?.url || '';
 
-            // DON'T redirect if this is a login request
-            const isLoginRequest = error.config?.url?.includes('auth/signin');
-            if (isLoginRequest) {
+            // DON'T redirect if this is a login or password change request
+            const isLoginRequest = requestUrl.includes('auth/signin');
+            const isPasswordChangeRequest = requestUrl.includes('auth/change-password');
+
+            // Debug logging
+            if (status === 401) {
+                console.log('🔍 Axios Interceptor - 401 Error:', {
+                    url: requestUrl,
+                    isPasswordChangeRequest,
+                    isLoginRequest,
+                    message: error.response?.data?.message
+                });
+            }
+
+            if (isLoginRequest || isPasswordChangeRequest) {
+                console.log('✅ Skipping redirect for:', requestUrl);
                 return Promise.reject(error);
             }
 

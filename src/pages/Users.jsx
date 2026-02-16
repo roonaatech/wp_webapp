@@ -24,6 +24,7 @@ import {
     getApproverLabel,
     getRoleById
 } from '../utils/roleUtils';
+import TableSortIcon from '../components/TableSortIcon';
 
 const Users = () => {
     // Permission check state
@@ -165,6 +166,8 @@ const Users = () => {
     const [showStatusDropdown, setShowStatusDropdown] = useState(false); // Toggle status dropdown
     const [roleFilter, setRoleFilter] = useState([]); // Array of selected role ids
     const [showRoleDropdown, setShowRoleDropdown] = useState(false); // Toggle role dropdown
+    const [userTypeFilter, setUserTypeFilter] = useState(''); // '' = all, 'workpulse' = WorkPulse-only, 'external' = PHP app users
+    const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false); // Toggle user type dropdown
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
@@ -252,26 +255,26 @@ const Users = () => {
     // Exception: Can manage same-role users if current user is their approving manager
     const canManageSpecificUser = (targetUser) => {
         if (!canManageUsers && !isAdmin) return false;
-        
+
         // Get hierarchy levels
         const currentUserLevel = getHierarchyLevel(user.role);
         const targetUserLevel = getHierarchyLevel(targetUser.role);
         const isApprovingManager = targetUser.approving_manager_id === user.staffid;
-        
+
         // Super admin (level 0) can edit anyone
         if (currentUserLevel === 0) return true;
-        
+
         // Cannot edit users with higher authority (lower hierarchy level)
         if (targetUserLevel < currentUserLevel) return false;
-        
+
         // For same level: only allow if current user is the approving manager
         if (targetUserLevel === currentUserLevel) {
             return isApprovingManager;
         }
-        
+
         // Now check manage permissions for lower authority users
         if (isAdmin || canManageAllUsers) return true;
-        
+
         // Can only manage subordinates (users where approving_manager_id === current user's staffid)
         return isApprovingManager;
     };
@@ -297,7 +300,7 @@ const Users = () => {
     // Reset page on filter change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter]);
+    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter]);
 
     // Fetch Users when params change
     useEffect(() => {
@@ -307,7 +310,7 @@ const Users = () => {
             }, 300); // Debounce
             return () => clearTimeout(timeoutId);
         }
-    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter]);
+    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter]);
 
     const fetchUsers = async (page) => {
         try {
@@ -334,6 +337,11 @@ const Users = () => {
             // Add role filter if any roles are selected
             if (roleFilter.length > 0) {
                 queryParams.append('role', roleFilter.join(','));
+            }
+
+            // Add user type filter
+            if (userTypeFilter) {
+                queryParams.append('userType', userTypeFilter);
             }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/users?${queryParams.toString()}`, {
@@ -1023,8 +1031,8 @@ const Users = () => {
                             {!canManageUsers
                                 ? 'View users and their information (read-only)'
                                 : isAdmin
-                                ? 'Manage all system users and their permissions'
-                                : 'Manage your team members and their leave balances'}
+                                    ? 'Manage all system users and their permissions'
+                                    : 'Manage your team members and their leave balances'}
                         </p>
                     </div>
                     {isAdmin && canManageUsers && (
@@ -1197,6 +1205,69 @@ const Users = () => {
                             </div>
                         )}
                     </div>
+
+                    {/* User Type Filter Dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowUserTypeDropdown(!showUserTypeDropdown)}
+                            className="px-4 py-2 rounded-lg font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-2"
+                        >
+                            <span>Access:</span>
+                            <span className="font-semibold">
+                                {userTypeFilter === '' ? 'All' : userTypeFilter === 'workpulse' ? 'WorkPulse Only' : 'External System'}
+                            </span>
+                            <svg className={`w-4 h-4 transition-transform ${showUserTypeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                        </button>
+
+                        {showUserTypeDropdown && (
+                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-56">
+                                <div className="p-3 space-y-2">
+                                    <button
+                                        onClick={() => {
+                                            setUserTypeFilter('');
+                                            setShowUserTypeDropdown(false);
+                                        }}
+                                        className={`w-full text-left p-2 rounded ${userTypeFilter === '' ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50'}`}
+                                    >
+                                        <span className="text-sm">All Users</span>
+                                    </button>
+                                    <hr className="my-2" />
+                                    <button
+                                        onClick={() => {
+                                            setUserTypeFilter('workpulse');
+                                            setShowUserTypeDropdown(false);
+                                        }}
+                                        className={`w-full text-left p-2 rounded ${userTypeFilter === 'workpulse' ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50'}`}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg">🔑</span>
+                                            <div>
+                                                <div className="text-sm font-medium">WorkPulse Only</div>
+                                                <div className="text-xs text-gray-500">Native users with password</div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setUserTypeFilter('external');
+                                            setShowUserTypeDropdown(false);
+                                        }}
+                                        className={`w-full text-left p-2 rounded ${userTypeFilter === 'external' ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50'}`}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg">🔗</span>
+                                            <div>
+                                                <div className="text-sm font-medium">External System</div>
+                                                <div className="text-xs text-gray-500">Synced from PHP app</div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -1246,11 +1317,7 @@ const Users = () => {
                                 >
                                     <div className="flex items-center gap-1">
                                         ID
-                                        {sortField === 'staffid' && (
-                                            <span className="text-white">
-                                                {sortDirection === 'asc' ? '↑' : '↓'}
-                                            </span>
-                                        )}
+                                        <TableSortIcon column="staffid" sortConfig={{ key: sortField, direction: sortDirection }} />
                                     </div>
                                 </th>
                                 <th
@@ -1259,11 +1326,7 @@ const Users = () => {
                                 >
                                     <div className="flex items-center gap-1">
                                         User
-                                        {sortField === 'name' && (
-                                            <span className="text-white">
-                                                {sortDirection === 'asc' ? '↑' : '↓'}
-                                            </span>
-                                        )}
+                                        <TableSortIcon column="name" sortConfig={{ key: sortField, direction: sortDirection }} />
                                     </div>
                                 </th>
                                 <th
@@ -1272,11 +1335,7 @@ const Users = () => {
                                 >
                                     <div className="flex items-center gap-1">
                                         Email
-                                        {sortField === 'email' && (
-                                            <span className="text-white">
-                                                {sortDirection === 'asc' ? '↑' : '↓'}
-                                            </span>
-                                        )}
+                                        <TableSortIcon column="email" sortConfig={{ key: sortField, direction: sortDirection }} />
                                     </div>
                                 </th>
                                 <th
@@ -1285,11 +1344,7 @@ const Users = () => {
                                 >
                                     <div className="flex items-center gap-1">
                                         Role
-                                        {sortField === 'role' && (
-                                            <span className="text-white">
-                                                {sortDirection === 'asc' ? '↑' : '↓'}
-                                            </span>
-                                        )}
+                                        <TableSortIcon column="role" sortConfig={{ key: sortField, direction: sortDirection }} />
                                     </div>
                                 </th>
                                 <th
@@ -1298,11 +1353,7 @@ const Users = () => {
                                 >
                                     <div className="flex items-center gap-1">
                                         Status
-                                        {sortField === 'status' && (
-                                            <span className="text-white">
-                                                {sortDirection === 'asc' ? '↑' : '↓'}
-                                            </span>
-                                        )}
+                                        <TableSortIcon column="status" sortConfig={{ key: sortField, direction: sortDirection }} />
                                     </div>
                                 </th>
                                 {canManageUsers && (
@@ -1374,44 +1425,44 @@ const Users = () => {
                                                 </div>
                                             </td>
                                             {canManageUsers && (
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    {canManageSpecificUser(u) && (
-                                                        <>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        {canManageSpecificUser(u) && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => handleEditUserClick(u)}
+                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
+                                                                    title="Edit user details"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                    </svg>
+                                                                    <span>Edit</span>
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleEditLeaveTypes(u)}
+                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow ml-2"
+                                                                    title="Edit leave types"
+                                                                >
+                                                                    <FiEdit2 className="w-4 h-4" />
+                                                                    <span>Leave Types</span>
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                        {canManageSpecificUser(u) && (
                                                             <button
-                                                                onClick={() => handleEditUserClick(u)}
-                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
-                                                                title="Edit user details"
+                                                                onClick={() => handleResetPasswordClick(u)}
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow"
+                                                                title="Reset user password"
                                                             >
                                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                                                 </svg>
-                                                                <span>Edit</span>
+                                                                <span>Reset</span>
                                                             </button>
-                                                            <button
-                                                                onClick={() => handleEditLeaveTypes(u)}
-                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow ml-2"
-                                                                title="Edit leave types"
-                                                            >
-                                                                <FiEdit2 className="w-4 h-4" />
-                                                                <span>Leave Types</span>
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                    {canManageSpecificUser(u) && (
-                                                        <button
-                                                            onClick={() => handleResetPasswordClick(u)}
-                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow"
-                                                            title="Reset user password"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                                                            </svg>
-                                                            <span>Reset</span>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
+                                                        )}
+                                                    </div>
+                                                </td>
                                             )}
                                         </tr>
 

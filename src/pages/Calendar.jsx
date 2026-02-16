@@ -586,18 +586,7 @@ const Calendar = () => {
                         )}
                     </div>
                 </div>
-                {/* Debug Info */}
-                <div className="mt-8 p-4 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500">
-                    <p>Debug Info:</p>
-                    <ul className="list-disc pl-4 mt-1">
-                        <li>Total Events Loaded: {events.length}</li>
-                        <li>Time-Off Events: {events.filter(e => e.type === 'time_off').length}</li>
-                        <li>Leave Events: {events.filter(e => e.type === 'leave').length}</li>
-                        <li>On-Duty Events: {events.filter(e => e.type === 'on_duty').length}</li>
-                        <li>Current Date: {currentDate.toDateString()}</li>
-                        <li>Selected Date: {selectedDate}</li>
-                    </ul>
-                </div>
+
             </div>
         </div>
     );

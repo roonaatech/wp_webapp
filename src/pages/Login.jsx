@@ -23,6 +23,7 @@ const Login = () => {
         const user = {
             id: data.id,
             staffid: data.staffid,
+            userid: data.userid, // Include userid to check if WorkPulse-only (null) or external (not null)
             firstname: data.firstname,
             lastname: data.lastname,
             email: data.email,
