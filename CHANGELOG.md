@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.1.6](https://github.com/roonaatech/wp_webapp/compare/v2.1.5...v2.1.6) (2026-02-16)
+
+
+### Features
+
+* Implement sortable table headers across various pages and add Google Maps API keys to environment configurations. ([77be7e5](https://github.com/roonaatech/wp_webapp/commit/77be7e5bbcb58317bd92a46d34299826848c8095))
+
 ### [2.1.5](https://github.com/roonaatech/wp_webapp/compare/v2.1.4...v2.1.5) (2026-02-16)
 
 
