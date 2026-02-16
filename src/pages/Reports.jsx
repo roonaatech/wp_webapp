@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { FiPlusCircle, FiMinusCircle } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { calculateLeaveDays } from '../utils/dateUtils';
@@ -653,9 +654,9 @@ const Reports = () => {
                                             <td className="px-4 py-4 text-sm">
                                                 <button
                                                     onClick={() => toggleRow(uniqueKey)}
-                                                    className="text-[#2E5090] hover:text-blue-800 font-semibold"
+                                                    className="text-gray-400 hover:text-blue-600 transition-colors"
                                                 >
-                                                    {isExpanded ? '− Hide' : '+ View'}
+                                                    {isExpanded ? <FiMinusCircle size={20} /> : <FiPlusCircle size={20} />}
                                                 </button>
                                             </td>
                                             <td className="px-4 py-4 text-sm text-gray-700">{dateCell}</td>
