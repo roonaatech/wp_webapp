@@ -10,6 +10,7 @@ import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
 import { formatInTimezone } from '../utils/timezone.util';
 import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
+import TableSortIcon from '../components/TableSortIcon';
 
 // Helper to format dates without timezone conversion
 const formatDateLocal = (dateStr) => {
@@ -561,7 +562,7 @@ const Approvals = () => {
     };
     const SortableHeader = ({ label, sortKey, sortConfig, setSortConfig, align = 'left' }) => (
         <th
-            className={`px-6 py-3 text-sm font-semibold text-white cursor-pointer hover:bg-white/10 transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
+            className={`px-6 py-3 text-sm font-semibold text-white cursor-pointer hover:text-gray-200 transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
             onClick={() => {
                 const direction = sortConfig.key === sortKey && sortConfig.direction === 'asc' ? 'desc' : 'asc';
                 setSortConfig({ key: sortKey, direction });
@@ -569,9 +570,7 @@ const Approvals = () => {
         >
             <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
                 {label}
-                {sortConfig.key === sortKey && (
-                    <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                )}
+                <TableSortIcon column={sortKey} sortConfig={sortConfig} />
             </div>
         </th>
     );

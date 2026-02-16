@@ -5,6 +5,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { canViewActivities, fetchRoles } from '../utils/roleUtils';
 import { formatInTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
+import TableSortIcon from '../components/TableSortIcon';
 
 const Activities = () => {
     const navigate = useNavigate();
@@ -23,6 +24,7 @@ const Activities = () => {
     const [pageSize, setPageSize] = useState(20);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
 
     // Filters - default to today's date
     const [actionFilter, setActionFilter] = useState('');
@@ -218,6 +220,38 @@ const Activities = () => {
         };
         return colors[entity] || 'bg-gray-100 text-gray-800';
     };
+
+    const handleSort = (key) => {
+        setSortConfig(prevConfig => ({
+            key,
+            direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+
+
+    // Sort activities
+    const sortedActivities = React.useMemo(() => {
+        const sorted = [...activities];
+        sorted.sort((a, b) => {
+            let aValue, bValue;
+
+            switch (sortConfig.key) {
+                case 'performedBy':
+                    aValue = a.admin ? `${a.admin.firstname} ${a.admin.lastname}` : '';
+                    bValue = b.admin ? `${b.admin.firstname} ${b.admin.lastname}` : '';
+                    break;
+                default:
+                    aValue = a[sortConfig.key] || '';
+                    bValue = b[sortConfig.key] || '';
+            }
+
+            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return sorted;
+    }, [activities, sortConfig]);
 
     // Show loading while checking permissions
     if (!permissionChecked) {
@@ -458,16 +492,44 @@ const Activities = () => {
                                 <table className="w-full">
                                     <thead className="bg-[#2E5090] text-white">
                                         <tr>
-                                            <th className="px-4 py-3 text-left text-sm font-semibold">Timestamp</th>
-                                            <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
-                                            <th className="px-4 py-3 text-left text-sm font-semibold">Entity</th>
-                                            <th className="px-4 py-3 text-left text-sm font-semibold">Performed By</th>
+                                            <th className="px-4 py-3 text-left">
+                                                <button
+                                                    onClick={() => handleSort('createdAt')}
+                                                    className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                                >
+                                                    Timestamp <TableSortIcon column="createdAt" sortConfig={sortConfig} />
+                                                </button>
+                                            </th>
+                                            <th className="px-4 py-3 text-left">
+                                                <button
+                                                    onClick={() => handleSort('action')}
+                                                    className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                                >
+                                                    Action <TableSortIcon column="action" sortConfig={sortConfig} />
+                                                </button>
+                                            </th>
+                                            <th className="px-4 py-3 text-left">
+                                                <button
+                                                    onClick={() => handleSort('entity')}
+                                                    className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                                >
+                                                    Entity <TableSortIcon column="entity" sortConfig={sortConfig} />
+                                                </button>
+                                            </th>
+                                            <th className="px-4 py-3 text-left">
+                                                <button
+                                                    onClick={() => handleSort('performedBy')}
+                                                    className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                                >
+                                                    Performed By <TableSortIcon column="performedBy" sortConfig={sortConfig} />
+                                                </button>
+                                            </th>
                                             <th className="px-4 py-3 text-left text-sm font-semibold">Description</th>
                                             <th className="px-4 py-3 text-left text-sm font-semibold">IP Address</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                        {activities.map((activity) => (
+                                        {sortedActivities.map((activity) => (
                                             <tr key={activity.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                                                     {formatInTimezone(activity.createdAt)}
@@ -531,11 +593,10 @@ const Activities = () => {
                                                         <button
                                                             key={i}
                                                             onClick={() => fetchActivities(i)}
-                                                            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                                                                currentPage === i
+                                                            className={`px-3 py-1 rounded-lg text-sm transition-colors ${currentPage === i
                                                                     ? 'bg-blue-600 text-white font-semibold'
                                                                     : 'border border-gray-300 hover:bg-gray-200'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {i}
                                                         </button>
@@ -547,11 +608,10 @@ const Activities = () => {
                                                     <button
                                                         key={1}
                                                         onClick={() => fetchActivities(1)}
-                                                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                                                            currentPage === 1
+                                                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${currentPage === 1
                                                                 ? 'bg-blue-600 text-white font-semibold'
                                                                 : 'border border-gray-300 hover:bg-gray-200'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         1
                                                     </button>
@@ -575,11 +635,10 @@ const Activities = () => {
                                                         <button
                                                             key={i}
                                                             onClick={() => fetchActivities(i)}
-                                                            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                                                                currentPage === i
+                                                            className={`px-3 py-1 rounded-lg text-sm transition-colors ${currentPage === i
                                                                     ? 'bg-blue-600 text-white font-semibold'
                                                                     : 'border border-gray-300 hover:bg-gray-200'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {i}
                                                         </button>
@@ -600,11 +659,10 @@ const Activities = () => {
                                                     <button
                                                         key={totalPages}
                                                         onClick={() => fetchActivities(totalPages)}
-                                                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                                                            currentPage === totalPages
+                                                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${currentPage === totalPages
                                                                 ? 'bg-blue-600 text-white font-semibold'
                                                                 : 'border border-gray-300 hover:bg-gray-200'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         {totalPages}
                                                     </button>

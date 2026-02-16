@@ -6,6 +6,7 @@ import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { hasAdminPermission, fetchRoles, canManageActiveOnDuty } from '../utils/roleUtils';
 import { formatInTimezone, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
+import TableSortIcon from '../components/TableSortIcon';
 
 const ActiveOnDuty = () => {
     const navigate = useNavigate();
@@ -144,10 +145,7 @@ const ActiveOnDuty = () => {
         return `${diffHours}h ${mins}m`;
     };
 
-    const SortIcon = ({ column }) => {
-        if (sortConfig.key !== column) return <span className="text-gray-300 text-sm">⬍</span>;
-        return sortConfig.direction === 'asc' ? <span className="text-white">↑</span> : <span className="text-white">↓</span>;
-    };
+
 
     // Show loading while checking permissions
     if (!permissionChecked) {
@@ -219,7 +217,7 @@ const ActiveOnDuty = () => {
                                             onClick={() => handleSort('staffName')}
                                             className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
                                         >
-                                            Employee <SortIcon column="staffName" />
+                                            Employee <TableSortIcon column="staffName" sortConfig={sortConfig} />
                                         </button>
                                     </th>
                                     <th className="px-6 py-3 text-left">
@@ -227,7 +225,7 @@ const ActiveOnDuty = () => {
                                             onClick={() => handleSort('client_name')}
                                             className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
                                         >
-                                            Client <SortIcon column="client_name" />
+                                            Client <TableSortIcon column="client_name" sortConfig={sortConfig} />
                                         </button>
                                     </th>
                                     <th className="px-6 py-3 text-left">
@@ -235,7 +233,7 @@ const ActiveOnDuty = () => {
                                             onClick={() => handleSort('location')}
                                             className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
                                         >
-                                            Location <SortIcon column="location" />
+                                            Location <TableSortIcon column="location" sortConfig={sortConfig} />
                                         </button>
                                     </th>
                                     <th className="px-6 py-3 text-left">
@@ -243,7 +241,7 @@ const ActiveOnDuty = () => {
                                             onClick={() => handleSort('start_time')}
                                             className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
                                         >
-                                            Started <SortIcon column="start_time" />
+                                            Started <TableSortIcon column="start_time" sortConfig={sortConfig} />
                                         </button>
                                     </th>
                                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
