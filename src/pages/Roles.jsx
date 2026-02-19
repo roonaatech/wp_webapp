@@ -6,7 +6,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
-import { fetchRoles as fetchRolesUtil, canManageRoles, getRoleById } from '../utils/roleUtils';
+import { fetchRoles as fetchRolesUtil, clearRolesCache, canManageRoles, getRoleById } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
 
 const Roles = () => {
@@ -205,9 +205,8 @@ const Roles = () => {
                 toast.success('Role created successfully');
             }
 
-            // Clear and refresh the global roles cache
+            // Clear the global roles cache so other pages pick up the change
             clearRolesCache();
-            await refreshRolesCache(true);
 
             fetchRoles();
             fetchStatistics();
@@ -232,9 +231,8 @@ const Roles = () => {
             });
             toast.success('Role deleted successfully');
 
-            // Clear and refresh the global roles cache
+            // Clear the global roles cache so other pages pick up the change
             clearRolesCache();
-            await refreshRolesCache(true);
 
             fetchRoles();
             fetchStatistics();
@@ -343,9 +341,8 @@ const Roles = () => {
             toast.success('Hierarchy updated successfully');
             setHierarchyMode(false);
 
-            // Clear and refresh the global roles cache since hierarchy changed
+            // Clear the global roles cache so other pages pick up the hierarchy change
             clearRolesCache();
-            await refreshRolesCache(true);
 
             fetchRoles();
         } catch (err) {
