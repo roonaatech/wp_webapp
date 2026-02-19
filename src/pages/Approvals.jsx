@@ -562,7 +562,7 @@ const Approvals = () => {
     };
     const SortableHeader = ({ label, sortKey, sortConfig, setSortConfig, align = 'left' }) => (
         <th
-            className={`px-6 py-3 text-sm font-semibold text-white cursor-pointer hover:text-gray-200 transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
+            className={`px-3 py-2 text-sm font-semibold text-white cursor-pointer hover:text-gray-200 transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
             onClick={() => {
                 const direction = sortConfig.key === sortKey && sortConfig.direction === 'asc' ? 'desc' : 'asc';
                 setSortConfig({ key: sortKey, direction });
@@ -814,7 +814,7 @@ const Approvals = () => {
                                     <thead className="bg-[#2E5090] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
-                                                <th className="px-6 py-3 w-10">
+                                                <th className="px-3 py-2 w-10">
                                                     <input
                                                         type="checkbox"
                                                         onChange={() => handleSelectAll('leave')}
@@ -825,12 +825,12 @@ const Approvals = () => {
                                             )}
                                             <SortableHeader label="Employee" sortKey="staffName" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
                                             <SortableHeader label="Leave Type" sortKey="leave_type" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
-                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Duration</th>
                                             <SortableHeader label="Period" sortKey="start_date" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
-                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Reason</th>
-                                            {statusFilter === 'Approved' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Rejection Reason</th>}
-                                            <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Reason</th>
+                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Rejection Reason</th>}
+                                            <th className="px-3 py-2 text-right text-sm font-semibold text-white">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
@@ -842,7 +842,7 @@ const Approvals = () => {
                                                     onClick={() => handleOpenDetails(req, 'leave')}
                                                 >
                                                     {statusFilter === 'Pending' && (
-                                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                                                             <input
                                                                 type="checkbox"
                                                                 checked={selectedItems.has(`leave-${req.id}`)}
@@ -851,9 +851,9 @@ const Approvals = () => {
                                                             />
                                                         </td>
                                                     )}
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-3 py-2">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#2E5090] font-bold text-sm">
+                                                            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-[#2E5090] font-bold text-xs">
                                                                 {req.tblstaff?.firstname?.charAt(0)}
                                                             </div>
                                                             <div>
@@ -862,37 +862,37 @@ const Approvals = () => {
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-3 py-2">
                                                         <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm font-medium">
                                                             {req.leave_type}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                                    <td className="px-3 py-2 text-sm text-gray-600">
                                                         {calculateLeaveDays(req.start_date, req.end_date)} Days
                                                     </td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-3 py-2">
                                                         <div className="text-sm text-gray-900">
                                                             {req.start_date} <span className="text-gray-400">to</span> {req.end_date}
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs">
+                                                    <td className="px-3 py-2 text-sm text-gray-700 max-w-xs">
                                                         <div className="line-clamp-2" title={req.reason}>
                                                             {req.reason || '-'}
                                                         </div>
                                                     </td>
                                                     {statusFilter === 'Approved' && (
-                                                        <td className="px-6 py-4 text-sm text-gray-700">
+                                                        <td className="px-3 py-2 text-sm text-gray-700">
                                                             {req.approver ? `${req.approver.firstname} ${req.approver.lastname}` : '-'}
                                                         </td>
                                                     )}
                                                     {statusFilter === 'Rejected' && (
-                                                        <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs" title={req.rejection_reason}>
+                                                        <td className="px-3 py-2 text-sm text-red-600 italic max-w-xs" title={req.rejection_reason}>
                                                             {req.rejection_reason && req.rejection_reason.length > 120
                                                                 ? `${req.rejection_reason.substring(0, 120)}...`
                                                                 : req.rejection_reason || '-'}
                                                         </td>
                                                     )}
-                                                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                                    <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                                         {!isHistory ? (
                                                             <div className="flex justify-end gap-2">
                                                                 <button
@@ -957,7 +957,7 @@ const Approvals = () => {
                                     <thead className="bg-[#2E5090] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
-                                                <th className="px-6 py-3 w-10">
+                                                <th className="px-3 py-2 w-10">
                                                     <input
                                                         type="checkbox"
                                                         onChange={() => handleSelectAll('timeoff')}
@@ -968,12 +968,12 @@ const Approvals = () => {
                                             )}
                                             <SortableHeader label="Employee" sortKey="staffName" sortConfig={timeOffSortConfig} setSortConfig={setTimeOffSortConfig} />
                                             <SortableHeader label="Date" sortKey="date" sortConfig={timeOffSortConfig} setSortConfig={setTimeOffSortConfig} />
-                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
-                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Time</th>
-                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Reason</th>
-                                            {statusFilter === 'Approved' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Rejection Reason</th>}
-                                            <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Duration</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Time</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Reason</th>
+                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Rejection Reason</th>}
+                                            <th className="px-3 py-2 text-right text-sm font-semibold text-white">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
@@ -985,7 +985,7 @@ const Approvals = () => {
                                                     onClick={() => handleOpenDetails(req, 'timeoff')}
                                                 >
                                                     {statusFilter === 'Pending' && (
-                                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                                                             <input
                                                                 type="checkbox"
                                                                 checked={selectedItems.has(`timeoff-${req.id}`)}
@@ -994,9 +994,9 @@ const Approvals = () => {
                                                             />
                                                         </td>
                                                     )}
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-3 py-2">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-sm">
+                                                            <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-xs">
                                                                 {req.tblstaff?.firstname?.charAt(0)}
                                                             </div>
                                                             <div>
@@ -1005,35 +1005,35 @@ const Approvals = () => {
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-900">
+                                                    <td className="px-3 py-2 text-sm text-gray-900">
                                                         {formatDateLocal(req.date)}
                                                     </td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-3 py-2">
                                                         <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded text-sm font-medium">
                                                             {calculateTimeOffDuration(req.start_time, req.end_time)}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                                    <td className="px-3 py-2 text-sm text-gray-600">
                                                         {req.start_time} - {req.end_time}
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs">
+                                                    <td className="px-3 py-2 text-sm text-gray-700 max-w-xs">
                                                         <div className="line-clamp-2" title={req.reason}>
                                                             {req.reason || '-'}
                                                         </div>
                                                     </td>
                                                     {statusFilter === 'Approved' && (
-                                                        <td className="px-6 py-4 text-sm text-gray-700">
+                                                        <td className="px-3 py-2 text-sm text-gray-700">
                                                             {req.approver ? `${req.approver.firstname} ${req.approver.lastname}` : '-'}
                                                         </td>
                                                     )}
                                                     {statusFilter === 'Rejected' && (
-                                                        <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs" title={req.rejection_reason}>
+                                                        <td className="px-3 py-2 text-sm text-red-600 italic max-w-xs" title={req.rejection_reason}>
                                                             {req.rejection_reason && req.rejection_reason.length > 120
                                                                 ? `${req.rejection_reason.substring(0, 120)}...`
                                                                 : req.rejection_reason || '-'}
                                                         </td>
                                                     )}
-                                                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                                    <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                                         {!isHistory ? (
                                                             <div className="flex justify-end gap-2">
                                                                 <button
@@ -1098,7 +1098,7 @@ const Approvals = () => {
                                     <thead className="bg-[#2E5090] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
-                                                <th className="px-6 py-3 w-10">
+                                                <th className="px-3 py-2 w-10">
                                                     <input
                                                         type="checkbox"
                                                         onChange={() => handleSelectAll(false)}
@@ -1110,10 +1110,10 @@ const Approvals = () => {
                                             <SortableHeader label="Employee" sortKey="staffName" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
                                             <SortableHeader label="Client / Location" sortKey="client_name" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
                                             <SortableHeader label="Date" sortKey="start_time" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
-                                            <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
-                                            {statusFilter === 'Approved' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-6 py-3 text-left text-sm font-semibold text-white">Reason</th>}
-                                            <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Duration</th>
+                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Reason</th>}
+                                            <th className="px-3 py-2 text-right text-sm font-semibold text-white">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
@@ -1125,7 +1125,7 @@ const Approvals = () => {
                                                     onClick={() => handleOpenDetails(req, 'onduty')}
                                                 >
                                                     {statusFilter === 'Pending' && (
-                                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                                                             <input
                                                                 type="checkbox"
                                                                 checked={selectedItems.has(`onduty-${req.id}`)}
@@ -1134,9 +1134,9 @@ const Approvals = () => {
                                                             />
                                                         </td>
                                                     )}
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-3 py-2">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#2E5090] font-bold text-sm">
+                                                            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-[#2E5090] font-bold text-xs">
                                                                 {req.tblstaff?.firstname?.charAt(0)}
                                                             </div>
                                                             <div>
@@ -1145,31 +1145,31 @@ const Approvals = () => {
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-3 py-2">
                                                         <p className="text-sm font-medium text-gray-900">{req.client_name}</p>
                                                         <p className="text-xs text-gray-500">{req.location || 'Remote'}</p>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-900">
+                                                    <td className="px-3 py-2 text-sm text-gray-900">
                                                         {formatInTimezone(req.start_time, null, { month: '2-digit', day: '2-digit', year: 'numeric', hour: undefined, minute: undefined })}
                                                     </td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-3 py-2">
                                                         <span className="px-2 py-1 bg-violet-50 text-violet-700 rounded text-sm font-medium">
                                                             {calculateOnDutyDuration(req.start_time, req.end_time)}
                                                         </span>
                                                     </td>
                                                     {statusFilter === 'Approved' && (
-                                                        <td className="px-6 py-4 text-sm text-gray-700">
+                                                        <td className="px-3 py-2 text-sm text-gray-700">
                                                             {req.approver ? `${req.approver.firstname} ${req.approver.lastname}` : '-'}
                                                         </td>
                                                     )}
                                                     {statusFilter === 'Rejected' && (
-                                                        <td className="px-6 py-4 text-sm text-red-600 italic max-w-xs" title={req.rejection_reason}>
+                                                        <td className="px-3 py-2 text-sm text-red-600 italic max-w-xs" title={req.rejection_reason}>
                                                             {req.rejection_reason && req.rejection_reason.length > 150
                                                                 ? `${req.rejection_reason.substring(0, 150)}...`
                                                                 : req.rejection_reason || '-'}
                                                         </td>
                                                     )}
-                                                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                                    <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                                         {!isHistory ? (
                                                             <div className="flex justify-end gap-2">
                                                                 <button
