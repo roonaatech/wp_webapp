@@ -115,6 +115,17 @@ export const formatTimeOnly = (date, timezone = null) => {
             const ampm = h >= 12 ? 'PM' : 'AM';
             return `${String(hour12).padStart(2, '0')}:${m} ${ampm}`;
         }
+
+        // Handle pure time strings from DB TIME columns (e.g. "14:30:00" or "14:30")
+        // Without this, parseAppTimezone treats "14", "30", "00" as year/month/day → midnight → "12:00 AM"
+        const timeOnlyMatch = date.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+        if (timeOnlyMatch) {
+            const h = parseInt(timeOnlyMatch[1], 10);
+            const m = timeOnlyMatch[2];
+            const hour12 = h % 12 || 12;
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            return `${String(hour12).padStart(2, '0')}:${m} ${ampm}`;
+        }
     }
 
     // Otherwise use the standard timezone conversion (for Date objects and other formats)
