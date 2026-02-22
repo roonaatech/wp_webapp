@@ -6,7 +6,8 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { calculateLeaveDays } from '../utils/dateUtils';
 import { fetchRoles, canViewReports } from '../utils/roleUtils';
-import { formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatTimeOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+
 import TableSortIcon from '../components/TableSortIcon';
 
 const Reports = () => {
@@ -638,8 +639,8 @@ const Reports = () => {
                                 const dateCell = report.date || report.start_date || (report.check_in_time ? formatInTimezone(report.check_in_time, null, { year: 'numeric', month: 'short', day: '2-digit' }) : 'N/A');
                                 const staffId = report.tblstaff?.staffid || report.staff_id || 'N/A';
                                 const detail = isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'Time-Off' : (report.client_name || 'N/A');
-                                const startCell = isLeave ? report.start_date : isTimeOff ? (report.start_time || 'N/A') : (report.check_in_time ? formatInTimezone(report.check_in_time, null, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A');
-                                const endCell = isLeave ? report.end_date : isTimeOff ? (report.end_time || 'N/A') : (report.check_out_time ? formatInTimezone(report.check_out_time, null, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A');
+                                const startCell = isLeave ? report.start_date : isTimeOff ? (formatTimeOnly(report.start_time) || 'N/A') : (report.check_in_time ? formatInTimezone(report.check_in_time, null, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A');
+                                const endCell = isLeave ? report.end_date : isTimeOff ? (formatTimeOnly(report.end_time) || 'N/A') : (report.check_out_time ? formatInTimezone(report.check_out_time, null, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A');
                                 const durationCell = isLeave ? (report.start_date && report.end_date ? `${calculateLeaveDays(report.start_date, report.end_date)} day(s)` : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
                                 const locationCell = isLeave || isTimeOff ? 'N/A' : (report.location || report.client_name || 'N/A');
                                 const statusCell = (report.type === 'leave' || report.type === 'timeoff') ? (report.status || 'N/A') : (report.check_out_time ? 'Completed' : 'Active');

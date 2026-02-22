@@ -58,7 +58,7 @@ const Roles = () => {
             try {
                 await fetchRolesUtil(true);
                 const role = getRoleById(user.role);
-                const canManage = role?.can_manage_roles === true;
+                const canManage = role?.can_manage_roles == true;
                 if (!canManage) {
                     navigate('/unauthorized', { replace: true });
                 } else {
@@ -416,7 +416,7 @@ const Roles = () => {
                 )}
             </div>
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white rounded-lg shadow overflow-x-auto">
                 {hierarchyMode && (
                     <div className="bg-blue-50 border-b border-blue-200 px-6 py-3">
                         <p className="text-sm text-blue-800 font-medium flex items-center">
@@ -479,7 +479,7 @@ const Roles = () => {
                                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</span>
                                 )}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -589,7 +589,7 @@ const Roles = () => {
                                         {role.active ? 'Active' : 'Inactive'}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium sticky right-0 bg-white z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">
                                     {!hierarchyMode && (
                                         <div className="flex space-x-2">
                                             <button

@@ -7,6 +7,8 @@ import BrandLogo from '../components/BrandLogo';
 import { LuDownload, LuUpload, LuTrash2, LuEye, LuEyeOff, LuSmartphone, LuHistory } from "react-icons/lu";
 import { hasAdminPermission } from '../utils/roleUtils';
 import { QRCodeCanvas as QRCode } from 'qrcode.react';
+import { formatInTimezone } from '../utils/timezone.util';
+
 
 const ApkDistribution = () => {
     const [latestApk, setLatestApk] = useState(null);
@@ -374,7 +376,7 @@ const ApkDistribution = () => {
                                                 <h2 className="text-3xl font-bold">v{latestApk.version}</h2>
                                                 <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">Latest Stable</span>
                                             </div>
-                                            <p className="text-blue-100 mb-4">Released on {new Date(latestApk.upload_date).toLocaleDateString()}</p>
+                                            <p className="text-blue-100 mb-4">Released on {formatInTimezone(latestApk.upload_date)}</p>
                                             {(latestApk.release_notes || isEditingReleaseNotes) && (
                                                 <div className="bg-black/20 rounded-xl p-4 mb-6 max-w-2xl backdrop-blur-sm">
                                                     <div className="flex items-center justify-between mb-2">
@@ -639,8 +641,7 @@ const ApkDistribution = () => {
                                                     <tr key={apk.id} className="hover:bg-gray-50/50 transition-colors">
                                                         <td className="py-4 pl-4 font-medium text-gray-900">{apk.version}</td>
                                                         <td className="py-4 text-gray-500 text-sm">
-                                                            {new Date(apk.upload_date).toLocaleDateString()}
-                                                            <div className="text-xs text-gray-400">{new Date(apk.upload_date).toLocaleTimeString()}</div>
+                                                            {formatInTimezone(apk.upload_date)}
                                                         </td>
                                                         <td className="py-4">
                                                             <span className={`text-xs font-bold px-2 py-1 rounded-full ${apk.is_visible

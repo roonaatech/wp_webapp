@@ -540,7 +540,7 @@ const Calendar = () => {
                                                             {event.type === 'on_duty' && event.start_time && (
                                                                 <div className="mt-1">
                                                                     <p className="text-xs text-gray-600">
-                                                                        Time: {formatTimeOnly(new Date(event.start_time))} - {event.end_time ? formatTimeOnly(new Date(event.end_time)) : <span className="text-green-600 font-bold">In Progress</span>}
+                                                                        Time: {formatTimeOnly(event.start_time)} - {event.end_time ? formatTimeOnly(event.end_time) : <span className="text-green-600 font-bold">In Progress</span>}
                                                                     </p>
                                                                     {event.end_time && (
                                                                         <p className="text-xs text-gray-500">

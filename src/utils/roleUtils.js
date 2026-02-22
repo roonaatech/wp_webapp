@@ -108,7 +108,7 @@ export const canAccessWebApp = (roleId) => {
 
     // Use the explicit can_access_webapp permission
     // Strict check - no fallbacks
-    const hasAccess = role.can_access_webapp === true;
+    const hasAccess = role.can_access_webapp == true;
 
     console.log('canAccessWebApp - hasAccess:', hasAccess, 'role details:', {
         can_access_webapp: role.can_access_webapp
@@ -133,7 +133,7 @@ export const hasAdminPermission = (roleId) => {
 export const canManageLeaveTypes = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_manage_leave_types === true;
+    return role.can_manage_leave_types == true;
 };
 
 /**
@@ -322,7 +322,7 @@ export const getPermissionLevel = (roleId, permissionName) => {
 export const canManageRoles = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_manage_roles === true;
+    return role.can_manage_roles == true;
 };
 
 /**
@@ -331,7 +331,7 @@ export const canManageRoles = (roleId) => {
 export const canManageEmailSettings = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_manage_email_settings === true;
+    return role.can_manage_email_settings == true;
 };
 
 /**
@@ -363,9 +363,9 @@ export const isSelfServiceOnly = (roleId) => {
         role.can_manage_active_onduty === 'subordinates' || role.can_manage_active_onduty === 'all' ||
         role.can_manage_schedule === 'subordinates' || role.can_manage_schedule === 'all' ||
         role.can_view_activities === 'subordinates' || role.can_view_activities === 'all' ||
-        role.can_manage_leave_types === true ||
-        role.can_manage_roles === true ||
-        role.can_manage_email_settings === true ||
+        role.can_manage_leave_types == true ||
+        role.can_manage_roles == true ||
+        role.can_manage_email_settings == true ||
         role.can_manage_system_settings === 'all';
 
     return !hasAnyManagement;

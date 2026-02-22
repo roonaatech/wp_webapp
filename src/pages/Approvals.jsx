@@ -8,7 +8,8 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
-import { formatInTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatTimeOnly } from '../utils/timezone.util';
+
 import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
 
@@ -1014,7 +1015,7 @@ const Approvals = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-600">
-                                                        {req.start_time} - {req.end_time}
+                                                        {formatTimeOnly(req.start_time)} - {formatTimeOnly(req.end_time)}
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-700 max-w-xs">
                                                         <div className="line-clamp-2" title={req.reason}>
@@ -1496,7 +1497,7 @@ const Approvals = () => {
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.type === 'leave'
                                                 ? detailsModal.item.start_date
-                                                : (detailsModal.type === 'timeoff' ? `${detailsModal.item.start_time} (On ${formatInTimezone(detailsModal.item.date, null, { month: '2-digit', day: '2-digit', year: 'numeric', hour: undefined, minute: undefined })})` : formatApprovalDate(detailsModal.item.start_time))}
+                                                : (detailsModal.type === 'timeoff' ? `${formatTimeOnly(detailsModal.item.start_time)} (On ${formatInTimezone(detailsModal.item.date, null, { month: '2-digit', day: '2-digit', year: 'numeric', hour: undefined, minute: undefined })})` : formatApprovalDate(detailsModal.item.start_time))}
                                         </p>
                                     </div>
                                 </div>
@@ -1506,7 +1507,7 @@ const Approvals = () => {
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.type === 'leave'
                                                 ? detailsModal.item.end_date
-                                                : (detailsModal.type === 'timeoff' ? detailsModal.item.end_time : formatApprovalDate(detailsModal.item.end_time))}
+                                                : (detailsModal.type === 'timeoff' ? formatTimeOnly(detailsModal.item.end_time) : formatApprovalDate(detailsModal.item.end_time))}
                                         </p>
                                     </div>
                                 </div>

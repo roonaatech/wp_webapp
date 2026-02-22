@@ -4,12 +4,12 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName } from '../utils/roleUtils';
-import { formatInTimezone, formatTimeOnly, getAppTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatTimeOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    
+
     // Check if this is a timezone-formatted string from backend (YYYY-MM-DD HH:mm:ss)
     // If so, extract and format the date part directly
     if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(dateStr)) {
@@ -18,7 +18,7 @@ const formatDate = (dateStr) => {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         return `${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
     }
-    
+
     const formatted = formatInTimezone(dateStr, null, {
         day: '2-digit',
         month: 'short',
@@ -50,8 +50,8 @@ const calculateLeaveDaysExcludingSunday = (start, end) => {
     let count = 0;
 
     // Split YYYY-MM-DD to avoid UTC shift
-    const [sY, sM, sD] = start.split('-').map(Number);
-    const [eY, eM, eD] = end.split('-').map(Number);
+    const [sY, sM, sD] = String(start).split('T')[0].split('-').map(Number);
+    const [eY, eM, eD] = String(end).split('T')[0].split('-').map(Number);
 
     let current = new Date(sY, sM - 1, sD);
     const endDate = new Date(eY, eM - 1, eD);
@@ -589,14 +589,7 @@ const MyRequests = () => {
     // Today's date in yyyy-mm-dd for min attribute - using app timezone
     const today = getCurrentInAppTimezone().date;
 
-    // Real-time clock for the UI to show application time
-    const [currentAppTime, setCurrentAppTime] = useState(getCurrentInAppTimezone());
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentAppTime(getCurrentInAppTimezone());
-        }, 10000); // update every 10s
-        return () => clearInterval(interval);
-    }, []);
+
 
     // ── Calendar Logic ──
     const [calendarOpen, setCalendarOpen] = useState(false);
@@ -604,6 +597,8 @@ const MyRequests = () => {
     const [rangeStep, setRangeStep] = useState(0); // 0 = pick start, 1 = pick end
     const [tempCalStart, setTempCalStart] = useState('');
     const [tempCalEnd, setTempCalEnd] = useState('');
+    const [toCalendarMonth, setToCalendarMonth] = useState(new Date(parseInt(today.split('-')[0]), parseInt(today.split('-')[1]) - 1, 1)); // Time-off calendar month
+    const [toCalendarOpen, setToCalendarOpen] = useState(false); // Time-off calendar popup
 
     const openCalendar = () => {
         setTempCalStart(leaveStartDate);
@@ -897,8 +892,16 @@ const MyRequests = () => {
                                                 ))}
                                             </select>
                                             <div className="grid grid-cols-2 gap-2">
-                                                <input type="date" value={editLeaveStart} onChange={(e) => setEditLeaveStart(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
-                                                <input type="date" value={editLeaveEnd} min={editLeaveStart} onChange={(e) => setEditLeaveEnd(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
+                                                <input type="date" value={editLeaveStart} onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
+                                                    setEditLeaveStart(val);
+                                                }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
+                                                <input type="date" value={editLeaveEnd} min={editLeaveStart} onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
+                                                    setEditLeaveEnd(val);
+                                                }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
                                             </div>
                                             <textarea value={editLeaveReason} onChange={(e) => setEditLeaveReason(e.target.value)} rows={2} placeholder="Reason" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all resize-none" />
                                             <button
@@ -1019,14 +1022,7 @@ const MyRequests = () => {
                         ) : (
                             /* ── Start On-Duty Form ── */
                             <form onSubmit={handleStartOnDuty} className="space-y-4">
-                                {/* Timezone Indicator */}
-                                <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4">
-                                    <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-1">Current App Time ({getAppTimezone().split('/').pop().replace('_', ' ')})</p>
-                                    <div className="flex items-baseline gap-2">
-                                        <p className="text-lg font-black text-purple-800 tabular-nums">{currentAppTime.time}</p>
-                                        <p className="text-[10px] text-purple-600 font-medium">{formatDate(currentAppTime.date)}</p>
-                                    </div>
-                                </div>
+
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Client Name</label>
                                     <div className="relative">
@@ -1175,39 +1171,19 @@ const MyRequests = () => {
                 {/* ═══════════════════════════════════════════ */}
                 {activeTab === 'timeoff' && activeView === 'apply' && (
                     <form onSubmit={handleTimeOffSubmit} className="space-y-4 animate-fadeIn">
-                        {/* Timezone Indicator */}
-                        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-4 flex items-center justify-between">
-                            <div>
-                                <p className="text-[10px] font-bold text-teal-600 uppercase tracking-widest mb-1">Current App Time ({getAppTimezone().split('/').pop().replace('_', ' ')})</p>
-                                <p className="text-lg font-black text-teal-800 tabular-nums">{currentAppTime.time}</p>
-                                <p className="text-[10px] text-teal-600/70 font-medium">{formatDate(currentAppTime.date)}</p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setToDate(currentAppTime.date);
-                                    setToStartTime(currentAppTime.time);
-                                    // Default end time + 1 hour
-                                    const [h, m] = currentAppTime.time.split(':');
-                                    const endH = (parseInt(h) + 1) % 24;
-                                    setToEndTime(`${String(endH).padStart(2, '0')}:${m}`);
-                                }}
-                                className="px-3 py-2 bg-white text-teal-600 text-[11px] font-bold rounded-xl shadow-sm hover:shadow-md active:scale-95 transition-all border border-teal-100"
-                            >
-                                Use Current
-                            </button>
-                        </div>
 
-                        {/* Date */}
+
+                        {/* Date - Tappable field that opens calendar popup */}
                         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Date</label>
-                            <input
-                                type="date"
-                                value={toDate}
-                                min={today}
-                                onChange={(e) => setToDate(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
-                            />
+                            <div onClick={() => setToCalendarOpen(true)} className="cursor-pointer">
+                                <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    <span className={toDate ? 'text-gray-800' : 'text-gray-400'}>
+                                        {toDate ? formatDate(toDate) : 'Select date'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Time Selection */}
@@ -1304,7 +1280,11 @@ const MyRequests = () => {
                                                 <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Editing Time-Off</span>
                                                 <button onClick={() => setEditingTimeOff(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600">✕ Cancel</button>
                                             </div>
-                                            <input type="date" value={editToDate} onChange={(e) => setEditToDate(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
+                                            <input type="date" value={editToDate} onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
+                                                setEditToDate(val);
+                                            }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
                                             <div className="grid grid-cols-2 gap-2">
                                                 <input type="time" value={editToStart} onChange={(e) => setEditToStart(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
                                                 <input type="time" value={editToEnd} onChange={(e) => setEditToEnd(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
@@ -1395,7 +1375,7 @@ const MyRequests = () => {
 
                                     const { day, dateStr, isSunday } = cell;
                                     const isPast = dateStr < today;
-                                    const disabled = isPast;
+                                    const disabled = isPast || isSunday;
                                     const leaveStatus = leaveDateStatusMap[dateStr];
                                     const inRange = isInSelectedRange(dateStr);
                                     const isStart = isRangeStart(dateStr);
@@ -1492,6 +1472,129 @@ const MyRequests = () => {
                     </div>
                 </div>
             )}
+
+            {/* ── Time-Off Calendar Popup Modal ── */}
+            {toCalendarOpen && (() => {
+                const tYear = toCalendarMonth.getFullYear();
+                const tMon = toCalendarMonth.getMonth();
+                const tDaysInMonth = new Date(tYear, tMon + 1, 0).getDate();
+                const tFirstDay = new Date(tYear, tMon, 1).getDay();
+                const tMonthLabel = new Date(tYear, tMon).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+                const tDays = [];
+                for (let i = 0; i < tFirstDay; i++) tDays.push(null);
+                for (let d = 1; d <= tDaysInMonth; d++) {
+                    const dateObj = new Date(tYear, tMon, d);
+                    const dateStr = `${tYear}-${String(tMon + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    tDays.push({ day: d, dateStr, isSunday: dateObj.getDay() === 0 });
+                }
+
+                return (
+                    <div className="fixed inset-0 z-[95] flex items-center justify-center confirm-backdrop" onClick={() => setToCalendarOpen(false)}>
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 confirm-modal overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                                <h3 className="text-base font-bold text-gray-900">Select Time-Off Date</h3>
+                                <button onClick={() => setToCalendarOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+
+                            <div className="px-4 pb-4">
+                                {/* Month Header */}
+                                <div className="flex items-center justify-between mb-3">
+                                    <button type="button" onClick={() => setToCalendarMonth(new Date(tYear, tMon - 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                    </button>
+                                    <span className="text-sm font-bold text-gray-800">{tMonthLabel}</span>
+                                    <button type="button" onClick={() => setToCalendarMonth(new Date(tYear, tMon + 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </button>
+                                </div>
+
+                                {/* Day of Week Headers */}
+                                <div className="grid grid-cols-7 gap-0 mb-1">
+                                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+                                        <div key={d} className={`text-center text-[10px] font-bold uppercase py-1 ${d === 'Su' ? 'text-red-400' : 'text-gray-400'}`}>{d}</div>
+                                    ))}
+                                </div>
+
+                                {/* Calendar Grid */}
+                                <div className="grid grid-cols-7 gap-0">
+                                    {tDays.map((cell, idx) => {
+                                        if (!cell) return <div key={`to-empty-${idx}`} className="h-10"></div>;
+
+                                        const { day, dateStr, isSunday } = cell;
+                                        const isPast = dateStr < today;
+                                        const disabled = isPast || isSunday;
+                                        const isSelected = dateStr === toDate;
+                                        const isToday = dateStr === today;
+
+                                        let bgClass = '';
+                                        let textClass = 'text-gray-800';
+
+                                        if (disabled) {
+                                            textClass = isSunday ? 'text-red-300' : 'text-gray-300';
+                                        } else if (isSelected) {
+                                            bgClass = 'bg-teal-600';
+                                            textClass = 'text-white';
+                                        }
+
+                                        return (
+                                            <button
+                                                key={dateStr}
+                                                type="button"
+                                                disabled={disabled}
+                                                onClick={() => setToDate(dateStr)}
+                                                className={`h-10 w-full flex items-center justify-center text-xs font-semibold rounded-full transition-all
+                                                    ${bgClass} ${textClass}
+                                                    ${isToday && !isSelected ? 'ring-2 ring-teal-400 ring-offset-1' : ''}
+                                                    ${!disabled && !isSelected ? 'hover:bg-teal-50' : ''}
+                                                    ${!disabled ? 'active:scale-95 cursor-pointer' : 'cursor-default'}
+                                                    ${isSelected ? 'shadow-sm' : ''}
+                                                `}
+                                            >
+                                                {day}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Legend */}
+                                <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
+                                        <span className="text-[10px] text-gray-500 font-semibold">Selected</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-red-200"></span>
+                                        <span className="text-[10px] text-gray-500 font-semibold">Sunday (Disabled)</span>
+                                    </div>
+                                </div>
+
+                                {/* Selected date preview */}
+                                {toDate && (
+                                    <div className="mt-2 px-3 py-2 bg-teal-50 rounded-xl">
+                                        <p className="text-xs font-bold text-teal-600">
+                                            📅 {formatDate(toDate)}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Confirm Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => setToCalendarOpen(false)}
+                                    disabled={!toDate}
+                                    className="w-full mt-3 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-teal-500/25 active:scale-[0.98] transition-all disabled:opacity-50"
+                                >
+                                    Confirm Selection
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* ── Detail Bottom Sheet ── */}
             {selectedDetail && (
@@ -1648,7 +1751,7 @@ const MyRequests = () => {
                                                 </div>
                                                 <div>
                                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Created</div>
-                                                    <div className="text-xs text-gray-600 font-medium">{new Date(selectedDetail.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+                                                    <div className="text-xs text-gray-600 font-medium">{formatInTimezone(selectedDetail.createdAt)}</div>
                                                 </div>
                                             </div>
                                         )}
@@ -1659,7 +1762,7 @@ const MyRequests = () => {
                                                 </div>
                                                 <div>
                                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Last Updated</div>
-                                                    <div className="text-xs text-gray-600 font-medium">{new Date(selectedDetail.updatedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+                                                    <div className="text-xs text-gray-600 font-medium">{formatInTimezone(selectedDetail.updatedAt)}</div>
                                                 </div>
                                             </div>
                                         )}
