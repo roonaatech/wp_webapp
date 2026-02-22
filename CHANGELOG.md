@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.2.0](https://github.com/roonaatech/wp_webapp/compare/v2.1.6...v2.2.0) (2026-02-22)
+
+
+### Features
+
+* Implement a new page displaying application architecture, ER diagrams, and API controller details. ([604ce40](https://github.com/roonaatech/wp_webapp/commit/604ce40200459e42fee21849a4e16c6089ab1dcf))
+* Update Reports table expand/collapse buttons to use icons, add Google Maps API key to environment files, and remove Calendar debug info. ([f4e0d20](https://github.com/roonaatech/wp_webapp/commit/f4e0d2085aec98bc3a77bd13fac30f01bbe7a8ac))
+
+
+### Code Refactoring
+
+* Standardize date and time formatting across components and simplify boolean comparisons. ([c866a81](https://github.com/roonaatech/wp_webapp/commit/c866a8123fef4090596b53350df56e03deee55c1))
+
 ### [2.1.6](https://github.com/roonaatech/wp_webapp/compare/v2.1.5...v2.1.6) (2026-02-16)
 
 
