@@ -94,7 +94,7 @@ export default function LeaveTypes() {
       name: leaveType.name,
       description: leaveType.description || '',
       status: leaveType.status,
-      gender_restriction: leaveType.gender_restriction || []
+      gender_restriction: Array.isArray(leaveType.gender_restriction) ? leaveType.gender_restriction : (leaveType.gender_restriction ? [leaveType.gender_restriction] : [])
     });
     setShowModal(true);
   };
@@ -103,7 +103,8 @@ export default function LeaveTypes() {
     const { name, value, type, checked } = e.target;
     if (name === 'gender_restriction') {
       setFormData(prev => {
-        const genders = [...prev.gender_restriction];
+        const currentGenders = Array.isArray(prev.gender_restriction) ? prev.gender_restriction : (prev.gender_restriction ? [prev.gender_restriction] : []);
+        const genders = [...currentGenders];
         if (checked) {
           if (!genders.includes(value)) {
             genders.push(value);
@@ -153,8 +154,8 @@ export default function LeaveTypes() {
       let bValue = b[sortConfig.key] || '';
 
       if (sortConfig.key === 'gender_restriction') {
-        aValue = (a.gender_restriction || []).join(', ');
-        bValue = (b.gender_restriction || []).join(', ');
+        aValue = Array.isArray(a.gender_restriction) ? a.gender_restriction.join(', ') : (a.gender_restriction || '');
+        bValue = Array.isArray(b.gender_restriction) ? b.gender_restriction.join(', ') : (b.gender_restriction || '');
       }
 
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -364,7 +365,11 @@ export default function LeaveTypes() {
                 <tr key={leaveType.id} className="border-b border-gray-200">
                   <td className="px-6 py-4 font-medium text-gray-900">{leaveType.name}</td>
                   <td className="px-6 py-4 text-gray-600">{leaveType.description || '-'}</td>
-                  <td className="px-6 py-4 text-gray-600">{leaveType.gender_restriction?.join(', ') || 'All'}</td>
+                  <td className="px-6 py-4 text-gray-600">
+                    {Array.isArray(leaveType.gender_restriction)
+                      ? (leaveType.gender_restriction.length > 0 ? leaveType.gender_restriction.join(', ') : 'All')
+                      : (leaveType.gender_restriction || 'All')}
+                  </td>
                   <td className="px-6 py-4">
                     <button
                       onClick={() => handleToggleStatus(leaveType)}

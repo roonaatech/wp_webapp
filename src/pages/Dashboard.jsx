@@ -13,7 +13,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
-import { formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
@@ -307,16 +307,31 @@ const Dashboard = () => {
         }
     };
 
-    const formatDateForModal = (dateString) => {
-        if (!dateString) return 'N/A';
-        return formatInTimezone(dateString, null, {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
+    const formatDateForModal = (startDateString, endDateString = null, isLeave = false) => {
+        if (!startDateString) return 'N/A';
+        const startFormatted = isLeave ? formatDateOnly(startDateString) : formatInTimezone(startDateString);
+
+        if (isLeave && endDateString) {
+            const endFormatted = formatDateOnly(endDateString);
+            const daysCount = calculateLeaveDays(startDateString, endDateString);
+            const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
+
+            if (startFormatted !== endFormatted) {
+                return (
+                    <span>
+                        {startFormatted} - {endFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                    </span>
+                );
+            } else {
+                return (
+                    <span>
+                        {startFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                    </span>
+                );
+            }
+        }
+
+        return startFormatted;
     };
 
     const generateTrendData = (statsData, days = 7) => {
@@ -620,7 +635,16 @@ const Dashboard = () => {
                                                             {item.type}
                                                         </span>
                                                         <span className="text-[11px] font-bold text-gray-400">
-                                                            {formatInTimezone(item.start_date, null, { month: 'short', day: 'numeric' })}
+                                                            {item.type === 'leave' ? (
+                                                                <span className="text-red-500">
+                                                                    {(() => {
+                                                                        const count = calculateLeaveDays(item.start_date, item.end_date);
+                                                                        return `${count} Day${count === 1 ? '' : 's'}`;
+                                                                    })()}
+                                                                </span>
+                                                            ) : (
+                                                                formatDateOnly(item.start_date)
+                                                            )}
                                                         </span>
                                                     </div>
 
@@ -967,7 +991,7 @@ const Dashboard = () => {
                                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {approveModal.item?.name}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {approveModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item?.start_date)}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item?.start_date, approveModal.item?.end_date, approveModal.isLeave)}</p>
                                 </div>
                                 {modalError && <div className="text-red-600 text-sm mb-2">{modalError}</div>}
                                 <div className="flex gap-3">
@@ -1009,7 +1033,7 @@ const Dashboard = () => {
                                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {rejectModal.item?.name}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {rejectModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item?.start_date)}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item?.start_date, rejectModal.item?.end_date, rejectModal.isLeave)}</p>
                                 </div>
                                 <textarea
                                     value={rejectModal.reason}
@@ -1132,7 +1156,7 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective Start</p>
                                         <div className="flex items-center gap-2">
                                             <p className="text-base font-semibold text-gray-900">
-                                                {detailsModal.isLeave ? detailsModal.item.start_date : formatApprovalDate(detailsModal.item.start_time)}
+                                                {detailsModal.isLeave ? formatDateOnly(detailsModal.item.start_date) : formatInTimezone(detailsModal.item.start_time)}
                                             </p>
                                         </div>
                                     </div>
@@ -1140,7 +1164,7 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective End</p>
                                         <div className="flex items-center gap-2">
                                             <p className="text-base font-semibold text-gray-900">
-                                                {detailsModal.isLeave ? detailsModal.item.end_date : formatApprovalDate(detailsModal.item.end_time)}
+                                                {detailsModal.isLeave ? formatDateOnly(detailsModal.item.end_date) : (detailsModal.item.end_time ? formatInTimezone(detailsModal.item.end_time) : '—')}
                                             </p>
                                         </div>
                                     </div>
@@ -1169,10 +1193,6 @@ const Dashboard = () => {
                                     </div>
                                 )}
 
-                                {/* Timestamps */}
-                                <div className="pt-4 flex justify-between text-[10px] font-bold text-gray-500 tracking-wide border-t border-gray-100">
-                                    <span>Requested On: {formatApprovalDate(detailsModal.item.createdAt)}</span>
-                                </div>
                             </div>
 
                             {/* Footer Controls */}
@@ -1234,14 +1254,7 @@ const calculateOnDutyDuration = (startTime, endTime) => {
 
 const formatApprovalDate = (dateString) => {
     if (!dateString) return '—';
-    return formatInTimezone(dateString, null, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
+    return formatInTimezone(dateString);
 };
 
 export default Dashboard;

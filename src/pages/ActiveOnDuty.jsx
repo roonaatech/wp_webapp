@@ -7,6 +7,7 @@ import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { hasAdminPermission, fetchRoles, canManageActiveOnDuty } from '../utils/roleUtils';
 import { formatInTimezone, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 import TableSortIcon from '../components/TableSortIcon';
+import { FiRefreshCw } from 'react-icons/fi';
 
 const ActiveOnDuty = () => {
     const navigate = useNavigate();
@@ -14,6 +15,7 @@ const ActiveOnDuty = () => {
     const [hasPermission, setHasPermission] = useState(false);
     const [onDutyRecords, setOnDutyRecords] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'start_time', direction: 'desc' });
@@ -48,9 +50,13 @@ const ActiveOnDuty = () => {
         }
     }, [hasPermission]);
 
-    const fetchActiveOnDuty = async () => {
+    const fetchActiveOnDuty = async (isManualRefresh = false) => {
         try {
-            setLoading(true);
+            if (isManualRefresh) {
+                setRefreshing(true);
+            } else {
+                setLoading(true);
+            }
             setError(null);
             const token = localStorage.getItem('token');
             if (!token) {
@@ -70,6 +76,7 @@ const ActiveOnDuty = () => {
             setError(err.response?.data?.message || err.message || 'Failed to fetch active on-duty records');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -173,9 +180,20 @@ const ActiveOnDuty = () => {
                             : 'View active on-duty records for your team'}
                     </p>
                 </div>
-                <div className="text-right">
-                    <div className="text-4xl font-bold text-blue-600">{sortedRecords.length}</div>
-                    <p className="text-gray-600 text-sm">Currently Active</p>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => fetchActiveOnDuty(true)}
+                        disabled={refreshing || loading}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#2E5090] text-white rounded-lg hover:bg-blue-800 transition-all shadow-md disabled:opacity-50"
+                        title="Refresh Data"
+                    >
+                        <FiRefreshCw className={`${refreshing ? 'animate-spin' : ''}`} />
+                        <span className="font-semibold text-sm">Refresh</span>
+                    </button>
+                    <div className="text-right">
+                        <div className="text-4xl font-bold text-blue-600">{sortedRecords.length}</div>
+                        <p className="text-gray-600 text-sm">Currently Active</p>
+                    </div>
                 </div>
             </div>
 
@@ -374,7 +392,7 @@ const ActiveOnDuty = () => {
 
             {/* Footer Info */}
             <div className="text-center text-sm text-gray-500">
-                <p>Refresh the page to get the latest data</p>
+                <p>Use the refresh button to get the latest data</p>
             </div>
         </div>
     );

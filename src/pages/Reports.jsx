@@ -6,7 +6,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { calculateLeaveDays } from '../utils/dateUtils';
 import { fetchRoles, canViewReports } from '../utils/roleUtils';
-import { formatInTimezone, formatTimeOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 
 import TableSortIcon from '../components/TableSortIcon';
 
@@ -31,9 +31,12 @@ const Reports = () => {
     const [dateFilter, setDateFilter] = useState('all');
     const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
     const getThisMonthRange = () => {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+        const now = getCurrentInAppTimezone().full;
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const start = `${year}-${String(month).padStart(2, '0')}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
         return { start, end };
     };
     const { start: defaultStart, end: defaultEnd } = getThisMonthRange();
@@ -230,8 +233,8 @@ const Reports = () => {
 
             switch (sortConfig.key) {
                 case 'date':
-                    aValue = a.date || a.start_date || a.check_in_time || '';
-                    bValue = b.date || b.start_date || b.check_in_time || '';
+                    aValue = a.createdAt || a.created_at || a.created_on || a.created || a.date_created || a.date || '';
+                    bValue = b.createdAt || b.created_at || b.created_on || b.created || b.date_created || b.date || '';
                     break;
                 case 'staffName':
                     aValue = `${a.tblstaff?.firstname || ''} ${a.tblstaff?.lastname || ''}`;
@@ -322,14 +325,14 @@ const Reports = () => {
                 if (isTimeOff) typeName = 'Time-Off';
 
                 return [
-                    report.date || 'N/A',
+                    report.date ? formatDateOnly(report.date) : 'N/A',
                     report.tblstaff?.staffid || report.staff_id || 'N/A',
                     `${report.tblstaff?.firstname || ''} ${report.tblstaff?.lastname || ''}`.trim() || 'Unknown',
                     report.tblstaff?.email || 'N/A',
                     typeName,
                     isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'N/A' : (report.client_name || 'N/A'),
-                    isLeave ? report.start_date : isTimeOff ? report.start_time : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A'),
-                    isLeave ? report.end_date : isTimeOff ? report.end_time : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A'),
+                    isLeave ? formatDateOnly(report.start_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.start_time)}` : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A'),
+                    isLeave ? formatDateOnly(report.end_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.end_time)}` : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A'),
                     duration,
                     isLeave || isTimeOff ? 'N/A' : (report.location || 'N/A'),
                     isLeave ? (report.reason || 'N/A') : isTimeOff ? (report.reason || 'N/A') : (report.purpose || 'N/A'),
@@ -592,7 +595,7 @@ const Reports = () => {
                                         onClick={() => handleSort('date')}
                                         className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
                                     >
-                                        Date <TableSortIcon column="date" sortConfig={sortConfig} />
+                                        Created Date <TableSortIcon column="date" sortConfig={sortConfig} />
                                     </button>
                                 </th>
                                 <th className="px-4 py-3 text-left">
@@ -636,17 +639,17 @@ const Reports = () => {
                                 const isExpanded = !!expandedRows[uniqueKey];
 
                                 // compute primary cells
-                                const dateCell = report.date || report.start_date || (report.check_in_time ? formatInTimezone(report.check_in_time, null, { year: 'numeric', month: 'short', day: '2-digit' }) : 'N/A');
+                                const createdAtVal = report.createdAt || report.created_at || report.created_on || report.created || report.date_created || null;
+                                const dateCell = createdAtVal ? formatDateOnly(createdAtVal) : 'N/A';
                                 const staffId = report.tblstaff?.staffid || report.staff_id || 'N/A';
                                 const detail = isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'Time-Off' : (report.client_name || 'N/A');
-                                const startCell = isLeave ? report.start_date : isTimeOff ? (formatTimeOnly(report.start_time) || 'N/A') : (report.check_in_time ? formatInTimezone(report.check_in_time, null, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A');
-                                const endCell = isLeave ? report.end_date : isTimeOff ? (formatTimeOnly(report.end_time) || 'N/A') : (report.check_out_time ? formatInTimezone(report.check_out_time, null, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A');
+                                const startCell = isLeave ? formatDateOnly(report.start_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.start_time)}` : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A');
+                                const endCell = isLeave ? formatDateOnly(report.end_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.end_time)}` : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A');
                                 const durationCell = isLeave ? (report.start_date && report.end_date ? `${calculateLeaveDays(report.start_date, report.end_date)} day(s)` : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
                                 const locationCell = isLeave || isTimeOff ? 'N/A' : (report.location || report.client_name || 'N/A');
                                 const statusCell = (report.type === 'leave' || report.type === 'timeoff') ? (report.status || 'N/A') : (report.check_out_time ? 'Completed' : 'Active');
 
                                 // Timestamps: backend may return camelCase or snake_case fields
-                                const createdAtVal = report.createdAt || report.created_at || report.created_on || report.created || report.date_created || null;
                                 const updatedAtVal = report.updatedAt || report.updated_at || report.decision_at || report.updated || report.date_updated || null;
 
                                 return (
@@ -711,13 +714,13 @@ const Reports = () => {
 
                                                         <div>
                                                             <p className="text-xs text-gray-500">Submitted</p>
-                                                            <p className="text-sm text-gray-900">{createdAtVal ? formatInTimezone(createdAtVal, null, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'}</p>
+                                                            <p className="text-sm text-gray-900">{createdAtVal ? formatInTimezone(createdAtVal) : 'N/A'}</p>
                                                         </div>
 
                                                         <div>
                                                             <p className="text-xs text-gray-500">Decision</p>
                                                             {report.status && (report.status === 'Approved' || report.status === 'Rejected') ? (
-                                                                <p className="text-sm text-gray-900">{`${report.status === 'Approved' ? 'Approved At' : 'Rejected At'}: ${updatedAtVal ? formatInTimezone(updatedAtVal, null, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'}`}</p>
+                                                                <p className="text-sm text-gray-900">{`${report.status === 'Approved' ? 'Approved At' : 'Rejected At'}: ${updatedAtVal ? formatInTimezone(updatedAtVal) : 'N/A'}`}</p>
                                                             ) : (
                                                                 <p className="text-sm text-gray-900">{report.status || 'N/A'}</p>
                                                             )}

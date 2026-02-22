@@ -28,21 +28,32 @@ import { fetchRoles } from './utils/roleUtils';
 
 
 const GlobalInit = ({ children }) => {
+  const fetchSettings = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/settings`, {
+        headers: { 'x-access-token': token }
+      });
+      if (response.data && response.data.map) {
+        localStorage.setItem('settings', JSON.stringify(response.data.map));
+        // Dispatch event to notify components that settings are loaded
+        window.dispatchEvent(new Event('settingsLoaded'));
+      }
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       fetchRoles();
-      // Fetch application settings
-      axios.get(`${API_BASE_URL}/api/settings`, {
-        headers: { 'x-access-token': token }
-      }).then(response => {
-        if (response.data && response.data.map) {
-          localStorage.setItem('settings', JSON.stringify(response.data.map));
-          // Dispatch event to notify components that settings are loaded
-          window.dispatchEvent(new Event('settingsLoaded'));
-        }
-      }).catch(err => console.error('Error fetching settings:', err));
+      fetchSettings();
     }
+    // Expose fetchSettings globally so Login.jsx can call it
+    window.refreshAppSettings = fetchSettings;
   }, []);
 
   return children;

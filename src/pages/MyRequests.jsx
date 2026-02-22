@@ -4,39 +4,12 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName } from '../utils/roleUtils';
-import { formatInTimezone, formatTimeOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
     if (!dateStr) return '';
-
-    // Check if this is a timezone-formatted string from backend (YYYY-MM-DD HH:mm:ss)
-    // If so, extract and format the date part directly
-    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(dateStr)) {
-        const datePart = dateStr.split(' ')[0]; // Extract "YYYY-MM-DD"
-        const [y, m, d] = datePart.split('-');
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        return `${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
-    }
-
-    const formatted = formatInTimezone(dateStr, null, {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: undefined,
-        minute: undefined,
-        hour12: undefined
-    });
-    // If it's a numeric string like "2026-02-14 09:00:00", formatInTimezone might return it raw
-    if (typeof formatted === 'string' && formatted.includes('-') && formatted.split('-').length === 3) {
-        const parts = formatted.split(/[ T]/)[0].split('-');
-        if (parts[0].length === 4) { // YYYY-MM-DD
-            const [y, m, d] = parts;
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            return `${d} ${months[parseInt(m) - 1]} ${y}`;
-        }
-    }
-    return formatted;
+    return formatDateOnly(dateStr);
 };
 
 const formatTime12 = (timeStr) => {

@@ -13,13 +13,13 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false 
 
     // Skip permission checks for self-service routes like /my-requests
     if (!skipWebAppCheck) {
-        // Check if user has permission to access webapp (based on role permissions)
+        // 1. Gating: If user doesn't have webapp access at all, they shouldn't see dashboard pages
         if (!canAccessWebApp(user.role)) {
             return <Navigate to="/my-requests" replace />;
         }
 
-        // Redirect self-service-only users (employees) to /my-requests
-        // even if they have can_access_webapp enabled
+        // 2. Navigation: If they ONLY have web access (no management permissions), 
+        // they belong in /my-requests, not the main Dashboard pages
         if (isSelfServiceOnly(user.role)) {
             return <Navigate to="/my-requests" replace />;
         }

@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { hasAdminPermission, fetchRoles, canManageSchedule } from '../utils/roleUtils';
-import { getCurrentInAppTimezone, getAppTimezone, mirrorToTimezone, formatTimeOnly } from '../utils/timezone.util';
+import { getCurrentInAppTimezone, getAppTimezone, mirrorToTimezone, formatTimeOnly, parseAppTimezone } from '../utils/timezone.util';
 
 const Calendar = () => {
     const navigate = useNavigate();
@@ -545,8 +545,9 @@ const Calendar = () => {
                                                                     {event.end_time && (
                                                                         <p className="text-xs text-gray-500">
                                                                             Duration: {(() => {
-                                                                                const start = new Date(event.start_time);
-                                                                                const end = new Date(event.end_time);
+                                                                                const start = parseAppTimezone(event.start_time);
+                                                                                const end = parseAppTimezone(event.end_time);
+                                                                                if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return '—';
                                                                                 const diffMs = end - start;
                                                                                 const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
                                                                                 const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -559,17 +560,7 @@ const Calendar = () => {
                                                             )}
                                                             {event.type === 'time_off' && event.start_time && event.end_time && (
                                                                 <p className="text-xs text-gray-600 mt-1">
-                                                                    Time: {(() => {
-                                                                        const formatTime = (t) => {
-                                                                            if (!t) return '';
-                                                                            const [h, m] = t.split(':');
-                                                                            const hour = parseInt(h, 10);
-                                                                            const ampm = hour >= 12 ? 'PM' : 'AM';
-                                                                            const hour12 = hour % 12 || 12;
-                                                                            return `${hour12}:${m} ${ampm}`;
-                                                                        };
-                                                                        return `${formatTime(event.start_time)} - ${formatTime(event.end_time)}`;
-                                                                    })()}
+                                                                    Time: {formatTimeOnly(event.start_time)} - {formatTimeOnly(event.end_time)}
                                                                 </p>
                                                             )}
                                                             {event.reason && <p className="text-xs text-gray-600 mt-1">Reason: {event.reason}</p>}

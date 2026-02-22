@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { LuClock, LuCheck, LuX, LuChevronDown, LuChevronUp, LuSearch, LuFilter, LuArrowUpDown } from "react-icons/lu";
+import { FiRefreshCw } from "react-icons/fi";
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
-import { formatInTimezone, formatTimeOnly } from '../utils/timezone.util';
+import { formatInTimezone, formatTimeOnly, formatDateOnly, parseAppTimezone } from '../utils/timezone.util';
 
 import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
@@ -16,15 +17,7 @@ import TableSortIcon from '../components/TableSortIcon';
 // Helper to format dates without timezone conversion
 const formatDateLocal = (dateStr) => {
     if (!dateStr) return '';
-    // Use formatInTimezone without hour/minute to get a clean date in the app's timezone
-    return formatInTimezone(dateStr, null, {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: undefined,
-        minute: undefined,
-        hour12: undefined
-    });
+    return formatDateOnly(dateStr);
 };
 
 
@@ -37,6 +30,7 @@ const Approvals = () => {
     const [timeOffApprovals, setTimeOffApprovals] = useState([]); // New State
     const [statusFilter, setStatusFilter] = useState('Pending');
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [processingId, setProcessingId] = useState(null);
     const [error, setError] = useState(null);
     const [expandedSections, setExpandedSections] = useState({
@@ -63,6 +57,7 @@ const Approvals = () => {
         hasNextPage: false
     });
     const [selectedItems, setSelectedItems] = useState(new Set());
+    const [manageableStaffMembers, setManageableStaffMembers] = useState([]);
 
     // Modals State
     const [detailsModal, setDetailsModal] = useState({ show: false, item: null, type: null });
@@ -73,7 +68,9 @@ const Approvals = () => {
         message: '',
         confirmText: '',
         confirmButtonColor: '',
-        action: null
+        action: null,
+        item: null,
+        type: null
     });
     const [editReasonModal, setEditReasonModal] = useState({ show: false, item: null, type: null, reason: '' });
 
@@ -122,11 +119,15 @@ const Approvals = () => {
         if (permissionChecked && hasPermission) {
             fetchApprovals(currentPage);
         }
-    }, [permissionChecked, hasPermission, statusFilter, rowsPerPage, currentPage]);
+    }, [permissionChecked, hasPermission, statusFilter, rowsPerPage, currentPage, nameFilter, leaveTypeFilter]);
 
-    const fetchApprovals = async (page = 1) => {
+    const fetchApprovals = async (page = 1, isManualRefresh = false) => {
         try {
-            setLoading(true);
+            if (isManualRefresh) {
+                setRefreshing(true);
+            } else {
+                setLoading(true);
+            }
             setError(null);
             setCurrentPage(page);
             const token = localStorage.getItem('token');
@@ -137,7 +138,7 @@ const Approvals = () => {
 
             // Fetch with server-side pagination
             const response = await axios.get(
-                `${API_BASE_URL}/api/leave/requests?status=${statusFilter}&page=${page}&limit=${rowsPerPage}`,
+                `${API_BASE_URL}/api/leave/requests?status=${statusFilter}&page=${page}&limit=${rowsPerPage}&staff_name=${nameFilter}&leave_type=${leaveTypeFilter}`,
                 { headers: { 'x-access-token': token } }
             );
 
@@ -207,12 +208,14 @@ const Approvals = () => {
             setLeaveApprovals(leaves);
             setOnDutyApprovals(onDuty);
             setTimeOffApprovals(timeOff); // Set new state
+            setManageableStaffMembers(response.data.manageableStaff || []);
             setPagination(paginationData);
         } catch (error) {
             console.error('Error fetching approvals:', error);
             setError(error.response?.data?.message || error.message || 'Failed to fetch approvals');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -242,11 +245,13 @@ const Approvals = () => {
             const typeLabel = type === 'leave' ? 'Leave' : (type === 'timeoff' ? 'Time-Off' : 'On-Duty');
             setConfirmationModal({
                 show: true,
-                title: 'Confirm Approval',
-                message: `Are you sure you want to approve this ${typeLabel} request for ${employeeName}?`,
-                confirmText: 'Approve',
+                title: `Approve ${typeLabel} Request`,
+                message: `Are you sure you want to approve this request?`,
+                confirmText: 'Confirm Approval',
                 confirmButtonColor: 'bg-green-600 hover:bg-green-700',
-                action: () => performStatusUpdate(item, status, type, null)
+                action: () => performStatusUpdate(item, status, type, null),
+                item: item,
+                type: type
             });
             return;
         }
@@ -259,7 +264,9 @@ const Approvals = () => {
                 message: 'Are you sure you want to move this request back to pending status?',
                 confirmText: 'Revert',
                 confirmButtonColor: 'bg-red-600 hover:bg-red-700',
-                action: () => performStatusUpdate(item, status, type, null)
+                action: () => performStatusUpdate(item, status, type, null),
+                item: item,
+                type: type
             });
             return;
         }
@@ -533,24 +540,9 @@ const Approvals = () => {
         });
     };
 
-    const filteredLeaveApprovals = leaveApprovals.filter(item => {
-        const staffName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : '';
-        const matchesName = nameFilter === 'All' || staffName === nameFilter;
-        const matchesType = leaveTypeFilter === 'All' || item.leave_type === leaveTypeFilter;
-        return matchesName && matchesType;
-    });
-
-    const filteredOnDutyApprovals = onDutyApprovals.filter(item => {
-        const staffName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : '';
-        const matchesName = nameFilter === 'All' || staffName === nameFilter;
-        return matchesName;
-    });
-
-    const filteredTimeOffApprovals = timeOffApprovals.filter(item => { // New Filter
-        const staffName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : '';
-        const matchesName = nameFilter === 'All' || staffName === nameFilter;
-        return matchesName;
-    });
+    const filteredLeaveApprovals = leaveApprovals;
+    const filteredOnDutyApprovals = onDutyApprovals;
+    const filteredTimeOffApprovals = timeOffApprovals;
 
     // Apply sorting to filtered data
     const sortedAndFilteredLeaveApprovals = sortData(filteredLeaveApprovals, leaveSortConfig.key, leaveSortConfig.direction);
@@ -579,11 +571,19 @@ const Approvals = () => {
 
     const getUniqueNames = () => {
         const names = new Set();
-        [...leaveApprovals, ...onDutyApprovals].forEach(item => {
+
+        // 1. Add names from Reporting Hierarchy (manageable staff)
+        manageableStaffMembers.forEach(staff => {
+            names.add(`${staff.firstname} ${staff.lastname}`);
+        });
+
+        // 2. Add names from Data available in table (current page results)
+        [...leaveApprovals, ...onDutyApprovals, ...timeOffApprovals].forEach(item => {
             if (item.tblstaff) {
                 names.add(`${item.tblstaff.firstname} ${item.tblstaff.lastname}`);
             }
         });
+
         return ['All', ...Array.from(names).sort()];
     };
 
@@ -767,7 +767,10 @@ const Approvals = () => {
                             {expandedSections.leave && (
                                 <select
                                     value={leaveTypeFilter}
-                                    onChange={(e) => setLeaveTypeFilter(e.target.value)}
+                                    onChange={(e) => {
+                                        setLeaveTypeFilter(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                     className="px-3 py-2 border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-main)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
                                     {getUniqueLeaveTypes().map(type => (
@@ -777,13 +780,26 @@ const Approvals = () => {
                             )}
                             <select
                                 value={nameFilter}
-                                onChange={(e) => setNameFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setNameFilter(e.target.value);
+                                    setCurrentPage(1);
+                                }}
                                 className="px-3 py-2 border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-main)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                                 {getUniqueNames().map(name => (
                                     <option key={name} value={name}>{name === 'All' ? 'All Employees' : name}</option>
                                 ))}
                             </select>
+
+                            <button
+                                onClick={() => fetchApprovals(currentPage, true)}
+                                disabled={refreshing || loading}
+                                className="flex items-center gap-2 px-3 py-2 bg-[#2E5090] text-white rounded-lg hover:bg-blue-800 transition-all shadow-sm disabled:opacity-50"
+                                title="Refresh Data"
+                            >
+                                <FiRefreshCw className={`${refreshing ? 'animate-spin' : ''}`} />
+                                <span className="font-semibold text-xs">Refresh</span>
+                            </button>
 
                             {/* Bulk Actions */}
                             {selectedItems.size > 0 && statusFilter === 'Pending' && (
@@ -873,7 +889,7 @@ const Approvals = () => {
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <div className="text-sm text-gray-900">
-                                                            {req.start_date} <span className="text-gray-400">to</span> {req.end_date}
+                                                            {formatDateOnly(req.start_date)} <span className="text-gray-400">to</span> {formatDateOnly(req.end_date)}
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-700 max-w-xs">
@@ -1151,7 +1167,7 @@ const Approvals = () => {
                                                         <p className="text-xs text-gray-500">{req.location || 'Remote'}</p>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-900">
-                                                        {formatInTimezone(req.start_time, null, { month: '2-digit', day: '2-digit', year: 'numeric', hour: undefined, minute: undefined })}
+                                                        {formatDateOnly(req.start_time)}
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <span className="px-2 py-1 bg-violet-50 text-violet-700 rounded text-sm font-medium">
@@ -1241,12 +1257,23 @@ const Approvals = () => {
             {rejectionModal.show && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-fadeIn">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
-                        <div className="p-6 bg-[#2E5090] text-white flex justify-between items-center">
-                            <h2 className="text-xl font-bold">Reject Request</h2>
-                            <button onClick={() => setRejectionModal({ ...rejectionModal, show: false })} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">✕</button>
+                        <div className="p-6 bg-red-50 border-b border-red-200 text-red-900 flex justify-between items-center">
+                            <h2 className="text-lg font-bold">Reject {rejectionModal.type === 'leave' ? 'Leave' : (rejectionModal.type === 'timeoff' ? 'Time-Off' : 'On-Duty')} Request</h2>
+                            <button onClick={() => setRejectionModal({ ...rejectionModal, show: false })} className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-colors text-red-600">✕</button>
                         </div>
                         <div className="p-6">
-                            <p className="text-sm text-gray-500 font-medium mb-4">Please provide a formal reason for this rejection.</p>
+                            {rejectionModal.item && (
+                                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
+                                    <p className="text-sm text-gray-600"><strong>Name:</strong> {rejectionModal.item.tblstaff?.firstname} {rejectionModal.item.tblstaff?.lastname}</p>
+                                    <p className="text-sm text-gray-600"><strong>Title:</strong> {rejectionModal.item.title || rejectionModal.item.client_name || rejectionModal.item.leave_type || rejectionModal.type}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(
+                                        rejectionModal.item.start_date || rejectionModal.item.start_time || rejectionModal.item.date,
+                                        rejectionModal.item.end_date || rejectionModal.item.end_time || null,
+                                        rejectionModal.type === 'leave' || rejectionModal.item.type === 'leave'
+                                    )}</p>
+                                </div>
+                            )}
+                            <p className="text-sm text-gray-500 font-medium mb-3">Please provide a formal reason for this rejection.</p>
                             <textarea
                                 value={rejectionModal.reason}
                                 onChange={(e) => setRejectionModal({ ...rejectionModal, reason: e.target.value, showError: false })}
@@ -1380,30 +1407,41 @@ const Approvals = () => {
 
             {/* Confirmation Modal */}
             {confirmationModal.show && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fadeIn">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
-                        <div className="p-6 bg-[#2E5090] text-white">
-                            <h3 className="text-xl font-bold">{confirmationModal.title}</h3>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full animate-scaleIn">
+                        <div className={`border-b px-6 py-4 ${confirmationModal.title.includes('Approve') ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                            <h2 className={`text-lg font-bold ${confirmationModal.title.includes('Approve') ? 'text-green-900' : 'text-red-900'}`}>{confirmationModal.title}</h2>
+                            <p className={`text-sm mt-1 ${confirmationModal.title.includes('Approve') ? 'text-green-700' : 'text-red-700'}`}>{confirmationModal.message}</p>
                         </div>
-                        <div className="p-8">
-                            <p className="text-gray-600 font-medium leading-relaxed">{confirmationModal.message}</p>
-                        </div>
-                        <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-                            <button
-                                onClick={() => setConfirmationModal({ ...confirmationModal, show: false })}
-                                className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-gray-100 transition-all shadow-sm"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => {
-                                    confirmationModal.action();
-                                    setConfirmationModal({ ...confirmationModal, show: false });
-                                }}
-                                className={`px-6 py-2.5 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all shadow-md ${confirmationModal.confirmButtonColor}`}
-                            >
-                                {confirmationModal.confirmText}
-                            </button>
+                        <div className="p-6">
+                            {confirmationModal.item && (
+                                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
+                                    <p className="text-sm text-gray-600"><strong>Name:</strong> {confirmationModal.item.tblstaff?.firstname} {confirmationModal.item.tblstaff?.lastname}</p>
+                                    <p className="text-sm text-gray-600"><strong>Title:</strong> {confirmationModal.item.title || confirmationModal.item.client_name || confirmationModal.item.leave_type || confirmationModal.type}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(
+                                        confirmationModal.item.start_date || confirmationModal.item.start_time || confirmationModal.item.date,
+                                        confirmationModal.item.end_date || confirmationModal.item.end_time || null,
+                                        confirmationModal.type === 'leave' || confirmationModal.item.type === 'leave'
+                                    )}</p>
+                                </div>
+                            )}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setConfirmationModal({ ...confirmationModal, show: false })}
+                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        confirmationModal.action();
+                                        setConfirmationModal({ ...confirmationModal, show: false });
+                                    }}
+                                    className={`flex-1 px-4 py-2 text-white rounded-lg transition-all font-medium flex items-center justify-center gap-2 ${confirmationModal.confirmButtonColor}`}
+                                >
+                                    {confirmationModal.confirmText}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1496,8 +1534,8 @@ const Approvals = () => {
                                     <div className="flex items-center gap-2">
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.type === 'leave'
-                                                ? detailsModal.item.start_date
-                                                : (detailsModal.type === 'timeoff' ? `${formatTimeOnly(detailsModal.item.start_time)} (On ${formatInTimezone(detailsModal.item.date, null, { month: '2-digit', day: '2-digit', year: 'numeric', hour: undefined, minute: undefined })})` : formatApprovalDate(detailsModal.item.start_time))}
+                                                ? formatDateOnly(detailsModal.item.start_date)
+                                                : (detailsModal.type === 'timeoff' ? `${formatTimeOnly(detailsModal.item.start_time)} (On ${formatDateOnly(detailsModal.item.date)})` : formatInTimezone(detailsModal.item.start_time))}
                                         </p>
                                     </div>
                                 </div>
@@ -1506,8 +1544,8 @@ const Approvals = () => {
                                     <div className="flex items-center gap-2">
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.type === 'leave'
-                                                ? detailsModal.item.end_date
-                                                : (detailsModal.type === 'timeoff' ? formatTimeOnly(detailsModal.item.end_time) : formatApprovalDate(detailsModal.item.end_time))}
+                                                ? formatDateOnly(detailsModal.item.end_date)
+                                                : (detailsModal.type === 'timeoff' ? formatTimeOnly(detailsModal.item.end_time) : (detailsModal.item.end_time ? formatInTimezone(detailsModal.item.end_time) : '—'))}
                                         </p>
                                     </div>
                                 </div>
@@ -1582,10 +1620,6 @@ const Approvals = () => {
                                 </div>
                             )}
 
-                            {/* Timestamps */}
-                            <div className="pt-4 flex justify-between text-[10px] font-bold text-gray-500 tracking-wide border-t border-gray-100">
-                                <span>Requested On: {formatApprovalDate(detailsModal.item.createdAt)}</span>
-                            </div>
                         </div>
 
                         {/* Footer Controls */}
@@ -1634,8 +1668,9 @@ const Approvals = () => {
 
 const calculateOnDutyDuration = (startTime, endTime) => {
     if (!startTime || !endTime) return 'In Progress';
-    const start = new Date(startTime);
-    const end = new Date(endTime);
+    const start = parseAppTimezone(startTime);
+    const end = parseAppTimezone(endTime);
+    if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return '—';
     const diffMs = end - start;
     const diffMins = Math.floor(diffMs / 60000);
     const hours = Math.floor(diffMins / 60);
@@ -1664,6 +1699,33 @@ const calculateTimeOffDuration = (startTime, endTime) => {
 const formatApprovalDate = (dateString) => {
     if (!dateString) return '—';
     return formatInTimezone(dateString);
+};
+
+const formatDateForModal = (startDateString, endDateString = null, isLeave = false) => {
+    if (!startDateString) return 'N/A';
+    const startFormatted = isLeave ? formatDateOnly(startDateString) : formatInTimezone(startDateString);
+
+    if (isLeave && endDateString) {
+        const endFormatted = formatDateOnly(endDateString);
+        const daysCount = calculateLeaveDays(startDateString, endDateString);
+        const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
+
+        if (startFormatted !== endFormatted) {
+            return (
+                <span>
+                    {startFormatted} - {endFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                </span>
+            );
+        } else {
+            return (
+                <span>
+                    {startFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                </span>
+            );
+        }
+    }
+
+    return startFormatted;
 };
 
 export default Approvals;

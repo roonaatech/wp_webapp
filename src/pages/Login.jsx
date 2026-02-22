@@ -47,15 +47,29 @@ const Login = () => {
 
         try {
             const roles = await fetchRoles(true); // Force refresh roles cache
+
+            // Also refresh application settings (timezone, etc)
+            if (window.refreshAppSettings) {
+                await window.refreshAppSettings();
+            }
+
             console.log('Fetched roles for permission check:', roles);
             console.log('User role ID:', user.role, 'Type:', typeof user.role);
 
-            // Check if user has permission to access webapp (based on role permissions)
-            const hasAccess = canAccessWebApp(user.role);
-            console.log('canAccessWebApp result:', hasAccess);
+            // 1. Gating: If user doesn't have webapp access at all, they shouldn't see dashboard pages
+            if (!canAccessWebApp(user.role)) {
+                localStorage.setItem('user', JSON.stringify(user));
+                toast.success(`Welcome, ${user.firstname}!`, {
+                    style: { background: '#059669', color: '#fff' },
+                    icon: '👋'
+                });
+                navigate('/my-requests'); // Redirect to my-requests if no webapp access
+                return;
+            }
 
-            if (!hasAccess) {
-                // User doesn't have full webapp access but can still use My Requests
+            // 2. Navigation: If they ONLY have web access (no management permissions),
+            // they belong in /my-requests, not the main Dashboard pages
+            if (isSelfServiceOnly(user.role)) {
                 localStorage.setItem('user', JSON.stringify(user));
                 toast.success(`Welcome, ${user.firstname}!`, {
                     style: { background: '#059669', color: '#fff' },
@@ -66,26 +80,13 @@ const Login = () => {
             }
         } catch (roleError) {
             console.error('Error fetching roles:', roleError);
-            // If we can't fetch roles, allow login but log the error
-            // The roles will be fetched on next page load
         }
 
         localStorage.setItem('user', JSON.stringify(user));
 
-        // Check if user is self-service only (no management permissions)
-        // These users go to /my-requests even if they have can_access_webapp
-        if (isSelfServiceOnly(user.role)) {
-            toast.success(`Welcome, ${user.firstname}!`, {
-                style: { background: '#059669', color: '#fff' },
-                icon: '👋'
-            });
-            navigate('/my-requests');
-            return;
-        }
-
         toast.success(`Welcome back, ${user.firstname}!`, {
             style: {
-                background: '#059669', // Green for standard login
+                background: '#059669',
                 color: '#fff'
             },
             icon: '👋'

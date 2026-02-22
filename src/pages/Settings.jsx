@@ -36,6 +36,30 @@ export default function Settings() {
                     type: 'select',
                     options: TIMEZONE_OPTIONS,
                     placeholder: 'Select timezone'
+                },
+                {
+                    key: 'application_date_format',
+                    label: 'Date Format',
+                    description: 'Global format used to display dates across the application',
+                    type: 'select',
+                    options: [
+                        { value: 'MMM DD, YYYY', label: 'Feb 28, 2026 (MMM DD, YYYY)' },
+                        { value: 'DD/MM/YYYY', label: '28/02/2026 (DD/MM/YYYY)' },
+                        { value: 'MM/DD/YYYY', label: '02/28/2026 (MM/DD/YYYY)' },
+                        { value: 'YYYY-MM-DD', label: '2026-02-28 (YYYY-MM-DD)' }
+                    ],
+                    placeholder: 'Select date format'
+                },
+                {
+                    key: 'application_time_format',
+                    label: 'Time Format',
+                    description: 'Global format used to display times across the application',
+                    type: 'select',
+                    options: [
+                        { value: '12h', label: '12-Hour (e.g. 02:30 PM)' },
+                        { value: '24h', label: '24-Hour (e.g. 14:30)' }
+                    ],
+                    placeholder: 'Select time format'
                 }
             ]
         },
@@ -128,10 +152,10 @@ export default function Settings() {
                 headers: { 'x-access-token': token }
             });
 
-            // Update local storage if timezone was changed
-            if (key === 'application_timezone') {
+            // Update local storage if critical settings were changed
+            if (['application_timezone', 'application_date_format', 'application_time_format'].includes(key)) {
                 const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
-                existingSettings.application_timezone = value;
+                existingSettings[key] = value;
                 localStorage.setItem('settings', JSON.stringify(existingSettings));
                 // Dispatch event to notify other components
                 window.dispatchEvent(new Event('settingsLoaded'));
