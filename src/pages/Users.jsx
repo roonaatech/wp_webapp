@@ -2022,8 +2022,18 @@ const Users = () => {
                                                     const isActive = u.active === 1 || u.active === undefined;
                                                     if (!isActive) return false;
 
-                                                    // Show users with equal or higher authority (userLevel <= targetLevel)
-                                                    return userLevel <= targetLevel;
+                                                    // Special rule for Employee role (typically highest hierarchy level)
+                                                    // Employees can only report UP to higher authority, not to peers
+                                                    // Other roles can report to same level or higher authority
+                                                    const isEmployeeLevel = targetLevel >= 4; // Employee is usually level 4 or higher
+
+                                                    if (isEmployeeLevel) {
+                                                        // Employees: only show higher authority (no peers)
+                                                        return userLevel < targetLevel;
+                                                    } else {
+                                                        // Other roles: show same level or higher authority
+                                                        return userLevel <= targetLevel;
+                                                    }
                                                 });
 
                                                 return filtered
