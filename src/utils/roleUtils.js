@@ -444,24 +444,12 @@ export const needsApprover = (roleId) => {
 };
 
 /**
- * Get a dynamic label for the approver field based on what roles can approve
+ * Get label for the approver/reporting manager field
  */
-export const getApproverLabel = (targetRoleId) => {
-    const roles = getCachedRoles();
-    const targetLevel = getHierarchyLevel(targetRoleId);
-
-    // Get all roles that can be approvers for this role (including same role)
-    const approverRoles = roles.filter(r =>
-        r.hierarchy_level <= targetLevel &&
-        (r.can_approve_leave || r.can_approve_onduty || r.can_approve_timeoff)
-    ).sort((a, b) => a.hierarchy_level - b.hierarchy_level);
-
-    if (approverRoles.length === 0) return 'Approving Manager';
-    if (approverRoles.length === 1) return `Approving ${approverRoles[0].display_name}`;
-
-    // Join role names
-    const roleNames = approverRoles.map(r => r.display_name);
-    return roleNames.join(' / ');
+export const getApproverLabel = () => {
+    // Always return a simple, consistent label
+    // The dropdown already shows role names next to each person
+    return 'Reporting Manager';
 };
 
 /**

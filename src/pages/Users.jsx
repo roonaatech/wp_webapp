@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -168,6 +168,11 @@ const Users = () => {
     const [showRoleDropdown, setShowRoleDropdown] = useState(false); // Toggle role dropdown
     const [userTypeFilter, setUserTypeFilter] = useState(''); // '' = all, 'workpulse' = WorkPulse-only, 'external' = PHP app users
     const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false); // Toggle user type dropdown
+
+    // Refs for click-outside detection
+    const statusDropdownRef = useRef(null);
+    const roleDropdownRef = useRef(null);
+    const userTypeDropdownRef = useRef(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
@@ -311,6 +316,31 @@ const Users = () => {
             return () => clearTimeout(timeoutId);
         }
     }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter]);
+
+    // Close dropdowns when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+                setShowStatusDropdown(false);
+            }
+            if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target)) {
+                setShowRoleDropdown(false);
+            }
+            if (userTypeDropdownRef.current && !userTypeDropdownRef.current.contains(event.target)) {
+                setShowUserTypeDropdown(false);
+            }
+        };
+
+        // Add event listener when any dropdown is open
+        if (showStatusDropdown || showRoleDropdown || showUserTypeDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        // Cleanup
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showStatusDropdown, showRoleDropdown, showUserTypeDropdown]);
 
     const fetchUsers = async (page) => {
         try {
@@ -1054,9 +1084,9 @@ const Users = () => {
 
             {/* Search and Filter Bar */}
             <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex flex-col md:flex-row md:flex-wrap gap-4">
                     {/* Search Input */}
-                    <div className="relative flex-1">
+                    <div className="relative flex-1 min-w-[280px] max-w-md">
                         <svg className="absolute left-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
@@ -1070,34 +1100,42 @@ const Users = () => {
                     </div>
 
                     {/* Status Filter Dropdown */}
-                    <div className="relative">
+                    <div className="relative" ref={statusDropdownRef}>
                         <button
                             onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                            className="px-4 py-2 rounded-lg font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-2"
+                            className="px-4 py-2.5 rounded-lg font-medium transition-all bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-400 hover:shadow-md flex items-center gap-2.5"
                         >
-                            <span>Status:</span>
-                            <span className="font-semibold">
-                                {statusFilter.length === 0 ? 'All' : `${statusFilter.length} selected`}
-                            </span>
-                            <svg className={`w-4 h-4 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-sm">Status</span>
+                            {statusFilter.length > 0 && (
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                                    {statusFilter.length}
+                                </span>
+                            )}
+                            <svg className={`w-4 h-4 ml-1 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                         </button>
 
                         {showStatusDropdown && (
-                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-48">
-                                <div className="p-3 space-y-2">
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                            <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-10 w-56 overflow-hidden">
+                                <div className="p-2">
+                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        Filter by Status
+                                    </div>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-gray-50 rounded-lg transition-colors ${statusFilter.length === 0 ? 'bg-blue-50' : ''}`}>
                                         <input
                                             type="checkbox"
                                             checked={statusFilter.length === 0}
                                             onChange={() => setStatusFilter([])}
-                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                                         />
-                                        <span className="text-sm font-medium text-gray-700">All</span>
+                                        <span className="text-sm font-medium text-gray-900">All Statuses</span>
                                     </label>
-                                    <hr className="my-2" />
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                    <div className="my-2 border-t border-gray-100"></div>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-green-50 rounded-lg transition-colors ${statusFilter.includes('active') ? 'bg-green-50' : ''}`}>
                                         <input
                                             type="checkbox"
                                             checked={statusFilter.includes('active')}
@@ -1108,14 +1146,12 @@ const Users = () => {
                                                     setStatusFilter(statusFilter.filter(s => s !== 'active'));
                                                 }
                                             }}
-                                            className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-600"
+                                            className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-green-500"
                                         />
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                            <span className="text-sm font-medium text-gray-700">Active</span>
-                                        </div>
+                                        <div className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></div>
+                                        <span className="text-sm font-medium text-gray-900 flex-1">Active</span>
                                     </label>
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-red-50 rounded-lg transition-colors ${statusFilter.includes('inactive') ? 'bg-red-50' : ''}`}>
                                         <input
                                             type="checkbox"
                                             checked={statusFilter.includes('inactive')}
@@ -1126,14 +1162,12 @@ const Users = () => {
                                                     setStatusFilter(statusFilter.filter(s => s !== 'inactive'));
                                                 }
                                             }}
-                                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-600"
+                                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-2 focus:ring-red-500"
                                         />
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                            <span className="text-sm font-medium text-gray-700">InActive</span>
-                                        </div>
+                                        <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></div>
+                                        <span className="text-sm font-medium text-gray-900 flex-1">Inactive</span>
                                     </label>
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-orange-50 rounded-lg transition-colors ${statusFilter.includes('incomplete') ? 'bg-orange-50' : ''}`}>
                                         <input
                                             type="checkbox"
                                             checked={statusFilter.includes('incomplete')}
@@ -1144,12 +1178,10 @@ const Users = () => {
                                                     setStatusFilter(statusFilter.filter(s => s !== 'incomplete'));
                                                 }
                                             }}
-                                            className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-600"
+                                            className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-2 focus:ring-orange-500"
                                         />
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-                                            <span className="text-sm font-medium text-gray-700">Setup Required</span>
-                                        </div>
+                                        <div className="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></div>
+                                        <span className="text-sm font-medium text-gray-900 flex-1">Setup Required</span>
                                     </label>
                                 </div>
                             </div>
@@ -1157,95 +1189,121 @@ const Users = () => {
                     </div>
 
                     {/* Role Filter Dropdown */}
-                    <div className="relative">
+                    <div className="relative" ref={roleDropdownRef}>
                         <button
                             onClick={() => setShowRoleDropdown(!showRoleDropdown)}
-                            className="px-4 py-2 rounded-lg font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-2"
+                            className="px-4 py-2.5 rounded-lg font-medium transition-all bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-400 hover:shadow-md flex items-center gap-2.5"
                         >
-                            <span>Role:</span>
-                            <span className="font-semibold">
-                                {roleFilter.length === 0 ? 'All' : `${roleFilter.length} selected`}
-                            </span>
-                            <svg className={`w-4 h-4 transition-transform ${showRoleDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span className="text-sm">Role</span>
+                            {roleFilter.length > 0 && (
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                                    {roleFilter.length}
+                                </span>
+                            )}
+                            <svg className={`w-4 h-4 ml-1 transition-transform ${showRoleDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                         </button>
 
                         {showRoleDropdown && (
-                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-48 max-h-80 overflow-y-auto">
-                                <div className="p-3 space-y-2">
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                            <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-10 w-64 max-h-96 overflow-hidden flex flex-col">
+                                <div className="p-2">
+                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        Filter by Role
+                                    </div>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-gray-50 rounded-lg transition-colors ${roleFilter.length === 0 ? 'bg-blue-50' : ''}`}>
                                         <input
                                             type="checkbox"
                                             checked={roleFilter.length === 0}
                                             onChange={() => setRoleFilter([])}
-                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                                         />
-                                        <span className="text-sm font-medium text-gray-700">All Roles</span>
+                                        <span className="text-sm font-medium text-gray-900">All Roles</span>
                                     </label>
-                                    <hr className="my-2" />
-                                    {availableRoles.map(role => (
-                                        <label key={role.id} className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                                            <input
-                                                type="checkbox"
-                                                checked={roleFilter.includes(String(role.id))}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setRoleFilter([...roleFilter, String(role.id)]);
-                                                    } else {
-                                                        setRoleFilter(roleFilter.filter(r => r !== String(role.id)));
-                                                    }
-                                                }}
-                                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
-                                            />
-                                            <span className="text-sm font-medium text-gray-700">{role.display_name}</span>
-                                        </label>
-                                    ))}
+                                    <div className="my-2 border-t border-gray-100"></div>
+                                </div>
+                                <div className="overflow-y-auto flex-1 px-2 pb-2">
+                                    {availableRoles
+                                        .sort((a, b) => a.hierarchy_level - b.hierarchy_level)
+                                        .map(role => (
+                                            <label key={role.id} className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-purple-50 rounded-lg transition-colors ${roleFilter.includes(String(role.id)) ? 'bg-purple-50 border-l-2 border-purple-500' : ''}`}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={roleFilter.includes(String(role.id))}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setRoleFilter([...roleFilter, String(role.id)]);
+                                                        } else {
+                                                            setRoleFilter(roleFilter.filter(r => r !== String(role.id)));
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-2 focus:ring-purple-500"
+                                                />
+                                                <div className="flex-1">
+                                                    <div className="text-sm font-medium text-gray-900">{role.display_name}</div>
+                                                    <div className="text-xs text-gray-500">Level {role.hierarchy_level}</div>
+                                                </div>
+                                            </label>
+                                        ))}
                                 </div>
                             </div>
                         )}
                     </div>
 
                     {/* User Type Filter Dropdown */}
-                    <div className="relative">
+                    <div className="relative" ref={userTypeDropdownRef}>
                         <button
                             onClick={() => setShowUserTypeDropdown(!showUserTypeDropdown)}
-                            className="px-4 py-2 rounded-lg font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-2"
+                            className="px-4 py-2.5 rounded-lg font-medium transition-all bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-400 hover:shadow-md flex items-center gap-2.5"
                         >
-                            <span>Access:</span>
-                            <span className="font-semibold">
-                                {userTypeFilter === '' ? 'All' : userTypeFilter === 'workpulse' ? 'WorkPulse Only' : 'External System'}
-                            </span>
-                            <svg className={`w-4 h-4 transition-transform ${showUserTypeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                            </svg>
+                            <span className="text-sm">Access</span>
+                            {userTypeFilter !== '' && (
+                                <span className="px-2 py-0.5 bg-teal-100 text-teal-700 text-xs font-semibold rounded-full">
+                                    1
+                                </span>
+                            )}
+                            <svg className={`w-4 h-4 ml-1 transition-transform ${showUserTypeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                         </button>
 
                         {showUserTypeDropdown && (
-                            <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-56">
-                                <div className="p-3 space-y-2">
+                            <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-10 w-72 overflow-hidden">
+                                <div className="p-2">
+                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        Filter by Access Type
+                                    </div>
                                     <button
                                         onClick={() => {
                                             setUserTypeFilter('');
                                             setShowUserTypeDropdown(false);
                                         }}
-                                        className={`w-full text-left p-2 rounded ${userTypeFilter === '' ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50'}`}
+                                        className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors ${userTypeFilter === '' ? 'bg-blue-50 border-l-2 border-blue-500' : 'hover:bg-gray-50'}`}
                                     >
-                                        <span className="text-sm">All Users</span>
+                                        <div className="text-sm font-medium text-gray-900">All Users</div>
+                                        <div className="text-xs text-gray-500 mt-0.5">Show both WorkPulse and external users</div>
                                     </button>
-                                    <hr className="my-2" />
+                                    <div className="my-2 border-t border-gray-100"></div>
                                     <button
                                         onClick={() => {
                                             setUserTypeFilter('workpulse');
                                             setShowUserTypeDropdown(false);
                                         }}
-                                        className={`w-full text-left p-2 rounded ${userTypeFilter === 'workpulse' ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50'}`}
+                                        className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors ${userTypeFilter === 'workpulse' ? 'bg-teal-50 border-l-2 border-teal-500' : 'hover:bg-teal-50'}`}
                                     >
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-lg">🔑</span>
-                                            <div>
-                                                <div className="text-sm font-medium">WorkPulse Only</div>
-                                                <div className="text-xs text-gray-500">Native users with password</div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-lg">
+                                                🔑
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="text-sm font-medium text-gray-900">WorkPulse Only</div>
+                                                <div className="text-xs text-gray-500 mt-0.5">Native users with password access</div>
                                             </div>
                                         </div>
                                     </button>
@@ -1254,13 +1312,15 @@ const Users = () => {
                                             setUserTypeFilter('external');
                                             setShowUserTypeDropdown(false);
                                         }}
-                                        className={`w-full text-left p-2 rounded ${userTypeFilter === 'external' ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50'}`}
+                                        className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors ${userTypeFilter === 'external' ? 'bg-amber-50 border-l-2 border-amber-500' : 'hover:bg-amber-50'}`}
                                     >
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-lg">🔗</span>
-                                            <div>
-                                                <div className="text-sm font-medium">External System</div>
-                                                <div className="text-xs text-gray-500">Synced from PHP app</div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-lg">
+                                                🔗
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="text-sm font-medium text-gray-900">External System</div>
+                                                <div className="text-xs text-gray-500 mt-0.5">Synced from legacy PHP application</div>
                                             </div>
                                         </div>
                                     </button>
@@ -1896,11 +1956,12 @@ const Users = () => {
                                         <option value="">Select Role</option>
                                         {availableRoles
                                             .filter(role => {
-                                                // Filter roles: only show roles with lower authority (higher hierarchy_level)
+                                                // Filter roles: show roles with equal or lower authority (same or higher hierarchy_level)
                                                 // Super Admin (level 0) can see all roles
                                                 const currentUserLevel = getHierarchyLevel(user.role);
                                                 if (currentUserLevel === 0) return true;
-                                                return role.hierarchy_level > currentUserLevel;
+                                                // Show roles with same or lower authority (hierarchy_level >= currentUserLevel)
+                                                return role.hierarchy_level >= currentUserLevel;
                                             })
                                             .map((role) => (
                                                 <option key={role.id} value={String(role.id)}>
@@ -1925,11 +1986,11 @@ const Users = () => {
                                     </select>
                                 </div>
 
-                                {/* Manager/Approver Selection - Show for roles that need an approver */}
-                                {formData.role && needsApprover(parseInt(formData.role)) && (
+                                {/* Reporting Manager Selection - Show for all roles */}
+                                {formData.role && (
                                     <div>
                                         <label className="block text-base font-medium text-gray-700 mb-1">
-                                            {getApproverLabel(parseInt(formData.role))}
+                                            {getApproverLabel()}
                                         </label>
                                         <select
                                             name="approving_manager_id"
@@ -1937,23 +1998,47 @@ const Users = () => {
                                             onChange={handleFormChange}
                                             className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                         >
-                                            <option value="">Select Approver</option>
-                                            {managersAndAdmins.map((approver) => {
-                                                // Use hierarchy-based check: approver must be higher in hierarchy than target role
+                                            <option value="">Select Reporting Manager</option>
+                                            {(() => {
+                                                const combined = [...users, ...managersAndAdmins];
                                                 const targetRoleId = parseInt(formData.role);
-                                                const approverRoleId = approver.role;
+                                                const targetLevel = getHierarchyLevel(targetRoleId);
 
-                                                // Only show approvers who are higher in hierarchy than the target role
-                                                if (!canBeApproverFor(approverRoleId, targetRoleId)) {
-                                                    return null;
-                                                }
-
-                                                return (
-                                                    <option key={approver.staffid} value={approver.staffid}>
-                                                        {approver.firstname} {approver.lastname} ({getRoleName(approver.role)})
-                                                    </option>
+                                                // Deduplicate users
+                                                const unique = combined.filter((user, index, self) =>
+                                                    index === self.findIndex(u => (u.staffid || u.id) === (user.staffid || user.id))
                                                 );
-                                            })}
+
+                                                // Filter to show only eligible reporting managers
+                                                const filtered = unique.filter(u => {
+                                                    const userId = u.staffid || u.id;
+                                                    const userRoleId = u.role;
+                                                    const userLevel = getHierarchyLevel(userRoleId);
+
+                                                    // Don't show the user being edited
+                                                    if (editingUserId && userId === editingUserId) return false;
+
+                                                    // Treat undefined as active (backend already filters for active users)
+                                                    const isActive = u.active === 1 || u.active === undefined;
+                                                    if (!isActive) return false;
+
+                                                    // Show users with equal or higher authority (userLevel <= targetLevel)
+                                                    return userLevel <= targetLevel;
+                                                });
+
+                                                return filtered
+                                                    .sort((a, b) => {
+                                                        const levelA = getHierarchyLevel(a.role);
+                                                        const levelB = getHierarchyLevel(b.role);
+                                                        if (levelA !== levelB) return levelA - levelB;
+                                                        return `${a.firstname} ${a.lastname}`.localeCompare(`${b.firstname} ${b.lastname}`);
+                                                    })
+                                                    .map((approver) => (
+                                                        <option key={approver.staffid} value={approver.staffid}>
+                                                            {approver.firstname} {approver.lastname} ({getRoleName(approver.role)})
+                                                        </option>
+                                                    ));
+                                            })()}
                                         </select>
                                         {formError && formError.includes('Manager role requires') && (
                                             <p className="text-xs text-red-600 mt-1">⚠️ This field is required</p>
