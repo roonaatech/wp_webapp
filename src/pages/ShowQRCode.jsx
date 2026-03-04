@@ -179,10 +179,11 @@ const ShowQRCode = () => {
                 </div>
 
                 {/* Footer */}
-                <div className="text-center mt-8 pt-6 border-t border-gray-200 print:mt-0 print:pt-5 print:border-t">
-                    <p className="text-sm text-gray-500 print:text-sm">
-                        For support, contact HR team
-                    </p>
+                <div className="text-center mt-6 pt-4 border-t border-gray-200 print:mt-3 print:pt-2 print:border-t">
+                    <div className="text-sm text-gray-600 print:text-[10px] print:space-y-0">
+                        <p className="font-semibold text-gray-700 print:text-[11px]">Need Help?</p>
+                        <p className="print:leading-tight">For support, login issues, or leave requests, contact HR or IT team • Powered by WorkPulse</p>
+                    </div>
                 </div>
             </div>
 
