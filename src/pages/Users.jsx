@@ -118,7 +118,10 @@ const Users = () => {
             await fetchLeaveBalance(leaveModalUser.staffid);
             setShowLeaveModal(false);
         } catch (err) {
-            setLeaveModalError('Failed to save leave types');
+            console.error('Error saving leave types:', err);
+            const errorMessage = err.response?.data?.message || err.message || 'Failed to save leave types';
+            setLeaveModalError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setLeaveModalSaving(false);
         }
