@@ -24,6 +24,7 @@ import EmailSettings from './pages/EmailSettings';
 import Settings from './pages/Settings';
 import MyRequests from './pages/MyRequests';
 import Arch from './pages/Arch';
+import ShowQRCode from './pages/ShowQRCode';
 import { fetchRoles } from './utils/roleUtils';
 
 
@@ -145,8 +146,9 @@ function App() {
             <Route path="/arch" element={<ProtectedLayout><Arch /></ProtectedLayout>} />
             <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
 
-            {/* Self-Service Route (all authenticated users, no sidebar/header) */}
+            {/* Self-Service Routes (all authenticated users, no sidebar/header) */}
             <Route path="/my-requests" element={<ProtectedRoute skipWebAppCheck><MyRequests /></ProtectedRoute>} />
+            <Route path="/show-qrcode" element={<ProtectedRoute><ShowQRCode /></ProtectedRoute>} />
 
 
             {/* Catch all */}
