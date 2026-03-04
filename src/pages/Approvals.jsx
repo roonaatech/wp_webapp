@@ -11,7 +11,7 @@ import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, parseAppTimezone } from '../utils/timezone.util';
 
-import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
+import { fetchRoles, canApproveLeave, canApproveOnDuty, canApproveTimeOff } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
 
 // Helper to format dates without timezone conversion
@@ -79,6 +79,13 @@ const Approvals = () => {
     const [bulkProcessing, setBulkProcessing] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
 
+    // Permission states
+    const [userPermissions, setUserPermissions] = useState({
+        canApproveLeave: false,
+        canApproveOnDuty: false,
+        canApproveTimeOff: false
+    });
+
     useEffect(() => {
         const checkPermission = async () => {
             const token = localStorage.getItem('token');
@@ -96,12 +103,27 @@ const Approvals = () => {
 
                 const canApproveL = canApproveLeave(user.role);
                 const canApproveOD = canApproveOnDuty(user.role);
+                const canApproveTOff = canApproveTimeOff(user.role);
 
-                if (!canApproveL && !canApproveOD) {
+                if (!canApproveL && !canApproveOD && !canApproveTOff) {
                     toast.error('You do not have permission to access the approvals page');
                     navigate('/dashboard');
                     return;
                 }
+
+                // Store permissions
+                setUserPermissions({
+                    canApproveLeave: canApproveL,
+                    canApproveOnDuty: canApproveOD,
+                    canApproveTimeOff: canApproveTOff
+                });
+
+                // Set initial expanded section based on permissions
+                setExpandedSections({
+                    leave: canApproveL,
+                    onDuty: !canApproveL && canApproveOD,
+                    timeOff: !canApproveL && !canApproveOD && canApproveTOff
+                });
 
                 setHasPermission(true);
             } catch (error) {
@@ -734,33 +756,39 @@ const Approvals = () => {
                     {/* Section Switcher & Filters */}
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[var(--header-bg)] p-4 rounded-xl shadow-sm border border-[var(--border-color)]">
                         <div className="flex gap-2">
-                            <button
-                                onClick={() => setExpandedSections({ leave: true, onDuty: false, timeOff: false })}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.leave
-                                    ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
-                                    : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
-                                    }`}
-                            >
-                                Leave Requests ({pagination.leaveCount !== undefined ? pagination.leaveCount : leaveApprovals.length})
-                            </button>
-                            <button
-                                onClick={() => setExpandedSections({ leave: false, onDuty: false, timeOff: true })}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.timeOff
-                                    ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
-                                    : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
-                                    }`}
-                            >
-                                Time-Off Requests ({timeOffApprovals.length})
-                            </button>
-                            <button
-                                onClick={() => setExpandedSections({ leave: false, onDuty: true, timeOff: false })}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.onDuty
-                                    ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
-                                    : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
-                                    }`}
-                            >
-                                On-Duty Requests ({pagination.onDutyCount !== undefined ? pagination.onDutyCount : onDutyApprovals.length})
-                            </button>
+                            {userPermissions.canApproveLeave && (
+                                <button
+                                    onClick={() => setExpandedSections({ leave: true, onDuty: false, timeOff: false })}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.leave
+                                        ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
+                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
+                                        }`}
+                                >
+                                    Leave Requests ({pagination.leaveCount !== undefined ? pagination.leaveCount : leaveApprovals.length})
+                                </button>
+                            )}
+                            {userPermissions.canApproveTimeOff && (
+                                <button
+                                    onClick={() => setExpandedSections({ leave: false, onDuty: false, timeOff: true })}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.timeOff
+                                        ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
+                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
+                                        }`}
+                                >
+                                    Time-Off Requests ({timeOffApprovals.length})
+                                </button>
+                            )}
+                            {userPermissions.canApproveOnDuty && (
+                                <button
+                                    onClick={() => setExpandedSections({ leave: false, onDuty: true, timeOff: false })}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.onDuty
+                                        ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
+                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
+                                        }`}
+                                >
+                                    On-Duty Requests ({pagination.onDutyCount !== undefined ? pagination.onDutyCount : onDutyApprovals.length})
+                                </button>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-3">
@@ -825,7 +853,7 @@ const Approvals = () => {
 
                     {/* Main Table */}
                     <div className="bg-[var(--header-bg)] rounded-xl shadow-lg overflow-hidden border border-[var(--border-color)]">
-                        {expandedSections.leave && (
+                        {expandedSections.leave && userPermissions.canApproveLeave && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead className="bg-[#2E5090] text-white">
@@ -968,7 +996,7 @@ const Approvals = () => {
                             </div>
                         )}
 
-                        {expandedSections.timeOff && (
+                        {expandedSections.timeOff && userPermissions.canApproveTimeOff && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead className="bg-[#2E5090] text-white">
@@ -1109,7 +1137,7 @@ const Approvals = () => {
                             </div>
                         )}
 
-                        {expandedSections.onDuty && (
+                        {expandedSections.onDuty && userPermissions.canApproveOnDuty && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead className="bg-[#2E5090] text-white">
