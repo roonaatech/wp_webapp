@@ -91,28 +91,19 @@ export const getRoleDisplayName = (roleId) => {
  */
 export const canAccessWebApp = (roleId) => {
     const role = getRoleById(roleId);
-    console.log('canAccessWebApp - checking role:', roleId, 'found:', role);
 
     if (!role) {
-        console.log('canAccessWebApp - role not found in cache, checking if roles are loaded');
-        const allRoles = getCachedRoles();
-        console.log('canAccessWebApp - cached roles:', allRoles);
         return false;
     }
 
     // If role is inactive, deny access
     if (role.active === false) {
-        console.log('canAccessWebApp - role is inactive');
         return false;
     }
 
     // Use the explicit can_access_webapp permission
     // Strict check - no fallbacks
     const hasAccess = role.can_access_webapp == true;
-
-    console.log('canAccessWebApp - hasAccess:', hasAccess, 'role details:', {
-        can_access_webapp: role.can_access_webapp
-    });
 
     return hasAccess;
 };

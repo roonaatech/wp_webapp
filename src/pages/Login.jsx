@@ -53,9 +53,6 @@ const Login = () => {
                 await window.refreshAppSettings();
             }
 
-            console.log('Fetched roles for permission check:', roles);
-            console.log('User role ID:', user.role, 'Type:', typeof user.role);
-
             // 1. Gating: If user doesn't have webapp access at all, they shouldn't see dashboard pages
             if (!canAccessWebApp(user.role)) {
                 localStorage.setItem('user', JSON.stringify(user));
