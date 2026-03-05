@@ -1295,9 +1295,8 @@ const Approvals = () => {
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {rejectionModal.item.tblstaff?.firstname} {rejectionModal.item.tblstaff?.lastname}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {rejectionModal.item.title || rejectionModal.item.client_name || rejectionModal.item.leave_type || rejectionModal.type}</p>
                                     <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(
-                                        rejectionModal.item.start_date || rejectionModal.item.start_time || rejectionModal.item.date,
-                                        rejectionModal.item.end_date || rejectionModal.item.end_time || null,
-                                        rejectionModal.type === 'leave' || rejectionModal.item.type === 'leave'
+                                        rejectionModal.item,
+                                        rejectionModal.type
                                     )}</p>
                                 </div>
                             )}
@@ -1447,9 +1446,8 @@ const Approvals = () => {
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {confirmationModal.item.tblstaff?.firstname} {confirmationModal.item.tblstaff?.lastname}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {confirmationModal.item.title || confirmationModal.item.client_name || confirmationModal.item.leave_type || confirmationModal.type}</p>
                                     <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(
-                                        confirmationModal.item.start_date || confirmationModal.item.start_time || confirmationModal.item.date,
-                                        confirmationModal.item.end_date || confirmationModal.item.end_time || null,
-                                        confirmationModal.type === 'leave' || confirmationModal.item.type === 'leave'
+                                        confirmationModal.item,
+                                        confirmationModal.type
                                     )}</p>
                                 </div>
                             )}
@@ -1729,13 +1727,28 @@ const formatApprovalDate = (dateString) => {
     return formatInTimezone(dateString);
 };
 
-const formatDateForModal = (startDateString, endDateString = null, isLeave = false) => {
-    if (!startDateString) return 'N/A';
-    const startFormatted = isLeave ? formatDateOnly(startDateString) : formatInTimezone(startDateString);
+const formatDateForModal = (item, type) => {
+    if (!item) return 'N/A';
 
-    if (isLeave && endDateString) {
-        const endFormatted = formatDateOnly(endDateString);
-        const daysCount = calculateLeaveDays(startDateString, endDateString);
+    // Time-Off: Show time range and duration in hours
+    if (type === 'timeoff' || item.type === 'timeoff') {
+        const date = item.date ? formatDateOnly(item.date) : '';
+        const startTime = item.start_time ? formatTimeOnly(item.start_time) : '';
+        const endTime = item.end_time ? formatTimeOnly(item.end_time) : '';
+        const duration = calculateTimeOffDuration(item.start_time, item.end_time);
+
+        return (
+            <span>
+                {startTime} - {endTime} (On {date}) <span className="text-red-600 font-bold ml-1">( {duration} )</span>
+            </span>
+        );
+    }
+
+    // Leave: Show date range with days
+    if (type === 'leave' || item.type === 'leave') {
+        const startFormatted = formatDateOnly(item.start_date);
+        const endFormatted = formatDateOnly(item.end_date);
+        const daysCount = calculateLeaveDays(item.start_date, item.end_date);
         const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
 
         if (startFormatted !== endFormatted) {
@@ -1753,6 +1766,8 @@ const formatDateForModal = (startDateString, endDateString = null, isLeave = fal
         }
     }
 
+    // On-Duty: Show date-time range
+    const startFormatted = formatInTimezone(item.start_time);
     return startFormatted;
 };
 
