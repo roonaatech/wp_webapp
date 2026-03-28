@@ -53,6 +53,18 @@ const Login = () => {
                 await window.refreshAppSettings();
             }
 
+            // Force all mobile users to my-requests
+            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobileDevice) {
+                localStorage.setItem('user', JSON.stringify(user));
+                toast.success(`Welcome, ${user.firstname}!`, {
+                    style: { background: '#059669', color: '#fff' },
+                    icon: '👋'
+                });
+                navigate('/my-requests');
+                return;
+            }
+
             // 1. Gating: If user doesn't have webapp access at all, they shouldn't see dashboard pages
             if (!canAccessWebApp(user.role)) {
                 localStorage.setItem('user', JSON.stringify(user));

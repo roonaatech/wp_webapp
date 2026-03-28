@@ -29,6 +29,17 @@ import { fetchRoles } from './utils/roleUtils';
 
 
 const GlobalInit = ({ children }) => {
+  // Intercept token and user from URL for seamless login (e.g. via QR code)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('token');
+  const urlUser = urlParams.get('user');
+
+  if (urlToken && urlUser) {
+    localStorage.setItem('token', urlToken);
+    localStorage.setItem('user', urlUser);
+    window.history.replaceState(null, '', window.location.pathname);
+  }
+
   const fetchSettings = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;

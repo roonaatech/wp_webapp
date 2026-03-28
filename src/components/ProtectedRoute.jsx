@@ -11,6 +11,12 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false 
         return <Navigate to="/login" replace />;
     }
 
+    // Force all mobile users to my-requests
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobileDevice && !skipWebAppCheck) {
+        return <Navigate to="/my-requests" replace />;
+    }
+
     // Skip permission checks for self-service routes like /my-requests
     if (!skipWebAppCheck) {
         // 1. Gating: If user doesn't have webapp access at all, they shouldn't see dashboard pages

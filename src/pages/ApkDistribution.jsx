@@ -18,6 +18,9 @@ const ApkDistribution = () => {
     const [downloadingId, setDownloadingId] = useState(null);
     const [downloadProgress, setDownloadProgress] = useState(0);
 
+    // Tab state for QR code toggle
+    const [activeQrTab, setActiveQrTab] = useState('download'); // 'download' | 'web'
+
     // Auth state
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const token = localStorage.getItem('token');
@@ -486,15 +489,48 @@ const ApkDistribution = () => {
                             </div>
                         </div>
 
-                        {/* QR Code Card */}
-                        <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-6 shadow-xl border border-gray-100 flex flex-col items-center justify-center text-center">
-                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-inner mb-4">
-                                <QRCode value={window.location.href} size={200} />
+                        {/* QR Code Cards with Toggle */}
+                        <div className="bg-white rounded-3xl p-3 shadow-xl border border-gray-100 flex flex-col h-full">
+                            {token && (
+                                <div className="flex w-full p-1 bg-gray-100 rounded-2xl mb-4 flex-shrink-0">
+                                    <button
+                                        onClick={() => setActiveQrTab('download')}
+                                        className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${activeQrTab === 'download' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                    >
+                                        Mobile App
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveQrTab('web')}
+                                        className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${activeQrTab === 'web' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                    >
+                                        My Requests
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="w-full flex-1 relative flex flex-col justify-center">
+                                {(!token || activeQrTab === 'download') ? (
+                                    <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl p-6 h-full flex flex-col items-center justify-center text-center animate-in fade-in transition-all">
+                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
+                                            <QRCode value={window.location.href} size={160} />
+                                        </div>
+                                        <h3 className="font-bold text-white text-lg mb-1">Scan to Download</h3>
+                                        <p className="text-blue-100 text-sm px-4">
+                                            Open this page on your mobile device to download the app directly.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="bg-gradient-to-br from-gray-700 to-gray-900 rounded-2xl p-6 h-full flex flex-col items-center justify-center text-center animate-in fade-in transition-all">
+                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
+                                            <QRCode value={`${window.location.origin}/my-requests?token=${encodeURIComponent(token)}&user=${encodeURIComponent(localStorage.getItem('user'))}`} size={160} />
+                                        </div>
+                                        <h3 className="font-bold text-white text-lg mb-1">My Requests</h3>
+                                        <p className="text-gray-300 text-sm px-4">
+                                            Scan to open the My Requests page on your mobile device.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
-                            <h3 className="font-bold text-white text-lg mb-1">Scan to Download</h3>
-                            <p className="text-blue-100 text-sm px-4">
-                                Open this page on your mobile device to download the app directly.
-                            </p>
                         </div>
                     </div>
 
