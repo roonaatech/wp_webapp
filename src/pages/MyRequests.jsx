@@ -658,18 +658,85 @@ const MyRequests = () => {
     const prevMonth = () => setCalendarMonth(new Date(calendarYear, calendarMon - 1, 1));
     const nextMonth = () => setCalendarMonth(new Date(calendarYear, calendarMon + 1, 1));
 
-    // ─── TAB CONFIG ───────────────────────────────────
     const tabs = [
-        { id: 'leave', label: 'Leave', icon: '🏖', color: 'from-blue-500 to-blue-600', textColor: 'text-blue-600' },
-        { id: 'timeoff', label: 'Time-Off', icon: '⏱', color: 'from-teal-500 to-teal-600', textColor: 'text-teal-600' },
-        { id: 'onduty', label: 'On-Duty', icon: '💼', color: 'from-purple-500 to-purple-600', textColor: 'text-purple-600' },
+        {
+            id: 'leave',
+            label: 'Leave',
+            icon: (
+                <div className="w-8 h-8 flex items-center justify-center relative">
+                    {/* Person + Palm + Sun (Navy/Cyan Duo-tone) */}
+                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {/* Palm and Sun in Background (Cyan) */}
+                        <circle cx="18" cy="7" r="3" fill="#0ea5e9" opacity="0.6" />
+                        <path d="M16 14c0-2-2-4-4-4h-1v1c2 0 3 1.5 3 3v1h2v-1z" fill="#0ea5e9" />
+                        <path d="M15 14h1v1h-1v-1z" fill="#0ea5e9" />
+                        {/* Person Body (Navy) */}
+                        <path d="M10 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" />
+                        <path d="M4 20v-2c0-2.21 1.79-4 4-4h4.5c.5 0 1 .1 1.5.3" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M4 20h12v-2" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" />
+                        {/* Sunglasses Accent (Cyan) */}
+                        <path d="M8 7.5h4M8.5 7.5l0.5 1h1l0.5-1m-2 0.5h1" stroke="#0ea5e9" strokeWidth="0.8" />
+                    </svg>
+                </div>
+            ),
+            color: 'from-blue-700 to-indigo-900',
+            textColor: 'text-[#1e1b4b]',
+            indicatorColor: 'bg-[#0ea5e9]'
+        },
+        {
+            id: 'timeoff',
+            label: 'Time-Off',
+            icon: (
+                <div className="w-8 h-8 flex items-center justify-center relative">
+                    {/* Person + Tie + Clock (Navy/Cyan Duo-tone) */}
+                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {/* Clock in Background (Cyan) */}
+                        <circle cx="16" cy="11" r="5" stroke="#0ea5e9" strokeWidth="1.5" strokeDasharray="2 1" />
+                        <path d="M16 8v3h2.5" stroke="#0ea5e9" strokeWidth="1.5" strokeLinecap="round" />
+                        {/* Person Body (Navy) */}
+                        <path d="M8 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" />
+                        <path d="M2 20v-2c0-2.21 1.79-4 4-4h4.5c.3 0 .6.05.9.14" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M2 20h12v-2" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" />
+                        {/* Tie (Cyan) */}
+                        <path d="M8 14l-1.5 2 1.5 4 1.5-4L8 14z" fill="#0ea5e9" />
+                        <path d="M7 14h2l-0.5-1h-1l-0.5 1z" fill="#0ea5e9" />
+                    </svg>
+                </div>
+            ),
+            color: 'from-sky-500 to-blue-600',
+            textColor: 'text-[#1e1b4b]',
+            indicatorColor: 'bg-[#0ea5e9]'
+        },
+        {
+            id: 'onduty',
+            label: 'On-Duty',
+            icon: (
+                <div className="w-8 h-8 flex items-center justify-center relative">
+                    {/* Person + Hard Hat + Shield (Navy/Cyan Duo-tone) */}
+                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {/* Person Body (Navy) */}
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" />
+                        <path d="M6 20v-2c0-2.21 1.79-4 4-4h4c2.21 0 4 1.79 4 4v2H6z" fill="#1e1b4b" />
+                        {/* Hard Hat (Cyan) */}
+                        <path d="M12 3c-3 0-5 3-5 5h10c0-2-2-5-5-5z" fill="#0ea5e9" />
+                        <rect x="11.5" y="2" width="1" height="1.5" rx="0.5" fill="#0ea5e9" opacity="0.8" />
+                        {/* Shield (Cyan) */}
+                        <path d="M18 13v3.5l-3 1.5-3-1.5V13h6z" fill="#0ea5e9" />
+                        <path d="M14 15l1 1 2-2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                </div>
+            ),
+            color: 'from-indigo-900 to-blue-900',
+            textColor: 'text-[#1e1b4b]',
+            indicatorColor: 'bg-[#0ea5e9]'
+        },
     ];
 
     // ─── Render ───────────────────────────────────
     return (
         <div className="min-h-screen bg-gray-50" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
             {/* ── Top App Bar ── */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-50 safe-area-top">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-50 safe-area-top shadow-lg">
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg font-black backdrop-blur-sm">
@@ -704,12 +771,14 @@ const MyRequests = () => {
                         <button
                             key={tab.id}
                             onClick={() => { setActiveTab(tab.id); setActiveView('apply'); }}
-                            className={`flex-1 py-3 flex flex-col items-center gap-1 relative transition-all duration-300 ${activeTab === tab.id ? tab.textColor : 'text-gray-400'}`}
+                            className={`flex-1 py-4 flex flex-col items-center gap-1.5 relative transition-all duration-300 group ${activeTab === tab.id ? 'opacity-100' : 'opacity-40 filter grayscale'}`}
                         >
-                            <span className="text-2xl mb-1">{tab.icon}</span>
-                            <span className="text-sm font-bold tracking-wide uppercase">{tab.label}</span>
+                            <div className={`transition-all duration-300 ${activeTab === tab.id ? 'scale-110 drop-shadow-md' : 'scale-90'}`}>
+                                {tab.icon}
+                            </div>
+                            <span className={`text-[10px] font-black tracking-widest uppercase ${activeTab === tab.id ? 'text-[#1e1b4b]' : 'text-gray-400'}`}>{tab.label}</span>
                             {activeTab === tab.id && (
-                                <div className={`absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r ${tab.color} rounded-full`}></div>
+                                <div className={`absolute bottom-0 left-0 right-0 h-1 bg-[#0ea5e9]`}></div>
                             )}
                         </button>
                     ))}
@@ -815,14 +884,19 @@ const MyRequests = () => {
                         <button
                             type="submit"
                             disabled={leaveSubmitting}
-                            className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-60 text-sm"
+                            className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3 mt-4"
                         >
                             {leaveSubmitting ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                    Submitting...
-                                </span>
-                            ) : 'Submit Leave Application'}
+                                <>
+                                    <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
+                                    Submitting Request...
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                                    Submit Leave Application
+                                </>
+                            )}
                         </button>
                     </form>
                 )}
@@ -840,9 +914,17 @@ const MyRequests = () => {
                                 ))}
                             </div>
                         ) : myLeaves.filter(l => l.type === 'leave').length === 0 ? (
-                            <div className="text-center py-12">
-                                <span className="text-4xl mb-3 block">📋</span>
-                                <p className="text-gray-400 font-semibold text-sm">No leave requests yet</p>
+                            <div className="text-center py-16">
+                                <div className="w-20 h-20 mx-auto mb-6 relative">
+                                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
+                                        <circle cx="18" cy="7" r="3" fill="#0ea5e9" opacity="0.4" />
+                                        <path d="M10 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
+                                        <path d="M4 20v-2c0-2.21 1.79-4 4-4h4.5" stroke="#1e1b4b" strokeWidth="2" opacity="0.1" />
+                                        <path d="M16 14c0-2-2-4-4-4h-1v1c2 0 3 1.5 3 3v1h2v-1z" fill="#0ea5e9" opacity="0.4" />
+                                    </svg>
+                                </div>
+                                <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No Leave Requests</p>
+                                <p className="text-gray-400 text-xs mt-1">Your leave history will appear here.</p>
                             </div>
                         ) : (
                             myLeaves.filter(l => l.type === 'leave').map((leave) => (
@@ -982,14 +1064,19 @@ const MyRequests = () => {
                                 <button
                                     onClick={handleEndOnDuty}
                                     disabled={odSubmitting}
-                                    className="w-full py-4 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg shadow-red-500/25 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-60 text-sm"
+                                    className="w-full py-4 bg-[#ef4444] text-white font-black rounded-2xl shadow-xl shadow-red-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                                 >
                                     {odSubmitting ? (
-                                        <span className="flex items-center justify-center gap-2">
+                                        <>
                                             <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                            Ending & Capturing Location...
-                                        </span>
-                                    ) : '⏹️ End On-Duty'}
+                                            Ending & Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="w-2 h-2 bg-white rounded-full animate-ping" />
+                                            Stop On-Duty
+                                        </>
+                                    )}
                                 </button>
                             </>
                         ) : (
@@ -1041,14 +1128,19 @@ const MyRequests = () => {
                                 <button
                                     type="submit"
                                     disabled={odSubmitting}
-                                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-2xl shadow-lg shadow-purple-500/25 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-60 text-sm"
+                                    className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                                 >
                                     {odSubmitting ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                            Starting & Capturing Location...
-                                        </span>
-                                    ) : '▶️ Start On-Duty'}
+                                        <>
+                                            <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
+                                            Capturing Location...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                                            Start On-Duty
+                                        </>
+                                    )}
                                 </button>
                             </form>
                         )}
@@ -1067,9 +1159,17 @@ const MyRequests = () => {
                                 ))}
                             </div>
                         ) : myOnDuty.length === 0 ? (
-                            <div className="text-center py-12">
-                                <span className="text-4xl mb-3 block">🚗</span>
-                                <p className="text-gray-400 font-semibold text-sm">No on-duty logs yet</p>
+                            <div className="text-center py-16">
+                                <div className="w-20 h-20 mx-auto mb-6 relative">
+                                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
+                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
+                                        <path d="M6 20v-2c0-2.21 1.79-4 4-4h4c2.21 0 4 1.79 4 4v2H6z" fill="#1e1b4b" opacity="0.1" />
+                                        <path d="M18 13v3.5l-3 1.5-3-1.5V13h6z" fill="#0ea5e9" opacity="0.4" />
+                                        <path d="M14 15l1 1 2-2" stroke="#0ea5e9" strokeWidth="1.2" />
+                                    </svg>
+                                </div>
+                                <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No On-Duty Logs</p>
+                                <p className="text-gray-400 text-xs mt-1">Your field activity will appear here.</p>
                             </div>
                         ) : (
                             myOnDuty.map((od) => (
@@ -1193,7 +1293,7 @@ const MyRequests = () => {
                             {toStartTime && toEndTime && (
                                 <div className="mt-3 px-3 py-2 bg-teal-50 rounded-xl">
                                     <p className="text-xs font-bold text-teal-600">
-                                        ⏱️ Duration: {calcTimeOffDuration(toStartTime, toEndTime)}
+                                        ⏳ Duration: {calcTimeOffDuration(toStartTime, toEndTime)}
                                     </p>
                                 </div>
                             )}
@@ -1215,14 +1315,19 @@ const MyRequests = () => {
                         <button
                             type="submit"
                             disabled={toSubmitting}
-                            className="w-full py-4 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-teal-500/25 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-60 text-sm"
+                            className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                         >
                             {toSubmitting ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                    Submitting...
-                                </span>
-                            ) : 'Submit Time-Off Request'}
+                                <>
+                                    <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
+                                    Submitting Request...
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                                    Submit Time-Off Request
+                                </>
+                            )}
                         </button>
                     </form>
                 )}
@@ -1239,9 +1344,17 @@ const MyRequests = () => {
                                 ))}
                             </div>
                         ) : myTimeOffs.length === 0 ? (
-                            <div className="text-center py-12">
-                                <span className="text-4xl mb-3 block">⏰</span>
-                                <p className="text-gray-400 font-semibold text-sm">No time-off requests yet</p>
+                            <div className="text-center py-16">
+                                <div className="w-20 h-20 mx-auto mb-6 relative">
+                                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
+                                        <circle cx="16" cy="11" r="5" stroke="#0ea5e9" strokeWidth="1" strokeDasharray="2 1" />
+                                        <path d="M8 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
+                                        <path d="M2 20v-2c0-2.21 1.79-4 4-4h4.5" stroke="#1e1b4b" strokeWidth="2" opacity="0.1" />
+                                        <path d="M8 14l-1.5 2 1.5 4 1.5-4L8 14z" fill="#0ea5e9" opacity="0.4" />
+                                    </svg>
+                                </div>
+                                <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No Time-Off Requests</p>
+                                <p className="text-gray-400 text-xs mt-1">Short break history will appear here.</p>
                             </div>
                         ) : (
                             myTimeOffs.map((to) => (
