@@ -759,9 +759,9 @@ const Approvals = () => {
                             {userPermissions.canApproveLeave && (
                                 <button
                                     onClick={() => setExpandedSections({ leave: true, onDuty: false, timeOff: false })}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.leave
-                                        ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
-                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
+                                    className={`px-4 py-2 rounded-lg text-sm font-black transition-all border ${expandedSections.leave
+                                        ? 'bg-[#1e1b4b] text-white border-[#1e1b4b] shadow-xl shadow-indigo-950/20 transform scale-105'
+                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)] hover:text-[#1e1b4b]'
                                         }`}
                                 >
                                     Leave Requests ({pagination.leaveCount !== undefined ? pagination.leaveCount : leaveApprovals.length})
@@ -770,9 +770,9 @@ const Approvals = () => {
                             {userPermissions.canApproveTimeOff && (
                                 <button
                                     onClick={() => setExpandedSections({ leave: false, onDuty: false, timeOff: true })}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.timeOff
-                                        ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
-                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
+                                    className={`px-4 py-2 rounded-lg text-sm font-black transition-all border ${expandedSections.timeOff
+                                        ? 'bg-[#1e1b4b] text-white border-[#1e1b4b] shadow-xl shadow-indigo-950/20 transform scale-105'
+                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)] hover:text-[#1e1b4b]'
                                         }`}
                                 >
                                     Time-Off Requests ({timeOffApprovals.length})
@@ -781,9 +781,9 @@ const Approvals = () => {
                             {userPermissions.canApproveOnDuty && (
                                 <button
                                     onClick={() => setExpandedSections({ leave: false, onDuty: true, timeOff: false })}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.onDuty
-                                        ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
-                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
+                                    className={`px-4 py-2 rounded-lg text-sm font-black transition-all border ${expandedSections.onDuty
+                                        ? 'bg-[#1e1b4b] text-white border-[#1e1b4b] shadow-xl shadow-indigo-950/20 transform scale-105'
+                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)] hover:text-[#1e1b4b]'
                                         }`}
                                 >
                                     On-Duty Requests ({pagination.onDutyCount !== undefined ? pagination.onDutyCount : onDutyApprovals.length})

@@ -555,23 +555,23 @@ const Dashboard = () => {
                 )}
 
                 {incompleteProfiles.length > 0 && (
-                    <div className="mb-8 bg-orange-50 border-l-4 border-orange-500 rounded-r-2xl p-6 shadow-sm transform transition-all hover:scale-[1.01] duration-300">
+                    <div className="mb-8 bg-[#f0f9ff] border-l-4 border-[#1e1b4b] rounded-r-2xl p-6 shadow-sm transform transition-all hover:scale-[1.01] duration-300">
                         <div className="flex items-start justify-between">
                             <div>
-                                <h3 className="text-xl font-bold text-orange-900 mb-2 flex items-center gap-2">
-                                    <span className="animate-pulse">●</span> Action Required: Incomplete Profiles
+                                <h3 className="text-xl font-black text-[#1e1b4b] mb-2 flex items-center gap-2 uppercase tracking-tighter">
+                                    <span className="animate-pulse text-[#0ea5e9]">●</span> Action Required: Incomplete Profiles
                                 </h3>
-                                <p className="text-orange-800 mb-4 font-medium">
+                                <p className="text-gray-600 mb-4 font-medium text-sm">
                                     {incompleteProfiles.length} active user(s) have not been assigned a Role or Gender. They will be unable to log in until this is resolved.
                                 </p>
                                 <Link
                                     to="/users?status=incomplete"
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-white text-orange-600 rounded-lg font-bold shadow-sm border border-orange-100 hover:bg-orange-50 hover:shadow-md transition-all"
+                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#1e1b4b] text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:-translate-y-0.5 transition-all"
                                 >
                                     Review & Update Profiles →
                                 </Link>
                             </div>
-                            <div className="bg-orange-100 p-4 rounded-2xl shadow-inner">
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#1e1b4b]/5">
                                 <span className="text-3xl">⚠️</span>
                             </div>
                         </div>
@@ -609,9 +609,9 @@ const Dashboard = () => {
                                         {/* Left Navigation Button - Modern Floating Style */}
                                         <button
                                             onClick={scrollLeft}
-                                            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100"
+                                            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-[#1e1b4b] rounded-full flex items-center justify-center text-[#0ea5e9] shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100 border border-[#0ea5e9]/10"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                                             </svg>
                                         </button>
@@ -684,9 +684,9 @@ const Dashboard = () => {
                                         {/* Right Navigation Button - Modern Floating Style */}
                                         <button
                                             onClick={scrollRight}
-                                            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100"
+                                            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-[#1e1b4b] rounded-full flex items-center justify-center text-[#0ea5e9] shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100 border border-[#0ea5e9]/10"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                                             </svg>
                                         </button>
@@ -697,25 +697,25 @@ const Dashboard = () => {
                             {/* Summary Section */}
                             <div className="mb-12">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-2 h-8 bg-blue-600 rounded-full"></div>
-                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">System Summary</h2>
+                                    <div className="w-2 h-8 bg-[#1e1b4b] rounded-full"></div>
+                                    <h2 className="text-2xl font-black text-[#1e1b4b] tracking-tight uppercase tracking-tighter">System Summary</h2>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <StatCard
                                         title="Total Requests"
                                         value={stats.pendingLeaves + stats.approvedLeaves + stats.rejectedLeaves + stats.pendingTimeOff + stats.approvedTimeOff + stats.rejectedTimeOff}
                                         icon="📄"
-                                        color="text-blue-600"
+                                        color="text-[#1e1b4b]"
                                         footer="Engagement overview"
-                                        gradient="bg-gradient-to-br from-blue-500 to-indigo-600"
+                                        gradient="bg-[#1e1b4b]"
                                     />
                                     <StatCard
                                         title="Total On-Duty Logs"
                                         value={stats.pendingOnDuty + stats.approvedOnDuty + stats.rejectedOnDuty + stats.activeOnDuty}
                                         icon="📍"
-                                        color="text-purple-600"
+                                        color="text-[#0ea5e9]"
                                         footer="Operational overview"
-                                        gradient="bg-gradient-to-br from-purple-500 to-pink-600"
+                                        gradient="bg-[#0ea5e9]"
                                     />
                                 </div>
                             </div>

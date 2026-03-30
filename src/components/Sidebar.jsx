@@ -160,8 +160,8 @@ const Sidebar = () => {
                     flex items-center gap-3 px-4 py-1.5 rounded-xl transition-all duration-300 mx-2 relative
                     ${isCollapsed ? 'justify-center' : ''}
                     ${isActive(to)
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/20'
-                        : 'text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]'
+                        ? 'bg-[#1e1b4b] text-[#0ea5e9] border border-[#0ea5e9]/30 shadow-[0_0_15px_rgba(14,165,233,0.1)] font-bold'
+                        : 'text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[#0ea5e9]'
                     }
                     ${indent && !isCollapsed ? 'ml-8 text-sm' : ''}
                 `}
@@ -241,7 +241,7 @@ const Sidebar = () => {
             <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
                 {!isCollapsed && (
                     <div>
-                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1">Overview</p>
+                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-[0.2em] px-6 mb-2">Overview</p>
                         <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
                     </div>
                 )}
@@ -251,7 +251,7 @@ const Sidebar = () => {
 
                 {!isCollapsed && (
                     <div>
-                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Management</p>
+                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-[0.2em] px-6 mb-2 mt-4">Management</p>
                         {/* Approvals - Both Admin and Manager */}
                         <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
                         {/* Active On-Duty - For users with can_manage_active_onduty permission */}
@@ -262,7 +262,6 @@ const Sidebar = () => {
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                         )}
-
                     </div>
                 )}
                 {isCollapsed && (
@@ -274,14 +273,13 @@ const Sidebar = () => {
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                         )}
-
                     </div>
                 )}
 
                 {/* Configurations - Show if user has any configuration permission */}
                 {!isCollapsed && hasAnyConfigPermission && (
                     <div>
-                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Configurations</p>
+                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-[0.2em] px-6 mb-2 mt-4">Configurations</p>
                         {/* Users - Admin & those who can manage or view users */}
                         {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
@@ -351,7 +349,7 @@ const Sidebar = () => {
 
                 {!isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
                     <div>
-                        <p className="text-sm font-semibold text-blue-400 tracking-widest px-6 mb-1 mt-2">Analysis</p>
+                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-[0.2em] px-6 mb-2 mt-4">Analysis</p>
                         {canViewReportsPermission && (
                             <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
                         )}
@@ -361,7 +359,7 @@ const Sidebar = () => {
                         )}
 
                         <div className="mt-6 mb-3 px-6 border-t border-[var(--border-color)] pt-6">
-                            <p className="text-sm font-semibold text-blue-400 tracking-widest mb-3">Downloads</p>
+                            <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-[0.2em] mb-4">Downloads</p>
                             <NavLink to="/apk" icon={<LuSmartphone />} label="Mobile App" />
                         </div>
                     </div>

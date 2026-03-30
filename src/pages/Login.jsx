@@ -249,12 +249,15 @@ const Login = () => {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-40 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-200 hover:shadow-xl hover:shadow-purple-300 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                                    className="w-40 py-4 bg-[#1e1b4b] text-white font-black rounded-xl shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-70 text-xs uppercase tracking-widest"
                                 >
                                     {loading ? (
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <div className="w-5 h-5 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></div>
                                     ) : (
-                                        "Sign In"
+                                        <>
+                                            <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse mr-1" />
+                                            Sign In
+                                        </>
                                     )}
                                 </button>
                             </div>
@@ -262,10 +265,10 @@ const Login = () => {
                     </form>
 
                     {/* ABiS Credentials Instruction */}
-                    <div className="mt-8 max-w-md w-full bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200/50 rounded-xl p-6 shadow-sm">
+                    <div className="mt-8 max-w-md w-full bg-[#1e1b4b]/5 border border-[#1e1b4b]/10 rounded-xl p-6 shadow-sm">
                         <div>
-                            <p className="text-sm font-semibold text-gray-900 mb-1">Login Credentials</p>
-                            <p className="text-xs text-gray-600">Use your <span className="font-bold text-gray-800">ABiS account</span> credentials to access WorkPulse</p>
+                            <p className="text-sm font-black text-[#1e1b4b] mb-1 uppercase tracking-tighter">Login Credentials</p>
+                            <p className="text-xs text-gray-600">Use your <span className="font-bold text-[#0ea5e9]">ABiS account</span> credentials to access WorkPulse</p>
                         </div>
                     </div>
 
@@ -291,10 +294,10 @@ const Login = () => {
             </div>
 
             {/* Right Side - Decorative Panel */}
-            <div className="hidden lg:flex lg:w-[35%] relative bg-gradient-to-br from-blue-600 to-purple-600 items-center justify-center p-20 overflow-hidden">
+            <div className="hidden lg:flex lg:w-[35%] relative bg-[#1e1b4b] items-center justify-center p-20 overflow-hidden border-l border-white/5">
                 {/* Background decorative elements */}
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#0ea5e9]/10 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#0ea5e9]/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
 
                 {/* Floating "Card" UI Elements simulation */}
                 <div className="relative z-10 w-full max-w-lg aspect-square">
@@ -334,21 +337,21 @@ const Login = () => {
             {/* Welcome / Setup Required Modal */}
             {showWelcomeModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in">
-                        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-[#1e1b4b]/5">
+                        <div className="w-20 h-20 bg-[#f0f9ff] rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-[#f0f9ff]">
                             <span className="text-4xl">👋</span>
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome to WorkPulse!</h3>
+                        <h3 className="text-2xl font-black text-[#1e1b4b] mb-2 uppercase tracking-tighter">Welcome to WorkPulse!</h3>
                         <p className="text-gray-500 mb-8 leading-relaxed">
                             We're excited to have you on board.
                             <br /><br />
                             Your profile setup is incomplete.
                             <br />
-                            <span className="text-blue-600 font-semibold mt-2 block">Please contact your administrator to configure your account before you can log in.</span>
+                            <span className="text-[#0ea5e9] font-black mt-2 block uppercase text-xs tracking-widest">Please contact administrator.</span>
                         </p>
                         <button
                             onClick={() => setShowWelcomeModal(false)}
-                            className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                            className="w-full py-4 bg-[#1e1b4b] text-white rounded-xl font-black hover:bg-indigo-950 transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-xs uppercase tracking-widest shadow-xl shadow-indigo-950/20"
                         >
                             Okay, Got it
                         </button>
