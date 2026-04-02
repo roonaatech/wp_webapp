@@ -9,11 +9,13 @@ import { fetchRoles, canViewReports } from '../utils/roleUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 
 import TableSortIcon from '../components/TableSortIcon';
+import MonthlySummaryReport from '../components/MonthlySummaryReport';
 
 const Reports = () => {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
+    const [activeTab, setActiveTab] = useState('monthly'); // 'detailed' | 'monthly'
 
     // Data States
     const [reports, setReports] = useState([]);
@@ -43,7 +45,7 @@ const Reports = () => {
     const [datePreset, setDatePreset] = useState('thismonth');
     const [startDate, setStartDate] = useState(defaultStart);
     const [endDate, setEndDate] = useState(defaultEnd);
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('approved');
     const [typeFilter, setTypeFilter] = useState('both');
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
@@ -304,10 +306,12 @@ const Reports = () => {
             const rows = exportData.map(report => {
                 const isLeave = report.type === 'leave';
                 const isTimeOff = report.type === 'timeoff';
-                // Calculate duration based on type
+                // Calculate duration based on type - Clamp to selected range for consistency with Summary
                 let duration;
                 if (isLeave) {
-                    const days = calculateLeaveDays(report.start_date, report.end_date);
+                    const effectiveStart = (startDate && report.start_date < startDate) ? startDate : report.start_date;
+                    const effectiveEnd = (endDate && report.end_date > endDate) ? endDate : report.end_date;
+                    const days = calculateLeaveDays(effectiveStart, effectiveEnd);
                     duration = days + ' day' + (days > 1 ? 's' : '');
                 } else if (isTimeOff) {
                     duration = calculateTimeOffDuration(report.start_time, report.end_time);
@@ -416,17 +420,51 @@ const Reports = () => {
             <div className="mb-8">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
-                        <p className="text-gray-600 mt-1">View and export the report for leave, on-duty and time-off records</p>
+                        <h1 className="text-3xl font-black text-[#1e1b4b] tracking-tight">Reports</h1>
+                        <p className="text-gray-500 mt-1 text-sm">View and export leave, on-duty and time-off records</p>
                     </div>
-                    <button
-                        onClick={downloadCSV}
-                        disabled={reports.length === 0}
-                        className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        📥 Export to CSV
-                    </button>
                 </div>
+            </div>
+
+            {/* Tab Switcher */}
+            <div className="mb-6 flex items-center gap-3">
+                <button
+                    onClick={() => setActiveTab('monthly')}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+                        activeTab === 'monthly'
+                            ? 'bg-[#1e1b4b] text-white border-[#1e1b4b] shadow-xl shadow-indigo-950/20'
+                            : 'bg-white text-gray-500 border-gray-200 hover:text-[#1e1b4b] hover:border-[#1e1b4b]/30'
+                    }`}
+                >
+                    📊 Monthly Summary
+                </button>
+                <button
+                    onClick={() => setActiveTab('detailed')}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+                        activeTab === 'detailed'
+                            ? 'bg-[#1e1b4b] text-white border-[#1e1b4b] shadow-xl shadow-indigo-950/20'
+                            : 'bg-white text-gray-500 border-gray-200 hover:text-[#1e1b4b] hover:border-[#1e1b4b]/30'
+                    }`}
+                >
+                    📋 Detailed Reports
+                </button>
+            </div>
+
+            {activeTab === 'monthly' ? (
+                <MonthlySummaryReport />
+            ) : (
+            <>
+
+            {/* Export Button for Detailed */}
+            <div className="mb-4 flex justify-end">
+                <button
+                    onClick={downloadCSV}
+                    disabled={reports.length === 0}
+                    className="px-6 py-2.5 bg-[#1e1b4b] text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:-translate-y-0.5 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                    📥 Export to CSV
+                </button>
             </div>
 
             {/* Error Message */}
@@ -499,30 +537,31 @@ const Reports = () => {
                                     setDatePreset(val);
                                     setPage(1);
                                     if (val === 'today') {
-                                        const d = new Date().toISOString().slice(0, 10);
+                                        const now = getCurrentInAppTimezone().full;
+                                        const d = now.toISOString().slice(0, 10);
                                         setStartDate(d); setEndDate(d);
                                     } else if (val === 'thismonth') {
-                                        const now = new Date();
+                                        const now = getCurrentInAppTimezone().full;
                                         const s = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
                                         const e = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
                                         setStartDate(s); setEndDate(e);
                                     } else if (val === 'lastmonth') {
-                                        const now = new Date();
+                                        const now = getCurrentInAppTimezone().full;
                                         const s = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
                                         const e = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
                                         setStartDate(s); setEndDate(e);
                                     } else if (val === 'thisyear') {
-                                        const now = new Date();
+                                        const now = getCurrentInAppTimezone().full;
                                         const s = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
                                         const e = new Date(now.getFullYear(), 11, 31).toISOString().slice(0, 10);
                                         setStartDate(s); setEndDate(e);
                                     } else if (val === 'lastyear') {
-                                        const now = new Date();
+                                        const now = getCurrentInAppTimezone().full;
                                         const s = new Date(now.getFullYear() - 1, 0, 1).toISOString().slice(0, 10);
                                         const e = new Date(now.getFullYear() - 1, 11, 31).toISOString().slice(0, 10);
                                         setStartDate(s); setEndDate(e);
                                     } else if (val === 'thisquarter' || val === 'lastquarter') {
-                                        const now = new Date();
+                                        const now = getCurrentInAppTimezone().full;
                                         let qStartMonth = Math.floor(now.getMonth() / 3) * 3;
                                         let year = now.getFullYear();
                                         if (val === 'lastquarter') {
@@ -645,7 +684,12 @@ const Reports = () => {
                                 const detail = isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'Time-Off' : (report.client_name || 'N/A');
                                 const startCell = isLeave ? formatDateOnly(report.start_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.start_time)}` : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A');
                                 const endCell = isLeave ? formatDateOnly(report.end_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.end_time)}` : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A');
-                                const durationCell = isLeave ? (report.start_date && report.end_date ? `${calculateLeaveDays(report.start_date, report.end_date)} day(s)` : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
+                                const durationCell = isLeave ? (report.start_date && report.end_date ? (() => {
+                                    const effectiveStart = (startDate && report.start_date < startDate) ? startDate : report.start_date;
+                                    const effectiveEnd = (endDate && report.end_date > endDate) ? endDate : report.end_date;
+                                    const days = calculateLeaveDays(effectiveStart, effectiveEnd);
+                                    return `${days} day(s)`;
+                                })() : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
                                 const locationCell = isLeave || isTimeOff ? 'N/A' : (report.location || report.client_name || 'N/A');
                                 const statusCell = (report.type === 'leave' || report.type === 'timeoff') ? (report.status || 'N/A') : (report.check_out_time ? 'Completed' : 'Active');
 
@@ -863,6 +907,8 @@ const Reports = () => {
                         </button>
                     </div>
                 </div>
+            )}
+            </>
             )}
         </div>
     );
