@@ -20,6 +20,8 @@
     "autoprefixer": "^10.4.20",
     "axios": "^1.6.8",
     "chart.js": "^4.5.1",
+    "exceljs": "^4.4.0",
+    "file-saver": "^2.0.5",
     "mermaid": "^11.12.2",
     "postcss": "^8.4.38",
     "prismjs": "^1.30.0",
@@ -33,7 +35,8 @@
     "react-simple-code-editor": "^0.14.1",
     "recharts": "^2.10.3",
     "sharp": "^0.34.5",
-    "tailwindcss": "^3.4.1"
+    "tailwindcss": "^3.4.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^8.57.0",
