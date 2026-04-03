@@ -577,7 +577,7 @@ const Approvals = () => {
     };
     const SortableHeader = ({ label, sortKey, sortConfig, setSortConfig, align = 'left' }) => (
         <th
-            className={`px-3 py-2 text-sm font-semibold text-white cursor-pointer hover:text-gray-200 transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
+            className={`px-3 py-2 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
             onClick={() => {
                 const direction = sortConfig.key === sortKey && sortConfig.direction === 'asc' ? 'desc' : 'asc';
                 setSortConfig({ key: sortKey, direction });
@@ -856,7 +856,7 @@ const Approvals = () => {
                         {expandedSections.leave && userPermissions.canApproveLeave && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#2E5090] text-white">
+                                    <thead className="bg-[#1e1b4b] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
                                                 <th className="px-3 py-2 w-10">
@@ -870,12 +870,12 @@ const Approvals = () => {
                                             )}
                                             <SortableHeader label="Employee" sortKey="staffName" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
                                             <SortableHeader label="Leave Type" sortKey="leave_type" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Duration</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
                                             <SortableHeader label="Period" sortKey="start_date" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Reason</th>
-                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Rejection Reason</th>}
-                                            <th className="px-3 py-2 text-right text-sm font-semibold text-white">Actions</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Reason</th>
+                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Rejection Reason</th>}
+                                            <th className="px-3 py-2 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
@@ -999,7 +999,7 @@ const Approvals = () => {
                         {expandedSections.timeOff && userPermissions.canApproveTimeOff && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#2E5090] text-white">
+                                    <thead className="bg-[#1e1b4b] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
                                                 <th className="px-3 py-2 w-10">
@@ -1013,12 +1013,12 @@ const Approvals = () => {
                                             )}
                                             <SortableHeader label="Employee" sortKey="staffName" sortConfig={timeOffSortConfig} setSortConfig={setTimeOffSortConfig} />
                                             <SortableHeader label="Date" sortKey="date" sortConfig={timeOffSortConfig} setSortConfig={setTimeOffSortConfig} />
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Duration</th>
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Time</th>
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Reason</th>
-                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Rejection Reason</th>}
-                                            <th className="px-3 py-2 text-right text-sm font-semibold text-white">Actions</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Time</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Reason</th>
+                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Rejection Reason</th>}
+                                            <th className="px-3 py-2 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
@@ -1140,7 +1140,7 @@ const Approvals = () => {
                         {expandedSections.onDuty && userPermissions.canApproveOnDuty && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#2E5090] text-white">
+                                    <thead className="bg-[#1e1b4b] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
                                                 <th className="px-3 py-2 w-10">
@@ -1155,10 +1155,10 @@ const Approvals = () => {
                                             <SortableHeader label="Employee" sortKey="staffName" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
                                             <SortableHeader label="Client / Location" sortKey="client_name" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
                                             <SortableHeader label="Date" sortKey="start_time" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Duration</th>
-                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Reason</th>}
-                                            <th className="px-3 py-2 text-right text-sm font-semibold text-white">Actions</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
+                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Reason</th>}
+                                            <th className="px-3 py-2 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">

@@ -228,12 +228,12 @@ const ActiveOnDuty = () => {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="bg-[#2E5090] text-white">
+                            <thead className="bg-[#1e1b4b] text-white">
                                 <tr>
                                     <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('staffName')}
-                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                            className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                         >
                                             Employee <TableSortIcon column="staffName" sortConfig={sortConfig} />
                                         </button>
@@ -241,7 +241,7 @@ const ActiveOnDuty = () => {
                                     <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('client_name')}
-                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                            className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                         >
                                             Client <TableSortIcon column="client_name" sortConfig={sortConfig} />
                                         </button>
@@ -249,7 +249,7 @@ const ActiveOnDuty = () => {
                                     <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('location')}
-                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                            className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                         >
                                             Location <TableSortIcon column="location" sortConfig={sortConfig} />
                                         </button>
@@ -257,14 +257,14 @@ const ActiveOnDuty = () => {
                                     <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('start_time')}
-                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                            className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                         >
                                             Started <TableSortIcon column="start_time" sortConfig={sortConfig} />
                                         </button>
                                     </th>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Purpose</th>
-                                    <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
+                                    <th className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
+                                    <th className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Purpose</th>
+                                    <th className="px-6 py-3 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">

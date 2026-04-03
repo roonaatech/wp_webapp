@@ -490,12 +490,12 @@ const Activities = () => {
                         <>
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#2E5090] text-white">
+                                    <thead className="bg-[#1e1b4b] text-white">
                                         <tr>
                                             <th className="px-4 py-3 text-left">
                                                 <button
                                                     onClick={() => handleSort('createdAt')}
-                                                    className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                                    className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                                 >
                                                     Timestamp <TableSortIcon column="createdAt" sortConfig={sortConfig} />
                                                 </button>
@@ -503,7 +503,7 @@ const Activities = () => {
                                             <th className="px-4 py-3 text-left">
                                                 <button
                                                     onClick={() => handleSort('action')}
-                                                    className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                                    className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                                 >
                                                     Action <TableSortIcon column="action" sortConfig={sortConfig} />
                                                 </button>
@@ -511,7 +511,7 @@ const Activities = () => {
                                             <th className="px-4 py-3 text-left">
                                                 <button
                                                     onClick={() => handleSort('entity')}
-                                                    className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                                    className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                                 >
                                                     Entity <TableSortIcon column="entity" sortConfig={sortConfig} />
                                                 </button>
@@ -519,13 +519,13 @@ const Activities = () => {
                                             <th className="px-4 py-3 text-left">
                                                 <button
                                                     onClick={() => handleSort('performedBy')}
-                                                    className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                                    className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                                 >
                                                     Performed By <TableSortIcon column="performedBy" sortConfig={sortConfig} />
                                                 </button>
                                             </th>
-                                            <th className="px-4 py-3 text-left text-sm font-semibold">Description</th>
-                                            <th className="px-4 py-3 text-left text-sm font-semibold">IP Address</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Description</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">IP Address</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">

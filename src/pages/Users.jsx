@@ -1371,11 +1371,11 @@ const Users = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-[#2E5090] border-b border-gray-200">
+                        <thead className="bg-[#1e1b4b] text-white border-b border-[#1e1b4b]">
                             <tr>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-white w-12"></th>
+                                <th className="px-3 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest w-12"></th>
                                 <th
-                                    className="px-6 py-3 text-left text-xs font-semibold text-white cursor-pointer hover:bg-[#3E6090] transition-colors"
+                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
                                     onClick={() => handleSort('staffid')}
                                 >
                                     <div className="flex items-center gap-1">
@@ -1384,7 +1384,7 @@ const Users = () => {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-6 py-3 text-left text-xs font-semibold text-white cursor-pointer hover:bg-[#3E6090] transition-colors"
+                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
                                     onClick={() => handleSort('name')}
                                 >
                                     <div className="flex items-center gap-1">
@@ -1393,7 +1393,7 @@ const Users = () => {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-6 py-3 text-left text-xs font-semibold text-white cursor-pointer hover:bg-[#3E6090] transition-colors"
+                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
                                     onClick={() => handleSort('email')}
                                 >
                                     <div className="flex items-center gap-1">
@@ -1402,7 +1402,7 @@ const Users = () => {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-6 py-3 text-left text-xs font-semibold text-white cursor-pointer hover:bg-[#3E6090] transition-colors"
+                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
                                     onClick={() => handleSort('role')}
                                 >
                                     <div className="flex items-center gap-1">
@@ -1411,7 +1411,7 @@ const Users = () => {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-6 py-3 text-left text-xs font-semibold text-white cursor-pointer hover:bg-[#3E6090] transition-colors"
+                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
                                     onClick={() => handleSort('status')}
                                 >
                                     <div className="flex items-center gap-1">
@@ -1420,7 +1420,7 @@ const Users = () => {
                                     </div>
                                 </th>
                                 {canManageUsers && (
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-white">Actions</th>
+                                    <th className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                 )}
                             </tr>
                         </thead>

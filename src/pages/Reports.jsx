@@ -426,28 +426,30 @@ const Reports = () => {
                 </div>
             </div>
 
-            {/* Tab Switcher */}
-            <div className="mb-6 flex items-center gap-3">
-                <button
-                    onClick={() => setActiveTab('monthly')}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
-                        activeTab === 'monthly'
-                            ? 'bg-[#1e1b4b] text-white border-[#1e1b4b] shadow-xl shadow-indigo-950/20'
-                            : 'bg-white text-gray-500 border-gray-200 hover:text-[#1e1b4b] hover:border-[#1e1b4b]/30'
-                    }`}
-                >
-                    📊 Monthly Summary
-                </button>
-                <button
-                    onClick={() => setActiveTab('detailed')}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
-                        activeTab === 'detailed'
-                            ? 'bg-[#1e1b4b] text-white border-[#1e1b4b] shadow-xl shadow-indigo-950/20'
-                            : 'bg-white text-gray-500 border-gray-200 hover:text-[#1e1b4b] hover:border-[#1e1b4b]/30'
-                    }`}
-                >
-                    📋 Detailed Reports
-                </button>
+            {/* Tab Switcher (Sliding Pill) */}
+            <div className="mb-8 flex justify-center w-full" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+                <div className="relative flex bg-gray-100 rounded-full p-1 border border-gray-200 shadow-inner">
+                    <div
+                        className="absolute top-1 bottom-1 w-1/2 bg-[#1e1b4b] rounded-full shadow-lg transition-transform duration-300 ease-in-out"
+                        style={{ transform: activeTab === 'detailed' ? 'translateX(100%)' : 'translateX(0)' }}
+                    />
+                    <button
+                        onClick={() => setActiveTab('monthly')}
+                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none ${
+                            activeTab === 'monthly' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
+                        }`}
+                    >
+                        📊 Monthly Summary
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('detailed')}
+                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none ${
+                            activeTab === 'detailed' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
+                        }`}
+                    >
+                        📋 Detailed Reports
+                    </button>
+                </div>
             </div>
 
             {activeTab === 'monthly' ? (
@@ -626,13 +628,13 @@ const Reports = () => {
                     <div className="p-6 text-center text-gray-500">No reports found</div>
                 ) : (
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-[#2E5090] text-white">
+                        <thead className="bg-[#1e1b4b] text-white">
                             <tr>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Details</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Details</th>
                                 <th className="px-4 py-3 text-left">
                                     <button
                                         onClick={() => handleSort('date')}
-                                        className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                     >
                                         Created Date <TableSortIcon column="date" sortConfig={sortConfig} />
                                     </button>
@@ -640,7 +642,7 @@ const Reports = () => {
                                 <th className="px-4 py-3 text-left">
                                     <button
                                         onClick={() => handleSort('staffName')}
-                                        className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                     >
                                         Staff <TableSortIcon column="staffName" sortConfig={sortConfig} />
                                     </button>
@@ -648,20 +650,20 @@ const Reports = () => {
                                 <th className="px-4 py-3 text-left">
                                     <button
                                         onClick={() => handleSort('type')}
-                                        className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                     >
                                         Type <TableSortIcon column="type" sortConfig={sortConfig} />
                                     </button>
                                 </th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Detail</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Start</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">End</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Duration</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Location</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Detail</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Start</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">End</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Location</th>
                                 <th className="px-4 py-3 text-left">
                                     <button
                                         onClick={() => handleSort('status')}
-                                        className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                     >
                                         Status <TableSortIcon column="status" sortConfig={sortConfig} />
                                     </button>

@@ -350,12 +350,12 @@ export default function LeaveTypes() {
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
-          <thead className="bg-[#2E5090]">
+          <thead className="bg-[#1e1b4b] text-white">
             <tr>
               <th className="px-6 py-3 text-left">
                 <button
                   onClick={() => handleSort('name')}
-                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                  className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                 >
                   Name <TableSortIcon column="name" sortConfig={sortConfig} />
                 </button>
@@ -363,7 +363,7 @@ export default function LeaveTypes() {
               <th className="px-6 py-3 text-left">
                 <button
                   onClick={() => handleSort('description')}
-                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                  className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                 >
                   Description <TableSortIcon column="description" sortConfig={sortConfig} />
                 </button>
@@ -371,7 +371,7 @@ export default function LeaveTypes() {
               <th className="px-6 py-3 text-left">
                 <button
                   onClick={() => handleSort('gender_restriction')}
-                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                  className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                 >
                   Gender <TableSortIcon column="gender_restriction" sortConfig={sortConfig} />
                 </button>
@@ -379,12 +379,12 @@ export default function LeaveTypes() {
               <th className="px-6 py-3 text-left">
                 <button
                   onClick={() => handleSort('status')}
-                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                  className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                 >
                   Status <TableSortIcon column="status" sortConfig={sortConfig} />
                 </button>
               </th>
-              <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
+              <th className="px-6 py-3 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
             </tr>
           </thead>
           <tbody>
