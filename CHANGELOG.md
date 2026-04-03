@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.4.0](https://github.com/roonaatech/wp_webapp/compare/v2.3.10...v2.4.0) (2026-04-03)
+
+
+### Features
+
+* implement MonthlySummaryReport component and integrate into reports page for employee performance tracking ([1ef4205](https://github.com/roonaatech/wp_webapp/commit/1ef4205a54ed91bd20fdc86e735ca8184f84fa4d))
+* implement URL-based authentication and mobile device redirection to My Requests page ([2c9152d](https://github.com/roonaatech/wp_webapp/commit/2c9152d641ebcdc2027b609b06652791c270d78a))
+* redesign MyRequests UI with custom SVG icons, updated tab styling, and enhanced empty state visuals ([17af157](https://github.com/roonaatech/wp_webapp/commit/17af15756221d5a9cf9c83401ef1158da0deeecf))
+* replace CSV export with Excel report generation using exceljs and file-saver in MonthlySummaryReport ([50e1db3](https://github.com/roonaatech/wp_webapp/commit/50e1db336f0d84a9a286500175ca3408b6d718ce))
+
+
+### Styles
+
+* update UI theme to indigo and sky blue color palette with refined typography and button styles ([9381b5d](https://github.com/roonaatech/wp_webapp/commit/9381b5dc2b7fb1ff5910337c94199f195c3a6fde))
+
+
+### Code Refactoring
+
+* update UI components with sliding tab switchers and standardized table header styling across pages ([88699c2](https://github.com/roonaatech/wp_webapp/commit/88699c25a023dfd3d67c659a56b930d993367360))
+
 ### [2.3.10](https://github.com/roonaatech/wp_webapp/compare/v2.3.9...v2.3.10) (2026-03-28)
 
 ### [2.3.9](https://github.com/roonaatech/wp_webapp/compare/v2.3.8...v2.3.9) (2026-03-05)
