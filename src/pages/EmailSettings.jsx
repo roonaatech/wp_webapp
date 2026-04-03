@@ -100,6 +100,7 @@ export default function EmailSettings() {
     }, [hasPermission]);
 
     const fetchConfig = async () => {
+        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const response = await axios.get(`${API_BASE_URL}/api/email/config`, {
@@ -110,10 +111,13 @@ export default function EmailSettings() {
             }
         } catch (err) {
             console.error('Error fetching email config:', err);
+        } finally {
+            setLoading(false);
         }
     };
 
     const fetchTemplates = async () => {
+        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const response = await axios.get(`${API_BASE_URL}/api/email/templates`, {
@@ -122,6 +126,8 @@ export default function EmailSettings() {
             setTemplates(response.data);
         } catch (err) {
             console.error('Error fetching templates:', err);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -224,7 +230,7 @@ export default function EmailSettings() {
             <h1 className="text-3xl font-bold text-gray-900 mb-6">Email Settings</h1>
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 mb-6">
+            <div className="flex border-b border-gray-200 mb-6 sticky top-0 bg-gray-50 z-10 transition-all duration-300">
                 <button
                     className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === 'config'
                         ? 'border-b-2 border-blue-600 text-blue-600'
@@ -244,6 +250,11 @@ export default function EmailSettings() {
                     Email Templates
                 </button>
             </div>
+
+            <div className="relative min-h-[400px]">
+                {loading && (
+                    <ModernLoader size="container" message="Fetching email settings..." />
+                )}
 
             {activeTab === 'config' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -544,6 +555,7 @@ export default function EmailSettings() {
                     )}
                 </div>
             )}
+            </div>
         </div>
     );
 }

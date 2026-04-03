@@ -226,10 +226,12 @@ const Calendar = () => {
         return null;
     }
 
-    if (loading) return <ModernLoader />;
-
     return (
-        <div>
+        <div className="relative min-h-[600px]">
+            {loading && (
+                <ModernLoader size="container" message="Fetching calendar events..." />
+            )}
+            <div>
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900">Calendar</h1>
@@ -578,6 +580,7 @@ const Calendar = () => {
                     </div>
                 </div>
 
+            </div>
             </div>
         </div>
     );

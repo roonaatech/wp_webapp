@@ -482,13 +482,13 @@ const Activities = () => {
             )}
 
             {/* Activities Table */}
-            {loading ? (
-                <ModernLoader size="lg" message="Loading activities..." fullScreen={true} />
-            ) : (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                    {activities.length > 0 ? (
-                        <>
-                            <div className="overflow-x-auto">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative min-h-[400px]">
+                {loading && (
+                    <ModernLoader size="container" message="Updating activities..." fullScreen={false} />
+                )}
+                {activities.length > 0 ? (
+                    <>
+                        <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead className="bg-[#1e1b4b] text-white">
                                         <tr>
@@ -691,7 +691,6 @@ const Activities = () => {
                         </div>
                     )}
                 </div>
-            )}
         </div>
     );
 };

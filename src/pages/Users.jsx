@@ -1368,7 +1368,10 @@ const Users = () => {
             </div>
 
             {/* Users Table */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden relative min-h-[450px]">
+                {loading && (
+                    <ModernLoader size="container" message="Updating user data..." fullScreen={false} />
+                )}
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-[#1e1b4b] text-white border-b border-[#1e1b4b]">
@@ -1425,13 +1428,7 @@ const Users = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={canManageUsers ? 7 : 6} className="px-6 py-8 text-center">
-                                        <ModernLoader size="md" message="Loading Users..." />
-                                    </td>
-                                </tr>
-                            ) : filteredUsers.length > 0 ? (
+                            {filteredUsers.length > 0 ? (
                                 filteredUsers.map((u) => (
                                     <React.Fragment key={u.staffid}>
                                         <tr className="hover:bg-gray-50 transition-colors">

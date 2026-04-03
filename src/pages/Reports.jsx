@@ -620,11 +620,11 @@ const Reports = () => {
                 </div>
             </div>
 
-            {/* Reports Table */}
-            <div className="overflow-x-auto bg-white rounded-lg border border-gray-100">
-                {loading ? (
-                    <div className="p-6"><ModernLoader size="lg" message="Loading Reports..." fullScreen={false} /></div>
-                ) : reports.length === 0 ? (
+            <div className="relative overflow-x-auto bg-white rounded-lg border border-gray-100 min-h-[400px]">
+                {loading && (
+                    <ModernLoader size="container" message="Updating reports..." fullScreen={false} />
+                )}
+                {reports.length === 0 && !loading ? (
                     <div className="p-6 text-center text-gray-500">No reports found</div>
                 ) : (
                     <table className="min-w-full divide-y divide-gray-200">

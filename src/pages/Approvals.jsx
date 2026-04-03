@@ -747,11 +747,6 @@ const Approvals = () => {
                 </div>
             )}
 
-            {loading ? (
-                <div className="flex items-center justify-center h-64">
-                    <ModernLoader size="lg" message="Loading..." />
-                </div>
-            ) : (
                 <div className="space-y-6">
                     {/* Section Switcher & Filters */}
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[var(--header-bg)] p-4 rounded-xl shadow-sm border border-[var(--border-color)]">
@@ -851,8 +846,13 @@ const Approvals = () => {
                         </div>
                     </div>
 
-                    {/* Main Table */}
-                    <div className="bg-[var(--header-bg)] rounded-xl shadow-lg overflow-hidden border border-[var(--border-color)]">
+                    {/* Main Table Area with Localized Loader */}
+                    <div className="relative min-h-[400px]">
+                        {loading && (
+                            <ModernLoader size="container" message="Fetching requests..." fullScreen={false} />
+                        )/* Localization: Overlay instead of full-page blur */}
+
+                        <div className="bg-[var(--header-bg)] rounded-xl shadow-lg overflow-hidden border border-[var(--border-color)]">
                         {expandedSections.leave && userPermissions.canApproveLeave && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
@@ -1279,7 +1279,7 @@ const Approvals = () => {
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
 
             {/* Rejection Reason Modal */}
             {rejectionModal.show && (

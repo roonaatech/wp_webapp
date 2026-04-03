@@ -228,11 +228,10 @@ export default function Settings() {
             </div>
 
             {/* Settings Categories */}
-            {loading ? (
-                <div className="flex items-center justify-center py-20">
-                    <ModernLoader />
-                </div>
-            ) : (
+            <div className="relative min-h-[400px]">
+                {loading && (
+                    <ModernLoader size="container" message="Fetching settings..." fullScreen={false} />
+                )}
                 <div className="space-y-6">
                     {settingsConfig.map((category, categoryIndex) => (
                         <div key={categoryIndex} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -340,7 +339,7 @@ export default function Settings() {
                         </div>
                     ))}
                 </div>
-            )}
+            </div>
 
             {/* Info Footer */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">

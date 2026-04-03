@@ -164,9 +164,6 @@ const ActiveOnDuty = () => {
         return null;
     }
 
-    if (loading) {
-        return <ModernLoader />;
-    }
 
     return (
         <div className="space-y-6">
@@ -216,7 +213,10 @@ const ActiveOnDuty = () => {
             )}
 
             {/* Records Table */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden relative min-h-[400px]">
+                {loading && (
+                    <ModernLoader size="container" message="Fetching on-duty data..." fullScreen={false} />
+                )/* Localization: Overlay instead of full-page blur */}
                 {sortedRecords.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
                         <div className="text-4xl mb-2">😴</div>

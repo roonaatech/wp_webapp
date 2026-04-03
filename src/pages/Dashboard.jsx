@@ -578,9 +578,10 @@ const Dashboard = () => {
                     </div>
                 )}
 
-                {loading ? (
-                    <ModernLoader size="lg" message="Loading Dashboard..." />
-                ) : (
+                <div className="relative min-h-[400px]">
+                    {loading && (
+                        <ModernLoader size="container" message="Fetching dashboard stats..." />
+                    )}
                     <div className={`transition-all duration-300 ${(approveModal.show || rejectModal.show) ? 'blur-sm' : ''}`}>
                         <>
                             {/* Pending Approvals Section - Redesigned */}
@@ -906,9 +907,7 @@ const Dashboard = () => {
                                     <p className="text-sm text-gray-600 mb-4">Shows the number of leave and on-duty approvals for each day. Select a predefined period or use custom date range.</p>
                                     <div className="relative w-full h-96">
                                         {trendLoading && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-lg z-10">
-                                                <ModernLoader />
-                                            </div>
+                                            <ModernLoader size="container" message="Updating trend data..." />
                                         )}
                                         <ResponsiveContainer width="100%" height={400}>
                                             <BarChart data={trendBarChartData} margin={{ top: 20, right: 30, left: 0, bottom: 40 }}>
@@ -977,7 +976,7 @@ const Dashboard = () => {
                             </div>
                         </>
                     </div>
-                )}
+                </div>
 
                 {/* Modals - Outside blurred content */}
                 {approveModal.show && (
