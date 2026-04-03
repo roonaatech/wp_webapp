@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.4.3](https://github.com/roonaatech/wp_webapp/compare/v2.4.2...v2.4.3) (2026-04-03)
+
+
+### Code Refactoring
+
+* update MonthlySummaryReport table layout and redesign Sidebar navigation styles and state management ([8306e26](https://github.com/roonaatech/wp_webapp/commit/8306e26c4363e8d0d15bd605c5075461e561f1d3))
+
 ### [2.4.2](https://github.com/roonaatech/wp_webapp/compare/v2.4.1...v2.4.2) (2026-04-03)
 
 ### [2.4.1](https://github.com/roonaatech/wp_webapp/compare/v2.4.0...v2.4.1) (2026-04-03)
