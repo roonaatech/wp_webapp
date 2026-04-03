@@ -171,7 +171,7 @@ const Sidebar = () => {
                     ${isCollapsed ? 'justify-center' : ''}
                     ${isActive(to)
                         ? 'bg-[var(--bg-primary)] text-[#1e1b4b] font-bold rounded-l-xl ml-4 rounded-r-none soft-arc-active'
-                        : 'text-gray-400 hover:bg-white/5 hover:text-white rounded-lg mx-4'
+                        : 'text-slate-200 hover:bg-white/5 hover:text-white rounded-lg mx-4'
                     }
                     ${indent && !isCollapsed ? (isActive(to) ? 'ml-8' : 'ml-8') + ' text-sm' : ''}
                 `}
@@ -238,7 +238,7 @@ const Sidebar = () => {
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className={`
                         p-2 rounded-md transition-colors duration-200 
-                        text-gray-400 hover:bg-white/10 hover:text-white
+                        text-slate-200 hover:bg-white/10 hover:text-white
                         ${isCollapsed ? 'w-full flex justify-center' : ''}
                     `}
                     title={isCollapsed ? 'Expand' : 'Collapse'}
@@ -251,7 +251,7 @@ const Sidebar = () => {
             <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
                 {!isCollapsed && (
                     <div>
-                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-widest px-6 mb-2">Overview</p>
+                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2">Overview</p>
                         <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
                     </div>
                 )}
@@ -261,7 +261,7 @@ const Sidebar = () => {
 
                 {!isCollapsed && (
                     <div>
-                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-widest px-6 mb-2 mt-4">Management</p>
+                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Management</p>
                         {/* Approvals - Both Admin and Manager */}
                         <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
                         {/* Active On-Duty - For users with can_manage_active_onduty permission */}
@@ -289,7 +289,7 @@ const Sidebar = () => {
                 {/* Configurations - Show if user has any configuration permission */}
                 {!isCollapsed && hasAnyConfigPermission && (
                     <div>
-                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-widest px-6 mb-2 mt-4">Configurations</p>
+                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Configurations</p>
                         {/* Users - Admin & those who can manage or view users */}
                         {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
@@ -310,7 +310,7 @@ const Sidebar = () => {
                                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                                     className={`
                                         w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors duration-200 mx-4 relative mb-1
-                                        text-gray-400 hover:bg-white/5 hover:text-white
+                                        text-slate-200 hover:bg-white/5 hover:text-white
                                     `}
                                 >
                                     <span className="text-xl flex-shrink-0"><LuSettings /></span>
@@ -359,7 +359,7 @@ const Sidebar = () => {
 
                 {!isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
                     <div>
-                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-widest px-6 mb-2 mt-4">Analysis</p>
+                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Analysis</p>
                         {canViewReportsPermission && (
                             <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
                         )}
@@ -369,7 +369,7 @@ const Sidebar = () => {
                         )}
 
                         <div className="mt-6 mb-3 border-t border-white/5 pt-6">
-                            <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-widest mb-4 px-6">Downloads</p>
+                            <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-4 px-6">Downloads</p>
                             <NavLink to="/apk" icon={<LuSmartphone />} label="Mobile App" />
                         </div>
                     </div>
