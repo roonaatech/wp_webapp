@@ -22,3 +22,28 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-main);
 }
+
+@layer components {
+  .soft-arc-active {
+    position: relative;
+    z-index: 1;
+  }
+  .soft-arc-active::before,
+  .soft-arc-active::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+  }
+  .soft-arc-active::before {
+    top: -20px;
+    background: radial-gradient(circle at top left, var(--sidebar-bg) 19.5px, var(--bg-primary) 20px);
+  }
+  .soft-arc-active::after {
+    bottom: -20px;
+    background: radial-gradient(circle at bottom left, var(--sidebar-bg) 19.5px, var(--bg-primary) 20px);
+  }
+}
+

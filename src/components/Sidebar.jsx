@@ -48,10 +48,20 @@ const Sidebar = () => {
         return saved ? JSON.parse(saved) : false;
     });
 
-    // Default settings menu to open if one of the setting pages is active
     const [isSettingsOpen, setIsSettingsOpen] = useState(() => {
         return location.pathname === '/email-settings' || location.pathname === '/settings';
     });
+    const [isSettingsFullyOpen, setIsSettingsFullyOpen] = useState(isSettingsOpen);
+
+    useEffect(() => {
+        let timeout;
+        if (isSettingsOpen) {
+            timeout = setTimeout(() => setIsSettingsFullyOpen(true), 300);
+        } else {
+            setIsSettingsFullyOpen(false);
+        }
+        return () => clearTimeout(timeout);
+    }, [isSettingsOpen]);
 
     useEffect(() => {
         fetchActiveOnDutyCount();
@@ -157,13 +167,13 @@ const Sidebar = () => {
                 onMouseEnter={(e) => handleMouseEnter(to, e)}
                 onMouseLeave={handleMouseLeave}
                 className={`
-                    flex items-center gap-3 px-4 py-1.5 rounded-xl transition-all duration-300 mx-2 relative
+                    flex items-center gap-3 px-4 py-2.5 transition-colors duration-200 relative
                     ${isCollapsed ? 'justify-center' : ''}
                     ${isActive(to)
-                        ? 'bg-[#1e1b4b] text-[#0ea5e9] border border-[#0ea5e9]/30 shadow-[0_0_15px_rgba(14,165,233,0.1)] font-bold'
-                        : 'text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[#0ea5e9]'
+                        ? 'bg-[var(--bg-primary)] text-[#1e1b4b] font-bold rounded-l-xl ml-4 rounded-r-none soft-arc-active'
+                        : 'text-gray-400 hover:bg-white/5 hover:text-white rounded-lg mx-4'
                     }
-                    ${indent && !isCollapsed ? 'ml-8 text-sm' : ''}
+                    ${indent && !isCollapsed ? (isActive(to) ? 'ml-8' : 'ml-8') + ' text-sm' : ''}
                 `}
             >
                 <span className={`${indent && !isCollapsed ? 'text-lg' : 'text-xl'} flex-shrink-0`}>{icon}</span>
@@ -214,7 +224,7 @@ const Sidebar = () => {
 
     return (
         <div className={`
-            bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] text-[var(--sidebar-text)] min-h-screen shadow-2xl flex flex-col font-sans transition-all duration-300
+            bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] min-h-screen flex flex-col font-sans transition-all duration-300
             ${isCollapsed ? 'w-20' : 'w-72'}
         `}>
             {/* Header with collapse button */}
@@ -227,8 +237,8 @@ const Sidebar = () => {
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className={`
-                        p-2 rounded-lg transition-all duration-300 
-                        text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]
+                        p-2 rounded-md transition-colors duration-200 
+                        text-gray-400 hover:bg-white/10 hover:text-white
                         ${isCollapsed ? 'w-full flex justify-center' : ''}
                     `}
                     title={isCollapsed ? 'Expand' : 'Collapse'}
@@ -238,10 +248,10 @@ const Sidebar = () => {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
+            <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
                 {!isCollapsed && (
                     <div>
-                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-[0.2em] px-6 mb-2">Overview</p>
+                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-widest px-6 mb-2">Overview</p>
                         <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
                     </div>
                 )}
@@ -251,7 +261,7 @@ const Sidebar = () => {
 
                 {!isCollapsed && (
                     <div>
-                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-[0.2em] px-6 mb-2 mt-4">Management</p>
+                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-widest px-6 mb-2 mt-4">Management</p>
                         {/* Approvals - Both Admin and Manager */}
                         <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
                         {/* Active On-Duty - For users with can_manage_active_onduty permission */}
@@ -279,7 +289,7 @@ const Sidebar = () => {
                 {/* Configurations - Show if user has any configuration permission */}
                 {!isCollapsed && hasAnyConfigPermission && (
                     <div>
-                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-[0.2em] px-6 mb-2 mt-4">Configurations</p>
+                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-widest px-6 mb-2 mt-4">Configurations</p>
                         {/* Users - Admin & those who can manage or view users */}
                         {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
@@ -299,8 +309,8 @@ const Sidebar = () => {
                                 <button
                                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                                     className={`
-                                        w-full flex items-center gap-3 px-4 py-1.5 rounded-xl transition-all duration-300 mx-2 relative mb-1
-                                        text-[var(--sidebar-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--sidebar-text)]
+                                        w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors duration-200 mx-4 relative mb-1
+                                        text-gray-400 hover:bg-white/5 hover:text-white
                                     `}
                                 >
                                     <span className="text-xl flex-shrink-0"><LuSettings /></span>
@@ -310,7 +320,7 @@ const Sidebar = () => {
                                     </span>
                                 </button>
 
-                                <div className={`transition-all duration-300 overflow-hidden ${isSettingsOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                <div className={`transition-all duration-300 ${isSettingsFullyOpen ? 'overflow-visible' : 'overflow-hidden'} ${isSettingsOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
                                     {/* Email Settings */}
                                     {canManageEmailPermission && (
                                         <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" indent={true} />
@@ -349,7 +359,7 @@ const Sidebar = () => {
 
                 {!isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
                     <div>
-                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-[0.2em] px-6 mb-2 mt-4">Analysis</p>
+                        <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-widest px-6 mb-2 mt-4">Analysis</p>
                         {canViewReportsPermission && (
                             <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
                         )}
@@ -358,8 +368,8 @@ const Sidebar = () => {
                             <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
                         )}
 
-                        <div className="mt-6 mb-3 px-6 border-t border-[var(--border-color)] pt-6">
-                            <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-[0.2em] mb-4">Downloads</p>
+                        <div className="mt-6 mb-3 border-t border-white/5 pt-6">
+                            <p className="text-[10px] font-black text-[#0ea5e9] uppercase tracking-widest mb-4 px-6">Downloads</p>
                             <NavLink to="/apk" icon={<LuSmartphone />} label="Mobile App" />
                         </div>
                     </div>
@@ -380,7 +390,7 @@ const Sidebar = () => {
 
             {/* Footer */}
             {!isCollapsed && (
-                <div className="p-6 border-t border-[var(--border-color)]">
+                <div className="p-6 border-t border-white/5">
                     <p className="text-[10px] text-[var(--sidebar-text)] text-center font-medium tracking-widest uppercase">
                         WORKPULSE v{packageJson.version}
                     </p>

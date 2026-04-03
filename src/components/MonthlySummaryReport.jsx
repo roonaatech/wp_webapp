@@ -355,7 +355,8 @@ const MonthlySummaryReport = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-[#1e1b4b]">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-widest">#</th>
+                                <th className="px-4 py-3 text-left w-12"></th>
+                                <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-widest w-12">#</th>
                                 <th className="px-4 py-3 text-left cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('name')}>
                                     <span className="text-xs font-black text-white uppercase tracking-widest">Employee<SortIcon col="name" /></span>
                                 </th>
@@ -375,16 +376,14 @@ const MonthlySummaryReport = () => {
                             {sortedSummary.map((s, idx) => (
                                 <React.Fragment key={s.staff_id}>
                                     <tr className={`hover:bg-[#f0f9ff]/50 transition-colors ${expandedRows[s.staff_id] ? 'bg-[#f0f9ff]/30' : ''}`}>
-                                        <td className="px-4 py-3 text-sm text-gray-400 font-medium">
-                                            {s.records && s.records.length > 0 ? (
-                                                <button onClick={() => toggleRow(s.staff_id)} className="text-[#0ea5e9] hover:text-blue-700 transition-colors mr-2 align-middle inline-flex items-center gap-1 font-black">
-                                                    {expandedRows[s.staff_id] ? <FiMinusCircle size={14}/> : <FiPlusCircle size={14}/>}
-                                                    {idx + 1}
+                                        <td className="px-4 py-3 text-center">
+                                            {s.records && s.records.length > 0 && (
+                                                <button onClick={() => toggleRow(s.staff_id)} className="text-[#0ea5e9] hover:text-blue-700 transition-colors inline-flex items-center font-black">
+                                                    {expandedRows[s.staff_id] ? <FiMinusCircle size={16}/> : <FiPlusCircle size={16}/>}
                                                 </button>
-                                            ) : (
-                                                <span className="ml-5">{idx + 1}</span>
                                             )}
                                         </td>
+                                        <td className="px-4 py-3 text-sm text-gray-400 font-medium">{idx + 1}</td>
                                         <td className="px-4 py-3 text-sm font-bold text-gray-900">{s.firstname} {s.lastname}</td>
                                         <td className="px-4 py-3 text-sm text-gray-500">{s.email}</td>
                                         <td className="px-4 py-3 text-center">
@@ -411,7 +410,7 @@ const MonthlySummaryReport = () => {
                                     </tr>
                                     {expandedRows[s.staff_id] && s.records && s.records.length > 0 && (
                                         <tr>
-                                            <td colSpan={6} className="px-8 py-3 bg-[#f8fafc] border-b border-gray-100">
+                                            <td colSpan={7} className="px-8 py-3 bg-[#f8fafc] border-b border-gray-100">
                                                 <div className="rounded-xl overflow-hidden shadow-sm border border-gray-200 bg-white inline-block w-full">
                                                     <table className="min-w-full divide-y divide-gray-100">
                                                         <thead className="bg-[#1e1b4b]/5">
@@ -444,7 +443,7 @@ const MonthlySummaryReport = () => {
                                 </React.Fragment>
                             ))}
                             <tr className="bg-[#1e1b4b]/5 font-black">
-                                <td colSpan={3} className="px-4 py-3 text-sm text-[#1e1b4b] uppercase tracking-widest text-right">Total (Approved Only)</td>
+                                <td colSpan={4} className="px-4 py-3 text-sm text-[#1e1b4b] uppercase tracking-widest text-right">Total (Approved Only)</td>
                                 <td className="px-4 py-3 text-center text-sm text-orange-600">{totals.leave_days} {totals.leave_days === 1 ? 'day' : 'days'}</td>
                                 <td className="px-4 py-3 text-center text-sm text-teal-600">{formatHours(0, totals.timeoff_minutes)}</td>
                                 <td className="px-4 py-3 text-center text-sm text-[#0ea5e9]">{formatHours(0, totals.onduty_minutes)}</td>
