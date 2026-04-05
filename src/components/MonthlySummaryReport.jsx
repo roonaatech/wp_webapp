@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from './ModernLoader';
-import { getCurrentInAppTimezone } from '../utils/timezone.util';
+import { getCurrentInAppTimezone, formatDateOnly, formatTimeOnly } from '../utils/timezone.util';
 import { FiPlusCircle, FiMinusCircle } from 'react-icons/fi';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -220,10 +220,24 @@ const MonthlySummaryReport = () => {
 
                 if (s.records && s.records.length > 0) {
                     s.records.forEach(rec => {
+                        let displayDate = rec.date;
+                        let displayDuration = rec.duration;
+
+                        if (rec.type === 'Leave') {
+                            displayDate = rec.start_date === rec.end_date 
+                                ? formatDateOnly(rec.start_date)
+                                : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`;
+                        } else if (rec.type === 'Time-Off' || rec.type === 'On-Duty') {
+                            displayDate = formatDateOnly(rec.date);
+                            const durationMatch = rec.duration.match(/\((.+)\)$/);
+                            const durationSuffix = durationMatch ? ` (${durationMatch[1]})` : "";
+                            displayDuration = `${formatTimeOnly(rec.start_time)} to ${formatTimeOnly(rec.end_time)}${durationSuffix}`;
+                        }
+
                         const row = sheet.addRow({
                             type: rec.type,
-                            date: rec.date,
-                            duration: rec.duration,
+                            date: displayDate,
+                            duration: displayDuration,
                             detail: rec.detail || 'N/A'
                         });
                         row.eachCell(cell => {
@@ -273,43 +287,53 @@ const MonthlySummaryReport = () => {
 
     return (
         <div>
-            {/* Filter Bar */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-                <div className="flex flex-col md:flex-row items-start md:items-end gap-4">
-                    <div className="flex-1">
-                        <label className="block text-xs font-black text-[#1e1b4b] mb-2 uppercase tracking-widest">Month</label>
+            {/* Export Button */}
+            <div className="mb-4 flex justify-end">
+                <button
+                    onClick={exportExcel}
+                    disabled={summary.length === 0}
+                    className="group relative overflow-hidden px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center gap-2 z-10"
+                >
+                    <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
+                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                    📥 Export to Excel
+                </button>
+            </div>
+
+            {/* Summary Stats */}
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="text-sm text-gray-500">
+                    <span className="font-medium text-gray-700">Total Records Found:</span> {summary.length}
+                </div>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
                         <select
                             value={month}
                             onChange={(e) => setMonth(parseInt(e.target.value))}
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]/30 focus:border-[#0ea5e9] text-sm font-medium bg-gray-50"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 bg-white"
                         >
                             {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                         </select>
                     </div>
-                    <div className="flex-1">
-                        <label className="block text-xs font-black text-[#1e1b4b] mb-2 uppercase tracking-widest">Year</label>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
                         <select
                             value={year}
                             onChange={(e) => setYear(parseInt(e.target.value))}
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]/30 focus:border-[#0ea5e9] text-sm font-medium bg-gray-50"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 bg-white"
                         >
                             {years.map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                     </div>
-                    <div className="flex gap-3">
-
-                        <button
-                            onClick={exportExcel}
-                            disabled={summary.length === 0}
-                            className="px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:-translate-y-0.5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                            📥 Export
-                        </button>
-                    </div>
                 </div>
                 {period && (
-                    <p className="mt-3 text-xs text-gray-400 font-medium">
-                        Showing approved records for <span className="text-[#0ea5e9] font-black">{MONTHS[month - 1]} {year}</span> ({period})
+                    <p className="mt-4 text-xs text-gray-500 text-center">
+                        Showing approved records for <span className="font-semibold">{MONTHS[month - 1]} {year}</span> ({period.includes(' to ') ? period.split(' to ').map(d => formatDateOnly(d.trim())).join(' to ') : formatDateOnly(period)})
                     </p>
                 )}
             </div>
@@ -429,8 +453,16 @@ const MonthlySummaryReport = () => {
                                                                             {rec.type}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-4 py-2 text-xs text-gray-600 font-medium align-top">{rec.date}</td>
-                                                                    <td className="px-4 py-2 text-xs text-gray-800 font-bold align-top">{rec.duration}</td>
+                                                                    <td className="px-4 py-2 text-xs text-gray-600 font-medium align-top">
+                                                                        {rec.type === 'Leave' 
+                                                                            ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
+                                                                            : formatDateOnly(rec.date)}
+                                                                    </td>
+                                                                    <td className="px-4 py-2 text-xs text-gray-800 font-bold align-top">
+                                                                        {rec.type === 'Leave' 
+                                                                            ? rec.duration 
+                                                                            : `${formatTimeOnly(rec.start_time)} to ${formatTimeOnly(rec.end_time)}${rec.duration.match(/\((.+)\)$/) ? ` (${rec.duration.match(/\((.+)\)$/)[1]})` : ""}`}
+                                                                    </td>
                                                                     <td className="px-4 py-2 text-xs text-gray-600 align-top break-words">{rec.detail}</td>
                                                                 </tr>
                                                             ))}

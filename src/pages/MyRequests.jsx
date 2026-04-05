@@ -1722,6 +1722,10 @@ const MyRequests = () => {
                                     <p className="text-sm font-semibold text-gray-800">
                                         {formatDate(selectedDetail.date)} · {formatTime12(selectedDetail.start_time)} - {formatTime12(selectedDetail.end_time)}
                                     </p>
+                                ) : detailType === 'onduty' ? (
+                                    <p className="text-sm font-semibold text-gray-800">
+                                        {formatDate(selectedDetail.start)} · {formatTime12(selectedDetail.start)} → {selectedDetail.end ? `${formatDate(selectedDetail.end)} · ${formatTime12(selectedDetail.end)}` : 'Active'}
+                                    </p>
                                 ) : (
                                     <p className="text-sm font-semibold text-gray-800">
                                         {formatDate(selectedDetail.start_date || selectedDetail.start)} → {formatDate(selectedDetail.end_date || selectedDetail.end)}

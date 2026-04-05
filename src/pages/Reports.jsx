@@ -358,7 +358,17 @@ const Reports = () => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `attendance-report-${getCurrentInAppTimezone().date}.csv`;
+            // Generate filename using Monthly Report convention
+            const dateObj = new Date();
+            const dd = String(dateObj.getDate()).padStart(2, '0');
+            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const yy = String(dateObj.getFullYear()).slice(-2);
+            const hh = String(dateObj.getHours()).padStart(2, '0');
+            const mmm = String(dateObj.getMinutes()).padStart(2, '0');
+            const sss = String(dateObj.getSeconds()).padStart(2, '0');
+            const formattedDate = `${dd}-${mm}-${yy}_${hh}${mmm}${sss}`;
+
+            a.download = `WorkPulse_Detailed_Report_${formattedDate}.csv`;
             a.click();
             window.URL.revokeObjectURL(url);
         } catch (err) {
@@ -462,8 +472,9 @@ const Reports = () => {
                 <button
                     onClick={downloadCSV}
                     disabled={reports.length === 0}
-                    className="px-6 py-2.5 bg-[#1e1b4b] text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:-translate-y-0.5 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="group relative overflow-hidden px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center gap-2 z-10"
                 >
+                    <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
                     <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
                     📥 Export to CSV
                 </button>
