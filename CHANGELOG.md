@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.4.6](https://github.com/roonaatech/wp_webapp/compare/v2.4.5...v2.4.6) (2026-04-05)
+
+
+### Features
+
+* enhance MonthlySummaryReport UI, improve date/time formatting in exports, and update request detail views ([3c0212f](https://github.com/roonaatech/wp_webapp/commit/3c0212f51420c2085e658c726a8c5476947d8cd8))
+
+
+### Code Refactoring
+
+* modernize Login page UI layout and styling for improved responsiveness and consistency ([ec7a091](https://github.com/roonaatech/wp_webapp/commit/ec7a091ccd91d9ad1f59ee3da670fe9becef9a46))
+
 ### [2.4.5](https://github.com/roonaatech/wp_webapp/compare/v2.4.4...v2.4.5) (2026-04-03)
 
 ### [2.4.4](https://github.com/roonaatech/wp_webapp/compare/v2.4.3...v2.4.4) (2026-04-03)
