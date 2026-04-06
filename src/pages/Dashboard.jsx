@@ -21,7 +21,8 @@ ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearSca
 const Dashboard = () => {
     // Approve/Reject API call for pending approvals
     const performStatusUpdate = async (item, status, isLeave, rejectionReason = null) => {
-        const itemKey = `${isLeave ? 'leave' : 'onduty'}-${item.id}-${status}`;
+        const typeKey = item.type === 'leave' ? 'leave' : (item.type === 'time_off' ? 'timeoff' : 'onduty');
+        const itemKey = `${typeKey}-${item.id}-${status}`;
         setProcessingId(itemKey);
         try {
             const token = localStorage.getItem('token');
@@ -31,9 +32,14 @@ const Dashboard = () => {
                 return;
             }
 
-            const endpoint = isLeave
-                ? `${API_BASE_URL}/api/leave/${item.id}/status`
-                : `${API_BASE_URL}/api/onduty/${item.id}/status`;
+            let endpoint = '';
+            if (item.type === 'leave') {
+                endpoint = `${API_BASE_URL}/api/leave/${item.id}/status`;
+            } else if (item.type === 'time_off') {
+                endpoint = `${API_BASE_URL}/api/timeoff/${item.id}/status`;
+            } else {
+                endpoint = `${API_BASE_URL}/api/onduty/${item.id}/status`;
+            }
 
             let statusStr = 'Pending';
             if (status === 'approved') statusStr = 'Approved';
@@ -56,8 +62,9 @@ const Dashboard = () => {
 
             // Optionally, refresh stats
             fetchDashboardStats();
-            const employeeName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : 'Request';
-            toast.success(`${employeeName}'s ${isLeave ? 'leave' : 'on-duty'} ${statusStr.toLowerCase()} successfully`, {
+            const typeLabel = item.type === 'leave' ? 'leave' : (item.type === 'time_off' ? 'time-off' : 'on-duty');
+            const employeeName = item.name || 'Request';
+            toast.success(`${employeeName}'s ${typeLabel} ${statusStr.toLowerCase()} successfully`, {
                 style: {
                     background: statusStr === 'Approved' ? '#059669' : '#dc2626',
                     color: '#fff'
@@ -67,7 +74,6 @@ const Dashboard = () => {
             console.error('Error updating status:', error);
             const errorMsg = error.response?.data?.message || 'Failed to update request';
             setModalError(errorMsg);
-            toast.error(errorMsg);
         } finally {
             setProcessingId(null);
         }
@@ -992,21 +998,28 @@ const Dashboard = () => {
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {approveModal.item?.title}</p>
                                     <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item?.start_date, approveModal.item?.end_date, approveModal.isLeave)}</p>
                                 </div>
-                                {modalError && <div className="text-red-600 text-sm mb-2">{modalError}</div>}
+                                {modalError && (
+                                    <div className="mb-3 flex items-center gap-3 rounded-lg border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-4 py-3 shadow-sm">
+                                        <svg className="h-5 w-5 flex-shrink-0 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                                        </svg>
+                                        <p className="text-[13px] font-semibold text-red-700">{modalError}</p>
+                                    </div>
+                                )}
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => setApproveModal({ show: false, item: null, isLeave: false })}
-                                        disabled={processingId === `leave-${approveModal.item?.id}-approved` || processingId === `onduty-${approveModal.item?.id}-approved`}
+                                        disabled={!!processingId}
                                         className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         onClick={async () => await performStatusUpdate(approveModal.item, 'approved', approveModal.isLeave)}
-                                        disabled={processingId === `leave-${approveModal.item?.id}-approved` || processingId === `onduty-${approveModal.item?.id}-approved`}
+                                        disabled={!!processingId}
                                         className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
                                     >
-                                        {processingId === `leave-${approveModal.item?.id}-approved` || processingId === `onduty-${approveModal.item?.id}-approved` ? (
+                                        {!!processingId ? (
                                             <>
                                                 <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                                                 <span>Processing...</span>
@@ -1041,11 +1054,18 @@ const Dashboard = () => {
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
                                     rows="4"
                                 />
-                                {modalError && <div className="text-red-600 text-sm mb-2">{modalError}</div>}
+                                {modalError && (
+                                    <div className="mb-3 flex items-center gap-3 rounded-lg border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-4 py-3 shadow-sm">
+                                        <svg className="h-5 w-5 flex-shrink-0 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                                        </svg>
+                                        <p className="text-[13px] font-semibold text-red-700">{modalError}</p>
+                                    </div>
+                                )}
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => setRejectModal({ show: false, item: null, isLeave: false, reason: '' })}
-                                        disabled={processingId === `leave-${rejectModal.item?.id}-rejected` || processingId === `onduty-${rejectModal.item?.id}-rejected`}
+                                        disabled={!!processingId}
                                         className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium"
                                     >
                                         Cancel
@@ -1058,10 +1078,10 @@ const Dashboard = () => {
                                             }
                                             await performStatusUpdate(rejectModal.item, 'rejected', rejectModal.isLeave, rejectModal.reason);
                                         }}
-                                        disabled={processingId === `leave-${rejectModal.item?.id}-rejected` || processingId === `onduty-${rejectModal.item?.id}-rejected`}
+                                        disabled={!!processingId}
                                         className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
                                     >
-                                        {processingId === `leave-${rejectModal.item?.id}-rejected` || processingId === `onduty-${rejectModal.item?.id}-rejected` ? (
+                                        {!!processingId ? (
                                             <>
                                                 <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                                                 <span>Processing...</span>

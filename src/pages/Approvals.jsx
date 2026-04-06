@@ -143,6 +143,14 @@ const Approvals = () => {
         }
     }, [permissionChecked, hasPermission, statusFilter, rowsPerPage, currentPage, nameFilter, leaveTypeFilter]);
 
+    // Auto-dismiss error after 5 seconds
+    useEffect(() => {
+        if (error) {
+            const timer = setTimeout(() => setError(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error]);
+
     const fetchApprovals = async (page = 1, isManualRefresh = false) => {
         try {
             if (isManualRefresh) {
@@ -352,7 +360,7 @@ const Approvals = () => {
             console.error('Error updating status:', error);
             const errorMsg = error.response?.data?.message || 'Failed to update request';
             setError(errorMsg);
-            toast.error(errorMsg);
+            // Removed extra toast popup per user request
         } finally {
             setProcessingId(null);
         }
@@ -474,7 +482,7 @@ const Approvals = () => {
             console.error('Error performing bulk update:', error);
             const errorMsg = error.response?.data?.message || 'Failed to perform bulk action';
             setError(errorMsg);
-            toast.error(errorMsg);
+            // Removed extra toast popup per user request
         } finally {
             setBulkProcessing(false);
         }
@@ -528,7 +536,7 @@ const Approvals = () => {
             console.error('Error updating rejection reason:', error);
             const errorMsg = error.response?.data?.message || 'Failed to update rejection reason';
             setError(errorMsg);
-            toast.error(errorMsg);
+            // Removed extra toast popup per user request
         } finally {
             setProcessingId(null);
         }
@@ -742,8 +750,11 @@ const Approvals = () => {
             </div>
 
             {error && (
-                <div className="mb-6 p-4 bg-red-50 text-red-800 rounded-lg border border-red-200">
-                    <p className="font-medium">⚠️ {error}</p>
+                <div className="mb-6 flex items-center gap-4 rounded-xl border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-6 py-5 shadow-sm transition-all">
+                    <svg className="h-7 w-7 flex-shrink-0 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                    </svg>
+                    <p className="text-[16px] font-semibold text-red-700">{error}</p>
                 </div>
             )}
 
