@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.4.8](https://github.com/roonaatech/wp_webapp/compare/v2.4.7...v2.4.8) (2026-04-06)
+
+
+### Code Refactoring
+
+* unify date range parameter handling by passing start and end dates directly to the reports API ([190cd3c](https://github.com/roonaatech/wp_webapp/commit/190cd3c7d4787857b9bb179838036d5eb52f2b5d))
+
 ### [2.4.7](https://github.com/roonaatech/wp_webapp/compare/v2.4.6...v2.4.7) (2026-04-06)
 
 ### [2.4.6](https://github.com/roonaatech/wp_webapp/compare/v2.4.5...v2.4.6) (2026-04-05)
