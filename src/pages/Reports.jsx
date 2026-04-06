@@ -117,12 +117,10 @@ const Reports = () => {
                 status: statusFilter
             };
 
-            // Date range handling: custom start/end takes precedence
-            if (datePreset === 'custom' && startDate && endDate) {
+            // Date range handling: pass pre-calculated dates to backend directly for any preset
+            if (datePreset !== 'all' && startDate && endDate) {
                 params.startDate = startDate;
                 params.endDate = endDate;
-            } else {
-                params.dateFilter = datePreset || 'all';
             }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/reports`, {
@@ -271,9 +269,14 @@ const Reports = () => {
                 limit: 1000, // Reasonable limit for export
                 type: typeFilter,
                 userId: selectedUserId,
-                dateFilter,
                 status: statusFilter
             };
+
+            // Date range handling: pass pre-calculated dates to backend directly for any preset
+            if (datePreset !== 'all' && startDate && endDate) {
+                params.startDate = startDate;
+                params.endDate = endDate;
+            }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/reports`, {
                 headers: { 'x-access-token': token },
