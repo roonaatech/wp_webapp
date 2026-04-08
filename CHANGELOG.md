@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.5.0](https://github.com/roonaatech/wp_webapp/compare/v2.4.8...v2.5.0) (2026-04-08)
+
+
+### Features
+
+* implement inactivity timer and auto-logout functionality with session warning overlay ([a3e8dd2](https://github.com/roonaatech/wp_webapp/commit/a3e8dd21aae6624ba36e3e80c5e6ee549c9fec59))
+
+
+### Code Refactoring
+
+* enhance error UI with auto-dismissal, remove redundant toasts, and add time-off support to dashboard status updates ([67a2f8b](https://github.com/roonaatech/wp_webapp/commit/67a2f8bae9329c9e5e51bf7236d98a948b200449))
+
 ### [2.4.8](https://github.com/roonaatech/wp_webapp/compare/v2.4.7...v2.4.8) (2026-04-06)
 
 
