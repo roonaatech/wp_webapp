@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import AxiosInterceptorSetup from './components/AxiosInterceptorSetup';
+import InactivityGuard from './components/InactivityGuard';
 import { Toaster } from 'react-hot-toast';
 import axios from 'axios';
 import API_BASE_URL from './config/api.config';
@@ -101,6 +102,7 @@ function App() {
   return (
     <Router>
       <AxiosInterceptorSetup>
+        <InactivityGuard />
         <GlobalInit>
           <Toaster
             position="top-right"
