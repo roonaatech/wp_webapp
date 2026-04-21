@@ -89,6 +89,7 @@ const MyRequests = () => {
     const [leaveStartDate, setLeaveStartDate] = useState('');
     const [leaveEndDate, setLeaveEndDate] = useState('');
     const [leaveReason, setLeaveReason] = useState('');
+    const [leaveHalfDay, setLeaveHalfDay] = useState(false);
     const [leaveSubmitting, setLeaveSubmitting] = useState(false);
     const [myLeaves, setMyLeaves] = useState([]);
     const [leavesLoading, setLeavesLoading] = useState(false);
@@ -121,6 +122,7 @@ const MyRequests = () => {
     const [editLeaveStart, setEditLeaveStart] = useState('');
     const [editLeaveEnd, setEditLeaveEnd] = useState('');
     const [editLeaveReason, setEditLeaveReason] = useState('');
+    const [editLeaveHalfDay, setEditLeaveHalfDay] = useState(false);
     const [editLeaveSubmitting, setEditLeaveSubmitting] = useState(false);
 
     const [editingOnDuty, setEditingOnDuty] = useState(null);
@@ -244,13 +246,15 @@ const MyRequests = () => {
                 leave_type: selectedLeaveType,
                 start_date: leaveStartDate,
                 end_date: leaveEndDate,
-                reason: leaveReason.trim()
+                reason: leaveReason.trim(),
+                is_half_day: leaveHalfDay
             }, { headers });
             toast.success('Leave applied successfully!');
             setSelectedLeaveType('');
             setLeaveStartDate('');
             setLeaveEndDate('');
             setLeaveReason('');
+            setLeaveHalfDay(false);
         } catch (e) {
             toast.error(e.response?.data?.message || 'Failed to apply leave');
         } finally { setLeaveSubmitting(false); }
@@ -426,6 +430,7 @@ const MyRequests = () => {
         setEditLeaveStart(leave.start || leave.start_date || '');
         setEditLeaveEnd(leave.end || leave.end_date || '');
         setEditLeaveReason(leave.subtitle || leave.reason || '');
+        setEditLeaveHalfDay(leave.is_half_day == 1 || leave.is_half_day === true);
     };
 
     const handleEditLeave = async (id) => {
@@ -439,7 +444,8 @@ const MyRequests = () => {
                 leave_type: editLeaveType,
                 start_date: editLeaveStart,
                 end_date: editLeaveEnd,
-                reason: editLeaveReason.trim()
+                reason: editLeaveReason.trim(),
+                is_half_day: editLeaveHalfDay
             }, { headers });
             toast.success('Leave updated!');
             setEditingLeave(null);
@@ -860,10 +866,19 @@ const MyRequests = () => {
                                 </div>
                             </div>
                             {leaveStartDate && leaveEndDate && (
-                                <div className="mt-3 px-3 py-2 bg-blue-50 rounded-xl">
+                                <div className="mt-3 px-3 py-2 bg-blue-50 rounded-xl space-y-2">
                                     <p className="text-xs font-bold text-blue-600">
-                                        📅 {calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate)} day(s) <span className="text-blue-400 font-medium">(Sundays excluded)</span>
+                                        📅 {calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate) - (leaveHalfDay ? 0.5 : 0)} day(s) <span className="text-blue-400 font-medium">(Sundays excluded)</span>
                                     </p>
+                                    <label className="flex flex-row items-center gap-2 cursor-pointer mt-1 border-t border-blue-100 pt-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={leaveHalfDay}
+                                            onChange={(e) => setLeaveHalfDay(e.target.checked)}
+                                            className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
+                                        />
+                                        <span className="text-xs font-medium text-blue-800">Half Day Leave <span className="text-blue-500 text-[10px] font-normal">(reduces total duration by 0.5)</span></span>
+                                    </label>
                                 </div>
                             )}
                         </div>
@@ -957,6 +972,17 @@ const MyRequests = () => {
                                                     if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
                                                     setEditLeaveEnd(val);
                                                 }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                <label className="flex items-center gap-2 cursor-pointer mt-1 mb-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={editLeaveHalfDay}
+                                                        onChange={(e) => setEditLeaveHalfDay(e.target.checked)}
+                                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                    />
+                                                    <span className="text-xs font-medium text-gray-700">Half Day Leave</span>
+                                                </label>
                                             </div>
                                             <textarea value={editLeaveReason} onChange={(e) => setEditLeaveReason(e.target.value)} rows={2} placeholder="Reason" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all resize-none" />
                                             <button
@@ -1738,7 +1764,7 @@ const MyRequests = () => {
                                 <div className="bg-indigo-50 rounded-xl p-3 flex items-center gap-2">
                                     <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     <span className="text-sm font-semibold text-indigo-700">
-                                        Duration: {calculateLeaveDaysExcludingSunday(selectedDetail.start_date || selectedDetail.start, selectedDetail.end_date || selectedDetail.end)} day(s)
+                                        Duration: {calculateLeaveDaysExcludingSunday(selectedDetail.start_date || selectedDetail.start, selectedDetail.end_date || selectedDetail.end) - (selectedDetail.is_half_day === true || selectedDetail.is_half_day === 1 ? 0.5 : 0)} day(s)
                                         <span className="text-xs font-normal text-indigo-400 ml-1">(excl. Sundays)</span>
                                     </span>
                                 </div>

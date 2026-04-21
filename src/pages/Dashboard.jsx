@@ -290,6 +290,7 @@ const Dashboard = () => {
                     title: item.type === 'leave' ? item.title : (item.type === 'time_off' ? 'Time-Off' : item.title.replace('On-Duty: ', '')),
                     start_date: item.start_date,
                     end_date: item.end_date,
+                    is_half_day: item.is_half_day,
                     status: item.status,
                     createdAt: item.createdAt,
                     // Additional fields for modal
@@ -313,13 +314,13 @@ const Dashboard = () => {
         }
     };
 
-    const formatDateForModal = (startDateString, endDateString = null, isLeave = false) => {
+    const formatDateForModal = (startDateString, endDateString = null, isLeave = false, isHalfDay = false) => {
         if (!startDateString) return 'N/A';
         const startFormatted = isLeave ? formatDateOnly(startDateString) : formatInTimezone(startDateString);
 
         if (isLeave && endDateString) {
             const endFormatted = formatDateOnly(endDateString);
-            const daysCount = calculateLeaveDays(startDateString, endDateString);
+            const daysCount = calculateLeaveDays(startDateString, endDateString) - (isHalfDay ? 0.5 : 0);
             const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
 
             if (startFormatted !== endFormatted) {
@@ -645,7 +646,7 @@ const Dashboard = () => {
                                                             {item.type === 'leave' ? (
                                                                 <span className="text-red-500">
                                                                     {(() => {
-                                                                        const count = calculateLeaveDays(item.start_date, item.end_date);
+                                                                        const count = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
                                                                         return `${count} Day${count === 1 ? '' : 's'}`;
                                                                     })()}
                                                                 </span>
@@ -996,7 +997,7 @@ const Dashboard = () => {
                                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {approveModal.item?.name}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {approveModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item?.start_date, approveModal.item?.end_date, approveModal.isLeave)}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item?.start_date, approveModal.item?.end_date, approveModal.isLeave, approveModal.item?.is_half_day)}</p>
                                 </div>
                                 {modalError && (
                                     <div className="mb-3 flex items-center gap-3 rounded-lg border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-4 py-3 shadow-sm">
@@ -1045,7 +1046,7 @@ const Dashboard = () => {
                                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {rejectModal.item?.name}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {rejectModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item?.start_date, rejectModal.item?.end_date, rejectModal.isLeave)}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item?.start_date, rejectModal.item?.end_date, rejectModal.isLeave, rejectModal.item?.is_half_day)}</p>
                                 </div>
                                 <textarea
                                     value={rejectModal.reason}
@@ -1166,7 +1167,7 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.isLeave
-                                                ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date)} Day(s)`
+                                                ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0)} Day(s)`
                                                 : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time)
                                             }
                                         </p>

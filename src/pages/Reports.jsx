@@ -314,7 +314,7 @@ const Reports = () => {
                 if (isLeave) {
                     const effectiveStart = (startDate && report.start_date < startDate) ? startDate : report.start_date;
                     const effectiveEnd = (endDate && report.end_date > endDate) ? endDate : report.end_date;
-                    const days = calculateLeaveDays(effectiveStart, effectiveEnd);
+                    const days = calculateLeaveDays(effectiveStart, effectiveEnd) - (report.is_half_day === true || report.is_half_day === 1 ? 0.5 : 0);
                     duration = days + ' day' + (days > 1 ? 's' : '');
                 } else if (isTimeOff) {
                     duration = calculateTimeOffDuration(report.start_time, report.end_time);
@@ -703,7 +703,7 @@ const Reports = () => {
                                 const durationCell = isLeave ? (report.start_date && report.end_date ? (() => {
                                     const effectiveStart = (startDate && report.start_date < startDate) ? startDate : report.start_date;
                                     const effectiveEnd = (endDate && report.end_date > endDate) ? endDate : report.end_date;
-                                    const days = calculateLeaveDays(effectiveStart, effectiveEnd);
+                                    const days = calculateLeaveDays(effectiveStart, effectiveEnd) - (report.is_half_day === true || report.is_half_day === 1 ? 0.5 : 0);
                                     return `${days} day(s)`;
                                 })() : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
                                 const locationCell = isLeave || isTimeOff ? 'N/A' : (report.location || report.client_name || 'N/A');

@@ -184,6 +184,7 @@ const Approvals = () => {
                 reason: item.reason,
                 start_date: item.start_date,
                 end_date: item.end_date,
+                is_half_day: item.is_half_day,
                 status: item.status,
                 rejection_reason: item.rejection_reason,
                 manager_id: item.manager_id,
@@ -924,7 +925,7 @@ const Approvals = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-600">
-                                                        {calculateLeaveDays(req.start_date, req.end_date)} Days
+                                                        {calculateLeaveDays(req.start_date, req.end_date) - (req.is_half_day === true || req.is_half_day === 1 ? 0.5 : 0)} Days
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <div className="text-sm text-gray-900">
@@ -1559,7 +1560,7 @@ const Approvals = () => {
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                     <p className="text-base font-semibold text-gray-900">
                                         {detailsModal.type === 'leave'
-                                            ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date)} Day(s)`
+                                            ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0)} Day(s)`
                                             : (detailsModal.type === 'timeoff'
                                                 ? calculateTimeOffDuration(detailsModal.item.start_time, detailsModal.item.end_time)
                                                 : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time))
@@ -1759,7 +1760,7 @@ const formatDateForModal = (item, type) => {
     if (type === 'leave' || item.type === 'leave') {
         const startFormatted = formatDateOnly(item.start_date);
         const endFormatted = formatDateOnly(item.end_date);
-        const daysCount = calculateLeaveDays(item.start_date, item.end_date);
+        const daysCount = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
         const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
 
         if (startFormatted !== endFormatted) {
