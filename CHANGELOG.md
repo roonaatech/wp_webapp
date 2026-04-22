@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.6.0](https://github.com/roonaatech/wp_webapp/compare/v2.5.0...v2.6.0) (2026-04-22)
+
+
+### Features
+
+* add half-day leave support with duration calculation adjustments across application, approval, and reporting modules ([e61ac06](https://github.com/roonaatech/wp_webapp/commit/e61ac062f038fbb5bc974e9e3f41c66ea310302b))
+
 ## [2.5.0](https://github.com/roonaatech/wp_webapp/compare/v2.4.8...v2.5.0) (2026-04-08)
 
 
