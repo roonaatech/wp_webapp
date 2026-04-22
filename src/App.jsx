@@ -30,16 +30,48 @@ import { fetchRoles } from './utils/roleUtils';
 
 
 const GlobalInit = ({ children }) => {
+  const [tokenValidated, setTokenValidated] = useState(true); // true by default for non-QR flows
+
   // Intercept token and user from URL for seamless login (e.g. via QR code)
   const urlParams = new URLSearchParams(window.location.search);
   const urlToken = urlParams.get('token');
   const urlUser = urlParams.get('user');
 
-  if (urlToken && urlUser) {
-    localStorage.setItem('token', urlToken);
-    localStorage.setItem('user', urlUser);
-    window.history.replaceState(null, '', window.location.pathname);
-  }
+  // If token comes from URL (QR code), validate it with the server BEFORE storing
+  useEffect(() => {
+    const validateAndStoreQRToken = async () => {
+      if (urlToken && urlUser) {
+        try {
+          // Validate the token by making a lightweight authenticated request
+          await axios.get(`${API_BASE_URL}/api/leavetypes`, {
+            headers: { 'x-access-token': urlToken }
+          });
+          // Token is valid — store it
+          localStorage.setItem('token', urlToken);
+          localStorage.setItem('user', urlUser);
+          window.history.replaceState(null, '', window.location.pathname);
+          setTokenValidated(true);
+          // Fetch roles and settings after successful validation
+          fetchRoles();
+          fetchSettings();
+        } catch (err) {
+          // Token is INVALID (expired, wrong secret, etc.) — reject it
+          console.error('QR token validation failed:', err);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.history.replaceState(null, '', window.location.pathname);
+          setTokenValidated(false);
+          // Redirect to session expired
+          window.location.href = '/session-expired';
+        }
+      }
+    };
+
+    if (urlToken && urlUser) {
+      setTokenValidated(false); // Block rendering until validated
+      validateAndStoreQRToken();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSettings = async () => {
     const token = localStorage.getItem('token');
@@ -60,14 +92,30 @@ const GlobalInit = ({ children }) => {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      fetchRoles();
-      fetchSettings();
+    // Only run for non-QR flows (when token already exists in localStorage)
+    if (!urlToken && !urlUser) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetchRoles();
+        fetchSettings();
+      }
     }
     // Expose fetchSettings globally so Login.jsx can call it
     window.refreshAppSettings = fetchSettings;
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Show loading spinner while QR token is being validated
+  if (!tokenValidated) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f9fafb' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 40, height: 40, border: '3px solid #e5e7eb', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }}></div>
+          <p style={{ color: '#6b7280', fontSize: 14 }}>Validating session...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
 
   return children;
 };

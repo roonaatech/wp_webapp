@@ -46,9 +46,62 @@ const ApkDistribution = () => {
     const [editedReleaseNotes, setEditedReleaseNotes] = useState('');
     const [isSavingReleaseNotes, setIsSavingReleaseNotes] = useState(false);
 
+    // QR Token state — short-lived token for secure QR code sharing
+    const [qrToken, setQrToken] = useState(null);
+    const [qrUser, setQrUser] = useState(null);
+    const [qrLoading, setQrLoading] = useState(false);
+    const [qrExpiresAt, setQrExpiresAt] = useState(null);
+    const [qrCountdown, setQrCountdown] = useState(0);
+
     useEffect(() => {
         fetchData();
     }, []);
+
+    // Generate a fresh short-lived QR token whenever 'My Requests' tab is selected
+    const generateQRToken = async () => {
+        if (!token) return;
+        setQrLoading(true);
+        try {
+            const res = await axios.post(`${API_BASE_URL}/api/auth/generate-qr-token`, {}, {
+                headers: { 'x-access-token': token }
+            });
+            if (res.data.success) {
+                setQrToken(res.data.qrToken);
+                setQrUser(JSON.stringify(res.data.user));
+                const expiresAt = Date.now() + (res.data.expiresIn * 1000);
+                setQrExpiresAt(expiresAt);
+                setQrCountdown(res.data.expiresIn);
+            }
+        } catch (err) {
+            console.error('Failed to generate QR token:', err);
+            toast.error('Failed to generate QR code. Please try again.');
+        } finally {
+            setQrLoading(false);
+        }
+    };
+
+    // Auto-generate QR token when switching to 'web' tab
+    useEffect(() => {
+        if (activeQrTab === 'web' && token) {
+            generateQRToken();
+        }
+    }, [activeQrTab]);
+
+    // Countdown timer for QR token expiry + auto-refresh
+    useEffect(() => {
+        if (!qrExpiresAt) return;
+        const interval = setInterval(() => {
+            const remaining = Math.max(0, Math.floor((qrExpiresAt - Date.now()) / 1000));
+            setQrCountdown(remaining);
+            if (remaining <= 0) {
+                // Auto-refresh the QR token
+                if (activeQrTab === 'web') {
+                    generateQRToken();
+                }
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [qrExpiresAt, activeQrTab]);
 
     const fetchData = async (page = 1) => {
         setIsLoading(true);
@@ -521,13 +574,46 @@ const ApkDistribution = () => {
                                     </div>
                                 ) : (
                                     <div className="bg-gradient-to-br from-gray-700 to-gray-900 rounded-2xl p-6 h-full flex flex-col items-center justify-center text-center animate-in fade-in transition-all">
-                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                                            <QRCode value={`${window.location.origin}/my-requests?token=${encodeURIComponent(token)}&user=${encodeURIComponent(localStorage.getItem('user'))}`} size={160} />
-                                        </div>
-                                        <h3 className="font-bold text-white text-lg mb-1">My Requests</h3>
-                                        <p className="text-gray-300 text-sm px-4">
-                                            Scan to open the My Requests page on your mobile device.
-                                        </p>
+                                        {qrLoading ? (
+                                            <>
+                                                <div className="bg-white/10 p-4 rounded-xl border border-white/20 mb-4" style={{ width: 192, height: 192, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <div style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,0.2)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+                                                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                                                </div>
+                                                <p className="text-gray-300 text-sm">Generating secure QR code...</p>
+                                            </>
+                                        ) : qrToken ? (
+                                            <>
+                                                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
+                                                    <QRCode value={`${window.location.origin}/my-requests?token=${encodeURIComponent(qrToken)}&user=${encodeURIComponent(qrUser)}`} size={160} />
+                                                </div>
+                                                <h3 className="font-bold text-white text-lg mb-1">My Requests</h3>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${qrCountdown > 60 ? 'bg-green-500/20 text-green-300' : qrCountdown > 30 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>
+                                                        ⏱ Expires in {Math.floor(qrCountdown / 60)}:{String(qrCountdown % 60).padStart(2, '0')}
+                                                    </span>
+                                                </div>
+                                                <p className="text-gray-400 text-xs px-4 mb-3">
+                                                    This QR code refreshes automatically for security.
+                                                </p>
+                                                <button
+                                                    onClick={generateQRToken}
+                                                    className="text-xs text-blue-300 hover:text-blue-200 underline transition-colors"
+                                                >
+                                                    Refresh now
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="text-gray-300 text-sm mb-3">Could not generate QR code.</p>
+                                                <button
+                                                    onClick={generateQRToken}
+                                                    className="text-sm text-blue-300 hover:text-blue-200 underline"
+                                                >
+                                                    Try again
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 )}
                             </div>

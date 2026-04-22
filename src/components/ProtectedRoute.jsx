@@ -1,14 +1,59 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
+import axios from 'axios';
+import API_BASE_URL from '../config/api.config';
 import { canAccessWebApp, hasAdminPermission, isSelfServiceOnly, getCachedRoles } from '../utils/roleUtils';
 
 const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false }) => {
+    const [authState, setAuthState] = useState('checking'); // 'checking' | 'valid' | 'invalid'
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     // Check if user is authenticated
     if (!token) {
         return <Navigate to="/login" replace />;
+    }
+
+    // Validate token with the backend on mount
+    useEffect(() => {
+        const validateToken = async () => {
+            try {
+                // Lightweight request to verify token is still valid
+                await axios.get(`${API_BASE_URL}/api/leavetypes`, {
+                    headers: { 'x-access-token': token }
+                });
+                setAuthState('valid');
+            } catch (err) {
+                if (err.response?.status === 401) {
+                    // Token is invalid — clear and redirect
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    setAuthState('invalid');
+                } else {
+                    // Network error or other issue — allow access (don't lock out on network blips)
+                    setAuthState('valid');
+                }
+            }
+        };
+        validateToken();
+    }, [token]);
+
+    // Show loading while checking
+    if (authState === 'checking') {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f9fafb' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ width: 40, height: 40, border: '3px solid #e5e7eb', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }}></div>
+                    <p style={{ color: '#6b7280', fontSize: 14 }}>Verifying session...</p>
+                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+            </div>
+        );
+    }
+
+    // Token was invalid
+    if (authState === 'invalid') {
+        return <Navigate to="/session-expired" replace />;
     }
 
     // Force all mobile users to my-requests
@@ -48,3 +93,4 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false 
 };
 
 export default ProtectedRoute;
+
