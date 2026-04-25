@@ -115,6 +115,10 @@ const MyRequests = () => {
     const [timeOffLoading, setTimeOffLoading] = useState(false);
 
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [leavePastDaysAllowed, setLeavePastDaysAllowed] = useState(() => {
+        const s = JSON.parse(localStorage.getItem('settings') || '{}');
+        return parseInt(s.leave_past_days_allowed || '0') || 0;
+    });
 
     // ── Edit State ──
     const [editingLeave, setEditingLeave] = useState(null);
@@ -215,10 +219,11 @@ const MyRequests = () => {
         }
     }, [activeView, activeTab]);
 
-    // Handle settingsLoaded event to refresh timezone context
+    // Handle settingsLoaded event to refresh timezone/settings context
     useEffect(() => {
         const handleSettingsUpdate = () => {
-            setCurrentAppTime(getCurrentInAppTimezone());
+            const s = JSON.parse(localStorage.getItem('settings') || '{}');
+            setLeavePastDaysAllowed(parseInt(s.leave_past_days_allowed || '0') || 0);
         };
         window.addEventListener('settingsLoaded', handleSettingsUpdate);
         return () => window.removeEventListener('settingsLoaded', handleSettingsUpdate);
@@ -568,7 +573,18 @@ const MyRequests = () => {
     // Today's date in yyyy-mm-dd for min attribute - using app timezone
     const today = getCurrentInAppTimezone().date;
 
-
+    // Earliest selectable date for leave calendar — walks back N working days (Sundays not counted)
+    const minLeaveDate = React.useMemo(() => {
+        if (leavePastDaysAllowed <= 0) return today;
+        const [y, m, d] = today.split('-').map(Number);
+        const cursor = new Date(y, m - 1, d);
+        let workingDaysBack = 0;
+        while (workingDaysBack < leavePastDaysAllowed) {
+            cursor.setDate(cursor.getDate() - 1);
+            if (cursor.getDay() !== 0) workingDaysBack++;
+        }
+        return `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+    }, [today, leavePastDaysAllowed]);
 
     // ── Calendar Logic ──
     const [calendarOpen, setCalendarOpen] = useState(false);
@@ -1464,7 +1480,7 @@ const MyRequests = () => {
                         <div className="px-4 pb-4">
                             {/* Month Header */}
                             <div className="flex items-center justify-between mb-3">
-                                <button type="button" onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                <button type="button" onClick={prevMonth} disabled={(() => { const [minY, minM] = minLeaveDate.split('-').map(Number); const prevY = calendarMon === 0 ? calendarYear - 1 : calendarYear; const prevM = calendarMon === 0 ? 12 : calendarMon; return prevY < minY || (prevY === minY && prevM < minM); })()} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent">
                                     <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                                 <span className="text-sm font-bold text-gray-800">{monthName}</span>
@@ -1486,7 +1502,7 @@ const MyRequests = () => {
                                     if (!cell) return <div key={`empty-${idx}`} className="h-10"></div>;
 
                                     const { day, dateStr, isSunday } = cell;
-                                    const isPast = dateStr < today;
+                                    const isPast = dateStr < minLeaveDate;
                                     const disabled = isPast || isSunday;
                                     const leaveStatus = leaveDateStatusMap[dateStr];
                                     const inRange = isInSelectedRange(dateStr);

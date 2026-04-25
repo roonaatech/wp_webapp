@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiSave, FiSettings, FiClock, FiGlobe } from 'react-icons/fi';
+import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { fetchRoles, getRoleById, canManageSystemSettings } from '../utils/roleUtils';
@@ -19,7 +19,8 @@ export default function Settings() {
     // Settings State - organized by category
     const [settings, setSettings] = useState({
         max_time_off_hours: '',
-        application_timezone: 'America/Chicago'
+        application_timezone: 'America/Chicago',
+        leave_past_days_allowed: '0'
     });
 
     // Define settings configuration for easy expansion
@@ -78,6 +79,24 @@ export default function Settings() {
                     step: 0.5,
                     unit: 'hours',
                     placeholder: '4'
+                }
+            ]
+        },
+        {
+            category: 'Leave Configuration',
+            description: 'Manage rules and restrictions for Leave requests',
+            icon: <FiCalendar className="text-green-600" />,
+            settings: [
+                {
+                    key: 'leave_past_days_allowed',
+                    label: 'Past Days Allowed for Leave Application',
+                    description: 'How many past days employees can select when applying for leave (0 = only today and future dates)',
+                    type: 'number',
+                    min: 0,
+                    max: 365,
+                    step: 1,
+                    unit: 'days',
+                    placeholder: '0'
                 }
             ]
         }
