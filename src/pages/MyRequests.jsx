@@ -18,7 +18,7 @@ const formatTime12 = (timeStr) => {
     return formatTimeOnly(timeStr);
 };
 
-const calculateLeaveDaysExcludingSunday = (start, end) => {
+const calculateLeaveDaysExcludingSunday = (start, end, excludeDatesMap = {}) => {
     if (!start || !end) return 0;
     let count = 0;
 
@@ -30,7 +30,8 @@ const calculateLeaveDaysExcludingSunday = (start, end) => {
     const endDate = new Date(eY, eM - 1, eD);
 
     while (current <= endDate) {
-        if (current.getDay() !== 0) count++; // 0 = Sunday
+        const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+        if (current.getDay() !== 0 && !excludeDatesMap[dateStr]) count++;
         current.setDate(current.getDate() + 1);
     }
     return count;
@@ -884,7 +885,7 @@ const MyRequests = () => {
                             {leaveStartDate && leaveEndDate && (
                                 <div className="mt-3 px-3 py-2 bg-blue-50 rounded-xl space-y-2">
                                     <p className="text-xs font-bold text-blue-600">
-                                        📅 {calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate) - (leaveHalfDay ? 0.5 : 0)} day(s) <span className="text-blue-400 font-medium">(Sundays excluded)</span>
+                                        📅 {calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap) - (leaveHalfDay ? 0.5 : 0)} day(s) <span className="text-blue-400 font-medium">(Sundays excluded)</span>
                                     </p>
                                     <label className="flex flex-row items-center gap-2 cursor-pointer mt-1 border-t border-blue-100 pt-2">
                                         <input
@@ -1582,7 +1583,7 @@ const MyRequests = () => {
                             {tempCalStart && (
                                 <div className="mt-2 px-3 py-2 bg-blue-50 rounded-xl">
                                     <p className="text-xs font-bold text-blue-600">
-                                        📅 {formatDate(tempCalStart)}{tempCalEnd ? ` → ${formatDate(tempCalEnd)} · ${calculateLeaveDaysExcludingSunday(tempCalStart, tempCalEnd)} day(s)` : ' — pick end date'}
+                                        📅 {formatDate(tempCalStart)}{tempCalEnd ? ` → ${formatDate(tempCalEnd)} · ${calculateLeaveDaysExcludingSunday(tempCalStart, tempCalEnd, leaveDateStatusMap)} day(s)` : ' — pick end date'}
                                     </p>
                                 </div>
                             )}

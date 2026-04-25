@@ -105,7 +105,7 @@ const useInactivityTimer = () => {
             </div>
             <h2 style="margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #1F2937;">Session Timeout Warning</h2>
             <p style="margin: 0 0 24px; font-size: 14px; color: #6B7280; line-height: 1.6;">
-                You've been inactive for a while. Your session will expire in <strong style="color: #D97706;">1 minute</strong>. Move your mouse or press any key to stay logged in.
+                You've been inactive for a while. Your session will expire in <strong style="color: #D97706;">1 minute</strong>. Click the button below to stay logged in.
             </p>
             <button id="inactivity-stay-btn" style="
                 background: linear-gradient(135deg, #2E5090, #1a3461);
@@ -151,11 +151,6 @@ const useInactivityTimer = () => {
         lastActivityRef.current = Date.now();
         clearTimers();
 
-        // Dismiss warning if shown (user interacted)
-        if (isWarningShownRef.current) {
-            dismissWarning();
-        }
-
         // Set warning timer (fires 1 min before logout)
         warningTimeoutRef.current = setTimeout(() => {
             showWarning();
@@ -171,11 +166,12 @@ const useInactivityTimer = () => {
         const token = localStorage.getItem('token');
         if (!token) return; // Don't activate if not logged in
 
-        // Throttled activity handler
+        // Throttled activity handler — ignored while warning is visible
         let lastUpdate = 0;
         const handleActivity = () => {
+            if (isWarningShownRef.current) return;
             const now = Date.now();
-            if (now - lastUpdate > THROTTLE_MS || isWarningShownRef.current) {
+            if (now - lastUpdate > THROTTLE_MS) {
                 lastUpdate = now;
                 resetTimer();
             }

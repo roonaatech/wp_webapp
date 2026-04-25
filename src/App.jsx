@@ -30,45 +30,43 @@ import { fetchRoles } from './utils/roleUtils';
 
 
 const GlobalInit = ({ children }) => {
-  const [tokenValidated, setTokenValidated] = useState(true); // true by default for non-QR flows
-
-  // Intercept token and user from URL for seamless login (e.g. via QR code)
+  // Read QR params before useState so the initial value is correct on the very first render.
+  // This prevents ProtectedRoute from executing (and redirecting to /login) before
+  // the QR token has been validated and stored in localStorage.
   const urlParams = new URLSearchParams(window.location.search);
   const urlToken = urlParams.get('token');
   const urlUser = urlParams.get('user');
 
+  // false when QR params are present (block rendering until validated); true otherwise
+  const [tokenValidated, setTokenValidated] = useState(!urlToken || !urlUser);
+
   // If token comes from URL (QR code), validate it with the server BEFORE storing
   useEffect(() => {
     const validateAndStoreQRToken = async () => {
-      if (urlToken && urlUser) {
-        try {
-          // Validate the token by making a lightweight authenticated request
-          await axios.get(`${API_BASE_URL}/api/leavetypes`, {
-            headers: { 'x-access-token': urlToken }
-          });
-          // Token is valid — store it
-          localStorage.setItem('token', urlToken);
-          localStorage.setItem('user', urlUser);
-          window.history.replaceState(null, '', window.location.pathname);
-          setTokenValidated(true);
-          // Fetch roles and settings after successful validation
-          fetchRoles();
-          fetchSettings();
-        } catch (err) {
-          // Token is INVALID (expired, wrong secret, etc.) — reject it
-          console.error('QR token validation failed:', err);
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.history.replaceState(null, '', window.location.pathname);
-          setTokenValidated(false);
-          // Redirect to session expired
-          window.location.href = '/session-expired';
-        }
+      try {
+        // Validate the token by making a lightweight authenticated request
+        await axios.get(`${API_BASE_URL}/api/leavetypes`, {
+          headers: { 'x-access-token': urlToken }
+        });
+        // Token is valid — store it
+        localStorage.setItem('token', urlToken);
+        localStorage.setItem('user', urlUser);
+        window.history.replaceState(null, '', window.location.pathname);
+        setTokenValidated(true);
+        // Fetch roles and settings after successful validation
+        fetchRoles();
+        fetchSettings();
+      } catch (err) {
+        // Token is INVALID (expired, wrong secret, etc.) — reject it
+        console.error('QR token validation failed:', err);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.history.replaceState(null, '', window.location.pathname);
+        window.location.href = '/session-expired';
       }
     };
 
     if (urlToken && urlUser) {
-      setTokenValidated(false); // Block rendering until validated
       validateAndStoreQRToken();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
