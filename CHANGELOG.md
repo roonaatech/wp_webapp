@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.6.1](https://github.com/roonaatech/wp_webapp/compare/v2.6.0...v2.6.1) (2026-04-26)
+
+
+### Features
+
+* implement secure, time-limited QR code authentication with server-side token validation ([bbc47b5](https://github.com/roonaatech/wp_webapp/commit/bbc47b5582d08719dab4c05956f771df529ad5ad))
+
 ## [2.6.0](https://github.com/roonaatech/wp_webapp/compare/v2.5.0...v2.6.0) (2026-04-22)
 
 
