@@ -44,12 +44,12 @@ const GlobalInit = ({ children }) => {
   useEffect(() => {
     const validateAndStoreQRToken = async () => {
       try {
-        // Validate the token by making a lightweight authenticated request
-        await axios.get(`${API_BASE_URL}/api/leavetypes`, {
+        // Exchange the short-lived QR token (60s) for a full 24h session token
+        const exchangeRes = await axios.post(`${API_BASE_URL}/api/auth/exchange-qr-token`, {}, {
           headers: { 'x-access-token': urlToken }
         });
-        // Token is valid — store it
-        localStorage.setItem('token', urlToken);
+        // Store the full session token so API calls don't expire after 60s
+        localStorage.setItem('token', exchangeRes.data.accessToken);
         localStorage.setItem('user', urlUser);
         window.history.replaceState(null, '', window.location.pathname);
         setTokenValidated(true);
