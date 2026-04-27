@@ -6,13 +6,16 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { calculateLeaveDays } from '../utils/dateUtils';
 import { fetchRoles, canViewReports } from '../utils/roleUtils';
-import { formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+
 import TableSortIcon from '../components/TableSortIcon';
+import MonthlySummaryReport from '../components/MonthlySummaryReport';
 
 const Reports = () => {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
+    const [activeTab, setActiveTab] = useState('monthly'); // 'detailed' | 'monthly'
 
     // Data States
     const [reports, setReports] = useState([]);
@@ -30,16 +33,19 @@ const Reports = () => {
     const [dateFilter, setDateFilter] = useState('all');
     const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
     const getThisMonthRange = () => {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+        const now = getCurrentInAppTimezone().full;
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const start = `${year}-${String(month).padStart(2, '0')}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
         return { start, end };
     };
     const { start: defaultStart, end: defaultEnd } = getThisMonthRange();
     const [datePreset, setDatePreset] = useState('thismonth');
     const [startDate, setStartDate] = useState(defaultStart);
     const [endDate, setEndDate] = useState(defaultEnd);
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('approved');
     const [typeFilter, setTypeFilter] = useState('both');
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
@@ -111,12 +117,10 @@ const Reports = () => {
                 status: statusFilter
             };
 
-            // Date range handling: custom start/end takes precedence
-            if (datePreset === 'custom' && startDate && endDate) {
+            // Date range handling: pass pre-calculated dates to backend directly for any preset
+            if (datePreset !== 'all' && startDate && endDate) {
                 params.startDate = startDate;
                 params.endDate = endDate;
-            } else {
-                params.dateFilter = datePreset || 'all';
             }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/reports`, {
@@ -229,8 +233,8 @@ const Reports = () => {
 
             switch (sortConfig.key) {
                 case 'date':
-                    aValue = a.date || a.start_date || a.check_in_time || '';
-                    bValue = b.date || b.start_date || b.check_in_time || '';
+                    aValue = a.createdAt || a.created_at || a.created_on || a.created || a.date_created || a.date || '';
+                    bValue = b.createdAt || b.created_at || b.created_on || b.created || b.date_created || b.date || '';
                     break;
                 case 'staffName':
                     aValue = `${a.tblstaff?.firstname || ''} ${a.tblstaff?.lastname || ''}`;
@@ -265,9 +269,14 @@ const Reports = () => {
                 limit: 1000, // Reasonable limit for export
                 type: typeFilter,
                 userId: selectedUserId,
-                dateFilter,
                 status: statusFilter
             };
+
+            // Date range handling: pass pre-calculated dates to backend directly for any preset
+            if (datePreset !== 'all' && startDate && endDate) {
+                params.startDate = startDate;
+                params.endDate = endDate;
+            }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/reports`, {
                 headers: { 'x-access-token': token },
@@ -300,10 +309,12 @@ const Reports = () => {
             const rows = exportData.map(report => {
                 const isLeave = report.type === 'leave';
                 const isTimeOff = report.type === 'timeoff';
-                // Calculate duration based on type
+                // Calculate duration based on type - Clamp to selected range for consistency with Summary
                 let duration;
                 if (isLeave) {
-                    const days = calculateLeaveDays(report.start_date, report.end_date);
+                    const effectiveStart = (startDate && report.start_date < startDate) ? startDate : report.start_date;
+                    const effectiveEnd = (endDate && report.end_date > endDate) ? endDate : report.end_date;
+                    const days = calculateLeaveDays(effectiveStart, effectiveEnd) - (report.is_half_day === true || report.is_half_day === 1 ? 0.5 : 0);
                     duration = days + ' day' + (days > 1 ? 's' : '');
                 } else if (isTimeOff) {
                     duration = calculateTimeOffDuration(report.start_time, report.end_time);
@@ -321,14 +332,14 @@ const Reports = () => {
                 if (isTimeOff) typeName = 'Time-Off';
 
                 return [
-                    report.date || 'N/A',
+                    report.date ? formatDateOnly(report.date) : 'N/A',
                     report.tblstaff?.staffid || report.staff_id || 'N/A',
                     `${report.tblstaff?.firstname || ''} ${report.tblstaff?.lastname || ''}`.trim() || 'Unknown',
                     report.tblstaff?.email || 'N/A',
                     typeName,
                     isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'N/A' : (report.client_name || 'N/A'),
-                    isLeave ? report.start_date : isTimeOff ? report.start_time : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A'),
-                    isLeave ? report.end_date : isTimeOff ? report.end_time : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A'),
+                    isLeave ? formatDateOnly(report.start_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.start_time)}` : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A'),
+                    isLeave ? formatDateOnly(report.end_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.end_time)}` : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A'),
                     duration,
                     isLeave || isTimeOff ? 'N/A' : (report.location || 'N/A'),
                     isLeave ? (report.reason || 'N/A') : isTimeOff ? (report.reason || 'N/A') : (report.purpose || 'N/A'),
@@ -350,7 +361,17 @@ const Reports = () => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `attendance-report-${getCurrentInAppTimezone().date}.csv`;
+            // Generate filename using Monthly Report convention
+            const dateObj = new Date();
+            const dd = String(dateObj.getDate()).padStart(2, '0');
+            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const yy = String(dateObj.getFullYear()).slice(-2);
+            const hh = String(dateObj.getHours()).padStart(2, '0');
+            const mmm = String(dateObj.getMinutes()).padStart(2, '0');
+            const sss = String(dateObj.getSeconds()).padStart(2, '0');
+            const formattedDate = `${dd}-${mm}-${yy}_${hh}${mmm}${sss}`;
+
+            a.download = `WorkPulse_Detailed_Report_${formattedDate}.csv`;
             a.click();
             window.URL.revokeObjectURL(url);
         } catch (err) {
@@ -412,17 +433,54 @@ const Reports = () => {
             <div className="mb-8">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
-                        <p className="text-gray-600 mt-1">View and export the report for leave, on-duty and time-off records</p>
+                        <h1 className="text-3xl font-black text-[#1e1b4b] tracking-tight">Reports</h1>
+                        <p className="text-gray-500 mt-1 text-sm">View and export leave, on-duty and time-off records</p>
                     </div>
+                </div>
+            </div>
+
+            {/* Tab Switcher (Sliding Pill) */}
+            <div className="mb-8 flex justify-center w-full" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+                <div className="relative flex bg-gray-100 rounded-full p-1 border border-gray-200 shadow-inner">
+                    <div
+                        className="absolute top-1 bottom-1 w-1/2 bg-[#1e1b4b] rounded-full shadow-lg transition-transform duration-300 ease-in-out"
+                        style={{ transform: activeTab === 'detailed' ? 'translateX(100%)' : 'translateX(0)' }}
+                    />
                     <button
-                        onClick={downloadCSV}
-                        disabled={reports.length === 0}
-                        className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => setActiveTab('monthly')}
+                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none ${
+                            activeTab === 'monthly' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
+                        }`}
                     >
-                        📥 Export to CSV
+                        📊 Monthly Summary
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('detailed')}
+                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none ${
+                            activeTab === 'detailed' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
+                        }`}
+                    >
+                        📋 Detailed Reports
                     </button>
                 </div>
+            </div>
+
+            {activeTab === 'monthly' ? (
+                <MonthlySummaryReport />
+            ) : (
+            <>
+
+            {/* Export Button for Detailed */}
+            <div className="mb-4 flex justify-end">
+                <button
+                    onClick={downloadCSV}
+                    disabled={reports.length === 0}
+                    className="group relative overflow-hidden px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center gap-2 z-10"
+                >
+                    <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
+                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                    📥 Export to CSV
+                </button>
             </div>
 
             {/* Error Message */}
@@ -495,30 +553,31 @@ const Reports = () => {
                                     setDatePreset(val);
                                     setPage(1);
                                     if (val === 'today') {
-                                        const d = new Date().toISOString().slice(0, 10);
+                                        const now = getCurrentInAppTimezone().full;
+                                        const d = now.toISOString().slice(0, 10);
                                         setStartDate(d); setEndDate(d);
                                     } else if (val === 'thismonth') {
-                                        const now = new Date();
+                                        const now = getCurrentInAppTimezone().full;
                                         const s = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
                                         const e = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
                                         setStartDate(s); setEndDate(e);
                                     } else if (val === 'lastmonth') {
-                                        const now = new Date();
+                                        const now = getCurrentInAppTimezone().full;
                                         const s = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
                                         const e = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
                                         setStartDate(s); setEndDate(e);
                                     } else if (val === 'thisyear') {
-                                        const now = new Date();
+                                        const now = getCurrentInAppTimezone().full;
                                         const s = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
                                         const e = new Date(now.getFullYear(), 11, 31).toISOString().slice(0, 10);
                                         setStartDate(s); setEndDate(e);
                                     } else if (val === 'lastyear') {
-                                        const now = new Date();
+                                        const now = getCurrentInAppTimezone().full;
                                         const s = new Date(now.getFullYear() - 1, 0, 1).toISOString().slice(0, 10);
                                         const e = new Date(now.getFullYear() - 1, 11, 31).toISOString().slice(0, 10);
                                         setStartDate(s); setEndDate(e);
                                     } else if (val === 'thisquarter' || val === 'lastquarter') {
-                                        const now = new Date();
+                                        const now = getCurrentInAppTimezone().full;
                                         let qStartMonth = Math.floor(now.getMonth() / 3) * 3;
                                         let year = now.getFullYear();
                                         if (val === 'lastquarter') {
@@ -575,29 +634,29 @@ const Reports = () => {
                 </div>
             </div>
 
-            {/* Reports Table */}
-            <div className="overflow-x-auto bg-white rounded-lg border border-gray-100">
-                {loading ? (
-                    <div className="p-6"><ModernLoader size="lg" message="Loading Reports..." fullScreen={false} /></div>
-                ) : reports.length === 0 ? (
+            <div className="relative overflow-x-auto bg-white rounded-lg border border-gray-100 min-h-[400px]">
+                {loading && (
+                    <ModernLoader size="container" message="Updating reports..." fullScreen={false} />
+                )}
+                {reports.length === 0 && !loading ? (
                     <div className="p-6 text-center text-gray-500">No reports found</div>
                 ) : (
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-[#2E5090] text-white">
+                        <thead className="bg-[#1e1b4b] text-white">
                             <tr>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Details</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Details</th>
                                 <th className="px-4 py-3 text-left">
                                     <button
                                         onClick={() => handleSort('date')}
-                                        className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                     >
-                                        Date <TableSortIcon column="date" sortConfig={sortConfig} />
+                                        Created Date <TableSortIcon column="date" sortConfig={sortConfig} />
                                     </button>
                                 </th>
                                 <th className="px-4 py-3 text-left">
                                     <button
                                         onClick={() => handleSort('staffName')}
-                                        className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                     >
                                         Staff <TableSortIcon column="staffName" sortConfig={sortConfig} />
                                     </button>
@@ -605,20 +664,20 @@ const Reports = () => {
                                 <th className="px-4 py-3 text-left">
                                     <button
                                         onClick={() => handleSort('type')}
-                                        className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                     >
                                         Type <TableSortIcon column="type" sortConfig={sortConfig} />
                                     </button>
                                 </th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Detail</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Start</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">End</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Duration</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-white">Location</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Detail</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Start</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">End</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Location</th>
                                 <th className="px-4 py-3 text-left">
                                     <button
                                         onClick={() => handleSort('status')}
-                                        className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                     >
                                         Status <TableSortIcon column="status" sortConfig={sortConfig} />
                                     </button>
@@ -635,17 +694,22 @@ const Reports = () => {
                                 const isExpanded = !!expandedRows[uniqueKey];
 
                                 // compute primary cells
-                                const dateCell = report.date || report.start_date || (report.check_in_time ? formatInTimezone(report.check_in_time, null, { year: 'numeric', month: 'short', day: '2-digit' }) : 'N/A');
+                                const createdAtVal = report.createdAt || report.created_at || report.created_on || report.created || report.date_created || null;
+                                const dateCell = createdAtVal ? formatDateOnly(createdAtVal) : 'N/A';
                                 const staffId = report.tblstaff?.staffid || report.staff_id || 'N/A';
                                 const detail = isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'Time-Off' : (report.client_name || 'N/A');
-                                const startCell = isLeave ? report.start_date : isTimeOff ? (report.start_time || 'N/A') : (report.check_in_time ? formatInTimezone(report.check_in_time, null, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A');
-                                const endCell = isLeave ? report.end_date : isTimeOff ? (report.end_time || 'N/A') : (report.check_out_time ? formatInTimezone(report.check_out_time, null, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A');
-                                const durationCell = isLeave ? (report.start_date && report.end_date ? `${calculateLeaveDays(report.start_date, report.end_date)} day(s)` : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
+                                const startCell = isLeave ? formatDateOnly(report.start_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.start_time)}` : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A');
+                                const endCell = isLeave ? formatDateOnly(report.end_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.end_time)}` : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A');
+                                const durationCell = isLeave ? (report.start_date && report.end_date ? (() => {
+                                    const effectiveStart = (startDate && report.start_date < startDate) ? startDate : report.start_date;
+                                    const effectiveEnd = (endDate && report.end_date > endDate) ? endDate : report.end_date;
+                                    const days = calculateLeaveDays(effectiveStart, effectiveEnd) - (report.is_half_day === true || report.is_half_day === 1 ? 0.5 : 0);
+                                    return `${days} day(s)`;
+                                })() : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
                                 const locationCell = isLeave || isTimeOff ? 'N/A' : (report.location || report.client_name || 'N/A');
                                 const statusCell = (report.type === 'leave' || report.type === 'timeoff') ? (report.status || 'N/A') : (report.check_out_time ? 'Completed' : 'Active');
 
                                 // Timestamps: backend may return camelCase or snake_case fields
-                                const createdAtVal = report.createdAt || report.created_at || report.created_on || report.created || report.date_created || null;
                                 const updatedAtVal = report.updatedAt || report.updated_at || report.decision_at || report.updated || report.date_updated || null;
 
                                 return (
@@ -710,13 +774,13 @@ const Reports = () => {
 
                                                         <div>
                                                             <p className="text-xs text-gray-500">Submitted</p>
-                                                            <p className="text-sm text-gray-900">{createdAtVal ? formatInTimezone(createdAtVal, null, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'}</p>
+                                                            <p className="text-sm text-gray-900">{createdAtVal ? formatInTimezone(createdAtVal) : 'N/A'}</p>
                                                         </div>
 
                                                         <div>
                                                             <p className="text-xs text-gray-500">Decision</p>
                                                             {report.status && (report.status === 'Approved' || report.status === 'Rejected') ? (
-                                                                <p className="text-sm text-gray-900">{`${report.status === 'Approved' ? 'Approved At' : 'Rejected At'}: ${updatedAtVal ? formatInTimezone(updatedAtVal, null, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'}`}</p>
+                                                                <p className="text-sm text-gray-900">{`${report.status === 'Approved' ? 'Approved At' : 'Rejected At'}: ${updatedAtVal ? formatInTimezone(updatedAtVal) : 'N/A'}`}</p>
                                                             ) : (
                                                                 <p className="text-sm text-gray-900">{report.status || 'N/A'}</p>
                                                             )}
@@ -859,6 +923,8 @@ const Reports = () => {
                         </button>
                     </div>
                 </div>
+            )}
+            </>
             )}
         </div>
     );

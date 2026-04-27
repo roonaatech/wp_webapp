@@ -8,11 +8,13 @@ const SessionExpired = () => {
     const isLogout = reason === 'logout';
     const isUnauthorized = reason === 'unauthorized';
     const isInactive = reason === 'inactive';
+    const isInactivity = reason === 'inactivity';
 
     const getTitle = () => {
         if (isLogout) return 'Logged Out Successfully';
         if (isUnauthorized) return 'Access Denied';
         if (isInactive) return 'Account Inactive';
+        if (isInactivity) return 'Session Timed Out';
         return 'Session Expired';
     };
 
@@ -20,6 +22,7 @@ const SessionExpired = () => {
         if (isLogout) return 'You have been successfully logged out of the system.';
         if (isUnauthorized) return 'You do not have permission to access this resource. Please login with appropriate credentials.';
         if (isInactive) return 'Your account has been deactivated. You no longer have access to the system.';
+        if (isInactivity) return 'You have been logged out due to 5 minutes of inactivity. Please log in again to continue where you left off.';
         return 'Your session has expired due to inactivity or the authentication token is no longer valid. Please login again to continue.';
     };
 
@@ -45,6 +48,13 @@ const SessionExpired = () => {
                 </div>
             );
         }
+        if (isInactivity) {
+            return (
+                <svg className="w-20 h-20 text-amber-500 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            );
+        }
         return (
             <svg className="w-20 h-20 text-amber-500 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -55,6 +65,7 @@ const SessionExpired = () => {
     const getBackgroundColor = () => {
         if (isLogout) return 'from-green-50 to-white';
         if (isUnauthorized || isInactive) return 'from-red-50 to-white';
+        if (isInactivity) return 'from-amber-50 to-white';
         return 'from-amber-50 to-white';
     };
 

@@ -13,7 +13,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
-import { formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
@@ -21,7 +21,8 @@ ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearSca
 const Dashboard = () => {
     // Approve/Reject API call for pending approvals
     const performStatusUpdate = async (item, status, isLeave, rejectionReason = null) => {
-        const itemKey = `${isLeave ? 'leave' : 'onduty'}-${item.id}-${status}`;
+        const typeKey = item.type === 'leave' ? 'leave' : (item.type === 'time_off' ? 'timeoff' : 'onduty');
+        const itemKey = `${typeKey}-${item.id}-${status}`;
         setProcessingId(itemKey);
         try {
             const token = localStorage.getItem('token');
@@ -31,9 +32,14 @@ const Dashboard = () => {
                 return;
             }
 
-            const endpoint = isLeave
-                ? `${API_BASE_URL}/api/leave/${item.id}/status`
-                : `${API_BASE_URL}/api/onduty/${item.id}/status`;
+            let endpoint = '';
+            if (item.type === 'leave') {
+                endpoint = `${API_BASE_URL}/api/leave/${item.id}/status`;
+            } else if (item.type === 'time_off') {
+                endpoint = `${API_BASE_URL}/api/timeoff/${item.id}/status`;
+            } else {
+                endpoint = `${API_BASE_URL}/api/onduty/${item.id}/status`;
+            }
 
             let statusStr = 'Pending';
             if (status === 'approved') statusStr = 'Approved';
@@ -56,8 +62,9 @@ const Dashboard = () => {
 
             // Optionally, refresh stats
             fetchDashboardStats();
-            const employeeName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : 'Request';
-            toast.success(`${employeeName}'s ${isLeave ? 'leave' : 'on-duty'} ${statusStr.toLowerCase()} successfully`, {
+            const typeLabel = item.type === 'leave' ? 'leave' : (item.type === 'time_off' ? 'time-off' : 'on-duty');
+            const employeeName = item.name || 'Request';
+            toast.success(`${employeeName}'s ${typeLabel} ${statusStr.toLowerCase()} successfully`, {
                 style: {
                     background: statusStr === 'Approved' ? '#059669' : '#dc2626',
                     color: '#fff'
@@ -67,7 +74,6 @@ const Dashboard = () => {
             console.error('Error updating status:', error);
             const errorMsg = error.response?.data?.message || 'Failed to update request';
             setModalError(errorMsg);
-            toast.error(errorMsg);
         } finally {
             setProcessingId(null);
         }
@@ -284,6 +290,7 @@ const Dashboard = () => {
                     title: item.type === 'leave' ? item.title : (item.type === 'time_off' ? 'Time-Off' : item.title.replace('On-Duty: ', '')),
                     start_date: item.start_date,
                     end_date: item.end_date,
+                    is_half_day: item.is_half_day,
                     status: item.status,
                     createdAt: item.createdAt,
                     // Additional fields for modal
@@ -307,16 +314,31 @@ const Dashboard = () => {
         }
     };
 
-    const formatDateForModal = (dateString) => {
-        if (!dateString) return 'N/A';
-        return formatInTimezone(dateString, null, {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
+    const formatDateForModal = (startDateString, endDateString = null, isLeave = false, isHalfDay = false) => {
+        if (!startDateString) return 'N/A';
+        const startFormatted = isLeave ? formatDateOnly(startDateString) : formatInTimezone(startDateString);
+
+        if (isLeave && endDateString) {
+            const endFormatted = formatDateOnly(endDateString);
+            const daysCount = calculateLeaveDays(startDateString, endDateString) - (isHalfDay ? 0.5 : 0);
+            const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
+
+            if (startFormatted !== endFormatted) {
+                return (
+                    <span>
+                        {startFormatted} - {endFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                    </span>
+                );
+            } else {
+                return (
+                    <span>
+                        {startFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                    </span>
+                );
+            }
+        }
+
+        return startFormatted;
     };
 
     const generateTrendData = (statsData, days = 7) => {
@@ -540,32 +562,33 @@ const Dashboard = () => {
                 )}
 
                 {incompleteProfiles.length > 0 && (
-                    <div className="mb-8 bg-orange-50 border-l-4 border-orange-500 rounded-r-2xl p-6 shadow-sm transform transition-all hover:scale-[1.01] duration-300">
+                    <div className="mb-8 bg-[#f0f9ff] border-l-4 border-[#1e1b4b] rounded-r-2xl p-6 shadow-sm transform transition-all hover:scale-[1.01] duration-300">
                         <div className="flex items-start justify-between">
                             <div>
-                                <h3 className="text-xl font-bold text-orange-900 mb-2 flex items-center gap-2">
-                                    <span className="animate-pulse">●</span> Action Required: Incomplete Profiles
+                                <h3 className="text-xl font-black text-[#1e1b4b] mb-2 flex items-center gap-2 uppercase tracking-tighter">
+                                    <span className="animate-pulse text-[#0ea5e9]">●</span> Action Required: Incomplete Profiles
                                 </h3>
-                                <p className="text-orange-800 mb-4 font-medium">
+                                <p className="text-gray-600 mb-4 font-medium text-sm">
                                     {incompleteProfiles.length} active user(s) have not been assigned a Role or Gender. They will be unable to log in until this is resolved.
                                 </p>
                                 <Link
                                     to="/users?status=incomplete"
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-white text-orange-600 rounded-lg font-bold shadow-sm border border-orange-100 hover:bg-orange-50 hover:shadow-md transition-all"
+                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#1e1b4b] text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:-translate-y-0.5 transition-all"
                                 >
                                     Review & Update Profiles →
                                 </Link>
                             </div>
-                            <div className="bg-orange-100 p-4 rounded-2xl shadow-inner">
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#1e1b4b]/5">
                                 <span className="text-3xl">⚠️</span>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {loading ? (
-                    <ModernLoader size="lg" message="Loading Dashboard..." />
-                ) : (
+                <div className="relative min-h-[400px]">
+                    {loading && (
+                        <ModernLoader size="container" message="Fetching dashboard stats..." />
+                    )}
                     <div className={`transition-all duration-300 ${(approveModal.show || rejectModal.show) ? 'blur-sm' : ''}`}>
                         <>
                             {/* Pending Approvals Section - Redesigned */}
@@ -594,9 +617,9 @@ const Dashboard = () => {
                                         {/* Left Navigation Button - Modern Floating Style */}
                                         <button
                                             onClick={scrollLeft}
-                                            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100"
+                                            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-[#1e1b4b] rounded-full flex items-center justify-center text-[#0ea5e9] shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100 border border-[#0ea5e9]/10"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                                             </svg>
                                         </button>
@@ -620,7 +643,16 @@ const Dashboard = () => {
                                                             {item.type}
                                                         </span>
                                                         <span className="text-[11px] font-bold text-gray-400">
-                                                            {formatInTimezone(item.start_date, null, { month: 'short', day: 'numeric' })}
+                                                            {item.type === 'leave' ? (
+                                                                <span className="text-red-500">
+                                                                    {(() => {
+                                                                        const count = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
+                                                                        return `${count} Day${count === 1 ? '' : 's'}`;
+                                                                    })()}
+                                                                </span>
+                                                            ) : (
+                                                                formatDateOnly(item.start_date)
+                                                            )}
                                                         </span>
                                                     </div>
 
@@ -660,9 +692,9 @@ const Dashboard = () => {
                                         {/* Right Navigation Button - Modern Floating Style */}
                                         <button
                                             onClick={scrollRight}
-                                            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100"
+                                            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-[#1e1b4b] rounded-full flex items-center justify-center text-[#0ea5e9] shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100 border border-[#0ea5e9]/10"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                                             </svg>
                                         </button>
@@ -673,25 +705,25 @@ const Dashboard = () => {
                             {/* Summary Section */}
                             <div className="mb-12">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-2 h-8 bg-blue-600 rounded-full"></div>
-                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">System Summary</h2>
+                                    <div className="w-2 h-8 bg-[#1e1b4b] rounded-full"></div>
+                                    <h2 className="text-2xl font-black text-[#1e1b4b] tracking-tight uppercase tracking-tighter">System Summary</h2>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <StatCard
                                         title="Total Requests"
                                         value={stats.pendingLeaves + stats.approvedLeaves + stats.rejectedLeaves + stats.pendingTimeOff + stats.approvedTimeOff + stats.rejectedTimeOff}
                                         icon="📄"
-                                        color="text-blue-600"
+                                        color="text-[#1e1b4b]"
                                         footer="Engagement overview"
-                                        gradient="bg-gradient-to-br from-blue-500 to-indigo-600"
+                                        gradient="bg-[#1e1b4b]"
                                     />
                                     <StatCard
                                         title="Total On-Duty Logs"
                                         value={stats.pendingOnDuty + stats.approvedOnDuty + stats.rejectedOnDuty + stats.activeOnDuty}
                                         icon="📍"
-                                        color="text-purple-600"
+                                        color="text-[#0ea5e9]"
                                         footer="Operational overview"
-                                        gradient="bg-gradient-to-br from-purple-500 to-pink-600"
+                                        gradient="bg-[#0ea5e9]"
                                     />
                                 </div>
                             </div>
@@ -882,9 +914,7 @@ const Dashboard = () => {
                                     <p className="text-sm text-gray-600 mb-4">Shows the number of leave and on-duty approvals for each day. Select a predefined period or use custom date range.</p>
                                     <div className="relative w-full h-96">
                                         {trendLoading && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-lg z-10">
-                                                <ModernLoader />
-                                            </div>
+                                            <ModernLoader size="container" message="Updating trend data..." />
                                         )}
                                         <ResponsiveContainer width="100%" height={400}>
                                             <BarChart data={trendBarChartData} margin={{ top: 20, right: 30, left: 0, bottom: 40 }}>
@@ -953,7 +983,7 @@ const Dashboard = () => {
                             </div>
                         </>
                     </div>
-                )}
+                </div>
 
                 {/* Modals - Outside blurred content */}
                 {approveModal.show && (
@@ -967,23 +997,30 @@ const Dashboard = () => {
                                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {approveModal.item?.name}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {approveModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item?.start_date)}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item?.start_date, approveModal.item?.end_date, approveModal.isLeave, approveModal.item?.is_half_day)}</p>
                                 </div>
-                                {modalError && <div className="text-red-600 text-sm mb-2">{modalError}</div>}
+                                {modalError && (
+                                    <div className="mb-3 flex items-center gap-3 rounded-lg border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-4 py-3 shadow-sm">
+                                        <svg className="h-5 w-5 flex-shrink-0 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                                        </svg>
+                                        <p className="text-[13px] font-semibold text-red-700">{modalError}</p>
+                                    </div>
+                                )}
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => setApproveModal({ show: false, item: null, isLeave: false })}
-                                        disabled={processingId === `leave-${approveModal.item?.id}-approved` || processingId === `onduty-${approveModal.item?.id}-approved`}
+                                        disabled={!!processingId}
                                         className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         onClick={async () => await performStatusUpdate(approveModal.item, 'approved', approveModal.isLeave)}
-                                        disabled={processingId === `leave-${approveModal.item?.id}-approved` || processingId === `onduty-${approveModal.item?.id}-approved`}
+                                        disabled={!!processingId}
                                         className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
                                     >
-                                        {processingId === `leave-${approveModal.item?.id}-approved` || processingId === `onduty-${approveModal.item?.id}-approved` ? (
+                                        {!!processingId ? (
                                             <>
                                                 <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                                                 <span>Processing...</span>
@@ -1009,7 +1046,7 @@ const Dashboard = () => {
                                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {rejectModal.item?.name}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {rejectModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item?.start_date)}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item?.start_date, rejectModal.item?.end_date, rejectModal.isLeave, rejectModal.item?.is_half_day)}</p>
                                 </div>
                                 <textarea
                                     value={rejectModal.reason}
@@ -1018,11 +1055,18 @@ const Dashboard = () => {
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
                                     rows="4"
                                 />
-                                {modalError && <div className="text-red-600 text-sm mb-2">{modalError}</div>}
+                                {modalError && (
+                                    <div className="mb-3 flex items-center gap-3 rounded-lg border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-4 py-3 shadow-sm">
+                                        <svg className="h-5 w-5 flex-shrink-0 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                                        </svg>
+                                        <p className="text-[13px] font-semibold text-red-700">{modalError}</p>
+                                    </div>
+                                )}
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => setRejectModal({ show: false, item: null, isLeave: false, reason: '' })}
-                                        disabled={processingId === `leave-${rejectModal.item?.id}-rejected` || processingId === `onduty-${rejectModal.item?.id}-rejected`}
+                                        disabled={!!processingId}
                                         className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium"
                                     >
                                         Cancel
@@ -1035,10 +1079,10 @@ const Dashboard = () => {
                                             }
                                             await performStatusUpdate(rejectModal.item, 'rejected', rejectModal.isLeave, rejectModal.reason);
                                         }}
-                                        disabled={processingId === `leave-${rejectModal.item?.id}-rejected` || processingId === `onduty-${rejectModal.item?.id}-rejected`}
+                                        disabled={!!processingId}
                                         className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
                                     >
-                                        {processingId === `leave-${rejectModal.item?.id}-rejected` || processingId === `onduty-${rejectModal.item?.id}-rejected` ? (
+                                        {!!processingId ? (
                                             <>
                                                 <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                                                 <span>Processing...</span>
@@ -1123,7 +1167,7 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.isLeave
-                                                ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date)} Day(s)`
+                                                ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0)} Day(s)`
                                                 : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time)
                                             }
                                         </p>
@@ -1132,7 +1176,7 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective Start</p>
                                         <div className="flex items-center gap-2">
                                             <p className="text-base font-semibold text-gray-900">
-                                                {detailsModal.isLeave ? detailsModal.item.start_date : formatApprovalDate(detailsModal.item.start_time)}
+                                                {detailsModal.isLeave ? formatDateOnly(detailsModal.item.start_date) : formatInTimezone(detailsModal.item.start_time)}
                                             </p>
                                         </div>
                                     </div>
@@ -1140,7 +1184,7 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective End</p>
                                         <div className="flex items-center gap-2">
                                             <p className="text-base font-semibold text-gray-900">
-                                                {detailsModal.isLeave ? detailsModal.item.end_date : formatApprovalDate(detailsModal.item.end_time)}
+                                                {detailsModal.isLeave ? formatDateOnly(detailsModal.item.end_date) : (detailsModal.item.end_time ? formatInTimezone(detailsModal.item.end_time) : '—')}
                                             </p>
                                         </div>
                                     </div>
@@ -1169,10 +1213,6 @@ const Dashboard = () => {
                                     </div>
                                 )}
 
-                                {/* Timestamps */}
-                                <div className="pt-4 flex justify-between text-[10px] font-bold text-gray-500 tracking-wide border-t border-gray-100">
-                                    <span>Requested On: {formatApprovalDate(detailsModal.item.createdAt)}</span>
-                                </div>
                             </div>
 
                             {/* Footer Controls */}
@@ -1234,14 +1274,7 @@ const calculateOnDutyDuration = (startTime, endTime) => {
 
 const formatApprovalDate = (dateString) => {
     if (!dateString) return '—';
-    return formatInTimezone(dateString, null, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
+    return formatInTimezone(dateString);
 };
 
 export default Dashboard;

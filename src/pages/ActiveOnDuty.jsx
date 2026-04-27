@@ -7,6 +7,7 @@ import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { hasAdminPermission, fetchRoles, canManageActiveOnDuty } from '../utils/roleUtils';
 import { formatInTimezone, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 import TableSortIcon from '../components/TableSortIcon';
+import { FiRefreshCw } from 'react-icons/fi';
 
 const ActiveOnDuty = () => {
     const navigate = useNavigate();
@@ -14,6 +15,7 @@ const ActiveOnDuty = () => {
     const [hasPermission, setHasPermission] = useState(false);
     const [onDutyRecords, setOnDutyRecords] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'start_time', direction: 'desc' });
@@ -48,9 +50,13 @@ const ActiveOnDuty = () => {
         }
     }, [hasPermission]);
 
-    const fetchActiveOnDuty = async () => {
+    const fetchActiveOnDuty = async (isManualRefresh = false) => {
         try {
-            setLoading(true);
+            if (isManualRefresh) {
+                setRefreshing(true);
+            } else {
+                setLoading(true);
+            }
             setError(null);
             const token = localStorage.getItem('token');
             if (!token) {
@@ -70,6 +76,7 @@ const ActiveOnDuty = () => {
             setError(err.response?.data?.message || err.message || 'Failed to fetch active on-duty records');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -157,9 +164,6 @@ const ActiveOnDuty = () => {
         return null;
     }
 
-    if (loading) {
-        return <ModernLoader />;
-    }
 
     return (
         <div className="space-y-6">
@@ -173,9 +177,20 @@ const ActiveOnDuty = () => {
                             : 'View active on-duty records for your team'}
                     </p>
                 </div>
-                <div className="text-right">
-                    <div className="text-4xl font-bold text-blue-600">{sortedRecords.length}</div>
-                    <p className="text-gray-600 text-sm">Currently Active</p>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => fetchActiveOnDuty(true)}
+                        disabled={refreshing || loading}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#2E5090] text-white rounded-lg hover:bg-blue-800 transition-all shadow-md disabled:opacity-50"
+                        title="Refresh Data"
+                    >
+                        <FiRefreshCw className={`${refreshing ? 'animate-spin' : ''}`} />
+                        <span className="font-semibold text-sm">Refresh</span>
+                    </button>
+                    <div className="text-right">
+                        <div className="text-4xl font-bold text-blue-600">{sortedRecords.length}</div>
+                        <p className="text-gray-600 text-sm">Currently Active</p>
+                    </div>
                 </div>
             </div>
 
@@ -198,7 +213,10 @@ const ActiveOnDuty = () => {
             )}
 
             {/* Records Table */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden relative min-h-[400px]">
+                {loading && (
+                    <ModernLoader size="container" message="Fetching on-duty data..." fullScreen={false} />
+                )/* Localization: Overlay instead of full-page blur */}
                 {sortedRecords.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
                         <div className="text-4xl mb-2">😴</div>
@@ -210,12 +228,12 @@ const ActiveOnDuty = () => {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="bg-[#2E5090] text-white">
+                            <thead className="bg-[#1e1b4b] text-white">
                                 <tr>
                                     <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('staffName')}
-                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                            className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                         >
                                             Employee <TableSortIcon column="staffName" sortConfig={sortConfig} />
                                         </button>
@@ -223,7 +241,7 @@ const ActiveOnDuty = () => {
                                     <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('client_name')}
-                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                            className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                         >
                                             Client <TableSortIcon column="client_name" sortConfig={sortConfig} />
                                         </button>
@@ -231,7 +249,7 @@ const ActiveOnDuty = () => {
                                     <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('location')}
-                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                            className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                         >
                                             Location <TableSortIcon column="location" sortConfig={sortConfig} />
                                         </button>
@@ -239,14 +257,14 @@ const ActiveOnDuty = () => {
                                     <th className="px-6 py-3 text-left">
                                         <button
                                             onClick={() => handleSort('start_time')}
-                                            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                                            className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                         >
                                             Started <TableSortIcon column="start_time" sortConfig={sortConfig} />
                                         </button>
                                     </th>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Duration</th>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-white">Purpose</th>
-                                    <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
+                                    <th className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
+                                    <th className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Purpose</th>
+                                    <th className="px-6 py-3 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
@@ -374,7 +392,7 @@ const ActiveOnDuty = () => {
 
             {/* Footer Info */}
             <div className="text-center text-sm text-gray-500">
-                <p>Refresh the page to get the latest data</p>
+                <p>Use the refresh button to get the latest data</p>
             </div>
         </div>
     );

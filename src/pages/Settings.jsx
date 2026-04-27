@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiSave, FiSettings, FiClock, FiGlobe } from 'react-icons/fi';
+import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { fetchRoles, getRoleById, canManageSystemSettings } from '../utils/roleUtils';
@@ -19,7 +19,8 @@ export default function Settings() {
     // Settings State - organized by category
     const [settings, setSettings] = useState({
         max_time_off_hours: '',
-        application_timezone: 'America/Chicago'
+        application_timezone: 'America/Chicago',
+        leave_past_days_allowed: '0'
     });
 
     // Define settings configuration for easy expansion
@@ -36,6 +37,30 @@ export default function Settings() {
                     type: 'select',
                     options: TIMEZONE_OPTIONS,
                     placeholder: 'Select timezone'
+                },
+                {
+                    key: 'application_date_format',
+                    label: 'Date Format',
+                    description: 'Global format used to display dates across the application',
+                    type: 'select',
+                    options: [
+                        { value: 'MMM DD, YYYY', label: 'Feb 28, 2026 (MMM DD, YYYY)' },
+                        { value: 'DD/MM/YYYY', label: '28/02/2026 (DD/MM/YYYY)' },
+                        { value: 'MM/DD/YYYY', label: '02/28/2026 (MM/DD/YYYY)' },
+                        { value: 'YYYY-MM-DD', label: '2026-02-28 (YYYY-MM-DD)' }
+                    ],
+                    placeholder: 'Select date format'
+                },
+                {
+                    key: 'application_time_format',
+                    label: 'Time Format',
+                    description: 'Global format used to display times across the application',
+                    type: 'select',
+                    options: [
+                        { value: '12h', label: '12-Hour (e.g. 02:30 PM)' },
+                        { value: '24h', label: '24-Hour (e.g. 14:30)' }
+                    ],
+                    placeholder: 'Select time format'
                 }
             ]
         },
@@ -54,6 +79,24 @@ export default function Settings() {
                     step: 0.5,
                     unit: 'hours',
                     placeholder: '4'
+                }
+            ]
+        },
+        {
+            category: 'Leave Configuration',
+            description: 'Manage rules and restrictions for Leave requests',
+            icon: <FiCalendar className="text-green-600" />,
+            settings: [
+                {
+                    key: 'leave_past_days_allowed',
+                    label: 'Past Days Allowed for Leave Application',
+                    description: 'How many past days employees can select when applying for leave (0 = only today and future dates)',
+                    type: 'number',
+                    min: 0,
+                    max: 365,
+                    step: 1,
+                    unit: 'days',
+                    placeholder: '0'
                 }
             ]
         }
@@ -128,10 +171,10 @@ export default function Settings() {
                 headers: { 'x-access-token': token }
             });
 
-            // Update local storage if timezone was changed
-            if (key === 'application_timezone') {
+            // Update local storage if critical settings were changed
+            if (['application_timezone', 'application_date_format', 'application_time_format'].includes(key)) {
                 const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
-                existingSettings.application_timezone = value;
+                existingSettings[key] = value;
                 localStorage.setItem('settings', JSON.stringify(existingSettings));
                 // Dispatch event to notify other components
                 window.dispatchEvent(new Event('settingsLoaded'));
@@ -204,11 +247,10 @@ export default function Settings() {
             </div>
 
             {/* Settings Categories */}
-            {loading ? (
-                <div className="flex items-center justify-center py-20">
-                    <ModernLoader />
-                </div>
-            ) : (
+            <div className="relative min-h-[400px]">
+                {loading && (
+                    <ModernLoader size="container" message="Fetching settings..." fullScreen={false} />
+                )}
                 <div className="space-y-6">
                     {settingsConfig.map((category, categoryIndex) => (
                         <div key={categoryIndex} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -316,7 +358,7 @@ export default function Settings() {
                         </div>
                     ))}
                 </div>
-            )}
+            </div>
 
             {/* Info Footer */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">

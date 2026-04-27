@@ -47,15 +47,38 @@ const Login = () => {
 
         try {
             const roles = await fetchRoles(true); // Force refresh roles cache
-            console.log('Fetched roles for permission check:', roles);
-            console.log('User role ID:', user.role, 'Type:', typeof user.role);
 
-            // Check if user has permission to access webapp (based on role permissions)
-            const hasAccess = canAccessWebApp(user.role);
-            console.log('canAccessWebApp result:', hasAccess);
+            // Also refresh application settings (timezone, etc)
+            if (window.refreshAppSettings) {
+                await window.refreshAppSettings();
+            }
 
-            if (!hasAccess) {
-                // User doesn't have full webapp access but can still use My Requests
+            // Force all mobile users to my-requests
+            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobileDevice) {
+                localStorage.setItem('user', JSON.stringify(user));
+                toast.success(`Welcome, ${user.firstname}!`, {
+                    style: { background: '#059669', color: '#fff' },
+                    icon: '👋'
+                });
+                navigate('/my-requests');
+                return;
+            }
+
+            // 1. Gating: If user doesn't have webapp access at all, they shouldn't see dashboard pages
+            if (!canAccessWebApp(user.role)) {
+                localStorage.setItem('user', JSON.stringify(user));
+                toast.success(`Welcome, ${user.firstname}!`, {
+                    style: { background: '#059669', color: '#fff' },
+                    icon: '👋'
+                });
+                navigate('/my-requests'); // Redirect to my-requests if no webapp access
+                return;
+            }
+
+            // 2. Navigation: If they ONLY have web access (no management permissions),
+            // they belong in /my-requests, not the main Dashboard pages
+            if (isSelfServiceOnly(user.role)) {
                 localStorage.setItem('user', JSON.stringify(user));
                 toast.success(`Welcome, ${user.firstname}!`, {
                     style: { background: '#059669', color: '#fff' },
@@ -66,26 +89,13 @@ const Login = () => {
             }
         } catch (roleError) {
             console.error('Error fetching roles:', roleError);
-            // If we can't fetch roles, allow login but log the error
-            // The roles will be fetched on next page load
         }
 
         localStorage.setItem('user', JSON.stringify(user));
 
-        // Check if user is self-service only (no management permissions)
-        // These users go to /my-requests even if they have can_access_webapp
-        if (isSelfServiceOnly(user.role)) {
-            toast.success(`Welcome, ${user.firstname}!`, {
-                style: { background: '#059669', color: '#fff' },
-                icon: '👋'
-            });
-            navigate('/my-requests');
-            return;
-        }
-
         toast.success(`Welcome back, ${user.firstname}!`, {
             style: {
-                background: '#059669', // Green for standard login
+                background: '#059669',
                 color: '#fff'
             },
             icon: '👋'
@@ -179,166 +189,125 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen bg-white flex overflow-hidden">
-            {/* Left Side - Login Form */}
-            <div className="w-full lg:w-[65%] flex flex-col p-8 lg:p-16 xl:p-24 overflow-y-auto">
-                <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center items-center text-center">
-                    {/* Logo */}
-                    <div className="mb-28 -mt-12">
-                        <BrandLogo iconSize="w-20 h-20" />
-                    </div>
+        <div className="min-h-screen bg-white flex items-center justify-center p-8 lg:p-16">
+            <div className="max-w-md w-full flex flex-col items-center text-center">
+                {/* Logo */}
+                <div className="mb-20">
+                    <BrandLogo iconSize="w-24 h-24" />
+                </div>
 
-                    <div className="mb-10">
-                        <h1 className="text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
-                            Sign in to WorkPulse
-                        </h1>
-                    </div>
+                <div className="mb-10 text-center">
+                    <h1 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+                        Sign in to WorkPulse
+                    </h1>
+                    <p className="text-gray-500 text-sm">Welcome back! Please enter your details.</p>
+                </div>
 
-                    <form onSubmit={handleLogin} className="space-y-6">
-                        {/* Error Message */}
-                        {error && (
-                            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg animate-shake">
-                                <p className="text-red-700 text-sm font-medium flex items-center gap-2">
-                                    <span>⚠️</span> {error}
-                                </p>
-                            </div>
-                        )}
+                <form onSubmit={handleLogin} className="space-y-6 w-full">
+                    {/* Error Message */}
+                    {error && (
+                        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg animate-shake text-left">
+                            <p className="text-red-700 text-sm font-medium flex items-center gap-2">
+                                <span>⚠️</span> {error}
+                            </p>
+                        </div>
+                    )}
 
-                        <div className="border border-gray-200 rounded-lg p-6 space-y-6">
-                            <div className="space-y-4">
-                                {/* Email Field */}
-                                <div className="flex items-center gap-4">
-                                    <label htmlFor="email" className="text-sm font-semibold text-gray-700 w-16 flex-shrink-0">Email</label>
-                                    <input
-                                        id="email"
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="Enter your email"
-                                        required
-                                        className="flex-1 px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-gray-800 placeholder-gray-400"
-                                    />
-                                </div>
-
-                                {/* Password Field */}
-                                <div className="flex items-center gap-4">
-                                    <label htmlFor="password" className="text-sm font-semibold text-gray-700 w-16 flex-shrink-0">Password</label>
-                                    <input
-                                        id="password"
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Password"
-                                        required
-                                        className="flex-1 px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-gray-800 placeholder-gray-400"
-                                    />
-                                </div>
+                    <div className="border border-gray-200 rounded-2xl p-8 space-y-6 shadow-sm">
+                        <div className="space-y-5">
+                            {/* Email Field */}
+                            <div className="flex items-center gap-4 text-left">
+                                <label htmlFor="email" className="text-sm font-semibold text-gray-700 w-16 flex-shrink-0">Email</label>
+                                <input
+                                    id="email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Enter your email"
+                                    required
+                                    className="flex-1 px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400"
+                                />
                             </div>
 
-                            <div className="flex justify-center">
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="w-40 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-200 hover:shadow-xl hover:shadow-purple-300 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
-                                >
-                                    {loading ? (
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    ) : (
-                                        "Sign In"
-                                    )}
-                                </button>
+                            {/* Password Field */}
+                            <div className="flex items-center gap-4 text-left">
+                                <label htmlFor="password" className="text-sm font-semibold text-gray-700 w-16 flex-shrink-0">Password</label>
+                                <input
+                                    id="password"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Password"
+                                    required
+                                    className="flex-1 px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400"
+                                />
                             </div>
                         </div>
-                    </form>
 
-                    {/* ABiS Credentials Instruction */}
-                    <div className="mt-8 max-w-md w-full bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200/50 rounded-xl p-6 shadow-sm">
-                        <div>
-                            <p className="text-sm font-semibold text-gray-900 mb-1">Login Credentials</p>
-                            <p className="text-xs text-gray-600">Use your <span className="font-bold text-gray-800">ABiS account</span> credentials to access WorkPulse</p>
+                        <div className="flex justify-center">
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full max-w-[200px] py-4 bg-[#1e1b4b] text-white font-black rounded-xl shadow-xl shadow-indigo-950/10 hover:shadow-indigo-950/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-70 text-xs uppercase tracking-widest"
+                            >
+                                {loading ? (
+                                    <div className="w-5 h-5 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <>
+                                        <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse mr-1" />
+                                        Sign In
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
+                </form>
 
+                {/* ABiS Credentials Instruction */}
+                <div className="mt-10 max-w-md w-full bg-gray-50 border border-gray-100 rounded-2xl p-6">
+                    <div className="text-center">
+                        <p className="text-xs font-black text-[#1e1b4b] mb-1 uppercase tracking-tighter opacity-70">Login Credentials</p>
+                        <p className="text-[11px] text-gray-500">Use your <span className="font-bold text-[#1e1b4b]">ABiS Application</span> account credentials to access WorkPulse</p>
+                    </div>
                 </div>
 
                 {/* Mobile App Download Link */}
-                <div className="mt-4 text-center animate-fade-in">
+                <div className="mt-8 text-center w-full">
                     <Link
                         to="/apk"
-                        className="inline-flex items-center justify-center gap-2 w-60 py-4 bg-white border-2 border-black text-black font-bold rounded-xl shadow-lg shadow-gray-200 hover:shadow-xl hover:shadow-gray-300 transform hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                        className="inline-flex items-center justify-center gap-2 w-full max-w-[260px] py-4 bg-white border border-gray-200 text-gray-900 font-bold rounded-xl hover:bg-gray-50 transition-all text-sm"
                     >
                         <LuSmartphone size={20} />
                         <span>Download Mobile App</span>
                     </Link>
                 </div>
 
-                {/* Copyright Info - Moved to very bottom */}
-                <div className="mt-auto flex items-center justify-center py-8 animate-fade-in opacity-60 hover:opacity-100 transition-opacity">
-                    <p className="text-gray-500 text-xs font-medium text-center">
+                {/* Copyright Info */}
+                <div className="mt-16 opacity-40 hover:opacity-100 transition-opacity">
+                    <p className="text-gray-500 text-[10px] font-medium text-center">
                         &copy; {new Date().getFullYear()} Roonaa Technologies India Private Limited
                     </p>
                 </div>
             </div>
 
-            {/* Right Side - Decorative Panel */}
-            <div className="hidden lg:flex lg:w-[35%] relative bg-gradient-to-br from-blue-600 to-purple-600 items-center justify-center p-20 overflow-hidden">
-                {/* Background decorative elements */}
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-
-                {/* Floating "Card" UI Elements simulation */}
-                <div className="relative z-10 w-full max-w-lg aspect-square">
-                    {/* Main decorative SVG */}
-                    <svg viewBox="0 0 500 500" className="w-full h-full drop-shadow-2xl animate-float">
-                        <defs>
-                            <linearGradient id="svgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#fff" stopOpacity="0.2" />
-                                <stop offset="100%" stopColor="#fff" stopOpacity="0.05" />
-                            </linearGradient>
-                        </defs>
-                        <rect x="50" y="50" width="400" height="400" rx="40" fill="url(#svgGrad)" />
-                        <circle cx="250" cy="250" r="120" stroke="white" strokeWidth="2" fill="none" opacity="0.2" />
-                        <circle cx="250" cy="250" r="150" stroke="white" strokeWidth="2" fill="none" opacity="0.1" />
-
-                        {/* Pulse line simulation */}
-                        <path
-                            d="M100 250 L180 250 L210 200 L240 300 L270 240 L300 250 L400 250"
-                            stroke="white"
-                            strokeWidth="8"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="animate-draw-pulse"
-                            style={{ filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.8))' }}
-                        />
-
-                        {/* Floating elements */}
-                        <rect x="350" y="100" width="40" height="60" rx="10" fill="white" opacity="0.3" />
-                        <circle cx="100" cy="400" r="30" fill="white" opacity="0.2" />
-                        <path d="M400 350 L430 380 L370 380 Z" fill="white" opacity="0.25" />
-                    </svg>
-                </div>
-
-            </div>
-
             {/* Welcome / Setup Required Modal */}
             {showWelcomeModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in">
-                        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-[#1e1b4b]/5">
+                        <div className="w-20 h-20 bg-[#f0f9ff] rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-[#f0f9ff]">
                             <span className="text-4xl">👋</span>
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome to WorkPulse!</h3>
+                        <h3 className="text-2xl font-black text-[#1e1b4b] mb-2 uppercase tracking-tighter">Welcome to WorkPulse!</h3>
                         <p className="text-gray-500 mb-8 leading-relaxed">
                             We're excited to have you on board.
                             <br /><br />
                             Your profile setup is incomplete.
                             <br />
-                            <span className="text-blue-600 font-semibold mt-2 block">Please contact your administrator to configure your account before you can log in.</span>
+                            <span className="text-[#0ea5e9] font-black mt-2 block uppercase text-xs tracking-widest">Please contact administrator.</span>
                         </p>
                         <button
                             onClick={() => setShowWelcomeModal(false)}
-                            className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                            className="w-full py-4 bg-[#1e1b4b] text-white rounded-xl font-black hover:bg-indigo-950 transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-xs uppercase tracking-widest shadow-xl shadow-indigo-950/20"
                         >
                             Okay, Got it
                         </button>
@@ -434,7 +403,7 @@ const Login = () => {
                 </div>
             )}
 
-            <style jsx>{`
+            <style>{`
                 @keyframes modal-in {
                     from { opacity: 0; transform: scale(0.95); }
                     to { opacity: 1; transform: scale(1); }

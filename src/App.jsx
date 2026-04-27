@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import AxiosInterceptorSetup from './components/AxiosInterceptorSetup';
+import InactivityGuard from './components/InactivityGuard';
 import { Toaster } from 'react-hot-toast';
 import axios from 'axios';
 import API_BASE_URL from './config/api.config';
@@ -24,26 +25,95 @@ import EmailSettings from './pages/EmailSettings';
 import Settings from './pages/Settings';
 import MyRequests from './pages/MyRequests';
 import Arch from './pages/Arch';
+import ShowQRCode from './pages/ShowQRCode';
 import { fetchRoles } from './utils/roleUtils';
 
 
 const GlobalInit = ({ children }) => {
+  // Read QR params before useState so the initial value is correct on the very first render.
+  // This prevents ProtectedRoute from executing (and redirecting to /login) before
+  // the QR token has been validated and stored in localStorage.
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('token');
+  const urlUser = urlParams.get('user');
+
+  // false when QR params are present (block rendering until validated); true otherwise
+  const [tokenValidated, setTokenValidated] = useState(!urlToken || !urlUser);
+
+  // If token comes from URL (QR code), validate it with the server BEFORE storing
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      fetchRoles();
-      // Fetch application settings
-      axios.get(`${API_BASE_URL}/api/settings`, {
-        headers: { 'x-access-token': token }
-      }).then(response => {
-        if (response.data && response.data.map) {
-          localStorage.setItem('settings', JSON.stringify(response.data.map));
-          // Dispatch event to notify components that settings are loaded
-          window.dispatchEvent(new Event('settingsLoaded'));
-        }
-      }).catch(err => console.error('Error fetching settings:', err));
+    const validateAndStoreQRToken = async () => {
+      try {
+        // Exchange the short-lived QR token (60s) for a full 24h session token
+        const exchangeRes = await axios.post(`${API_BASE_URL}/api/auth/exchange-qr-token`, {}, {
+          headers: { 'x-access-token': urlToken }
+        });
+        // Store the full session token so API calls don't expire after 60s
+        localStorage.setItem('token', exchangeRes.data.accessToken);
+        localStorage.setItem('user', urlUser);
+        window.history.replaceState(null, '', window.location.pathname);
+        setTokenValidated(true);
+        // Fetch roles and settings after successful validation
+        fetchRoles();
+        fetchSettings();
+      } catch (err) {
+        // Token is INVALID (expired, wrong secret, etc.) — reject it
+        console.error('QR token validation failed:', err);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.history.replaceState(null, '', window.location.pathname);
+        window.location.href = '/session-expired';
+      }
+    };
+
+    if (urlToken && urlUser) {
+      validateAndStoreQRToken();
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchSettings = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/settings`, {
+        headers: { 'x-access-token': token }
+      });
+      if (response.data && response.data.map) {
+        localStorage.setItem('settings', JSON.stringify(response.data.map));
+        // Dispatch event to notify components that settings are loaded
+        window.dispatchEvent(new Event('settingsLoaded'));
+      }
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+    }
+  };
+
+  useEffect(() => {
+    // Only run for non-QR flows (when token already exists in localStorage)
+    if (!urlToken && !urlUser) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetchRoles();
+        fetchSettings();
+      }
+    }
+    // Expose fetchSettings globally so Login.jsx can call it
+    window.refreshAppSettings = fetchSettings;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Show loading spinner while QR token is being validated
+  if (!tokenValidated) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f9fafb' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 40, height: 40, border: '3px solid #e5e7eb', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }}></div>
+          <p style={{ color: '#6b7280', fontSize: 14 }}>Validating session...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
 
   return children;
 };
@@ -51,6 +121,7 @@ const GlobalInit = ({ children }) => {
 const ProtectedLayout = ({ children }) => {
   return (
     <ProtectedRoute>
+      <InactivityGuard />
       <div className="flex h-screen bg-transparent transition-colors duration-300">
         <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -134,8 +205,9 @@ function App() {
             <Route path="/arch" element={<ProtectedLayout><Arch /></ProtectedLayout>} />
             <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
 
-            {/* Self-Service Route (all authenticated users, no sidebar/header) */}
+            {/* Self-Service Routes (all authenticated users, no sidebar/header) */}
             <Route path="/my-requests" element={<ProtectedRoute skipWebAppCheck><MyRequests /></ProtectedRoute>} />
+            <Route path="/show-qrcode" element={<ProtectedRoute><ShowQRCode /></ProtectedRoute>} />
 
 
             {/* Catch all */}

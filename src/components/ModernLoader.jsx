@@ -14,7 +14,9 @@ const ModernLoader = ({ size = 'lg', message = 'Loading...', fullScreen = true }
 
   const containerClasses = fullScreen 
     ? 'fixed inset-0 flex flex-col items-center justify-center bg-white/30 backdrop-blur-sm z-40'
-    : 'flex flex-col items-center justify-center py-12';
+    : size === 'container'
+      ? 'absolute inset-0 flex flex-col items-center justify-center bg-white/30 backdrop-blur-sm z-10 rounded-xl'
+      : 'flex flex-col items-center justify-center py-12';
 
   return (
     <div className={containerClasses}>

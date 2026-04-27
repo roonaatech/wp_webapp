@@ -7,6 +7,8 @@ import BrandLogo from '../components/BrandLogo';
 import { LuDownload, LuUpload, LuTrash2, LuEye, LuEyeOff, LuSmartphone, LuHistory } from "react-icons/lu";
 import { hasAdminPermission } from '../utils/roleUtils';
 import { QRCodeCanvas as QRCode } from 'qrcode.react';
+import { formatInTimezone } from '../utils/timezone.util';
+
 
 const ApkDistribution = () => {
     const [latestApk, setLatestApk] = useState(null);
@@ -15,6 +17,9 @@ const ApkDistribution = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [downloadingId, setDownloadingId] = useState(null);
     const [downloadProgress, setDownloadProgress] = useState(0);
+
+    // Tab state for QR code toggle
+    const [activeQrTab, setActiveQrTab] = useState('download'); // 'download' | 'web'
 
     // Auth state
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -41,9 +46,62 @@ const ApkDistribution = () => {
     const [editedReleaseNotes, setEditedReleaseNotes] = useState('');
     const [isSavingReleaseNotes, setIsSavingReleaseNotes] = useState(false);
 
+    // QR Token state — short-lived token for secure QR code sharing
+    const [qrToken, setQrToken] = useState(null);
+    const [qrUser, setQrUser] = useState(null);
+    const [qrLoading, setQrLoading] = useState(false);
+    const [qrExpiresAt, setQrExpiresAt] = useState(null);
+    const [qrCountdown, setQrCountdown] = useState(0);
+
     useEffect(() => {
         fetchData();
     }, []);
+
+    // Generate a fresh short-lived QR token whenever 'My Requests' tab is selected
+    const generateQRToken = async () => {
+        if (!token) return;
+        setQrLoading(true);
+        try {
+            const res = await axios.post(`${API_BASE_URL}/api/auth/generate-qr-token`, {}, {
+                headers: { 'x-access-token': token }
+            });
+            if (res.data.success) {
+                setQrToken(res.data.qrToken);
+                setQrUser(JSON.stringify(res.data.user));
+                const expiresAt = Date.now() + (res.data.expiresIn * 1000);
+                setQrExpiresAt(expiresAt);
+                setQrCountdown(res.data.expiresIn);
+            }
+        } catch (err) {
+            console.error('Failed to generate QR token:', err);
+            toast.error('Failed to generate QR code. Please try again.');
+        } finally {
+            setQrLoading(false);
+        }
+    };
+
+    // Auto-generate QR token when switching to 'web' tab
+    useEffect(() => {
+        if (activeQrTab === 'web' && token) {
+            generateQRToken();
+        }
+    }, [activeQrTab]);
+
+    // Countdown timer for QR token expiry + auto-refresh
+    useEffect(() => {
+        if (!qrExpiresAt) return;
+        const interval = setInterval(() => {
+            const remaining = Math.max(0, Math.floor((qrExpiresAt - Date.now()) / 1000));
+            setQrCountdown(remaining);
+            if (remaining <= 0) {
+                // Auto-refresh the QR token
+                if (activeQrTab === 'web') {
+                    generateQRToken();
+                }
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [qrExpiresAt, activeQrTab]);
 
     const fetchData = async (page = 1) => {
         setIsLoading(true);
@@ -374,7 +432,7 @@ const ApkDistribution = () => {
                                                 <h2 className="text-3xl font-bold">v{latestApk.version}</h2>
                                                 <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">Latest Stable</span>
                                             </div>
-                                            <p className="text-blue-100 mb-4">Released on {new Date(latestApk.upload_date).toLocaleDateString()}</p>
+                                            <p className="text-blue-100 mb-4">Released on {formatInTimezone(latestApk.upload_date)}</p>
                                             {(latestApk.release_notes || isEditingReleaseNotes) && (
                                                 <div className="bg-black/20 rounded-xl p-4 mb-6 max-w-2xl backdrop-blur-sm">
                                                     <div className="flex items-center justify-between mb-2">
@@ -484,15 +542,81 @@ const ApkDistribution = () => {
                             </div>
                         </div>
 
-                        {/* QR Code Card */}
-                        <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-6 shadow-xl border border-gray-100 flex flex-col items-center justify-center text-center">
-                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-inner mb-4">
-                                <QRCode value={window.location.href} size={200} />
+                        {/* QR Code Cards with Toggle */}
+                        <div className="bg-white rounded-3xl p-3 shadow-xl border border-gray-100 flex flex-col h-full">
+                            {token && (
+                                <div className="flex w-full p-1 bg-gray-100 rounded-2xl mb-4 flex-shrink-0">
+                                    <button
+                                        onClick={() => setActiveQrTab('download')}
+                                        className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${activeQrTab === 'download' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                    >
+                                        Mobile App
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveQrTab('web')}
+                                        className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${activeQrTab === 'web' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                    >
+                                        My Requests
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="w-full flex-1 relative flex flex-col justify-center">
+                                {(!token || activeQrTab === 'download') ? (
+                                    <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl p-6 h-full flex flex-col items-center justify-center text-center animate-in fade-in transition-all">
+                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
+                                            <QRCode value={window.location.href} size={160} />
+                                        </div>
+                                        <h3 className="font-bold text-white text-lg mb-1">Scan to Download</h3>
+                                        <p className="text-blue-100 text-sm px-4">
+                                            Open this page on your mobile device to download the app directly.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="bg-gradient-to-br from-gray-700 to-gray-900 rounded-2xl p-6 h-full flex flex-col items-center justify-center text-center animate-in fade-in transition-all">
+                                        {qrLoading ? (
+                                            <>
+                                                <div className="bg-white/10 p-4 rounded-xl border border-white/20 mb-4" style={{ width: 192, height: 192, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <div style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,0.2)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+                                                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                                                </div>
+                                                <p className="text-gray-300 text-sm">Generating secure QR code...</p>
+                                            </>
+                                        ) : qrToken ? (
+                                            <>
+                                                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
+                                                    <QRCode value={`${window.location.origin}/my-requests?token=${encodeURIComponent(qrToken)}&user=${encodeURIComponent(qrUser)}`} size={160} />
+                                                </div>
+                                                <h3 className="font-bold text-white text-lg mb-1">My Requests</h3>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${qrCountdown > 60 ? 'bg-green-500/20 text-green-300' : qrCountdown > 30 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>
+                                                        ⏱ Expires in {Math.floor(qrCountdown / 60)}:{String(qrCountdown % 60).padStart(2, '0')}
+                                                    </span>
+                                                </div>
+                                                <p className="text-gray-400 text-xs px-4 mb-3">
+                                                    This QR code refreshes automatically for security.
+                                                </p>
+                                                <button
+                                                    onClick={generateQRToken}
+                                                    className="text-xs text-blue-300 hover:text-blue-200 underline transition-colors"
+                                                >
+                                                    Refresh now
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="text-gray-300 text-sm mb-3">Could not generate QR code.</p>
+                                                <button
+                                                    onClick={generateQRToken}
+                                                    className="text-sm text-blue-300 hover:text-blue-200 underline"
+                                                >
+                                                    Try again
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                            <h3 className="font-bold text-white text-lg mb-1">Scan to Download</h3>
-                            <p className="text-blue-100 text-sm px-4">
-                                Open this page on your mobile device to download the app directly.
-                            </p>
                         </div>
                     </div>
 
@@ -639,8 +763,7 @@ const ApkDistribution = () => {
                                                     <tr key={apk.id} className="hover:bg-gray-50/50 transition-colors">
                                                         <td className="py-4 pl-4 font-medium text-gray-900">{apk.version}</td>
                                                         <td className="py-4 text-gray-500 text-sm">
-                                                            {new Date(apk.upload_date).toLocaleDateString()}
-                                                            <div className="text-xs text-gray-400">{new Date(apk.upload_date).toLocaleTimeString()}</div>
+                                                            {formatInTimezone(apk.upload_date)}
                                                         </td>
                                                         <td className="py-4">
                                                             <span className={`text-xs font-bold px-2 py-1 rounded-full ${apk.is_visible

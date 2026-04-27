@@ -4,26 +4,20 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { LuClock, LuCheck, LuX, LuChevronDown, LuChevronUp, LuSearch, LuFilter, LuArrowUpDown } from "react-icons/lu";
+import { FiRefreshCw } from "react-icons/fi";
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
-import { formatInTimezone } from '../utils/timezone.util';
-import { fetchRoles, canApproveLeave, canApproveOnDuty } from '../utils/roleUtils';
+import { formatInTimezone, formatTimeOnly, formatDateOnly, parseAppTimezone } from '../utils/timezone.util';
+
+import { fetchRoles, canApproveLeave, canApproveOnDuty, canApproveTimeOff } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
 
 // Helper to format dates without timezone conversion
 const formatDateLocal = (dateStr) => {
     if (!dateStr) return '';
-    // Use formatInTimezone without hour/minute to get a clean date in the app's timezone
-    return formatInTimezone(dateStr, null, {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: undefined,
-        minute: undefined,
-        hour12: undefined
-    });
+    return formatDateOnly(dateStr);
 };
 
 
@@ -36,6 +30,7 @@ const Approvals = () => {
     const [timeOffApprovals, setTimeOffApprovals] = useState([]); // New State
     const [statusFilter, setStatusFilter] = useState('Pending');
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [processingId, setProcessingId] = useState(null);
     const [error, setError] = useState(null);
     const [expandedSections, setExpandedSections] = useState({
@@ -62,6 +57,7 @@ const Approvals = () => {
         hasNextPage: false
     });
     const [selectedItems, setSelectedItems] = useState(new Set());
+    const [manageableStaffMembers, setManageableStaffMembers] = useState([]);
 
     // Modals State
     const [detailsModal, setDetailsModal] = useState({ show: false, item: null, type: null });
@@ -72,7 +68,9 @@ const Approvals = () => {
         message: '',
         confirmText: '',
         confirmButtonColor: '',
-        action: null
+        action: null,
+        item: null,
+        type: null
     });
     const [editReasonModal, setEditReasonModal] = useState({ show: false, item: null, type: null, reason: '' });
 
@@ -80,6 +78,13 @@ const Approvals = () => {
     const [bulkRejectionModal, setBulkRejectionModal] = useState({ show: false, reason: '', action: '', showError: false });
     const [bulkProcessing, setBulkProcessing] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
+
+    // Permission states
+    const [userPermissions, setUserPermissions] = useState({
+        canApproveLeave: false,
+        canApproveOnDuty: false,
+        canApproveTimeOff: false
+    });
 
     useEffect(() => {
         const checkPermission = async () => {
@@ -98,12 +103,27 @@ const Approvals = () => {
 
                 const canApproveL = canApproveLeave(user.role);
                 const canApproveOD = canApproveOnDuty(user.role);
+                const canApproveTOff = canApproveTimeOff(user.role);
 
-                if (!canApproveL && !canApproveOD) {
+                if (!canApproveL && !canApproveOD && !canApproveTOff) {
                     toast.error('You do not have permission to access the approvals page');
                     navigate('/dashboard');
                     return;
                 }
+
+                // Store permissions
+                setUserPermissions({
+                    canApproveLeave: canApproveL,
+                    canApproveOnDuty: canApproveOD,
+                    canApproveTimeOff: canApproveTOff
+                });
+
+                // Set initial expanded section based on permissions
+                setExpandedSections({
+                    leave: canApproveL,
+                    onDuty: !canApproveL && canApproveOD,
+                    timeOff: !canApproveL && !canApproveOD && canApproveTOff
+                });
 
                 setHasPermission(true);
             } catch (error) {
@@ -121,11 +141,23 @@ const Approvals = () => {
         if (permissionChecked && hasPermission) {
             fetchApprovals(currentPage);
         }
-    }, [permissionChecked, hasPermission, statusFilter, rowsPerPage, currentPage]);
+    }, [permissionChecked, hasPermission, statusFilter, rowsPerPage, currentPage, nameFilter, leaveTypeFilter]);
 
-    const fetchApprovals = async (page = 1) => {
+    // Auto-dismiss error after 5 seconds
+    useEffect(() => {
+        if (error) {
+            const timer = setTimeout(() => setError(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error]);
+
+    const fetchApprovals = async (page = 1, isManualRefresh = false) => {
         try {
-            setLoading(true);
+            if (isManualRefresh) {
+                setRefreshing(true);
+            } else {
+                setLoading(true);
+            }
             setError(null);
             setCurrentPage(page);
             const token = localStorage.getItem('token');
@@ -136,7 +168,7 @@ const Approvals = () => {
 
             // Fetch with server-side pagination
             const response = await axios.get(
-                `${API_BASE_URL}/api/leave/requests?status=${statusFilter}&page=${page}&limit=${rowsPerPage}`,
+                `${API_BASE_URL}/api/leave/requests?status=${statusFilter}&page=${page}&limit=${rowsPerPage}&staff_name=${nameFilter}&leave_type=${leaveTypeFilter}`,
                 { headers: { 'x-access-token': token } }
             );
 
@@ -152,6 +184,7 @@ const Approvals = () => {
                 reason: item.reason,
                 start_date: item.start_date,
                 end_date: item.end_date,
+                is_half_day: item.is_half_day,
                 status: item.status,
                 rejection_reason: item.rejection_reason,
                 manager_id: item.manager_id,
@@ -206,12 +239,14 @@ const Approvals = () => {
             setLeaveApprovals(leaves);
             setOnDutyApprovals(onDuty);
             setTimeOffApprovals(timeOff); // Set new state
+            setManageableStaffMembers(response.data.manageableStaff || []);
             setPagination(paginationData);
         } catch (error) {
             console.error('Error fetching approvals:', error);
             setError(error.response?.data?.message || error.message || 'Failed to fetch approvals');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -241,11 +276,13 @@ const Approvals = () => {
             const typeLabel = type === 'leave' ? 'Leave' : (type === 'timeoff' ? 'Time-Off' : 'On-Duty');
             setConfirmationModal({
                 show: true,
-                title: 'Confirm Approval',
-                message: `Are you sure you want to approve this ${typeLabel} request for ${employeeName}?`,
-                confirmText: 'Approve',
+                title: `Approve ${typeLabel} Request`,
+                message: `Are you sure you want to approve this request?`,
+                confirmText: 'Confirm Approval',
                 confirmButtonColor: 'bg-green-600 hover:bg-green-700',
-                action: () => performStatusUpdate(item, status, type, null)
+                action: () => performStatusUpdate(item, status, type, null),
+                item: item,
+                type: type
             });
             return;
         }
@@ -258,7 +295,9 @@ const Approvals = () => {
                 message: 'Are you sure you want to move this request back to pending status?',
                 confirmText: 'Revert',
                 confirmButtonColor: 'bg-red-600 hover:bg-red-700',
-                action: () => performStatusUpdate(item, status, type, null)
+                action: () => performStatusUpdate(item, status, type, null),
+                item: item,
+                type: type
             });
             return;
         }
@@ -297,13 +336,15 @@ const Approvals = () => {
                 { headers: { 'x-access-token': token } }
             );
 
-            // Remove from local state
+            // Remove from local state and keep pagination counts in sync
             if (type === 'leave') {
                 setLeaveApprovals(leaveApprovals.filter(a => a.id !== item.id));
+                setPagination(prev => ({ ...prev, leaveCount: Math.max(0, (prev.leaveCount || 0) - 1) }));
             } else if (type === 'timeoff') {
                 setTimeOffApprovals(timeOffApprovals.filter(a => a.id !== item.id));
             } else {
                 setOnDutyApprovals(onDutyApprovals.filter(a => a.id !== item.id));
+                setPagination(prev => ({ ...prev, onDutyCount: Math.max(0, (prev.onDutyCount || 0) - 1) }));
             }
 
             // Dispatch event to notify Header
@@ -322,7 +363,7 @@ const Approvals = () => {
             console.error('Error updating status:', error);
             const errorMsg = error.response?.data?.message || 'Failed to update request';
             setError(errorMsg);
-            toast.error(errorMsg);
+            // Removed extra toast popup per user request
         } finally {
             setProcessingId(null);
         }
@@ -424,10 +465,14 @@ const Approvals = () => {
                 await axios.put(endpoint, requestBody, { headers: { 'x-access-token': token } });
             }
 
-            // Remove all approved/rejected items from local state
+            // Remove all approved/rejected items from local state and keep pagination counts in sync
+            const leaveRemovedCount = [...selectedItems].filter(k => k.startsWith('leave-')).length;
+            const onDutyRemovedCount = [...selectedItems].filter(k => k.startsWith('onduty-')).length;
             setLeaveApprovals(prev => prev.filter(a => !selectedItems.has(`leave-${a.id}`)));
             setTimeOffApprovals(prev => prev.filter(a => !selectedItems.has(`timeoff-${a.id}`)));
             setOnDutyApprovals(prev => prev.filter(a => !selectedItems.has(`onduty-${a.id}`)));
+            if (leaveRemovedCount > 0) setPagination(prev => ({ ...prev, leaveCount: Math.max(0, (prev.leaveCount || 0) - leaveRemovedCount) }));
+            if (onDutyRemovedCount > 0) setPagination(prev => ({ ...prev, onDutyCount: Math.max(0, (prev.onDutyCount || 0) - onDutyRemovedCount) }));
             setSelectedItems(new Set());
             setBulkRejectionModal({ show: false, reason: '', action: null });
 
@@ -444,7 +489,7 @@ const Approvals = () => {
             console.error('Error performing bulk update:', error);
             const errorMsg = error.response?.data?.message || 'Failed to perform bulk action';
             setError(errorMsg);
-            toast.error(errorMsg);
+            // Removed extra toast popup per user request
         } finally {
             setBulkProcessing(false);
         }
@@ -498,7 +543,7 @@ const Approvals = () => {
             console.error('Error updating rejection reason:', error);
             const errorMsg = error.response?.data?.message || 'Failed to update rejection reason';
             setError(errorMsg);
-            toast.error(errorMsg);
+            // Removed extra toast popup per user request
         } finally {
             setProcessingId(null);
         }
@@ -532,24 +577,9 @@ const Approvals = () => {
         });
     };
 
-    const filteredLeaveApprovals = leaveApprovals.filter(item => {
-        const staffName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : '';
-        const matchesName = nameFilter === 'All' || staffName === nameFilter;
-        const matchesType = leaveTypeFilter === 'All' || item.leave_type === leaveTypeFilter;
-        return matchesName && matchesType;
-    });
-
-    const filteredOnDutyApprovals = onDutyApprovals.filter(item => {
-        const staffName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : '';
-        const matchesName = nameFilter === 'All' || staffName === nameFilter;
-        return matchesName;
-    });
-
-    const filteredTimeOffApprovals = timeOffApprovals.filter(item => { // New Filter
-        const staffName = item.tblstaff ? `${item.tblstaff.firstname} ${item.tblstaff.lastname}` : '';
-        const matchesName = nameFilter === 'All' || staffName === nameFilter;
-        return matchesName;
-    });
+    const filteredLeaveApprovals = leaveApprovals;
+    const filteredOnDutyApprovals = onDutyApprovals;
+    const filteredTimeOffApprovals = timeOffApprovals;
 
     // Apply sorting to filtered data
     const sortedAndFilteredLeaveApprovals = sortData(filteredLeaveApprovals, leaveSortConfig.key, leaveSortConfig.direction);
@@ -562,7 +592,7 @@ const Approvals = () => {
     };
     const SortableHeader = ({ label, sortKey, sortConfig, setSortConfig, align = 'left' }) => (
         <th
-            className={`px-3 py-2 text-sm font-semibold text-white cursor-pointer hover:text-gray-200 transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
+            className={`px-3 py-2 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
             onClick={() => {
                 const direction = sortConfig.key === sortKey && sortConfig.direction === 'asc' ? 'desc' : 'asc';
                 setSortConfig({ key: sortKey, direction });
@@ -578,11 +608,19 @@ const Approvals = () => {
 
     const getUniqueNames = () => {
         const names = new Set();
-        [...leaveApprovals, ...onDutyApprovals].forEach(item => {
+
+        // 1. Add names from Reporting Hierarchy (manageable staff)
+        manageableStaffMembers.forEach(staff => {
+            names.add(`${staff.firstname} ${staff.lastname}`);
+        });
+
+        // 2. Add names from Data available in table (current page results)
+        [...leaveApprovals, ...onDutyApprovals, ...timeOffApprovals].forEach(item => {
             if (item.tblstaff) {
                 names.add(`${item.tblstaff.firstname} ${item.tblstaff.lastname}`);
             }
         });
+
         return ['All', ...Array.from(names).sort()];
     };
 
@@ -719,54 +757,61 @@ const Approvals = () => {
             </div>
 
             {error && (
-                <div className="mb-6 p-4 bg-red-50 text-red-800 rounded-lg border border-red-200">
-                    <p className="font-medium">⚠️ {error}</p>
+                <div className="mb-6 flex items-center gap-4 rounded-xl border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-6 py-5 shadow-sm transition-all">
+                    <svg className="h-7 w-7 flex-shrink-0 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                    </svg>
+                    <p className="text-[16px] font-semibold text-red-700">{error}</p>
                 </div>
             )}
 
-            {loading ? (
-                <div className="flex items-center justify-center h-64">
-                    <ModernLoader size="lg" message="Loading..." />
-                </div>
-            ) : (
                 <div className="space-y-6">
                     {/* Section Switcher & Filters */}
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[var(--header-bg)] p-4 rounded-xl shadow-sm border border-[var(--border-color)]">
                         <div className="flex gap-2">
-                            <button
-                                onClick={() => setExpandedSections({ leave: true, onDuty: false, timeOff: false })}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.leave
-                                    ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
-                                    : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
-                                    }`}
-                            >
-                                Leave Requests ({pagination.leaveCount !== undefined ? pagination.leaveCount : leaveApprovals.length})
-                            </button>
-                            <button
-                                onClick={() => setExpandedSections({ leave: false, onDuty: false, timeOff: true })}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.timeOff
-                                    ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
-                                    : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
-                                    }`}
-                            >
-                                Time-Off Requests ({timeOffApprovals.length})
-                            </button>
-                            <button
-                                onClick={() => setExpandedSections({ leave: false, onDuty: true, timeOff: false })}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${expandedSections.onDuty
-                                    ? 'bg-[#2E5090] text-white border-[#2E5090] shadow-md transform scale-105'
-                                    : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
-                                    }`}
-                            >
-                                On-Duty Requests ({pagination.onDutyCount !== undefined ? pagination.onDutyCount : onDutyApprovals.length})
-                            </button>
+                            {userPermissions.canApproveLeave && (
+                                <button
+                                    onClick={() => setExpandedSections({ leave: true, onDuty: false, timeOff: false })}
+                                    className={`px-4 py-2 rounded-lg text-sm font-black transition-all border ${expandedSections.leave
+                                        ? 'bg-[#1e1b4b] text-white border-[#1e1b4b] shadow-xl shadow-indigo-950/20 transform scale-105'
+                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)] hover:text-[#1e1b4b]'
+                                        }`}
+                                >
+                                    Leave Requests ({pagination.leaveCount !== undefined ? pagination.leaveCount : leaveApprovals.length})
+                                </button>
+                            )}
+                            {userPermissions.canApproveTimeOff && (
+                                <button
+                                    onClick={() => setExpandedSections({ leave: false, onDuty: false, timeOff: true })}
+                                    className={`px-4 py-2 rounded-lg text-sm font-black transition-all border ${expandedSections.timeOff
+                                        ? 'bg-[#1e1b4b] text-white border-[#1e1b4b] shadow-xl shadow-indigo-950/20 transform scale-105'
+                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)] hover:text-[#1e1b4b]'
+                                        }`}
+                                >
+                                    Time-Off Requests ({timeOffApprovals.length})
+                                </button>
+                            )}
+                            {userPermissions.canApproveOnDuty && (
+                                <button
+                                    onClick={() => setExpandedSections({ leave: false, onDuty: true, timeOff: false })}
+                                    className={`px-4 py-2 rounded-lg text-sm font-black transition-all border ${expandedSections.onDuty
+                                        ? 'bg-[#1e1b4b] text-white border-[#1e1b4b] shadow-xl shadow-indigo-950/20 transform scale-105'
+                                        : 'bg-[var(--header-bg)] text-[var(--text-muted)] border-[var(--border-color)] hover:bg-[var(--bg-primary)] hover:text-[#1e1b4b]'
+                                        }`}
+                                >
+                                    On-Duty Requests ({pagination.onDutyCount !== undefined ? pagination.onDutyCount : onDutyApprovals.length})
+                                </button>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-3">
                             {expandedSections.leave && (
                                 <select
                                     value={leaveTypeFilter}
-                                    onChange={(e) => setLeaveTypeFilter(e.target.value)}
+                                    onChange={(e) => {
+                                        setLeaveTypeFilter(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                     className="px-3 py-2 border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-main)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
                                     {getUniqueLeaveTypes().map(type => (
@@ -776,13 +821,26 @@ const Approvals = () => {
                             )}
                             <select
                                 value={nameFilter}
-                                onChange={(e) => setNameFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setNameFilter(e.target.value);
+                                    setCurrentPage(1);
+                                }}
                                 className="px-3 py-2 border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-main)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                                 {getUniqueNames().map(name => (
                                     <option key={name} value={name}>{name === 'All' ? 'All Employees' : name}</option>
                                 ))}
                             </select>
+
+                            <button
+                                onClick={() => fetchApprovals(currentPage, true)}
+                                disabled={refreshing || loading}
+                                className="flex items-center gap-2 px-3 py-2 bg-[#2E5090] text-white rounded-lg hover:bg-blue-800 transition-all shadow-sm disabled:opacity-50"
+                                title="Refresh Data"
+                            >
+                                <FiRefreshCw className={`${refreshing ? 'animate-spin' : ''}`} />
+                                <span className="font-semibold text-xs">Refresh</span>
+                            </button>
 
                             {/* Bulk Actions */}
                             {selectedItems.size > 0 && statusFilter === 'Pending' && (
@@ -806,12 +864,17 @@ const Approvals = () => {
                         </div>
                     </div>
 
-                    {/* Main Table */}
-                    <div className="bg-[var(--header-bg)] rounded-xl shadow-lg overflow-hidden border border-[var(--border-color)]">
-                        {expandedSections.leave && (
+                    {/* Main Table Area with Localized Loader */}
+                    <div className="relative min-h-[400px]">
+                        {loading && (
+                            <ModernLoader size="container" message="Fetching requests..." fullScreen={false} />
+                        )/* Localization: Overlay instead of full-page blur */}
+
+                        <div className="bg-[var(--header-bg)] rounded-xl shadow-lg overflow-hidden border border-[var(--border-color)]">
+                        {expandedSections.leave && userPermissions.canApproveLeave && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#2E5090] text-white">
+                                    <thead className="bg-[#1e1b4b] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
                                                 <th className="px-3 py-2 w-10">
@@ -825,12 +888,12 @@ const Approvals = () => {
                                             )}
                                             <SortableHeader label="Employee" sortKey="staffName" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
                                             <SortableHeader label="Leave Type" sortKey="leave_type" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Duration</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
                                             <SortableHeader label="Period" sortKey="start_date" sortConfig={leaveSortConfig} setSortConfig={setLeaveSortConfig} />
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Reason</th>
-                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Rejection Reason</th>}
-                                            <th className="px-3 py-2 text-right text-sm font-semibold text-white">Actions</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Reason</th>
+                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Rejection Reason</th>}
+                                            <th className="px-3 py-2 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
@@ -868,11 +931,11 @@ const Approvals = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-600">
-                                                        {calculateLeaveDays(req.start_date, req.end_date)} Days
+                                                        {calculateLeaveDays(req.start_date, req.end_date) - (req.is_half_day === true || req.is_half_day === 1 ? 0.5 : 0)} Days
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <div className="text-sm text-gray-900">
-                                                            {req.start_date} <span className="text-gray-400">to</span> {req.end_date}
+                                                            {formatDateOnly(req.start_date)} <span className="text-gray-400">to</span> {formatDateOnly(req.end_date)}
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-700 max-w-xs">
@@ -951,10 +1014,10 @@ const Approvals = () => {
                             </div>
                         )}
 
-                        {expandedSections.timeOff && (
+                        {expandedSections.timeOff && userPermissions.canApproveTimeOff && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#2E5090] text-white">
+                                    <thead className="bg-[#1e1b4b] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
                                                 <th className="px-3 py-2 w-10">
@@ -968,12 +1031,12 @@ const Approvals = () => {
                                             )}
                                             <SortableHeader label="Employee" sortKey="staffName" sortConfig={timeOffSortConfig} setSortConfig={setTimeOffSortConfig} />
                                             <SortableHeader label="Date" sortKey="date" sortConfig={timeOffSortConfig} setSortConfig={setTimeOffSortConfig} />
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Duration</th>
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Time</th>
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Reason</th>
-                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Rejection Reason</th>}
-                                            <th className="px-3 py-2 text-right text-sm font-semibold text-white">Actions</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Time</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Reason</th>
+                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Rejection Reason</th>}
+                                            <th className="px-3 py-2 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
@@ -1014,7 +1077,7 @@ const Approvals = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-600">
-                                                        {req.start_time} - {req.end_time}
+                                                        {formatTimeOnly(req.start_time)} - {formatTimeOnly(req.end_time)}
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-700 max-w-xs">
                                                         <div className="line-clamp-2" title={req.reason}>
@@ -1092,10 +1155,10 @@ const Approvals = () => {
                             </div>
                         )}
 
-                        {expandedSections.onDuty && (
+                        {expandedSections.onDuty && userPermissions.canApproveOnDuty && (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#2E5090] text-white">
+                                    <thead className="bg-[#1e1b4b] text-white">
                                         <tr>
                                             {statusFilter === 'Pending' && (
                                                 <th className="px-3 py-2 w-10">
@@ -1110,10 +1173,10 @@ const Approvals = () => {
                                             <SortableHeader label="Employee" sortKey="staffName" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
                                             <SortableHeader label="Client / Location" sortKey="client_name" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
                                             <SortableHeader label="Date" sortKey="start_time" sortConfig={onDutySortConfig} setSortConfig={setOnDutySortConfig} />
-                                            <th className="px-3 py-2 text-left text-sm font-semibold text-white">Duration</th>
-                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Approved By</th>}
-                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-sm font-semibold text-white">Reason</th>}
-                                            <th className="px-3 py-2 text-right text-sm font-semibold text-white">Actions</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
+                                            {statusFilter === 'Approved' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Approved By</th>}
+                                            {statusFilter === 'Rejected' && <th className="px-3 py-2 text-left text-[10px] font-black text-white uppercase tracking-widest">Reason</th>}
+                                            <th className="px-3 py-2 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
@@ -1150,7 +1213,7 @@ const Approvals = () => {
                                                         <p className="text-xs text-gray-500">{req.location || 'Remote'}</p>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-900">
-                                                        {formatInTimezone(req.start_time, null, { month: '2-digit', day: '2-digit', year: 'numeric', hour: undefined, minute: undefined })}
+                                                        {formatDateOnly(req.start_time)}
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <span className="px-2 py-1 bg-violet-50 text-violet-700 rounded text-sm font-medium">
@@ -1234,18 +1297,28 @@ const Approvals = () => {
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
 
             {/* Rejection Reason Modal */}
             {rejectionModal.show && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-fadeIn">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
-                        <div className="p-6 bg-[#2E5090] text-white flex justify-between items-center">
-                            <h2 className="text-xl font-bold">Reject Request</h2>
-                            <button onClick={() => setRejectionModal({ ...rejectionModal, show: false })} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">✕</button>
+                        <div className="p-6 bg-red-50 border-b border-red-200 text-red-900 flex justify-between items-center">
+                            <h2 className="text-lg font-bold">Reject {rejectionModal.type === 'leave' ? 'Leave' : (rejectionModal.type === 'timeoff' ? 'Time-Off' : 'On-Duty')} Request</h2>
+                            <button onClick={() => setRejectionModal({ ...rejectionModal, show: false })} className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-colors text-red-600">✕</button>
                         </div>
                         <div className="p-6">
-                            <p className="text-sm text-gray-500 font-medium mb-4">Please provide a formal reason for this rejection.</p>
+                            {rejectionModal.item && (
+                                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
+                                    <p className="text-sm text-gray-600"><strong>Name:</strong> {rejectionModal.item.tblstaff?.firstname} {rejectionModal.item.tblstaff?.lastname}</p>
+                                    <p className="text-sm text-gray-600"><strong>Title:</strong> {rejectionModal.item.title || rejectionModal.item.client_name || rejectionModal.item.leave_type || rejectionModal.type}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(
+                                        rejectionModal.item,
+                                        rejectionModal.type
+                                    )}</p>
+                                </div>
+                            )}
+                            <p className="text-sm text-gray-500 font-medium mb-3">Please provide a formal reason for this rejection.</p>
                             <textarea
                                 value={rejectionModal.reason}
                                 onChange={(e) => setRejectionModal({ ...rejectionModal, reason: e.target.value, showError: false })}
@@ -1379,30 +1452,40 @@ const Approvals = () => {
 
             {/* Confirmation Modal */}
             {confirmationModal.show && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fadeIn">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
-                        <div className="p-6 bg-[#2E5090] text-white">
-                            <h3 className="text-xl font-bold">{confirmationModal.title}</h3>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full animate-scaleIn">
+                        <div className={`border-b px-6 py-4 ${confirmationModal.title.includes('Approve') ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                            <h2 className={`text-lg font-bold ${confirmationModal.title.includes('Approve') ? 'text-green-900' : 'text-red-900'}`}>{confirmationModal.title}</h2>
+                            <p className={`text-sm mt-1 ${confirmationModal.title.includes('Approve') ? 'text-green-700' : 'text-red-700'}`}>{confirmationModal.message}</p>
                         </div>
-                        <div className="p-8">
-                            <p className="text-gray-600 font-medium leading-relaxed">{confirmationModal.message}</p>
-                        </div>
-                        <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-                            <button
-                                onClick={() => setConfirmationModal({ ...confirmationModal, show: false })}
-                                className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-gray-100 transition-all shadow-sm"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => {
-                                    confirmationModal.action();
-                                    setConfirmationModal({ ...confirmationModal, show: false });
-                                }}
-                                className={`px-6 py-2.5 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all shadow-md ${confirmationModal.confirmButtonColor}`}
-                            >
-                                {confirmationModal.confirmText}
-                            </button>
+                        <div className="p-6">
+                            {confirmationModal.item && (
+                                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
+                                    <p className="text-sm text-gray-600"><strong>Name:</strong> {confirmationModal.item.tblstaff?.firstname} {confirmationModal.item.tblstaff?.lastname}</p>
+                                    <p className="text-sm text-gray-600"><strong>Title:</strong> {confirmationModal.item.title || confirmationModal.item.client_name || confirmationModal.item.leave_type || confirmationModal.type}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(
+                                        confirmationModal.item,
+                                        confirmationModal.type
+                                    )}</p>
+                                </div>
+                            )}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setConfirmationModal({ ...confirmationModal, show: false })}
+                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        confirmationModal.action();
+                                        setConfirmationModal({ ...confirmationModal, show: false });
+                                    }}
+                                    className={`flex-1 px-4 py-2 text-white rounded-lg transition-all font-medium flex items-center justify-center gap-2 ${confirmationModal.confirmButtonColor}`}
+                                >
+                                    {confirmationModal.confirmText}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1483,7 +1566,7 @@ const Approvals = () => {
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                     <p className="text-base font-semibold text-gray-900">
                                         {detailsModal.type === 'leave'
-                                            ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date)} Day(s)`
+                                            ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0)} Day(s)`
                                             : (detailsModal.type === 'timeoff'
                                                 ? calculateTimeOffDuration(detailsModal.item.start_time, detailsModal.item.end_time)
                                                 : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time))
@@ -1495,8 +1578,8 @@ const Approvals = () => {
                                     <div className="flex items-center gap-2">
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.type === 'leave'
-                                                ? detailsModal.item.start_date
-                                                : (detailsModal.type === 'timeoff' ? `${detailsModal.item.start_time} (On ${formatInTimezone(detailsModal.item.date, null, { month: '2-digit', day: '2-digit', year: 'numeric', hour: undefined, minute: undefined })})` : formatApprovalDate(detailsModal.item.start_time))}
+                                                ? formatDateOnly(detailsModal.item.start_date)
+                                                : (detailsModal.type === 'timeoff' ? `${formatTimeOnly(detailsModal.item.start_time)} (On ${formatDateOnly(detailsModal.item.date)})` : formatInTimezone(detailsModal.item.start_time))}
                                         </p>
                                     </div>
                                 </div>
@@ -1505,8 +1588,8 @@ const Approvals = () => {
                                     <div className="flex items-center gap-2">
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.type === 'leave'
-                                                ? detailsModal.item.end_date
-                                                : (detailsModal.type === 'timeoff' ? detailsModal.item.end_time : formatApprovalDate(detailsModal.item.end_time))}
+                                                ? formatDateOnly(detailsModal.item.end_date)
+                                                : (detailsModal.type === 'timeoff' ? formatTimeOnly(detailsModal.item.end_time) : (detailsModal.item.end_time ? formatInTimezone(detailsModal.item.end_time) : '—'))}
                                         </p>
                                     </div>
                                 </div>
@@ -1581,10 +1664,6 @@ const Approvals = () => {
                                 </div>
                             )}
 
-                            {/* Timestamps */}
-                            <div className="pt-4 flex justify-between text-[10px] font-bold text-gray-500 tracking-wide border-t border-gray-100">
-                                <span>Requested On: {formatApprovalDate(detailsModal.item.createdAt)}</span>
-                            </div>
                         </div>
 
                         {/* Footer Controls */}
@@ -1633,8 +1712,9 @@ const Approvals = () => {
 
 const calculateOnDutyDuration = (startTime, endTime) => {
     if (!startTime || !endTime) return 'In Progress';
-    const start = new Date(startTime);
-    const end = new Date(endTime);
+    const start = parseAppTimezone(startTime);
+    const end = parseAppTimezone(endTime);
+    if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return '—';
     const diffMs = end - start;
     const diffMins = Math.floor(diffMs / 60000);
     const hours = Math.floor(diffMins / 60);
@@ -1663,6 +1743,50 @@ const calculateTimeOffDuration = (startTime, endTime) => {
 const formatApprovalDate = (dateString) => {
     if (!dateString) return '—';
     return formatInTimezone(dateString);
+};
+
+const formatDateForModal = (item, type) => {
+    if (!item) return 'N/A';
+
+    // Time-Off: Show time range and duration in hours
+    if (type === 'timeoff' || item.type === 'timeoff') {
+        const date = item.date ? formatDateOnly(item.date) : '';
+        const startTime = item.start_time ? formatTimeOnly(item.start_time) : '';
+        const endTime = item.end_time ? formatTimeOnly(item.end_time) : '';
+        const duration = calculateTimeOffDuration(item.start_time, item.end_time);
+
+        return (
+            <span>
+                {startTime} - {endTime} (On {date}) <span className="text-red-600 font-bold ml-1">( {duration} )</span>
+            </span>
+        );
+    }
+
+    // Leave: Show date range with days
+    if (type === 'leave' || item.type === 'leave') {
+        const startFormatted = formatDateOnly(item.start_date);
+        const endFormatted = formatDateOnly(item.end_date);
+        const daysCount = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
+        const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
+
+        if (startFormatted !== endFormatted) {
+            return (
+                <span>
+                    {startFormatted} - {endFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                </span>
+            );
+        } else {
+            return (
+                <span>
+                    {startFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                </span>
+            );
+        }
+    }
+
+    // On-Duty: Show date-time range
+    const startFormatted = formatInTimezone(item.start_time);
+    return startFormatted;
 };
 
 export default Approvals;

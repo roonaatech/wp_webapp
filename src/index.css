@@ -4,15 +4,16 @@
 
 @layer base {
   :root {
-    --bg-primary: #f9fafb;
+    --bg-primary: #f0f2f5;
     --header-bg: #ffffff;
-    --sidebar-bg: #1e293b;
-    --sidebar-text: #f8fafc;
-    --sidebar-muted: #cbd5e1;
-    --text-main: #111827;
-    --text-muted: #4b5563;
-    --border-color: #e5e7eb;
-    --nav-hover: rgba(255, 255, 255, 0.1);
+    --sidebar-bg: #1e1b4b;
+    --sidebar-text: #ffffff;
+    --sidebar-muted: rgba(255, 255, 255, 0.6);
+    --text-main: #1e1b4b;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --nav-hover: rgba(14, 165, 233, 0.1);
+    --accent-cyan: #0ea5e9;
   }
 }
 
@@ -21,3 +22,28 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-main);
 }
+
+@layer components {
+  .soft-arc-active {
+    position: relative;
+    z-index: 1;
+  }
+  .soft-arc-active::before,
+  .soft-arc-active::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+  }
+  .soft-arc-active::before {
+    top: -20px;
+    background: radial-gradient(circle at top left, var(--sidebar-bg) 19.5px, var(--bg-primary) 20px);
+  }
+  .soft-arc-active::after {
+    bottom: -20px;
+    background: radial-gradient(circle at bottom left, var(--sidebar-bg) 19.5px, var(--bg-primary) 20px);
+  }
+}
+

@@ -71,25 +71,75 @@ export const mirrorToTimezone = (absoluteDate, timezone) => {
 };
 
 /**
+ * Get the application's configured date format
+ */
+export const getAppDateFormat = () => {
+    try {
+        const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+        return settings.application_date_format || 'MMM DD, YYYY';
+    } catch (e) {
+        return 'MMM DD, YYYY';
+    }
+};
+
+/**
+ * Get the application's configured time format
+ */
+export const getAppTimeFormat = () => {
+    try {
+        const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+        return settings.application_time_format || '12h';
+    } catch (e) {
+        return '12h';
+    }
+};
+
+/**
  * Format a date/time in the application's configured timezone.
  * Uses Numerical Mirroring to ensure consistent display across all browsers.
  */
-export const formatInTimezone = (date, timezone = null, options = {}) => {
+export const formatInTimezone = (date, timezone = null, customOptions = null) => {
     try {
         if (!date) return '—';
         const targetTimezone = timezone || getAppTimezone();
 
-        // Always parse into a mirrored IST date first
+        // Always parse into a mirrored local date first
         const mirrored = parseAppTimezone(date, targetTimezone);
         if (!mirrored || isNaN(mirrored.getTime())) return String(date);
 
-        const defaultOptions = {
-            year: 'numeric', month: 'short', day: '2-digit',
-            hour: '2-digit', minute: '2-digit', hour12: true
-        };
+        // If custom options are passed (like {month: 'short', day: 'numeric'}), just use Intl
+        if (customOptions && Object.keys(customOptions).length > 0) {
+            return new Intl.DateTimeFormat('en-US', customOptions).format(mirrored);
+        }
 
-        // Format the mirrored date using local browser time (which now matches target numbers)
-        return new Intl.DateTimeFormat('en-US', { ...defaultOptions, ...options }).format(mirrored);
+        const dateFmt = getAppDateFormat();
+        const timeFmt = getAppTimeFormat();
+
+        const year = mirrored.getFullYear();
+        const month = String(mirrored.getMonth() + 1).padStart(2, '0');
+        const day = String(mirrored.getDate()).padStart(2, '0');
+        const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const shortMonthStr = shortMonths[mirrored.getMonth()];
+
+        let dateString = `${shortMonthStr} ${day}, ${year}`; // Fallback Default
+        if (dateFmt === 'DD/MM/YYYY') dateString = `${day}/${month}/${year}`;
+        if (dateFmt === 'MM/DD/YYYY') dateString = `${month}/${day}/${year}`;
+        if (dateFmt === 'YYYY-MM-DD') dateString = `${year}-${month}-${day}`;
+        if (dateFmt === 'MMM DD, YYYY') dateString = `${shortMonthStr} ${day}, ${year}`;
+
+        const hr = mirrored.getHours();
+        const mn = String(mirrored.getMinutes()).padStart(2, '0');
+
+        let timeString = '';
+        if (timeFmt === '24h') {
+            timeString = `${String(hr).padStart(2, '0')}:${mn}`;
+        } else {
+            const hr12 = hr % 12 || 12;
+            const ampm = hr >= 12 ? 'PM' : 'AM';
+            timeString = `${String(hr12).padStart(2, '0')}:${mn} ${ampm}`;
+        }
+
+        return `${dateString}, ${timeString}`;
     } catch (error) {
         console.error('Error in formatInTimezone:', error);
         return String(date);
@@ -97,42 +147,67 @@ export const formatInTimezone = (date, timezone = null, options = {}) => {
 };
 
 export const formatDateOnly = (date, timezone = null) => {
-    return formatInTimezone(date, timezone, {
-        year: 'numeric', month: 'short', day: '2-digit',
-        hour: undefined, minute: undefined, hour12: undefined
-    });
+    try {
+        if (!date) return '—';
+        const targetTimezone = timezone || getAppTimezone();
+        const mirrored = parseAppTimezone(date, targetTimezone);
+        if (!mirrored || isNaN(mirrored.getTime())) return String(date);
+
+        const dateFmt = getAppDateFormat();
+        const year = mirrored.getFullYear();
+        const month = String(mirrored.getMonth() + 1).padStart(2, '0');
+        const day = String(mirrored.getDate()).padStart(2, '0');
+        const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const shortMonthStr = shortMonths[mirrored.getMonth()];
+
+        if (dateFmt === 'DD/MM/YYYY') return `${day}/${month}/${year}`;
+        if (dateFmt === 'MM/DD/YYYY') return `${month}/${day}/${year}`;
+        if (dateFmt === 'YYYY-MM-DD') return `${year}-${month}-${day}`;
+        return `${shortMonthStr} ${day}, ${year}`;
+    } catch (e) {
+        return String(date);
+    }
 };
 
 export const formatTimeOnly = (date, timezone = null) => {
-    // Check if this is a timezone-formatted string from backend (YYYY-MM-DD HH:mm:ss)
-    // These strings are already in the app timezone, so extract time directly without conversion
-    if (typeof date === 'string') {
-        const match = date.match(/^\d{4}-\d{2}-\d{2}\s(\d{2}):(\d{2}):(\d{2})/);;
-        if (match) {
-            const h = parseInt(match[1], 10);
-            const m = match[2];
-            const hour12 = h % 12 || 12;
-            const ampm = h >= 12 ? 'PM' : 'AM';
-            return `${String(hour12).padStart(2, '0')}:${m} ${ampm}`;
+    try {
+        if (!date) return '—';
+        const timeFmt = getAppTimeFormat();
+
+        // Used by pure string regex matching below to avoid local variable scope duplication
+        const extractTimeString = (h, m) => {
+            if (timeFmt === '24h') {
+                return `${String(h).padStart(2, '0')}:${m}`;
+            } else {
+                const hour12 = h % 12 || 12;
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                return `${String(hour12).padStart(2, '0')}:${m} ${ampm}`;
+            }
+        };
+
+        // Check if this is a timezone-formatted string from backend (YYYY-MM-DD HH:mm:ss)
+        if (typeof date === 'string') {
+            const match = date.match(/^\d{4}-\d{2}-\d{2}\s(\d{2}):(\d{2}):(\d{2})/);;
+            if (match) {
+                return extractTimeString(parseInt(match[1], 10), match[2]);
+            }
+
+            // Handle pure time strings from DB TIME columns (e.g. "14:30:00" or "14:30")
+            const timeOnlyMatch = date.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+            if (timeOnlyMatch) {
+                return extractTimeString(parseInt(timeOnlyMatch[1], 10), timeOnlyMatch[2]);
+            }
         }
 
-        // Handle pure time strings from DB TIME columns (e.g. "14:30:00" or "14:30")
-        // Without this, parseAppTimezone treats "14", "30", "00" as year/month/day → midnight → "12:00 AM"
-        const timeOnlyMatch = date.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
-        if (timeOnlyMatch) {
-            const h = parseInt(timeOnlyMatch[1], 10);
-            const m = timeOnlyMatch[2];
-            const hour12 = h % 12 || 12;
-            const ampm = h >= 12 ? 'PM' : 'AM';
-            return `${String(hour12).padStart(2, '0')}:${m} ${ampm}`;
-        }
+        // Otherwise use the standard timezone conversion (for Date objects and other formats)
+        const targetTimezone = timezone || getAppTimezone();
+        const mirrored = parseAppTimezone(date, targetTimezone);
+        if (!mirrored || isNaN(mirrored.getTime())) return String(date);
+
+        return extractTimeString(mirrored.getHours(), String(mirrored.getMinutes()).padStart(2, '0'));
+    } catch (e) {
+        return String(date);
     }
-
-    // Otherwise use the standard timezone conversion (for Date objects and other formats)
-    return formatInTimezone(date, timezone, {
-        year: undefined, month: undefined, day: undefined,
-        hour: '2-digit', minute: '2-digit', hour12: true
-    });
 };
 
 export const getTimezoneOffset = (timezone = null) => {
@@ -191,19 +266,15 @@ export const parseAppTimezone = (dateStr, timezone = null) => {
 
         const str = String(dateStr);
 
-        // AGGRESSIVE STRIP: Remove Z, T, and offsets.
-        // Input: "2026-02-14T15:30:00.000Z" (IST time labeled as UTC)
-        // Output: "2026-02-14 15:30:00" (Naked string)
-        let cleanStr = str
-            .replace('T', ' ')
-            .replace('Z', '')
-            .replace(/\.\d+$/, '') // strip milliseconds
-            .split('+')[0]         // strip +00:00
-            .split('-').slice(0, 3).join('-') + (str.split('-')[3] ? '' : '') // hacky check, better to just regex
-            ;
+        // If it's explicitly marked as UTC or has an offset, treat it as absolute time
+        if (str.includes('Z') || /([+\-]\d{2}:\d{2})$/.test(str)) {
+            const absoluteDate = new Date(str);
+            return mirrorToTimezone(absoluteDate, targetTz);
+        }
 
+        // For "naked" strings (e.g., '2026-02-14 15:30:00'), assume they are ALREADY in the target numbers.
         // Robust Regex Cleanup: Keep only Digits, Space, Colon, Dash
-        cleanStr = str.replace(/[TZ]/g, ' ').split('.')[0].trim();
+        let cleanStr = str.replace(/[TZ]/g, ' ').split('.')[0].trim();
 
         const parts = cleanStr.split(/[ :\-]/);
         if (parts.length >= 3) {

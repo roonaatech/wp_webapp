@@ -2,6 +2,141 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.6.4](https://github.com/roonaatech/wp_webapp/compare/v2.6.3...v2.6.4) (2026-04-27)
+
+### [2.6.3](https://github.com/roonaatech/wp_webapp/compare/v2.6.2...v2.6.3) (2026-04-27)
+
+### [2.6.2](https://github.com/roonaatech/wp_webapp/compare/v2.6.1...v2.6.2) (2026-04-26)
+
+### [2.6.1](https://github.com/roonaatech/wp_webapp/compare/v2.6.0...v2.6.1) (2026-04-26)
+
+
+### Features
+
+* implement secure, time-limited QR code authentication with server-side token validation ([bbc47b5](https://github.com/roonaatech/wp_webapp/commit/bbc47b5582d08719dab4c05956f771df529ad5ad))
+
+## [2.6.0](https://github.com/roonaatech/wp_webapp/compare/v2.5.0...v2.6.0) (2026-04-22)
+
+
+### Features
+
+* add half-day leave support with duration calculation adjustments across application, approval, and reporting modules ([e61ac06](https://github.com/roonaatech/wp_webapp/commit/e61ac062f038fbb5bc974e9e3f41c66ea310302b))
+
+## [2.5.0](https://github.com/roonaatech/wp_webapp/compare/v2.4.8...v2.5.0) (2026-04-08)
+
+
+### Features
+
+* implement inactivity timer and auto-logout functionality with session warning overlay ([a3e8dd2](https://github.com/roonaatech/wp_webapp/commit/a3e8dd21aae6624ba36e3e80c5e6ee549c9fec59))
+
+
+### Code Refactoring
+
+* enhance error UI with auto-dismissal, remove redundant toasts, and add time-off support to dashboard status updates ([67a2f8b](https://github.com/roonaatech/wp_webapp/commit/67a2f8bae9329c9e5e51bf7236d98a948b200449))
+
+### [2.4.8](https://github.com/roonaatech/wp_webapp/compare/v2.4.7...v2.4.8) (2026-04-06)
+
+
+### Code Refactoring
+
+* unify date range parameter handling by passing start and end dates directly to the reports API ([190cd3c](https://github.com/roonaatech/wp_webapp/commit/190cd3c7d4787857b9bb179838036d5eb52f2b5d))
+
+### [2.4.7](https://github.com/roonaatech/wp_webapp/compare/v2.4.6...v2.4.7) (2026-04-06)
+
+### [2.4.6](https://github.com/roonaatech/wp_webapp/compare/v2.4.5...v2.4.6) (2026-04-05)
+
+
+### Features
+
+* enhance MonthlySummaryReport UI, improve date/time formatting in exports, and update request detail views ([3c0212f](https://github.com/roonaatech/wp_webapp/commit/3c0212f51420c2085e658c726a8c5476947d8cd8))
+
+
+### Code Refactoring
+
+* modernize Login page UI layout and styling for improved responsiveness and consistency ([ec7a091](https://github.com/roonaatech/wp_webapp/commit/ec7a091ccd91d9ad1f59ee3da670fe9becef9a46))
+
+### [2.4.5](https://github.com/roonaatech/wp_webapp/compare/v2.4.4...v2.4.5) (2026-04-03)
+
+### [2.4.4](https://github.com/roonaatech/wp_webapp/compare/v2.4.3...v2.4.4) (2026-04-03)
+
+
+### Code Refactoring
+
+* replace full-page loading states with localized container overlays across dashboard and management pages ([bb8287d](https://github.com/roonaatech/wp_webapp/commit/bb8287d08cf5178f564de80bd1acc2ff109d2507))
+
+### [2.4.3](https://github.com/roonaatech/wp_webapp/compare/v2.4.2...v2.4.3) (2026-04-03)
+
+
+### Code Refactoring
+
+* update MonthlySummaryReport table layout and redesign Sidebar navigation styles and state management ([8306e26](https://github.com/roonaatech/wp_webapp/commit/8306e26c4363e8d0d15bd605c5075461e561f1d3))
+
+### [2.4.2](https://github.com/roonaatech/wp_webapp/compare/v2.4.1...v2.4.2) (2026-04-03)
+
+### [2.4.1](https://github.com/roonaatech/wp_webapp/compare/v2.4.0...v2.4.1) (2026-04-03)
+
+## [2.4.0](https://github.com/roonaatech/wp_webapp/compare/v2.3.10...v2.4.0) (2026-04-03)
+
+
+### Features
+
+* implement MonthlySummaryReport component and integrate into reports page for employee performance tracking ([1ef4205](https://github.com/roonaatech/wp_webapp/commit/1ef4205a54ed91bd20fdc86e735ca8184f84fa4d))
+* implement URL-based authentication and mobile device redirection to My Requests page ([2c9152d](https://github.com/roonaatech/wp_webapp/commit/2c9152d641ebcdc2027b609b06652791c270d78a))
+* redesign MyRequests UI with custom SVG icons, updated tab styling, and enhanced empty state visuals ([17af157](https://github.com/roonaatech/wp_webapp/commit/17af15756221d5a9cf9c83401ef1158da0deeecf))
+* replace CSV export with Excel report generation using exceljs and file-saver in MonthlySummaryReport ([50e1db3](https://github.com/roonaatech/wp_webapp/commit/50e1db336f0d84a9a286500175ca3408b6d718ce))
+
+
+### Styles
+
+* update UI theme to indigo and sky blue color palette with refined typography and button styles ([9381b5d](https://github.com/roonaatech/wp_webapp/commit/9381b5dc2b7fb1ff5910337c94199f195c3a6fde))
+
+
+### Code Refactoring
+
+* update UI components with sliding tab switchers and standardized table header styling across pages ([88699c2](https://github.com/roonaatech/wp_webapp/commit/88699c25a023dfd3d67c659a56b930d993367360))
+
+### [2.3.10](https://github.com/roonaatech/wp_webapp/compare/v2.3.9...v2.3.10) (2026-03-28)
+
+### [2.3.9](https://github.com/roonaatech/wp_webapp/compare/v2.3.8...v2.3.9) (2026-03-05)
+
+### [2.3.8](https://github.com/roonaatech/wp_webapp/compare/v2.3.7...v2.3.8) (2026-03-05)
+
+### [2.3.7](https://github.com/roonaatech/wp_webapp/compare/v2.3.6...v2.3.7) (2026-03-05)
+
+### [2.3.6](https://github.com/roonaatech/wp_webapp/compare/v2.3.5...v2.3.6) (2026-03-04)
+
+### [2.3.5](https://github.com/roonaatech/wp_webapp/compare/v2.3.4...v2.3.5) (2026-03-04)
+
+### [2.3.4](https://github.com/roonaatech/wp_webapp/compare/v2.3.3...v2.3.4) (2026-03-04)
+
+### [2.3.3](https://github.com/roonaatech/wp_webapp/compare/v2.3.2...v2.3.3) (2026-03-04)
+
+### [2.3.2](https://github.com/roonaatech/wp_webapp/compare/v2.3.1...v2.3.2) (2026-03-04)
+
+### [2.3.1](https://github.com/roonaatech/wp_webapp/compare/v2.3.0...v2.3.1) (2026-03-04)
+
+## [2.3.0](https://github.com/roonaatech/wp_webapp/compare/v2.2.1...v2.3.0) (2026-03-04)
+
+
+### Features
+
+* Implement global date and time format settings, update timezone utilities for consistent parsing and display, and refine login access control. ([e18409d](https://github.com/roonaatech/wp_webapp/commit/e18409d259220b62acea166e2647f19f74cbfec5))
+
+### [2.2.1](https://github.com/roonaatech/wp_webapp/compare/v2.2.0...v2.2.1) (2026-02-22)
+
+## [2.2.0](https://github.com/roonaatech/wp_webapp/compare/v2.1.6...v2.2.0) (2026-02-22)
+
+
+### Features
+
+* Implement a new page displaying application architecture, ER diagrams, and API controller details. ([604ce40](https://github.com/roonaatech/wp_webapp/commit/604ce40200459e42fee21849a4e16c6089ab1dcf))
+* Update Reports table expand/collapse buttons to use icons, add Google Maps API key to environment files, and remove Calendar debug info. ([f4e0d20](https://github.com/roonaatech/wp_webapp/commit/f4e0d2085aec98bc3a77bd13fac30f01bbe7a8ac))
+
+
+### Code Refactoring
+
+* Standardize date and time formatting across components and simplify boolean comparisons. ([c866a81](https://github.com/roonaatech/wp_webapp/commit/c866a8123fef4090596b53350df56e03deee55c1))
+
 ### [2.1.6](https://github.com/roonaatech/wp_webapp/compare/v2.1.5...v2.1.6) (2026-02-16)
 
 

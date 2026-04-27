@@ -6,7 +6,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
-import { fetchRoles as fetchRolesUtil, canManageRoles, getRoleById } from '../utils/roleUtils';
+import { fetchRoles as fetchRolesUtil, clearRolesCache, canManageRoles, getRoleById } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
 
 const Roles = () => {
@@ -58,7 +58,7 @@ const Roles = () => {
             try {
                 await fetchRolesUtil(true);
                 const role = getRoleById(user.role);
-                const canManage = role?.can_manage_roles === true;
+                const canManage = role?.can_manage_roles == true;
                 if (!canManage) {
                     navigate('/unauthorized', { replace: true });
                 } else {
@@ -205,9 +205,8 @@ const Roles = () => {
                 toast.success('Role created successfully');
             }
 
-            // Clear and refresh the global roles cache
+            // Clear the global roles cache so other pages pick up the change
             clearRolesCache();
-            await refreshRolesCache(true);
 
             fetchRoles();
             fetchStatistics();
@@ -232,9 +231,8 @@ const Roles = () => {
             });
             toast.success('Role deleted successfully');
 
-            // Clear and refresh the global roles cache
+            // Clear the global roles cache so other pages pick up the change
             clearRolesCache();
-            await refreshRolesCache(true);
 
             fetchRoles();
             fetchStatistics();
@@ -343,9 +341,8 @@ const Roles = () => {
             toast.success('Hierarchy updated successfully');
             setHierarchyMode(false);
 
-            // Clear and refresh the global roles cache since hierarchy changed
+            // Clear the global roles cache so other pages pick up the hierarchy change
             clearRolesCache();
-            await refreshRolesCache(true);
 
             fetchRoles();
         } catch (err) {
@@ -369,12 +366,12 @@ const Roles = () => {
         return null;
     }
 
-    if (loading) {
-        return <ModernLoader />;
-    }
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-6 max-w-7xl mx-auto relative min-h-[600px]">
+            {loading && (
+                <ModernLoader size="container" message="Fetching roles..." fullScreen={false} />
+            )/* Localization: Overlay instead of full-page blur */}
             <div className="mb-6">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Role Management</h1>
                 <p className="text-gray-600">Manage system roles and their permissions</p>
@@ -419,7 +416,7 @@ const Roles = () => {
                 )}
             </div>
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white rounded-lg shadow overflow-x-auto">
                 {hierarchyMode && (
                     <div className="bg-blue-50 border-b border-blue-200 px-6 py-3">
                         <p className="text-sm text-blue-800 font-medium flex items-center">
@@ -482,7 +479,7 @@ const Roles = () => {
                                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</span>
                                 )}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -592,7 +589,7 @@ const Roles = () => {
                                         {role.active ? 'Active' : 'Inactive'}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium sticky right-0 bg-white z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">
                                     {!hierarchyMode && (
                                         <div className="flex space-x-2">
                                             <button

@@ -4,39 +4,12 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName } from '../utils/roleUtils';
-import { formatInTimezone, formatTimeOnly, getAppTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    
-    // Check if this is a timezone-formatted string from backend (YYYY-MM-DD HH:mm:ss)
-    // If so, extract and format the date part directly
-    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(dateStr)) {
-        const datePart = dateStr.split(' ')[0]; // Extract "YYYY-MM-DD"
-        const [y, m, d] = datePart.split('-');
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        return `${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
-    }
-    
-    const formatted = formatInTimezone(dateStr, null, {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: undefined,
-        minute: undefined,
-        hour12: undefined
-    });
-    // If it's a numeric string like "2026-02-14 09:00:00", formatInTimezone might return it raw
-    if (typeof formatted === 'string' && formatted.includes('-') && formatted.split('-').length === 3) {
-        const parts = formatted.split(/[ T]/)[0].split('-');
-        if (parts[0].length === 4) { // YYYY-MM-DD
-            const [y, m, d] = parts;
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            return `${d} ${months[parseInt(m) - 1]} ${y}`;
-        }
-    }
-    return formatted;
+    return formatDateOnly(dateStr);
 };
 
 const formatTime12 = (timeStr) => {
@@ -45,19 +18,20 @@ const formatTime12 = (timeStr) => {
     return formatTimeOnly(timeStr);
 };
 
-const calculateLeaveDaysExcludingSunday = (start, end) => {
+const calculateLeaveDaysExcludingSunday = (start, end, excludeDatesMap = {}) => {
     if (!start || !end) return 0;
     let count = 0;
 
     // Split YYYY-MM-DD to avoid UTC shift
-    const [sY, sM, sD] = start.split('-').map(Number);
-    const [eY, eM, eD] = end.split('-').map(Number);
+    const [sY, sM, sD] = String(start).split('T')[0].split('-').map(Number);
+    const [eY, eM, eD] = String(end).split('T')[0].split('-').map(Number);
 
     let current = new Date(sY, sM - 1, sD);
     const endDate = new Date(eY, eM - 1, eD);
 
     while (current <= endDate) {
-        if (current.getDay() !== 0) count++; // 0 = Sunday
+        const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+        if (current.getDay() !== 0 && !excludeDatesMap[dateStr]) count++;
         current.setDate(current.getDate() + 1);
     }
     return count;
@@ -116,6 +90,7 @@ const MyRequests = () => {
     const [leaveStartDate, setLeaveStartDate] = useState('');
     const [leaveEndDate, setLeaveEndDate] = useState('');
     const [leaveReason, setLeaveReason] = useState('');
+    const [leaveHalfDay, setLeaveHalfDay] = useState(false);
     const [leaveSubmitting, setLeaveSubmitting] = useState(false);
     const [myLeaves, setMyLeaves] = useState([]);
     const [leavesLoading, setLeavesLoading] = useState(false);
@@ -141,6 +116,10 @@ const MyRequests = () => {
     const [timeOffLoading, setTimeOffLoading] = useState(false);
 
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [leavePastDaysAllowed, setLeavePastDaysAllowed] = useState(() => {
+        const s = JSON.parse(localStorage.getItem('settings') || '{}');
+        return parseInt(s.leave_past_days_allowed || '0') || 0;
+    });
 
     // ── Edit State ──
     const [editingLeave, setEditingLeave] = useState(null);
@@ -148,6 +127,7 @@ const MyRequests = () => {
     const [editLeaveStart, setEditLeaveStart] = useState('');
     const [editLeaveEnd, setEditLeaveEnd] = useState('');
     const [editLeaveReason, setEditLeaveReason] = useState('');
+    const [editLeaveHalfDay, setEditLeaveHalfDay] = useState(false);
     const [editLeaveSubmitting, setEditLeaveSubmitting] = useState(false);
 
     const [editingOnDuty, setEditingOnDuty] = useState(null);
@@ -240,10 +220,11 @@ const MyRequests = () => {
         }
     }, [activeView, activeTab]);
 
-    // Handle settingsLoaded event to refresh timezone context
+    // Handle settingsLoaded event to refresh timezone/settings context
     useEffect(() => {
         const handleSettingsUpdate = () => {
-            setCurrentAppTime(getCurrentInAppTimezone());
+            const s = JSON.parse(localStorage.getItem('settings') || '{}');
+            setLeavePastDaysAllowed(parseInt(s.leave_past_days_allowed || '0') || 0);
         };
         window.addEventListener('settingsLoaded', handleSettingsUpdate);
         return () => window.removeEventListener('settingsLoaded', handleSettingsUpdate);
@@ -271,13 +252,15 @@ const MyRequests = () => {
                 leave_type: selectedLeaveType,
                 start_date: leaveStartDate,
                 end_date: leaveEndDate,
-                reason: leaveReason.trim()
+                reason: leaveReason.trim(),
+                is_half_day: leaveHalfDay
             }, { headers });
             toast.success('Leave applied successfully!');
             setSelectedLeaveType('');
             setLeaveStartDate('');
             setLeaveEndDate('');
             setLeaveReason('');
+            setLeaveHalfDay(false);
         } catch (e) {
             toast.error(e.response?.data?.message || 'Failed to apply leave');
         } finally { setLeaveSubmitting(false); }
@@ -453,6 +436,7 @@ const MyRequests = () => {
         setEditLeaveStart(leave.start || leave.start_date || '');
         setEditLeaveEnd(leave.end || leave.end_date || '');
         setEditLeaveReason(leave.subtitle || leave.reason || '');
+        setEditLeaveHalfDay(leave.is_half_day == 1 || leave.is_half_day === true);
     };
 
     const handleEditLeave = async (id) => {
@@ -466,7 +450,8 @@ const MyRequests = () => {
                 leave_type: editLeaveType,
                 start_date: editLeaveStart,
                 end_date: editLeaveEnd,
-                reason: editLeaveReason.trim()
+                reason: editLeaveReason.trim(),
+                is_half_day: editLeaveHalfDay
             }, { headers });
             toast.success('Leave updated!');
             setEditingLeave(null);
@@ -589,14 +574,18 @@ const MyRequests = () => {
     // Today's date in yyyy-mm-dd for min attribute - using app timezone
     const today = getCurrentInAppTimezone().date;
 
-    // Real-time clock for the UI to show application time
-    const [currentAppTime, setCurrentAppTime] = useState(getCurrentInAppTimezone());
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentAppTime(getCurrentInAppTimezone());
-        }, 10000); // update every 10s
-        return () => clearInterval(interval);
-    }, []);
+    // Earliest selectable date for leave calendar — walks back N working days (Sundays not counted)
+    const minLeaveDate = React.useMemo(() => {
+        if (leavePastDaysAllowed <= 0) return today;
+        const [y, m, d] = today.split('-').map(Number);
+        const cursor = new Date(y, m - 1, d);
+        let workingDaysBack = 0;
+        while (workingDaysBack < leavePastDaysAllowed) {
+            cursor.setDate(cursor.getDate() - 1);
+            if (cursor.getDay() !== 0) workingDaysBack++;
+        }
+        return `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+    }, [today, leavePastDaysAllowed]);
 
     // ── Calendar Logic ──
     const [calendarOpen, setCalendarOpen] = useState(false);
@@ -604,6 +593,8 @@ const MyRequests = () => {
     const [rangeStep, setRangeStep] = useState(0); // 0 = pick start, 1 = pick end
     const [tempCalStart, setTempCalStart] = useState('');
     const [tempCalEnd, setTempCalEnd] = useState('');
+    const [toCalendarMonth, setToCalendarMonth] = useState(new Date(parseInt(today.split('-')[0]), parseInt(today.split('-')[1]) - 1, 1)); // Time-off calendar month
+    const [toCalendarOpen, setToCalendarOpen] = useState(false); // Time-off calendar popup
 
     const openCalendar = () => {
         setTempCalStart(leaveStartDate);
@@ -690,18 +681,85 @@ const MyRequests = () => {
     const prevMonth = () => setCalendarMonth(new Date(calendarYear, calendarMon - 1, 1));
     const nextMonth = () => setCalendarMonth(new Date(calendarYear, calendarMon + 1, 1));
 
-    // ─── TAB CONFIG ───────────────────────────────────
     const tabs = [
-        { id: 'leave', label: 'Leave', icon: '🏖', color: 'from-blue-500 to-blue-600', textColor: 'text-blue-600' },
-        { id: 'timeoff', label: 'Time-Off', icon: '⏱', color: 'from-teal-500 to-teal-600', textColor: 'text-teal-600' },
-        { id: 'onduty', label: 'On-Duty', icon: '💼', color: 'from-purple-500 to-purple-600', textColor: 'text-purple-600' },
+        {
+            id: 'leave',
+            label: 'Leave',
+            icon: (
+                <div className="w-8 h-8 flex items-center justify-center relative">
+                    {/* Person + Palm + Sun (Navy/Cyan Duo-tone) */}
+                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {/* Palm and Sun in Background (Cyan) */}
+                        <circle cx="18" cy="7" r="3" fill="#0ea5e9" opacity="0.6" />
+                        <path d="M16 14c0-2-2-4-4-4h-1v1c2 0 3 1.5 3 3v1h2v-1z" fill="#0ea5e9" />
+                        <path d="M15 14h1v1h-1v-1z" fill="#0ea5e9" />
+                        {/* Person Body (Navy) */}
+                        <path d="M10 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" />
+                        <path d="M4 20v-2c0-2.21 1.79-4 4-4h4.5c.5 0 1 .1 1.5.3" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M4 20h12v-2" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" />
+                        {/* Sunglasses Accent (Cyan) */}
+                        <path d="M8 7.5h4M8.5 7.5l0.5 1h1l0.5-1m-2 0.5h1" stroke="#0ea5e9" strokeWidth="0.8" />
+                    </svg>
+                </div>
+            ),
+            color: 'from-blue-700 to-indigo-900',
+            textColor: 'text-[#1e1b4b]',
+            indicatorColor: 'bg-[#0ea5e9]'
+        },
+        {
+            id: 'timeoff',
+            label: 'Time-Off',
+            icon: (
+                <div className="w-8 h-8 flex items-center justify-center relative">
+                    {/* Person + Tie + Clock (Navy/Cyan Duo-tone) */}
+                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {/* Clock in Background (Cyan) */}
+                        <circle cx="16" cy="11" r="5" stroke="#0ea5e9" strokeWidth="1.5" strokeDasharray="2 1" />
+                        <path d="M16 8v3h2.5" stroke="#0ea5e9" strokeWidth="1.5" strokeLinecap="round" />
+                        {/* Person Body (Navy) */}
+                        <path d="M8 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" />
+                        <path d="M2 20v-2c0-2.21 1.79-4 4-4h4.5c.3 0 .6.05.9.14" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M2 20h12v-2" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" />
+                        {/* Tie (Cyan) */}
+                        <path d="M8 14l-1.5 2 1.5 4 1.5-4L8 14z" fill="#0ea5e9" />
+                        <path d="M7 14h2l-0.5-1h-1l-0.5 1z" fill="#0ea5e9" />
+                    </svg>
+                </div>
+            ),
+            color: 'from-sky-500 to-blue-600',
+            textColor: 'text-[#1e1b4b]',
+            indicatorColor: 'bg-[#0ea5e9]'
+        },
+        {
+            id: 'onduty',
+            label: 'On-Duty',
+            icon: (
+                <div className="w-8 h-8 flex items-center justify-center relative">
+                    {/* Person + Hard Hat + Shield (Navy/Cyan Duo-tone) */}
+                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {/* Person Body (Navy) */}
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" />
+                        <path d="M6 20v-2c0-2.21 1.79-4 4-4h4c2.21 0 4 1.79 4 4v2H6z" fill="#1e1b4b" />
+                        {/* Hard Hat (Cyan) */}
+                        <path d="M12 3c-3 0-5 3-5 5h10c0-2-2-5-5-5z" fill="#0ea5e9" />
+                        <rect x="11.5" y="2" width="1" height="1.5" rx="0.5" fill="#0ea5e9" opacity="0.8" />
+                        {/* Shield (Cyan) */}
+                        <path d="M18 13v3.5l-3 1.5-3-1.5V13h6z" fill="#0ea5e9" />
+                        <path d="M14 15l1 1 2-2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                </div>
+            ),
+            color: 'from-indigo-900 to-blue-900',
+            textColor: 'text-[#1e1b4b]',
+            indicatorColor: 'bg-[#0ea5e9]'
+        },
     ];
 
     // ─── Render ───────────────────────────────────
     return (
         <div className="min-h-screen bg-gray-50" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
             {/* ── Top App Bar ── */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-50 safe-area-top">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-50 safe-area-top shadow-lg">
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg font-black backdrop-blur-sm">
@@ -736,12 +794,14 @@ const MyRequests = () => {
                         <button
                             key={tab.id}
                             onClick={() => { setActiveTab(tab.id); setActiveView('apply'); }}
-                            className={`flex-1 py-3 flex flex-col items-center gap-1 relative transition-all duration-300 ${activeTab === tab.id ? tab.textColor : 'text-gray-400'}`}
+                            className={`flex-1 py-4 flex flex-col items-center gap-1.5 relative transition-all duration-300 group ${activeTab === tab.id ? 'opacity-100' : 'opacity-40 filter grayscale'}`}
                         >
-                            <span className="text-2xl mb-1">{tab.icon}</span>
-                            <span className="text-sm font-bold tracking-wide uppercase">{tab.label}</span>
+                            <div className={`transition-all duration-300 ${activeTab === tab.id ? 'scale-110 drop-shadow-md' : 'scale-90'}`}>
+                                {tab.icon}
+                            </div>
+                            <span className={`text-[10px] font-black tracking-widest uppercase ${activeTab === tab.id ? 'text-[#1e1b4b]' : 'text-gray-400'}`}>{tab.label}</span>
                             {activeTab === tab.id && (
-                                <div className={`absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r ${tab.color} rounded-full`}></div>
+                                <div className={`absolute bottom-0 left-0 right-0 h-1 bg-[#0ea5e9]`}></div>
                             )}
                         </button>
                     ))}
@@ -823,10 +883,19 @@ const MyRequests = () => {
                                 </div>
                             </div>
                             {leaveStartDate && leaveEndDate && (
-                                <div className="mt-3 px-3 py-2 bg-blue-50 rounded-xl">
+                                <div className="mt-3 px-3 py-2 bg-blue-50 rounded-xl space-y-2">
                                     <p className="text-xs font-bold text-blue-600">
-                                        📅 {calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate)} day(s) <span className="text-blue-400 font-medium">(Sundays excluded)</span>
+                                        📅 {calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap) - (leaveHalfDay ? 0.5 : 0)} day(s) <span className="text-blue-400 font-medium">(Sundays excluded)</span>
                                     </p>
+                                    <label className="flex flex-row items-center gap-2 cursor-pointer mt-1 border-t border-blue-100 pt-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={leaveHalfDay}
+                                            onChange={(e) => setLeaveHalfDay(e.target.checked)}
+                                            className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
+                                        />
+                                        <span className="text-xs font-medium text-blue-800">Half Day Leave <span className="text-blue-500 text-[10px] font-normal">(reduces total duration by 0.5)</span></span>
+                                    </label>
                                 </div>
                             )}
                         </div>
@@ -847,14 +916,19 @@ const MyRequests = () => {
                         <button
                             type="submit"
                             disabled={leaveSubmitting}
-                            className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-60 text-sm"
+                            className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3 mt-4"
                         >
                             {leaveSubmitting ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                    Submitting...
-                                </span>
-                            ) : 'Submit Leave Application'}
+                                <>
+                                    <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
+                                    Submitting Request...
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                                    Submit Leave Application
+                                </>
+                            )}
                         </button>
                     </form>
                 )}
@@ -872,9 +946,17 @@ const MyRequests = () => {
                                 ))}
                             </div>
                         ) : myLeaves.filter(l => l.type === 'leave').length === 0 ? (
-                            <div className="text-center py-12">
-                                <span className="text-4xl mb-3 block">📋</span>
-                                <p className="text-gray-400 font-semibold text-sm">No leave requests yet</p>
+                            <div className="text-center py-16">
+                                <div className="w-20 h-20 mx-auto mb-6 relative">
+                                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
+                                        <circle cx="18" cy="7" r="3" fill="#0ea5e9" opacity="0.4" />
+                                        <path d="M10 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
+                                        <path d="M4 20v-2c0-2.21 1.79-4 4-4h4.5" stroke="#1e1b4b" strokeWidth="2" opacity="0.1" />
+                                        <path d="M16 14c0-2-2-4-4-4h-1v1c2 0 3 1.5 3 3v1h2v-1z" fill="#0ea5e9" opacity="0.4" />
+                                    </svg>
+                                </div>
+                                <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No Leave Requests</p>
+                                <p className="text-gray-400 text-xs mt-1">Your leave history will appear here.</p>
                             </div>
                         ) : (
                             myLeaves.filter(l => l.type === 'leave').map((leave) => (
@@ -897,8 +979,27 @@ const MyRequests = () => {
                                                 ))}
                                             </select>
                                             <div className="grid grid-cols-2 gap-2">
-                                                <input type="date" value={editLeaveStart} onChange={(e) => setEditLeaveStart(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
-                                                <input type="date" value={editLeaveEnd} min={editLeaveStart} onChange={(e) => setEditLeaveEnd(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
+                                                <input type="date" value={editLeaveStart} onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
+                                                    setEditLeaveStart(val);
+                                                }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
+                                                <input type="date" value={editLeaveEnd} min={editLeaveStart} onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
+                                                    setEditLeaveEnd(val);
+                                                }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                <label className="flex items-center gap-2 cursor-pointer mt-1 mb-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={editLeaveHalfDay}
+                                                        onChange={(e) => setEditLeaveHalfDay(e.target.checked)}
+                                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                    />
+                                                    <span className="text-xs font-medium text-gray-700">Half Day Leave</span>
+                                                </label>
                                             </div>
                                             <textarea value={editLeaveReason} onChange={(e) => setEditLeaveReason(e.target.value)} rows={2} placeholder="Reason" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all resize-none" />
                                             <button
@@ -1006,27 +1107,25 @@ const MyRequests = () => {
                                 <button
                                     onClick={handleEndOnDuty}
                                     disabled={odSubmitting}
-                                    className="w-full py-4 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg shadow-red-500/25 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-60 text-sm"
+                                    className="w-full py-4 bg-[#ef4444] text-white font-black rounded-2xl shadow-xl shadow-red-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                                 >
                                     {odSubmitting ? (
-                                        <span className="flex items-center justify-center gap-2">
+                                        <>
                                             <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                            Ending & Capturing Location...
-                                        </span>
-                                    ) : '⏹️ End On-Duty'}
+                                            Ending & Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="w-2 h-2 bg-white rounded-full animate-ping" />
+                                            Stop On-Duty
+                                        </>
+                                    )}
                                 </button>
                             </>
                         ) : (
                             /* ── Start On-Duty Form ── */
                             <form onSubmit={handleStartOnDuty} className="space-y-4">
-                                {/* Timezone Indicator */}
-                                <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4">
-                                    <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-1">Current App Time ({getAppTimezone().split('/').pop().replace('_', ' ')})</p>
-                                    <div className="flex items-baseline gap-2">
-                                        <p className="text-lg font-black text-purple-800 tabular-nums">{currentAppTime.time}</p>
-                                        <p className="text-[10px] text-purple-600 font-medium">{formatDate(currentAppTime.date)}</p>
-                                    </div>
-                                </div>
+
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Client Name</label>
                                     <div className="relative">
@@ -1072,14 +1171,19 @@ const MyRequests = () => {
                                 <button
                                     type="submit"
                                     disabled={odSubmitting}
-                                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-2xl shadow-lg shadow-purple-500/25 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-60 text-sm"
+                                    className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                                 >
                                     {odSubmitting ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                            Starting & Capturing Location...
-                                        </span>
-                                    ) : '▶️ Start On-Duty'}
+                                        <>
+                                            <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
+                                            Capturing Location...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                                            Start On-Duty
+                                        </>
+                                    )}
                                 </button>
                             </form>
                         )}
@@ -1098,9 +1202,17 @@ const MyRequests = () => {
                                 ))}
                             </div>
                         ) : myOnDuty.length === 0 ? (
-                            <div className="text-center py-12">
-                                <span className="text-4xl mb-3 block">🚗</span>
-                                <p className="text-gray-400 font-semibold text-sm">No on-duty logs yet</p>
+                            <div className="text-center py-16">
+                                <div className="w-20 h-20 mx-auto mb-6 relative">
+                                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
+                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
+                                        <path d="M6 20v-2c0-2.21 1.79-4 4-4h4c2.21 0 4 1.79 4 4v2H6z" fill="#1e1b4b" opacity="0.1" />
+                                        <path d="M18 13v3.5l-3 1.5-3-1.5V13h6z" fill="#0ea5e9" opacity="0.4" />
+                                        <path d="M14 15l1 1 2-2" stroke="#0ea5e9" strokeWidth="1.2" />
+                                    </svg>
+                                </div>
+                                <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No On-Duty Logs</p>
+                                <p className="text-gray-400 text-xs mt-1">Your field activity will appear here.</p>
                             </div>
                         ) : (
                             myOnDuty.map((od) => (
@@ -1175,39 +1287,19 @@ const MyRequests = () => {
                 {/* ═══════════════════════════════════════════ */}
                 {activeTab === 'timeoff' && activeView === 'apply' && (
                     <form onSubmit={handleTimeOffSubmit} className="space-y-4 animate-fadeIn">
-                        {/* Timezone Indicator */}
-                        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-4 flex items-center justify-between">
-                            <div>
-                                <p className="text-[10px] font-bold text-teal-600 uppercase tracking-widest mb-1">Current App Time ({getAppTimezone().split('/').pop().replace('_', ' ')})</p>
-                                <p className="text-lg font-black text-teal-800 tabular-nums">{currentAppTime.time}</p>
-                                <p className="text-[10px] text-teal-600/70 font-medium">{formatDate(currentAppTime.date)}</p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setToDate(currentAppTime.date);
-                                    setToStartTime(currentAppTime.time);
-                                    // Default end time + 1 hour
-                                    const [h, m] = currentAppTime.time.split(':');
-                                    const endH = (parseInt(h) + 1) % 24;
-                                    setToEndTime(`${String(endH).padStart(2, '0')}:${m}`);
-                                }}
-                                className="px-3 py-2 bg-white text-teal-600 text-[11px] font-bold rounded-xl shadow-sm hover:shadow-md active:scale-95 transition-all border border-teal-100"
-                            >
-                                Use Current
-                            </button>
-                        </div>
 
-                        {/* Date */}
+
+                        {/* Date - Tappable field that opens calendar popup */}
                         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Date</label>
-                            <input
-                                type="date"
-                                value={toDate}
-                                min={today}
-                                onChange={(e) => setToDate(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
-                            />
+                            <div onClick={() => setToCalendarOpen(true)} className="cursor-pointer">
+                                <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    <span className={toDate ? 'text-gray-800' : 'text-gray-400'}>
+                                        {toDate ? formatDate(toDate) : 'Select date'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Time Selection */}
@@ -1244,7 +1336,7 @@ const MyRequests = () => {
                             {toStartTime && toEndTime && (
                                 <div className="mt-3 px-3 py-2 bg-teal-50 rounded-xl">
                                     <p className="text-xs font-bold text-teal-600">
-                                        ⏱️ Duration: {calcTimeOffDuration(toStartTime, toEndTime)}
+                                        ⏳ Duration: {calcTimeOffDuration(toStartTime, toEndTime)}
                                     </p>
                                 </div>
                             )}
@@ -1266,14 +1358,19 @@ const MyRequests = () => {
                         <button
                             type="submit"
                             disabled={toSubmitting}
-                            className="w-full py-4 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-teal-500/25 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-60 text-sm"
+                            className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                         >
                             {toSubmitting ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                    Submitting...
-                                </span>
-                            ) : 'Submit Time-Off Request'}
+                                <>
+                                    <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
+                                    Submitting Request...
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                                    Submit Time-Off Request
+                                </>
+                            )}
                         </button>
                     </form>
                 )}
@@ -1290,9 +1387,17 @@ const MyRequests = () => {
                                 ))}
                             </div>
                         ) : myTimeOffs.length === 0 ? (
-                            <div className="text-center py-12">
-                                <span className="text-4xl mb-3 block">⏰</span>
-                                <p className="text-gray-400 font-semibold text-sm">No time-off requests yet</p>
+                            <div className="text-center py-16">
+                                <div className="w-20 h-20 mx-auto mb-6 relative">
+                                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
+                                        <circle cx="16" cy="11" r="5" stroke="#0ea5e9" strokeWidth="1" strokeDasharray="2 1" />
+                                        <path d="M8 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
+                                        <path d="M2 20v-2c0-2.21 1.79-4 4-4h4.5" stroke="#1e1b4b" strokeWidth="2" opacity="0.1" />
+                                        <path d="M8 14l-1.5 2 1.5 4 1.5-4L8 14z" fill="#0ea5e9" opacity="0.4" />
+                                    </svg>
+                                </div>
+                                <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No Time-Off Requests</p>
+                                <p className="text-gray-400 text-xs mt-1">Short break history will appear here.</p>
                             </div>
                         ) : (
                             myTimeOffs.map((to) => (
@@ -1304,7 +1409,11 @@ const MyRequests = () => {
                                                 <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Editing Time-Off</span>
                                                 <button onClick={() => setEditingTimeOff(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600">✕ Cancel</button>
                                             </div>
-                                            <input type="date" value={editToDate} onChange={(e) => setEditToDate(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
+                                            <input type="date" value={editToDate} onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
+                                                setEditToDate(val);
+                                            }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
                                             <div className="grid grid-cols-2 gap-2">
                                                 <input type="time" value={editToStart} onChange={(e) => setEditToStart(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
                                                 <input type="time" value={editToEnd} onChange={(e) => setEditToEnd(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
@@ -1372,7 +1481,7 @@ const MyRequests = () => {
                         <div className="px-4 pb-4">
                             {/* Month Header */}
                             <div className="flex items-center justify-between mb-3">
-                                <button type="button" onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                <button type="button" onClick={prevMonth} disabled={(() => { const [minY, minM] = minLeaveDate.split('-').map(Number); const prevY = calendarMon === 0 ? calendarYear - 1 : calendarYear; const prevM = calendarMon === 0 ? 12 : calendarMon; return prevY < minY || (prevY === minY && prevM < minM); })()} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent">
                                     <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                                 <span className="text-sm font-bold text-gray-800">{monthName}</span>
@@ -1394,8 +1503,8 @@ const MyRequests = () => {
                                     if (!cell) return <div key={`empty-${idx}`} className="h-10"></div>;
 
                                     const { day, dateStr, isSunday } = cell;
-                                    const isPast = dateStr < today;
-                                    const disabled = isPast;
+                                    const isPast = dateStr < minLeaveDate;
+                                    const disabled = isPast || isSunday;
                                     const leaveStatus = leaveDateStatusMap[dateStr];
                                     const inRange = isInSelectedRange(dateStr);
                                     const isStart = isRangeStart(dateStr);
@@ -1474,7 +1583,7 @@ const MyRequests = () => {
                             {tempCalStart && (
                                 <div className="mt-2 px-3 py-2 bg-blue-50 rounded-xl">
                                     <p className="text-xs font-bold text-blue-600">
-                                        📅 {formatDate(tempCalStart)}{tempCalEnd ? ` → ${formatDate(tempCalEnd)} · ${calculateLeaveDaysExcludingSunday(tempCalStart, tempCalEnd)} day(s)` : ' — pick end date'}
+                                        📅 {formatDate(tempCalStart)}{tempCalEnd ? ` → ${formatDate(tempCalEnd)} · ${calculateLeaveDaysExcludingSunday(tempCalStart, tempCalEnd, leaveDateStatusMap)} day(s)` : ' — pick end date'}
                                     </p>
                                 </div>
                             )}
@@ -1492,6 +1601,129 @@ const MyRequests = () => {
                     </div>
                 </div>
             )}
+
+            {/* ── Time-Off Calendar Popup Modal ── */}
+            {toCalendarOpen && (() => {
+                const tYear = toCalendarMonth.getFullYear();
+                const tMon = toCalendarMonth.getMonth();
+                const tDaysInMonth = new Date(tYear, tMon + 1, 0).getDate();
+                const tFirstDay = new Date(tYear, tMon, 1).getDay();
+                const tMonthLabel = new Date(tYear, tMon).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+                const tDays = [];
+                for (let i = 0; i < tFirstDay; i++) tDays.push(null);
+                for (let d = 1; d <= tDaysInMonth; d++) {
+                    const dateObj = new Date(tYear, tMon, d);
+                    const dateStr = `${tYear}-${String(tMon + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    tDays.push({ day: d, dateStr, isSunday: dateObj.getDay() === 0 });
+                }
+
+                return (
+                    <div className="fixed inset-0 z-[95] flex items-center justify-center confirm-backdrop" onClick={() => setToCalendarOpen(false)}>
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 confirm-modal overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                                <h3 className="text-base font-bold text-gray-900">Select Time-Off Date</h3>
+                                <button onClick={() => setToCalendarOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+
+                            <div className="px-4 pb-4">
+                                {/* Month Header */}
+                                <div className="flex items-center justify-between mb-3">
+                                    <button type="button" onClick={() => setToCalendarMonth(new Date(tYear, tMon - 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                    </button>
+                                    <span className="text-sm font-bold text-gray-800">{tMonthLabel}</span>
+                                    <button type="button" onClick={() => setToCalendarMonth(new Date(tYear, tMon + 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </button>
+                                </div>
+
+                                {/* Day of Week Headers */}
+                                <div className="grid grid-cols-7 gap-0 mb-1">
+                                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+                                        <div key={d} className={`text-center text-[10px] font-bold uppercase py-1 ${d === 'Su' ? 'text-red-400' : 'text-gray-400'}`}>{d}</div>
+                                    ))}
+                                </div>
+
+                                {/* Calendar Grid */}
+                                <div className="grid grid-cols-7 gap-0">
+                                    {tDays.map((cell, idx) => {
+                                        if (!cell) return <div key={`to-empty-${idx}`} className="h-10"></div>;
+
+                                        const { day, dateStr, isSunday } = cell;
+                                        const isPast = dateStr < today;
+                                        const disabled = isPast || isSunday;
+                                        const isSelected = dateStr === toDate;
+                                        const isToday = dateStr === today;
+
+                                        let bgClass = '';
+                                        let textClass = 'text-gray-800';
+
+                                        if (disabled) {
+                                            textClass = isSunday ? 'text-red-300' : 'text-gray-300';
+                                        } else if (isSelected) {
+                                            bgClass = 'bg-teal-600';
+                                            textClass = 'text-white';
+                                        }
+
+                                        return (
+                                            <button
+                                                key={dateStr}
+                                                type="button"
+                                                disabled={disabled}
+                                                onClick={() => setToDate(dateStr)}
+                                                className={`h-10 w-full flex items-center justify-center text-xs font-semibold rounded-full transition-all
+                                                    ${bgClass} ${textClass}
+                                                    ${isToday && !isSelected ? 'ring-2 ring-teal-400 ring-offset-1' : ''}
+                                                    ${!disabled && !isSelected ? 'hover:bg-teal-50' : ''}
+                                                    ${!disabled ? 'active:scale-95 cursor-pointer' : 'cursor-default'}
+                                                    ${isSelected ? 'shadow-sm' : ''}
+                                                `}
+                                            >
+                                                {day}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Legend */}
+                                <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
+                                        <span className="text-[10px] text-gray-500 font-semibold">Selected</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-red-200"></span>
+                                        <span className="text-[10px] text-gray-500 font-semibold">Sunday (Disabled)</span>
+                                    </div>
+                                </div>
+
+                                {/* Selected date preview */}
+                                {toDate && (
+                                    <div className="mt-2 px-3 py-2 bg-teal-50 rounded-xl">
+                                        <p className="text-xs font-bold text-teal-600">
+                                            📅 {formatDate(toDate)}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Confirm Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => setToCalendarOpen(false)}
+                                    disabled={!toDate}
+                                    className="w-full mt-3 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-teal-500/25 active:scale-[0.98] transition-all disabled:opacity-50"
+                                >
+                                    Confirm Selection
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* ── Detail Bottom Sheet ── */}
             {selectedDetail && (
@@ -1533,6 +1765,10 @@ const MyRequests = () => {
                                     <p className="text-sm font-semibold text-gray-800">
                                         {formatDate(selectedDetail.date)} · {formatTime12(selectedDetail.start_time)} - {formatTime12(selectedDetail.end_time)}
                                     </p>
+                                ) : detailType === 'onduty' ? (
+                                    <p className="text-sm font-semibold text-gray-800">
+                                        {formatDate(selectedDetail.start)} · {formatTime12(selectedDetail.start)} → {selectedDetail.end ? `${formatDate(selectedDetail.end)} · ${formatTime12(selectedDetail.end)}` : 'Active'}
+                                    </p>
                                 ) : (
                                     <p className="text-sm font-semibold text-gray-800">
                                         {formatDate(selectedDetail.start_date || selectedDetail.start)} → {formatDate(selectedDetail.end_date || selectedDetail.end)}
@@ -1545,7 +1781,7 @@ const MyRequests = () => {
                                 <div className="bg-indigo-50 rounded-xl p-3 flex items-center gap-2">
                                     <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     <span className="text-sm font-semibold text-indigo-700">
-                                        Duration: {calculateLeaveDaysExcludingSunday(selectedDetail.start_date || selectedDetail.start, selectedDetail.end_date || selectedDetail.end)} day(s)
+                                        Duration: {calculateLeaveDaysExcludingSunday(selectedDetail.start_date || selectedDetail.start, selectedDetail.end_date || selectedDetail.end) - (selectedDetail.is_half_day === true || selectedDetail.is_half_day === 1 ? 0.5 : 0)} day(s)
                                         <span className="text-xs font-normal text-indigo-400 ml-1">(excl. Sundays)</span>
                                     </span>
                                 </div>
@@ -1648,7 +1884,7 @@ const MyRequests = () => {
                                                 </div>
                                                 <div>
                                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Created</div>
-                                                    <div className="text-xs text-gray-600 font-medium">{new Date(selectedDetail.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+                                                    <div className="text-xs text-gray-600 font-medium">{formatInTimezone(selectedDetail.createdAt)}</div>
                                                 </div>
                                             </div>
                                         )}
@@ -1659,7 +1895,7 @@ const MyRequests = () => {
                                                 </div>
                                                 <div>
                                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Last Updated</div>
-                                                    <div className="text-xs text-gray-600 font-medium">{new Date(selectedDetail.updatedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+                                                    <div className="text-xs text-gray-600 font-medium">{formatInTimezone(selectedDetail.updatedAt)}</div>
                                                 </div>
                                             </div>
                                         )}

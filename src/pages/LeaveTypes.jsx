@@ -34,6 +34,13 @@ export default function LeaveTypes() {
     confirmButtonColor: '',
     data: null
   });
+  const [employeeListModal, setEmployeeListModal] = useState({
+    show: false,
+    leaveTypeName: '',
+    employees: [],
+    message: '',
+    instruction: ''
+  });
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   // Check permission first
@@ -94,7 +101,7 @@ export default function LeaveTypes() {
       name: leaveType.name,
       description: leaveType.description || '',
       status: leaveType.status,
-      gender_restriction: leaveType.gender_restriction || []
+      gender_restriction: Array.isArray(leaveType.gender_restriction) ? leaveType.gender_restriction : (leaveType.gender_restriction ? [leaveType.gender_restriction] : [])
     });
     setShowModal(true);
   };
@@ -103,7 +110,8 @@ export default function LeaveTypes() {
     const { name, value, type, checked } = e.target;
     if (name === 'gender_restriction') {
       setFormData(prev => {
-        const genders = [...prev.gender_restriction];
+        const currentGenders = Array.isArray(prev.gender_restriction) ? prev.gender_restriction : (prev.gender_restriction ? [prev.gender_restriction] : []);
+        const genders = [...currentGenders];
         if (checked) {
           if (!genders.includes(value)) {
             genders.push(value);
@@ -153,8 +161,8 @@ export default function LeaveTypes() {
       let bValue = b[sortConfig.key] || '';
 
       if (sortConfig.key === 'gender_restriction') {
-        aValue = (a.gender_restriction || []).join(', ');
-        bValue = (b.gender_restriction || []).join(', ');
+        aValue = Array.isArray(a.gender_restriction) ? a.gender_restriction.join(', ') : (a.gender_restriction || '');
+        bValue = Array.isArray(b.gender_restriction) ? b.gender_restriction.join(', ') : (b.gender_restriction || '');
       }
 
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -244,8 +252,35 @@ export default function LeaveTypes() {
       fetchLeaveTypes();
     } catch (err) {
       console.error('Error:', err);
-      toast.error(err.response?.data?.message || `Failed to ${action} leave type`);
+
+      // Check if error response contains employee list (deactivation prevented)
+      if (err.response?.data?.assignedEmployees && err.response?.data?.assignedEmployees.length > 0) {
+        // Close confirmation modal
+        closeConfirmationModal();
+
+        // Show employee list modal
+        setEmployeeListModal({
+          show: true,
+          leaveTypeName: leaveType.name,
+          employees: err.response.data.assignedEmployees,
+          message: err.response.data.message,
+          instruction: err.response.data.instruction
+        });
+      } else {
+        // Show regular error toast for other errors
+        toast.error(err.response?.data?.message || `Failed to ${action} leave type`);
+      }
     }
+  };
+
+  const closeEmployeeListModal = () => {
+    setEmployeeListModal({
+      show: false,
+      leaveTypeName: '',
+      employees: [],
+      message: '',
+      instruction: ''
+    });
   };
 
   const closeConfirmationModal = () => {
@@ -268,16 +303,11 @@ export default function LeaveTypes() {
     return null;
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6">
+    <div className="p-6 relative min-h-[500px]">
+      {loading && (
+        <ModernLoader size="container" message="Fetching leave types..." fullScreen={false} />
+      )}
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -315,12 +345,12 @@ export default function LeaveTypes() {
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
-          <thead className="bg-[#2E5090]">
+          <thead className="bg-[#1e1b4b] text-white">
             <tr>
               <th className="px-6 py-3 text-left">
                 <button
                   onClick={() => handleSort('name')}
-                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                  className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                 >
                   Name <TableSortIcon column="name" sortConfig={sortConfig} />
                 </button>
@@ -328,7 +358,7 @@ export default function LeaveTypes() {
               <th className="px-6 py-3 text-left">
                 <button
                   onClick={() => handleSort('description')}
-                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                  className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                 >
                   Description <TableSortIcon column="description" sortConfig={sortConfig} />
                 </button>
@@ -336,7 +366,7 @@ export default function LeaveTypes() {
               <th className="px-6 py-3 text-left">
                 <button
                   onClick={() => handleSort('gender_restriction')}
-                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                  className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                 >
                   Gender <TableSortIcon column="gender_restriction" sortConfig={sortConfig} />
                 </button>
@@ -344,12 +374,12 @@ export default function LeaveTypes() {
               <th className="px-6 py-3 text-left">
                 <button
                   onClick={() => handleSort('status')}
-                  className="flex items-center gap-2 text-sm font-semibold text-white hover:text-gray-200"
+                  className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                 >
                   Status <TableSortIcon column="status" sortConfig={sortConfig} />
                 </button>
               </th>
-              <th className="px-6 py-3 text-right text-sm font-semibold text-white">Actions</th>
+              <th className="px-6 py-3 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -364,7 +394,11 @@ export default function LeaveTypes() {
                 <tr key={leaveType.id} className="border-b border-gray-200">
                   <td className="px-6 py-4 font-medium text-gray-900">{leaveType.name}</td>
                   <td className="px-6 py-4 text-gray-600">{leaveType.description || '-'}</td>
-                  <td className="px-6 py-4 text-gray-600">{leaveType.gender_restriction?.join(', ') || 'All'}</td>
+                  <td className="px-6 py-4 text-gray-600">
+                    {Array.isArray(leaveType.gender_restriction)
+                      ? (leaveType.gender_restriction.length > 0 ? leaveType.gender_restriction.join(', ') : 'All')
+                      : (leaveType.gender_restriction || 'All')}
+                  </td>
                   <td className="px-6 py-4">
                     <button
                       onClick={() => handleToggleStatus(leaveType)}
@@ -544,6 +578,88 @@ export default function LeaveTypes() {
                   className={`px-4 py-2 text-white rounded-lg font-medium shadow-sm transition-colors ${confirmationModal.confirmButtonColor}`}
                 >
                   {confirmationModal.confirmText}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee List Modal (Cannot Deactivate) */}
+      {employeeListModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-start p-6 border-b border-gray-200">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-full">
+                    <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Cannot Deactivate Leave Type</h3>
+                    <p className="text-sm text-gray-600 mt-1">"{employeeListModal.leaveTypeName}"</p>
+                  </div>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
+                  <p className="text-sm text-red-800 font-medium">{employeeListModal.message}</p>
+                </div>
+              </div>
+              <button
+                onClick={closeEmployeeListModal}
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+
+            {/* Employee List */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-gray-700">
+                  Assigned Employees ({employeeListModal.employees.length})
+                </h4>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Employee Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Employee ID</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Days Allowed</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Days Used</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {employeeListModal.employees.map((employee, index) => (
+                      <tr key={employee.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{employee.name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{employee.email}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{employee.employee_id || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-center font-medium">{employee.days_allowed}</td>
+                        <td className="px-4 py-3 text-sm text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${employee.days_used > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                            {employee.days_used}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200 p-6 bg-gray-50">
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={closeEmployeeListModal}
+                  className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium transition"
+                >
+                  Got It
                 </button>
               </div>
             </div>
