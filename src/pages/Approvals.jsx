@@ -336,13 +336,15 @@ const Approvals = () => {
                 { headers: { 'x-access-token': token } }
             );
 
-            // Remove from local state
+            // Remove from local state and keep pagination counts in sync
             if (type === 'leave') {
                 setLeaveApprovals(leaveApprovals.filter(a => a.id !== item.id));
+                setPagination(prev => ({ ...prev, leaveCount: Math.max(0, (prev.leaveCount || 0) - 1) }));
             } else if (type === 'timeoff') {
                 setTimeOffApprovals(timeOffApprovals.filter(a => a.id !== item.id));
             } else {
                 setOnDutyApprovals(onDutyApprovals.filter(a => a.id !== item.id));
+                setPagination(prev => ({ ...prev, onDutyCount: Math.max(0, (prev.onDutyCount || 0) - 1) }));
             }
 
             // Dispatch event to notify Header
@@ -463,10 +465,14 @@ const Approvals = () => {
                 await axios.put(endpoint, requestBody, { headers: { 'x-access-token': token } });
             }
 
-            // Remove all approved/rejected items from local state
+            // Remove all approved/rejected items from local state and keep pagination counts in sync
+            const leaveRemovedCount = [...selectedItems].filter(k => k.startsWith('leave-')).length;
+            const onDutyRemovedCount = [...selectedItems].filter(k => k.startsWith('onduty-')).length;
             setLeaveApprovals(prev => prev.filter(a => !selectedItems.has(`leave-${a.id}`)));
             setTimeOffApprovals(prev => prev.filter(a => !selectedItems.has(`timeoff-${a.id}`)));
             setOnDutyApprovals(prev => prev.filter(a => !selectedItems.has(`onduty-${a.id}`)));
+            if (leaveRemovedCount > 0) setPagination(prev => ({ ...prev, leaveCount: Math.max(0, (prev.leaveCount || 0) - leaveRemovedCount) }));
+            if (onDutyRemovedCount > 0) setPagination(prev => ({ ...prev, onDutyCount: Math.max(0, (prev.onDutyCount || 0) - onDutyRemovedCount) }));
             setSelectedItems(new Set());
             setBulkRejectionModal({ show: false, reason: '', action: null });
 

@@ -121,6 +121,7 @@ const GlobalInit = ({ children }) => {
 const ProtectedLayout = ({ children }) => {
   return (
     <ProtectedRoute>
+      <InactivityGuard />
       <div className="flex h-screen bg-transparent transition-colors duration-300">
         <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -148,7 +149,6 @@ function App() {
   return (
     <Router>
       <AxiosInterceptorSetup>
-        <InactivityGuard />
         <GlobalInit>
           <Toaster
             position="top-right"
