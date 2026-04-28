@@ -129,6 +129,9 @@ const Dashboard = () => {
     const [pendingApprovals, setPendingApprovals] = useState([]);
     const [pendingApprovalsLoading, setPendingApprovalsLoading] = useState(false);
     const [incompleteProfiles, setIncompleteProfiles] = useState([]);
+    const [onLeaveData, setOnLeaveData] = useState({ today: [], tomorrow: [], today_date: '', tomorrow_date: '' });
+    const [onLeaveLoading, setOnLeaveLoading] = useState(false);
+    const [onLeaveDetailModal, setOnLeaveDetailModal] = useState({ show: false, emp: null, dayLabel: '' });
     const scrollContainerRef = useRef(null);
 
     const scrollLeft = () => {
@@ -157,6 +160,11 @@ const Dashboard = () => {
         if (canManageUsers(user.role)) {
             fetchIncompleteProfiles();
         }
+
+        // Fetch on-leave status for managers/approvers
+        if (canApproveLeave(user.role)) {
+            fetchOnLeaveData();
+        }
     }, []);
 
     useEffect(() => {
@@ -174,6 +182,22 @@ const Dashboard = () => {
             setIncompleteProfiles(response.data);
         } catch (error) {
             console.error('Error fetching incomplete profiles:', error);
+        }
+    };
+
+    const fetchOnLeaveData = async () => {
+        try {
+            setOnLeaveLoading(true);
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await axios.get(`${API_BASE_URL}/api/leave/on-leave`, {
+                headers: { 'x-access-token': token }
+            });
+            setOnLeaveData(response.data);
+        } catch (error) {
+            console.error('Error fetching on-leave status:', error);
+        } finally {
+            setOnLeaveLoading(false);
         }
     };
 
@@ -591,6 +615,86 @@ const Dashboard = () => {
                     )}
                     <div className={`transition-all duration-300 ${(approveModal.show || rejectModal.show) ? 'blur-sm' : ''}`}>
                         <>
+                            {/* On Leave Today / Tomorrow Section */}
+                            {!onLeaveLoading && (onLeaveData.today.length > 0 || onLeaveData.tomorrow.length > 0) && (
+                                <div className="mb-12">
+                                    <div className="relative bg-[#eef2ff] border-2 border-[#1e1b4b]/20 rounded-2xl p-6 overflow-hidden">
+                                        {/* Decorative corner accent */}
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#1e1b4b]/5 rounded-bl-full pointer-events-none"></div>
+
+                                        {/* Header row */}
+                                        <div className="flex items-center justify-between mb-5">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-base font-black text-[#1e1b4b] tracking-tight">Who's Out</span>
+                                            </div>
+                                            <span className="text-[11px] font-black text-[#1e1b4b]/50 uppercase tracking-widest">
+                                                {onLeaveData.today.length + onLeaveData.tomorrow.length} absent
+                                            </span>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            {/* Today row */}
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-28 flex-shrink-0 pt-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0"></span>
+                                                        <span className="text-xs font-black text-[#1e1b4b] uppercase tracking-widest">Today</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-[#1e1b4b]/40 font-bold ml-3.5 mt-0.5 block">
+                                                        {onLeaveData.today.length === 0 ? 'all present' : `${onLeaveData.today.length} out`}
+                                                    </span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 flex-1">
+                                                    {onLeaveData.today.length === 0 ? (
+                                                        <span className="text-xs text-[#1e1b4b]/40 font-semibold pt-1">Everyone is in today.</span>
+                                                    ) : (
+                                                        onLeaveData.today.map((emp) => (
+                                                            <div key={emp.id} onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Today' })} className="flex items-center gap-2 bg-white border border-red-200 rounded-full pl-1 pr-3 py-1 shadow-sm hover:shadow-md hover:-translate-y-px hover:border-red-400 transition-all duration-150 cursor-pointer">
+                                                                <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
+                                                                    {emp.name.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <span className="text-xs font-bold text-gray-800 whitespace-nowrap">{emp.name}</span>
+                                                                <span className="text-[10px] text-gray-400 whitespace-nowrap">{emp.leave_type}{emp.is_half_day ? ' · ½' : ''}</span>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="border-t border-[#1e1b4b]/10 ml-32"></div>
+
+                                            {/* Tomorrow row */}
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-28 flex-shrink-0 pt-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>
+                                                        <span className="text-xs font-black text-[#1e1b4b] uppercase tracking-widest">Tomorrow</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-[#1e1b4b]/40 font-bold ml-3.5 mt-0.5 block">
+                                                        {onLeaveData.tomorrow.length === 0 ? 'all present' : `${onLeaveData.tomorrow.length} out`}
+                                                    </span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 flex-1">
+                                                    {onLeaveData.tomorrow.length === 0 ? (
+                                                        <span className="text-xs text-[#1e1b4b]/40 font-semibold pt-1">Everyone is in tomorrow.</span>
+                                                    ) : (
+                                                        onLeaveData.tomorrow.map((emp) => (
+                                                            <div key={emp.id} onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Tomorrow' })} className="flex items-center gap-2 bg-white border border-amber-200 rounded-full pl-1 pr-3 py-1 shadow-sm hover:shadow-md hover:-translate-y-px hover:border-amber-400 transition-all duration-150 cursor-pointer">
+                                                                <div className="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
+                                                                    {emp.name.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <span className="text-xs font-bold text-gray-800 whitespace-nowrap">{emp.name}</span>
+                                                                <span className="text-[10px] text-gray-400 whitespace-nowrap">{emp.leave_type}{emp.is_half_day ? ' · ½' : ''}</span>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Pending Approvals Section - Redesigned */}
                             {!pendingApprovalsLoading && pendingApprovals.length > 0 && (
                                 <div className="mb-12 animate-fadeInUp">
@@ -1251,6 +1355,126 @@ const Dashboard = () => {
                     </div>
                 )}
             </div>
+
+            {/* On Leave Detail Modal */}
+            {onLeaveDetailModal.show && onLeaveDetailModal.emp && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80]"
+                    onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="bg-[#1e1b4b] p-6 relative">
+                            <button
+                                onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
+                                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-white">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                            <div className="flex items-center gap-4">
+                                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-black text-white flex-shrink-0 ${onLeaveDetailModal.dayLabel === 'Today' ? 'bg-red-500' : 'bg-amber-400'}`}>
+                                    {onLeaveDetailModal.emp.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black text-white">{onLeaveDetailModal.emp.name}</h2>
+                                    <p className="text-white/50 text-xs font-semibold mt-0.5">
+                                        {onLeaveDetailModal.emp.email || `Staff ID: ${onLeaveDetailModal.emp.staff_id}`}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="mt-4 flex items-center gap-2">
+                                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${onLeaveDetailModal.dayLabel === 'Today' ? 'bg-red-500/20 text-red-200 border-red-400/30' : 'bg-amber-400/20 text-amber-200 border-amber-400/30'}`}>
+                                    On Leave {onLeaveDetailModal.dayLabel}
+                                </span>
+                                <span className="text-[10px] font-semibold text-white/40 tracking-wide">
+                                    #{onLeaveDetailModal.emp.id}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-4">
+                            {/* Leave Type */}
+                            <div className="flex items-center justify-between p-4 bg-[#eef2ff] rounded-xl border border-[#1e1b4b]/10">
+                                <div>
+                                    <p className="text-[10px] font-black text-[#1e1b4b]/50 uppercase tracking-widest mb-1">Leave Type</p>
+                                    <p className="text-base font-black text-[#1e1b4b]">{onLeaveDetailModal.emp.leave_type}</p>
+                                </div>
+                                {onLeaveDetailModal.emp.is_half_day && (
+                                    <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-[10px] font-black rounded-full uppercase tracking-wider">
+                                        Half Day
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Dates */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">From</p>
+                                    <p className="text-sm font-bold text-gray-800">{formatDateOnly(onLeaveDetailModal.emp.start_date)}</p>
+                                </div>
+                                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">To</p>
+                                    <p className="text-sm font-bold text-gray-800">{formatDateOnly(onLeaveDetailModal.emp.end_date)}</p>
+                                </div>
+                            </div>
+
+                            {/* Duration */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Duration</p>
+                                <p className="text-sm font-black text-[#1e1b4b]">
+                                    {(() => {
+                                        const days = calculateLeaveDays(onLeaveDetailModal.emp.start_date, onLeaveDetailModal.emp.end_date) - (onLeaveDetailModal.emp.is_half_day ? 0.5 : 0);
+                                        return `${days} ${days === 1 ? 'Day' : 'Days'}`;
+                                    })()}
+                                </p>
+                            </div>
+
+                            {/* Approved By */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-green-50 rounded-xl border border-green-100">
+                                <p className="text-xs font-black text-green-700/60 uppercase tracking-widest">Approved By</p>
+                                <div className="flex items-center gap-2">
+                                    {onLeaveDetailModal.emp.approved_by ? (
+                                        <>
+                                            <div className="w-5 h-5 rounded-full bg-green-600 flex items-center justify-center text-[9px] font-black text-white flex-shrink-0">
+                                                {onLeaveDetailModal.emp.approved_by.charAt(0).toUpperCase()}
+                                            </div>
+                                            <p className="text-sm font-bold text-green-800">{onLeaveDetailModal.emp.approved_by}</p>
+                                        </>
+                                    ) : (
+                                        <p className="text-sm font-bold text-gray-400">—</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Reason */}
+                            {onLeaveDetailModal.emp.reason && (
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-black text-[#1e1b4b]/50 uppercase tracking-widest">Reason</p>
+                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-gray-700 text-sm font-medium leading-relaxed">
+                                        {onLeaveDetailModal.emp.reason}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 pb-6">
+                            <button
+                                onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
+                                className="w-full py-3 bg-[#1e1b4b] text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#2d2a6e] transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
