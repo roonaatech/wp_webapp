@@ -125,15 +125,7 @@ const ActiveOnDuty = () => {
 
     const formatTime = (dateString) => {
         if (!dateString) return 'N/A';
-        return formatInTimezone(dateString, null, {
-            year: 'numeric',
-            month: 'short',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-        });
+        return formatInTimezone(dateString);
     };
 
     const formatDuration = (startTime) => {
