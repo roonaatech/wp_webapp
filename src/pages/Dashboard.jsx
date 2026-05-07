@@ -617,74 +617,98 @@ const Dashboard = () => {
                         <>
                             {/* On Leave Today / Tomorrow Section */}
                             {!onLeaveLoading && (onLeaveData.today.length > 0 || onLeaveData.tomorrow.length > 0) && (
-                                <div className="mb-12">
-                                    <div className="relative bg-[#eef2ff] border-2 border-[#1e1b4b]/20 rounded-2xl p-6 overflow-hidden">
-                                        {/* Decorative corner accent */}
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#1e1b4b]/5 rounded-bl-full pointer-events-none"></div>
-
-                                        {/* Header row */}
-                                        <div className="flex items-center justify-between mb-5">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-base font-black text-[#1e1b4b] tracking-tight">Who's Out</span>
+                                <div className="mb-8">
+                                    <div className="relative bg-white rounded-2xl p-5 shadow-sm border border-gray-100 overflow-hidden">
+                                        {/* Decorative background element */}
+                                        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-full blur-2xl opacity-60 -translate-y-1/2 translate-x-1/3"></div>
+                                        
+                                        <div className="flex items-center justify-between mb-5 relative z-10">
+                                            <div>
+                                                <h2 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2.5">
+                                                    <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-base shadow-sm">
+                                                        🌴
+                                                    </span>
+                                                    Who's Out
+                                                </h2>
+                                                <p className="text-gray-500 text-xs font-medium mt-0.5">See who is away today and tomorrow.</p>
                                             </div>
-                                            <span className="text-[11px] font-black text-[#1e1b4b]/50 uppercase tracking-widest">
-                                                {onLeaveData.today.length + onLeaveData.tomorrow.length} absent
-                                            </span>
+                                            <div className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg font-bold text-xs">
+                                                {onLeaveData.today.length + onLeaveData.tomorrow.length} Absent Total
+                                            </div>
                                         </div>
 
-                                        <div className="space-y-4">
-                                            {/* Today row */}
-                                            <div className="flex items-start gap-4">
-                                                <div className="w-28 flex-shrink-0 pt-1">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0"></span>
-                                                        <span className="text-xs font-black text-[#1e1b4b] uppercase tracking-widest">Today</span>
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 relative z-10">
+                                            {/* Today Column */}
+                                            <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="relative flex h-2.5 w-2.5">
+                                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                                                        </span>
+                                                        <h3 className="text-base font-black text-gray-900 tracking-tight">Today</h3>
                                                     </div>
-                                                    <span className="text-[10px] text-[#1e1b4b]/40 font-bold ml-3.5 mt-0.5 block">
-                                                        {onLeaveData.today.length === 0 ? 'all present' : `${onLeaveData.today.length} out`}
+                                                    <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100">
+                                                        {onLeaveData.today.length} Out
                                                     </span>
                                                 </div>
-                                                <div className="flex flex-wrap gap-2 flex-1">
+
+                                                <div className="space-y-2.5">
                                                     {onLeaveData.today.length === 0 ? (
-                                                        <span className="text-xs text-[#1e1b4b]/40 font-semibold pt-1">Everyone is in today.</span>
+                                                        <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
+                                                            <span className="text-xl mb-1.5">✨</span>
+                                                            <p className="text-xs font-bold text-gray-400">Everyone is in today</p>
+                                                        </div>
                                                     ) : (
                                                         onLeaveData.today.map((emp) => (
-                                                            <div key={emp.id} onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Today' })} className="flex items-center gap-2 bg-white border border-red-200 rounded-full pl-1 pr-3 py-1 shadow-sm hover:shadow-md hover:-translate-y-px hover:border-red-400 transition-all duration-150 cursor-pointer">
-                                                                <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
+                                                            <div key={emp.id} onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Today' })} className="group bg-white p-3 rounded-lg shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer flex items-center gap-3">
+                                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black text-white shadow-inner flex-shrink-0 ${emp.is_time_off ? 'bg-gradient-to-br from-teal-400 to-emerald-500' : 'bg-gradient-to-br from-red-400 to-rose-500'}`}>
                                                                     {emp.name.charAt(0).toUpperCase()}
                                                                 </div>
-                                                                <span className="text-xs font-bold text-gray-800 whitespace-nowrap">{emp.name}</span>
-                                                                <span className="text-[10px] text-gray-400 whitespace-nowrap">{emp.leave_type}{emp.is_half_day ? ' · ½' : ''}</span>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="text-xs font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{emp.name}</h4>
+                                                                    <p className="text-[10px] text-gray-500 truncate mt-0.5 font-medium">{emp.leave_type}</p>
+                                                                </div>
+                                                                <div className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider whitespace-nowrap shadow-sm ${emp.is_time_off ? 'bg-teal-50 text-teal-700' : (emp.is_half_day ? 'bg-orange-50 text-orange-700' : 'bg-red-50 text-red-700')}`}>
+                                                                    {emp.is_time_off ? 'Time Off' : (emp.is_half_day ? 'Half Day' : 'Full Day')}
+                                                                </div>
                                                             </div>
                                                         ))
                                                     )}
                                                 </div>
                                             </div>
 
-                                            <div className="border-t border-[#1e1b4b]/10 ml-32"></div>
-
-                                            {/* Tomorrow row */}
-                                            <div className="flex items-start gap-4">
-                                                <div className="w-28 flex-shrink-0 pt-1">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>
-                                                        <span className="text-xs font-black text-[#1e1b4b] uppercase tracking-widest">Tomorrow</span>
+                                            {/* Tomorrow Column */}
+                                            <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                                                        <h3 className="text-base font-black text-gray-900 tracking-tight">Tomorrow</h3>
                                                     </div>
-                                                    <span className="text-[10px] text-[#1e1b4b]/40 font-bold ml-3.5 mt-0.5 block">
-                                                        {onLeaveData.tomorrow.length === 0 ? 'all present' : `${onLeaveData.tomorrow.length} out`}
+                                                    <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100">
+                                                        {onLeaveData.tomorrow.length} Out
                                                     </span>
                                                 </div>
-                                                <div className="flex flex-wrap gap-2 flex-1">
+
+                                                <div className="space-y-2.5">
                                                     {onLeaveData.tomorrow.length === 0 ? (
-                                                        <span className="text-xs text-[#1e1b4b]/40 font-semibold pt-1">Everyone is in tomorrow.</span>
+                                                        <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
+                                                            <span className="text-xl mb-1.5">🌟</span>
+                                                            <p className="text-xs font-bold text-gray-400">Everyone is in tomorrow</p>
+                                                        </div>
                                                     ) : (
                                                         onLeaveData.tomorrow.map((emp) => (
-                                                            <div key={emp.id} onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Tomorrow' })} className="flex items-center gap-2 bg-white border border-amber-200 rounded-full pl-1 pr-3 py-1 shadow-sm hover:shadow-md hover:-translate-y-px hover:border-amber-400 transition-all duration-150 cursor-pointer">
-                                                                <div className="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
+                                                            <div key={emp.id} onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Tomorrow' })} className="group bg-white p-3 rounded-lg shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer flex items-center gap-3">
+                                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black text-white shadow-inner flex-shrink-0 ${emp.is_time_off ? 'bg-gradient-to-br from-teal-400 to-emerald-500' : 'bg-gradient-to-br from-amber-400 to-orange-500'}`}>
                                                                     {emp.name.charAt(0).toUpperCase()}
                                                                 </div>
-                                                                <span className="text-xs font-bold text-gray-800 whitespace-nowrap">{emp.name}</span>
-                                                                <span className="text-[10px] text-gray-400 whitespace-nowrap">{emp.leave_type}{emp.is_half_day ? ' · ½' : ''}</span>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="text-xs font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{emp.name}</h4>
+                                                                    <p className="text-[10px] text-gray-500 truncate mt-0.5 font-medium">{emp.leave_type}</p>
+                                                                </div>
+                                                                <div className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider whitespace-nowrap shadow-sm ${emp.is_time_off ? 'bg-teal-50 text-teal-700' : (emp.is_half_day ? 'bg-orange-50 text-orange-700' : 'bg-amber-50 text-amber-700')}`}>
+                                                                    {emp.is_time_off ? 'Time Off' : (emp.is_half_day ? 'Half Day' : 'Full Day')}
+                                                                </div>
                                                             </div>
                                                         ))
                                                     )}
@@ -1429,6 +1453,9 @@ const Dashboard = () => {
                                 <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Duration</p>
                                 <p className="text-sm font-black text-[#1e1b4b]">
                                     {(() => {
+                                        if (onLeaveDetailModal.emp.is_time_off) {
+                                            return 'Partial Day';
+                                        }
                                         const days = calculateLeaveDays(onLeaveDetailModal.emp.start_date, onLeaveDetailModal.emp.end_date) - (onLeaveDetailModal.emp.is_half_day ? 0.5 : 0);
                                         return `${days} ${days === 1 ? 'Day' : 'Days'}`;
                                     })()}
