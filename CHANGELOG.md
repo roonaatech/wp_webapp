@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.6.7](https://github.com/roonaatech/wp_webapp/compare/v2.6.6...v2.6.7) (2026-05-07)
+
+
+### Styles
+
+* redesign Who's Out section on dashboard with improved layout and visual components ([d2deeaa](https://github.com/roonaatech/wp_webapp/commit/d2deeaa19edfb067092578bfa9b81dea7f22d09e))
+
 ### [2.6.6](https://github.com/roonaatech/wp_webapp/compare/v2.6.5...v2.6.6) (2026-05-06)
 
 
