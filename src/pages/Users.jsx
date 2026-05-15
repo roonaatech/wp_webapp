@@ -171,11 +171,14 @@ const Users = () => {
     const [showRoleDropdown, setShowRoleDropdown] = useState(false); // Toggle role dropdown
     const [userTypeFilter, setUserTypeFilter] = useState(''); // '' = all, 'workpulse' = WorkPulse-only, 'external' = PHP app users
     const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false); // Toggle user type dropdown
+    const [managerFilter, setManagerFilter] = useState([]); // Array of selected manager ids
+    const [showManagerDropdown, setShowManagerDropdown] = useState(false); // Toggle manager dropdown
 
     // Refs for click-outside detection
     const statusDropdownRef = useRef(null);
     const roleDropdownRef = useRef(null);
     const userTypeDropdownRef = useRef(null);
+    const managerDropdownRef = useRef(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
@@ -194,6 +197,7 @@ const Users = () => {
         firstname: '',
         lastname: '',
         email: '',
+        secondary_email: '',
         password: '',
         confirmPassword: '',
         role: '4',
@@ -308,7 +312,7 @@ const Users = () => {
     // Reset page on filter change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter]);
+    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter, managerFilter]);
 
     // Fetch Users when params change
     useEffect(() => {
@@ -318,7 +322,7 @@ const Users = () => {
             }, 300); // Debounce
             return () => clearTimeout(timeoutId);
         }
-    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter]);
+    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter, managerFilter]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -332,10 +336,13 @@ const Users = () => {
             if (userTypeDropdownRef.current && !userTypeDropdownRef.current.contains(event.target)) {
                 setShowUserTypeDropdown(false);
             }
+            if (managerDropdownRef.current && !managerDropdownRef.current.contains(event.target)) {
+                setShowManagerDropdown(false);
+            }
         };
 
         // Add event listener when any dropdown is open
-        if (showStatusDropdown || showRoleDropdown || showUserTypeDropdown) {
+        if (showStatusDropdown || showRoleDropdown || showUserTypeDropdown || showManagerDropdown) {
             document.addEventListener('mousedown', handleClickOutside);
         }
 
@@ -343,7 +350,7 @@ const Users = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [showStatusDropdown, showRoleDropdown, showUserTypeDropdown]);
+    }, [showStatusDropdown, showRoleDropdown, showUserTypeDropdown, showManagerDropdown]);
 
     const fetchUsers = async (page) => {
         try {
@@ -375,6 +382,11 @@ const Users = () => {
             // Add user type filter
             if (userTypeFilter) {
                 queryParams.append('userType', userTypeFilter);
+            }
+
+            // Add manager filter
+            if (managerFilter.length > 0) {
+                queryParams.append('manager', managerFilter.join(','));
             }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/users?${queryParams.toString()}`, {
@@ -494,6 +506,7 @@ const Users = () => {
             firstname: '',
             lastname: '',
             email: '',
+            secondary_email: '',
             password: '',
             confirmPassword: '',
             role: '4',
@@ -511,6 +524,7 @@ const Users = () => {
             firstname: '',
             lastname: '',
             email: '',
+            secondary_email: '',
             password: '',
             confirmPassword: '',
             role: '4',
@@ -531,6 +545,7 @@ const Users = () => {
             firstname: editUser.firstname,
             lastname: editUser.lastname,
             email: editUser.email,
+            secondary_email: editUser.secondary_email || '',
             password: '',
             confirmPassword: '',
             role: editUser.role ? String(editUser.role) : '4', // Default to Employee (4) if role is missing/null
@@ -664,6 +679,7 @@ const Users = () => {
                 firstname: formData.firstname.trim(),
                 lastname: formData.lastname.trim(),
                 email: formData.email.trim(),
+                secondary_email: formData.secondary_email?.trim() || null,
                 role: roleNum, // Must be an integer
                 gender: formData.gender
             };
@@ -764,6 +780,7 @@ const Users = () => {
                     firstname: user.firstname,
                     lastname: user.lastname,
                     email: user.email,
+                    secondary_email: user.secondary_email || null,
                     role: user.role,
                     gender: user.gender,
                     approving_manager_id: user.approving_manager_id,
@@ -915,6 +932,15 @@ const Users = () => {
 
     const getRoleName = (roleId) => {
         return getRoleDisplayName(roleId);
+    };
+
+    const getManagerName = (managerId) => {
+        if (!managerId) return '-';
+        const mgr = managersAndAdmins.find(m => (m.staffid || m.id) === managerId) || 
+                    users.find(m => (m.staffid || m.id) === managerId) || 
+                    allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
+                    ((user.staffid || user.id) === managerId ? user : null);
+        return mgr ? `${mgr.firstname} ${mgr.lastname}` : 'Unknown';
     };
 
     const generateOrgChart = (currentUser) => {
@@ -1256,6 +1282,75 @@ const Users = () => {
                         )}
                     </div>
 
+                    {/* Manager Filter Dropdown */}
+                    <div className="relative" ref={managerDropdownRef}>
+                        <button
+                            onClick={() => setShowManagerDropdown(!showManagerDropdown)}
+                            className="px-4 py-2.5 rounded-lg font-medium transition-all bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-400 hover:shadow-md flex items-center gap-2.5"
+                        >
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            <span className="text-sm">Manager</span>
+                            {managerFilter.length > 0 && (
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                                    {managerFilter.length}
+                                </span>
+                            )}
+                            <svg className={`w-4 h-4 ml-1 transition-transform ${showManagerDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {showManagerDropdown && (
+                            <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-10 w-64 max-h-96 overflow-hidden flex flex-col">
+                                <div className="p-2">
+                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        Filter by Manager
+                                    </div>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-gray-50 rounded-lg transition-colors ${managerFilter.length === 0 ? 'bg-blue-50' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={managerFilter.length === 0}
+                                            onChange={() => setManagerFilter([])}
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm font-medium text-gray-900">All Managers</span>
+                                    </label>
+                                    <div className="my-2 border-t border-gray-100"></div>
+                                </div>
+                                <div className="overflow-y-auto flex-1 px-2 pb-2">
+                                    {managersAndAdmins.filter(manager => manager.has_reportees).map(manager => (
+                                        <label
+                                            key={manager.staffid || manager.id}
+                                            className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-blue-50 rounded-lg transition-colors ${managerFilter.includes(String(manager.staffid || manager.id)) ? 'bg-blue-50 border-l-2 border-blue-500' : ''}`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={managerFilter.includes(String(manager.staffid || manager.id))}
+                                                onChange={(e) => {
+                                                    const idStr = String(manager.staffid || manager.id);
+                                                    if (e.target.checked) {
+                                                        setManagerFilter([...managerFilter, idStr]);
+                                                    } else {
+                                                        setManagerFilter(managerFilter.filter(m => m !== idStr));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                            />
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                                {manager.firstname.charAt(0)}{manager.lastname.charAt(0)}
+                                            </div>
+                                            <div className="flex-1 truncate">
+                                                <div className="text-sm font-medium text-gray-900 truncate">{manager.firstname} {manager.lastname}</div>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* User Type Filter Dropdown */}
                     <div className="relative" ref={userTypeDropdownRef}>
                         <button
@@ -1413,6 +1508,9 @@ const Users = () => {
                                         <TableSortIcon column="role" sortConfig={{ key: sortField, direction: sortDirection }} />
                                     </div>
                                 </th>
+                                <th className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">
+                                    Reporting to
+                                </th>
                                 <th
                                     className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
                                     onClick={() => handleSort('status')}
@@ -1462,6 +1560,9 @@ const Users = () => {
                                                     {getRoleName(u.role)}
                                                 </span>
                                             </td>
+                                            <td className="px-6 py-4 text-sm text-gray-700 font-medium">
+                                                {getManagerName(u.approving_manager_id)}
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
                                                     {canManageSpecificUser(u) && (
@@ -1491,20 +1592,20 @@ const Users = () => {
                                                             <>
                                                                 <button
                                                                     onClick={() => handleEditUserClick(u)}
-                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
+                                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
                                                                     title="Edit user details"
                                                                 >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                                     </svg>
                                                                     <span>Edit</span>
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleEditLeaveTypes(u)}
-                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow ml-2"
+                                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow ml-1"
                                                                     title="Edit leave types"
                                                                 >
-                                                                    <FiEdit2 className="w-4 h-4" />
+                                                                    <FiEdit2 className="w-3 h-3" />
                                                                     <span>Leave Types</span>
                                                                 </button>
                                                             </>
@@ -1512,10 +1613,10 @@ const Users = () => {
                                                         {canManageSpecificUser(u) && (
                                                             <button
                                                                 onClick={() => handleResetPasswordClick(u)}
-                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow"
+                                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow ml-1"
                                                                 title="Reset user password"
                                                             >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                                                 </svg>
                                                                 <span>Reset</span>
@@ -1526,10 +1627,9 @@ const Users = () => {
                                             )}
                                         </tr>
 
-                                        {/* Leave Balance Child Row */}
                                         {expandedUserId === u.staffid && (
                                             <tr className="bg-slate-50 border-t border-slate-200 shadow-inner">
-                                                <td colSpan={canManageUsers ? 7 : 6} className="px-6 py-6">
+                                                <td colSpan={canManageUsers ? 8 : 7} className="px-6 py-6">
                                                     {loadingBalance[u.staffid] ? (
                                                         <div className="flex flex-col items-center justify-center py-8">
                                                             <ModernLoader size="md" message="Loading leave balance..." />
@@ -1942,6 +2042,21 @@ const Users = () => {
                                         disabled={editingUserFromPhp}
                                         className={`w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 ${editingUserFromPhp ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
                                             }`}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
+                                        Secondary / Personal Email
+                                        <span className="text-xs text-gray-400 font-normal ml-1">(Optional, for notifications)</span>
+                                    </label>
+                                    <input
+                                        type="email"
+                                        name="secondary_email"
+                                        value={formData.secondary_email || ''}
+                                        onChange={handleFormChange}
+                                        placeholder="personal@example.com"
+                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                     />
                                 </div>
 
