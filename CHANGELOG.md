@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.6.7](https://github.com/roonaatech/wp_webapp/compare/v2.6.6...v2.6.7) (2026-05-07)
+
+
+### Styles
+
+* redesign Who's Out section on dashboard with improved layout and visual components ([d2deeaa](https://github.com/roonaatech/wp_webapp/commit/d2deeaa19edfb067092578bfa9b81dea7f22d09e))
+
+### [2.6.6](https://github.com/roonaatech/wp_webapp/compare/v2.6.5...v2.6.6) (2026-05-06)
+
+
+### Features
+
+* **Dashboard:** add on-leave status display and detail modal ([9185539](https://github.com/roonaatech/wp_webapp/commit/91855394a0a88be4ddb56049ed74e97443a2566a))
+
+### [2.6.5](https://github.com/roonaatech/wp_webapp/compare/v2.6.4...v2.6.5) (2026-04-28)
+
 ### [2.6.4](https://github.com/roonaatech/wp_webapp/compare/v2.6.3...v2.6.4) (2026-04-27)
 
 ### [2.6.3](https://github.com/roonaatech/wp_webapp/compare/v2.6.2...v2.6.3) (2026-04-27)

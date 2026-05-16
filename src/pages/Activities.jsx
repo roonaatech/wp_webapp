@@ -208,6 +208,28 @@ const Activities = () => {
         return colors[action] || 'bg-gray-100 text-gray-800';
     };
 
+    const formatDescription = (activity) => {
+        if (!activity.description) return '—';
+        if (activity.action === 'APPROVE' && activity.affected_user) {
+            const name = `${activity.affected_user.firstname} ${activity.affected_user.lastname}`.trim();
+            if (name && !activity.description.toLowerCase().includes('requested by')) {
+                return `${activity.description} requested by ${name}`;
+            }
+        }
+        return activity.description;
+    };
+
+    const extractIPv4 = (ip) => {
+        if (!ip) return null;
+        // IPv4-mapped IPv6: ::ffff:1.2.3.4
+        const mapped = ip.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
+        if (mapped) return mapped[1];
+        // Pure IPv4
+        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return ip;
+        // Pure IPv6 — hide it
+        return null;
+    };
+
     const getEntityBadgeColor = (entity) => {
         const colors = {
             'User': 'bg-indigo-100 text-indigo-800',
@@ -553,11 +575,13 @@ const Activities = () => {
                                                         <span className="text-gray-400">Unknown</span>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-gray-700 max-w-md truncate">
-                                                    {activity.description || '—'}
+                                                <td className="px-4 py-3 text-sm text-gray-700 max-w-sm">
+                                                    <div className="whitespace-normal break-words leading-relaxed">
+                                                        {formatDescription(activity)}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap text-xs">
-                                                    {activity.ip_address || '—'}
+                                                    {extractIPv4(activity.ip_address) || <span className="text-gray-400">—</span>}
                                                 </td>
                                             </tr>
                                         ))}
