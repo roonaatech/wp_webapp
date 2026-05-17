@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.6.8](https://github.com/roonaatech/wp_webapp/compare/v2.6.7...v2.6.8) (2026-05-17)
+
+
+### Features
+
+* add FTP deployment workflow and SPA routing configuration for webapp ([30ca7dd](https://github.com/roonaatech/wp_webapp/commit/30ca7dd97858b53a8c16720d17ac19ba471891da))
+* add secondary email field and manager filtering functionality to user management page ([06a69b1](https://github.com/roonaatech/wp_webapp/commit/06a69b1332c866fe18a3ce70ea70bb09fba05394))
+
+
+### Chores
+
+* switch from npm ci to npm install in deployment workflow ([e955252](https://github.com/roonaatech/wp_webapp/commit/e955252d39b98853b25b26d74914a5951bde2d8e))
+
 ### [2.6.7](https://github.com/roonaatech/wp_webapp/compare/v2.6.6...v2.6.7) (2026-05-07)
 
 
