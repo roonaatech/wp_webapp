@@ -50,12 +50,19 @@ export const setupAxiosInterceptors = (navigate) => {
             // DON'T redirect if this is a login or password change request
             const isLoginRequest = error.config?.url?.includes('auth/signin');
             const isPasswordChangeRequest = error.config?.url?.includes('auth/change-password');
+            const isYearlyHistoryRequest = error.config?.url?.includes('yearly-history');
+            
             if (isLoginRequest || isPasswordChangeRequest) {
                 return Promise.reject(error);
             }
 
             // Handle 403 Forbidden (permission denied)
             if (status === 403) {
+                // Do not redirect for inline row expansion requests like yearly-history
+                if (isYearlyHistoryRequest) {
+                    return Promise.reject(error);
+                }
+
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;
@@ -133,6 +140,7 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
             // DON'T redirect if this is a login or password change request
             const isLoginRequest = requestUrl.includes('auth/signin');
             const isPasswordChangeRequest = requestUrl.includes('auth/change-password');
+            const isYearlyHistoryRequest = requestUrl.includes('yearly-history');
 
             // Debug logging
             if (status === 401) {
@@ -151,6 +159,16 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
 
             // Handle 403 Forbidden (permission denied)
             if (status === 403) {
+                console.error('🔍 Axios Interceptor - 403 Error:', {
+                    url: requestUrl,
+                    message: message
+                });
+                
+                // Do not redirect for inline row expansion requests like yearly-history
+                if (isYearlyHistoryRequest) {
+                    return Promise.reject(error);
+                }
+
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;
