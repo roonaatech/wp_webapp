@@ -189,15 +189,15 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-8 lg:p-16">
+        <div className="min-h-screen bg-white flex items-center justify-center px-4 py-8 sm:px-8 lg:p-16">
             <div className="max-w-md w-full flex flex-col items-center text-center">
                 {/* Logo */}
-                <div className="mb-20">
-                    <BrandLogo iconSize="w-24 h-24" />
+                <div className="mb-8 sm:mb-14">
+                    <BrandLogo iconSize="w-16 h-16 sm:w-24 sm:h-24" />
                 </div>
 
-                <div className="mb-10 text-center">
-                    <h1 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+                <div className="mb-8 sm:mb-10 text-center">
+                    <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">
                         Sign in to WorkPulse
                     </h1>
                     <p className="text-gray-500 text-sm">Welcome back! Please enter your details.</p>
@@ -213,11 +213,11 @@ const Login = () => {
                         </div>
                     )}
 
-                    <div className="border border-gray-200 rounded-2xl p-8 space-y-6 shadow-sm">
-                        <div className="space-y-5">
+                    <div className="border border-gray-200 rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm">
+                        <div className="space-y-4 sm:space-y-5">
                             {/* Email Field */}
-                            <div className="flex items-center gap-4 text-left">
-                                <label htmlFor="email" className="text-sm font-semibold text-gray-700 w-16 flex-shrink-0">Email</label>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-left">
+                                <label htmlFor="email" className="text-sm font-semibold text-gray-700 sm:w-16 flex-shrink-0">Email</label>
                                 <input
                                     id="email"
                                     type="email"
@@ -225,13 +225,13 @@ const Login = () => {
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Enter your email"
                                     required
-                                    className="flex-1 px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400"
+                                    className="flex-1 w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400 text-sm"
                                 />
                             </div>
 
                             {/* Password Field */}
-                            <div className="flex items-center gap-4 text-left">
-                                <label htmlFor="password" className="text-sm font-semibold text-gray-700 w-16 flex-shrink-0">Password</label>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-left">
+                                <label htmlFor="password" className="text-sm font-semibold text-gray-700 sm:w-16 flex-shrink-0">Password</label>
                                 <input
                                     id="password"
                                     type="password"
@@ -239,7 +239,7 @@ const Login = () => {
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Password"
                                     required
-                                    className="flex-1 px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400"
+                                    className="flex-1 w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400 text-sm"
                                 />
                             </div>
                         </div>
@@ -283,7 +283,7 @@ const Login = () => {
                 </div>
 
                 {/* Copyright Info */}
-                <div className="mt-16 opacity-40 hover:opacity-100 transition-opacity">
+                <div className="mt-8 sm:mt-16 opacity-40 hover:opacity-100 transition-opacity">
                     <p className="text-gray-500 text-[10px] font-medium text-center">
                         &copy; {new Date().getFullYear()} Roonaa Technologies India Private Limited
                     </p>
