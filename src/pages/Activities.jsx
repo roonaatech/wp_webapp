@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
@@ -33,6 +33,12 @@ const Activities = () => {
     const [endDate, setEndDate] = useState(getTodayDate());
     const [adminIdFilter, setAdminIdFilter] = useState('');
 
+    // Employee filter UI
+    const [users, setUsers] = useState([]);
+    const [employeeSearch, setEmployeeSearch] = useState('');
+    const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+    const employeeDropdownRef = useRef(null);
+
     // Summary data
     const [summary, setSummary] = useState(null);
     const [showSummary, setShowSummary] = useState(false);
@@ -62,6 +68,22 @@ const Activities = () => {
 
     useEffect(() => {
         if (!hasPermission) return;
+
+        // Fetch users for the employee filter
+        const fetchUsers = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await axios.get(
+                    `${API_BASE_URL}/api/admin/users?limit=all&status=all`,
+                    { headers: { 'x-access-token': token } }
+                );
+                if (res.data.users) setUsers(res.data.users);
+                else if (Array.isArray(res.data)) setUsers(res.data);
+            } catch (e) {
+                console.error('Failed to fetch users for filter:', e);
+            }
+        };
+        fetchUsers();
 
         // Fetch with today's date by default
         fetchActivities(1, {
@@ -156,6 +178,7 @@ const Activities = () => {
         setStartDate('');
         setEndDate('');
         setAdminIdFilter('');
+        setEmployeeSearch('');
         setCurrentPage(1);
         fetchActivities(1, { action: '', entity: '', startDate: '', endDate: '', adminId: '' });
         fetchSummary({ startDate: '', endDate: '' });
@@ -249,6 +272,19 @@ const Activities = () => {
             direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
         }));
     };
+
+    // Close employee dropdown on outside click
+    useEffect(() => {
+        if (!showEmployeeDropdown) return;
+        const handleOutside = (e) => {
+            if (employeeDropdownRef.current && !employeeDropdownRef.current.contains(e.target)) {
+                setShowEmployeeDropdown(false);
+                setEmployeeSearch('');
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        return () => document.removeEventListener('mousedown', handleOutside);
+    }, [showEmployeeDropdown]);
 
 
 
@@ -358,7 +394,7 @@ const Activities = () => {
             {/* Filters */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
                 <h3 className="font-bold text-gray-900 mb-4">Filters</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
                         <select
@@ -463,6 +499,105 @@ const Activities = () => {
                         />
                     </div>
 
+                    {/* Employee Filter */}
+                    <div ref={employeeDropdownRef} className="relative">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Employee</label>
+                        <div
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 cursor-pointer bg-white flex items-center gap-2"
+                            onClick={() => setShowEmployeeDropdown(v => !v)}
+                        >
+                            {adminIdFilter ? (
+                                (() => {
+                                    const sel = users.find(u => String(u.staffid) === String(adminIdFilter));
+                                    return sel ? (
+                                        <>
+                                            <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                                                {sel.firstname?.[0]}{sel.lastname?.[0]}
+                                            </span>
+                                            <span className="text-sm text-gray-900 truncate flex-1">{sel.firstname} {sel.lastname}</span>
+                                        </>
+                                    ) : <span className="text-sm text-gray-400 flex-1">All Employees</span>;
+                                })()
+                            ) : (
+                                <span className="text-sm text-gray-400 flex-1">All Employees</span>
+                            )}
+                            <svg className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${showEmployeeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+
+                        {showEmployeeDropdown && (
+                            <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                                {/* Search input */}
+                                <div className="p-2 border-b border-gray-100">
+                                    <input
+                                        type="text"
+                                        placeholder="Search employees..."
+                                        value={employeeSearch}
+                                        onChange={e => setEmployeeSearch(e.target.value)}
+                                        onClick={e => e.stopPropagation()}
+                                        autoFocus
+                                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    />
+                                </div>
+                                <div className="max-h-52 overflow-y-auto py-1">
+                                    {/* All option */}
+                                    <button
+                                        onClick={() => {
+                                            const newId = '';
+                                            setAdminIdFilter(newId);
+                                            setEmployeeSearch('');
+                                            setShowEmployeeDropdown(false);
+                                            setCurrentPage(1);
+                                            fetchActivities(1, { action: actionFilter, entity: entityFilter, startDate, endDate, adminId: newId });
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${!adminIdFilter ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}
+                                    >
+                                        <span className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">All</span>
+                                        All Employees
+                                    </button>
+                                    {/* Filtered list */}
+                                    {users
+                                        .filter(u => {
+                                            if (!employeeSearch) return true;
+                                            const name = `${u.firstname} ${u.lastname}`.toLowerCase();
+                                            return name.includes(employeeSearch.toLowerCase());
+                                        })
+                                        .map(u => (
+                                            <button
+                                                key={u.staffid}
+                                                onClick={() => {
+                                                    const newId = String(u.staffid);
+                                                    setAdminIdFilter(newId);
+                                                    setEmployeeSearch('');
+                                                    setShowEmployeeDropdown(false);
+                                                    setCurrentPage(1);
+                                                    fetchActivities(1, { action: actionFilter, entity: entityFilter, startDate, endDate, adminId: newId });
+                                                }}
+                                                className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-blue-50 hover:text-blue-700 transition-colors ${
+                                                    String(adminIdFilter) === String(u.staffid) ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                                                }`}
+                                            >
+                                                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                                                    {u.firstname?.[0]}{u.lastname?.[0]}
+                                                </span>
+                                                <span className="truncate">{u.firstname} {u.lastname}</span>
+                                            </button>
+                                        ))
+                                    }
+                                    {users.filter(u => {
+                                        if (!employeeSearch) return false;
+                                        const name = `${u.firstname} ${u.lastname}`.toLowerCase();
+                                        return !name.includes(employeeSearch.toLowerCase());
+                                    }).length === users.length && (
+                                        <div className="px-3 py-4 text-center text-sm text-gray-400">No employees found</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Page Size */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Page Size</label>
                         <select
