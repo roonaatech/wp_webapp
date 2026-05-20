@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.6.10](https://github.com/roonaatech/wp_webapp/compare/v2.6.9...v2.6.10) (2026-05-20)
+
+
+### Features
+
+* implement searchable employee filter dropdown in activities page ([a15d0c7](https://github.com/roonaatech/wp_webapp/commit/a15d0c78e5c7cb0812b3b214a98b80d0c7d7d9f5))
+
 ### [2.6.9](https://github.com/roonaatech/wp_webapp/compare/v2.6.8...v2.6.9) (2026-05-20)
 
 
