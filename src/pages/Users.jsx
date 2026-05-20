@@ -25,6 +25,7 @@ import {
     getRoleById
 } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
+import { formatInTimezone, parseAppTimezone } from '../utils/timezone.util';
 
 const Users = () => {
     // Permission check state
@@ -227,6 +228,7 @@ const Users = () => {
     const [sortField, setSortField] = useState('staffid');
     const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
     const [letterFilter, setLetterFilter] = useState(''); // '' means no filter, or single letter A-Z
+    const [openActionMenu, setOpenActionMenu] = useState(null); // staffid of the open action dropdown, or null
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -354,6 +356,18 @@ const Users = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [showStatusDropdown, showRoleDropdown, showUserTypeDropdown, showManagerDropdown]);
+
+    // Close action dropdown when clicking outside
+    useEffect(() => {
+        if (!openActionMenu) return;
+        const handleOutside = (e) => {
+            if (!e.target.closest(`[data-action-menu="${openActionMenu}"]`)) {
+                setOpenActionMenu(null);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        return () => document.removeEventListener('mousedown', handleOutside);
+    }, [openActionMenu]);
 
     const fetchUsers = async (page) => {
         try {
@@ -936,6 +950,24 @@ const Users = () => {
             case 'status':
                 aValue = a.active ? 1 : 0;
                 bValue = b.active ? 1 : 0;
+                break;
+            case 'reporting': {
+                const resolveName = (managerId) => {
+                    if (!managerId) return '-';
+                    const mgr = managersAndAdmins.find(m => (m.staffid || m.id) === managerId) ||
+                                users.find(m => (m.staffid || m.id) === managerId) ||
+                                allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
+                                ((user.staffid || user.id) === managerId ? user : null);
+                    return mgr ? `${mgr.firstname} ${mgr.lastname}` : 'Unknown';
+                };
+                aValue = resolveName(a.approving_manager_id).toLowerCase();
+                bValue = resolveName(b.approving_manager_id).toLowerCase();
+                break;
+            }
+            case 'last_login':
+                // nulls sort to end regardless of direction
+                aValue = a.last_login ? new Date(a.last_login).getTime() : (sortDirection === 'asc' ? Infinity : -Infinity);
+                bValue = b.last_login ? new Date(b.last_login).getTime() : (sortDirection === 'asc' ? Infinity : -Infinity);
                 break;
             default:
                 return 0;
@@ -1542,8 +1574,14 @@ const Users = () => {
                                         <TableSortIcon column="role" sortConfig={{ key: sortField, direction: sortDirection }} />
                                     </div>
                                 </th>
-                                <th className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">
-                                    Reporting to
+                                <th
+                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
+                                    onClick={() => handleSort('reporting')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Reporting to
+                                        <TableSortIcon column="reporting" sortConfig={{ key: sortField, direction: sortDirection }} />
+                                    </div>
                                 </th>
                                 <th
                                     className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
@@ -1552,6 +1590,15 @@ const Users = () => {
                                     <div className="flex items-center gap-1">
                                         Status
                                         <TableSortIcon column="status" sortConfig={{ key: sortField, direction: sortDirection }} />
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
+                                    onClick={() => handleSort('last_login')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Last Login
+                                        <TableSortIcon column="last_login" sortConfig={{ key: sortField, direction: sortDirection }} />
                                     </div>
                                 </th>
                                 {canManageUsers && (
@@ -1619,51 +1666,92 @@ const Users = () => {
                                                     </span>
                                                 </div>
                                             </td>
+                                            <td className="px-6 py-4">
+                                                {u.last_login ? (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-xs font-medium text-gray-700">
+                                                            {(() => {
+                                                                const loginDate = parseAppTimezone(u.last_login);
+                                                                if (!loginDate) return '—';
+                                                                const diff = Date.now() - loginDate.getTime();
+                                                                const mins = Math.floor(diff / 60000);
+                                                                const hrs = Math.floor(mins / 60);
+                                                                const days = Math.floor(hrs / 24);
+                                                                if (mins < 1) return 'Just now';
+                                                                if (mins < 60) return `${mins}m ago`;
+                                                                if (hrs < 24) return `${hrs}h ago`;
+                                                                if (days < 7) return `${days}d ago`;
+                                                                return formatInTimezone(u.last_login);
+                                                            })()}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400">
+                                                            {formatInTimezone(u.last_login)}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400 italic">Never</span>
+                                                )}
+                                            </td>
                                             {canManageUsers && (
                                                 <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2">
-                                                        {canManageSpecificUser(u) && (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => handleEditUserClick(u)}
-                                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
-                                                                    title="Edit user details"
-                                                                >
-                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                                    </svg>
-                                                                    <span>Edit</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleEditLeaveTypes(u)}
-                                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow ml-1"
-                                                                    title="Edit leave types"
-                                                                >
-                                                                    <FiEdit2 className="w-3 h-3" />
-                                                                    <span>Leave Types</span>
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                        {canManageSpecificUser(u) && (
+                                                    {canManageSpecificUser(u) ? (
+                                                        <div className="relative" data-action-menu={u.staffid}>
                                                             <button
-                                                                onClick={() => handleResetPasswordClick(u)}
-                                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow ml-1"
-                                                                title="Reset user password"
+                                                                onClick={() => setOpenActionMenu(openActionMenu === u.staffid ? null : u.staffid)}
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm"
+                                                                title="Actions"
                                                             >
-                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                                                Actions
+                                                                <svg className={`w-3.5 h-3.5 transition-transform duration-150 ${openActionMenu === u.staffid ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                                                 </svg>
-                                                                <span>Reset</span>
                                                             </button>
-                                                        )}
-                                                    </div>
+
+                                                            {openActionMenu === u.staffid && (
+                                                                <div className="absolute right-0 mt-1.5 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
+                                                                    <div className="py-1">
+                                                                        <button
+                                                                            onClick={() => { handleEditUserClick(u); setOpenActionMenu(null); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                                                        >
+                                                                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                            </svg>
+                                                                            Edit User
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { handleEditLeaveTypes(u); setOpenActionMenu(null); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+                                                                        >
+                                                                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                                                            </svg>
+                                                                            Leave Types
+                                                                        </button>
+                                                                        <div className="my-1 border-t border-gray-100" />
+                                                                        <button
+                                                                            onClick={() => { handleResetPasswordClick(u); setOpenActionMenu(null); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                                                                        >
+                                                                            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                                                            </svg>
+                                                                            Reset Password
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">—</span>
+                                                    )}
                                                 </td>
                                             )}
                                         </tr>
 
                                         {expandedUserId === u.staffid && (
                                             <tr className="bg-slate-50 border-t border-slate-200 shadow-inner">
-                                                <td colSpan={canManageUsers ? 8 : 7} className="px-6 py-6">
+                                                <td colSpan={canManageUsers ? 9 : 8} className="px-6 py-6">
                                                     {loadingBalance[u.staffid] ? (
                                                         <div className="flex flex-col items-center justify-center py-8">
                                                             <ModernLoader size="md" message="Loading leave balance..." />
@@ -2642,8 +2730,16 @@ const Users = () => {
                     </div>
                 </div>
             )}
+            <style>{`
+                @keyframes dropdown-in {
+                    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+                    to   { opacity: 1; transform: translateY(0)   scale(1); }
+                }
+                .animate-dropdown {
+                    animation: dropdown-in 0.15s ease-out forwards;
+                }
+            `}</style>
         </div>
-
     );
 }
 
