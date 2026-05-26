@@ -27,6 +27,10 @@ import MyRequests from './pages/MyRequests';
 import Arch from './pages/Arch';
 import ShowQRCode from './pages/ShowQRCode';
 import { fetchRoles } from './utils/roleUtils';
+import OnboardEmployee from './pages/OnboardEmployee';
+import ViewEmployeeProfile from './pages/ViewEmployeeProfile';
+import FirstTimeLoginFlow from './pages/FirstTimeLoginFlow';
+
 
 
 const GlobalInit = ({ children }) => {
@@ -202,12 +206,17 @@ function App() {
             <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
             <Route path="/email-settings" element={<ProtectedLayout><EmailSettings /></ProtectedLayout>} />
             <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
+            <Route path="/onboard" element={<ProtectedLayout><OnboardEmployee /></ProtectedLayout>} />
+            <Route path="/onboard/:id" element={<ProtectedLayout><OnboardEmployee /></ProtectedLayout>} />
+            <Route path="/staff-profile/:id" element={<ProtectedLayout><ViewEmployeeProfile /></ProtectedLayout>} />
             <Route path="/arch" element={<ProtectedLayout><Arch /></ProtectedLayout>} />
             <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
+
 
             {/* Self-Service Routes (all authenticated users, no sidebar/header) */}
             <Route path="/my-requests" element={<ProtectedRoute skipWebAppCheck><MyRequests /></ProtectedRoute>} />
             <Route path="/show-qrcode" element={<ProtectedRoute><ShowQRCode /></ProtectedRoute>} />
+            <Route path="/verify-profile" element={<ProtectedRoute skipProfileCheck skipWebAppCheck><FirstTimeLoginFlow /></ProtectedRoute>} />
 
 
             {/* Catch all */}

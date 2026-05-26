@@ -44,6 +44,8 @@ const Login = () => {
         // Fetch roles from API and cache them for permission checks
         // Store token temporarily to make the API call
         localStorage.setItem('token', data.accessToken);
+        localStorage.setItem('mustChangePassword', data.mustChangePassword ? 'true' : 'false');
+        localStorage.setItem('mustCompleteDeclaration', data.mustCompleteDeclaration ? 'true' : 'false');
 
         try {
             const roles = await fetchRoles(true); // Force refresh roles cache

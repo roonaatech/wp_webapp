@@ -14,6 +14,7 @@ const useInactivityTimer = () => {
     const navigate = useNavigate();
     const timeoutRef = useRef(null);
     const warningTimeoutRef = useRef(null);
+    const intervalRef = useRef(null);
     const lastActivityRef = useRef(Date.now());
     const isWarningShownRef = useRef(false);
     const warningDialogRef = useRef(null);
@@ -26,6 +27,10 @@ const useInactivityTimer = () => {
         if (warningTimeoutRef.current) {
             clearTimeout(warningTimeoutRef.current);
             warningTimeoutRef.current = null;
+        }
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
         }
     }, []);
 
@@ -54,6 +59,10 @@ const useInactivityTimer = () => {
             warningDialogRef.current.parentNode.removeChild(warningDialogRef.current);
             warningDialogRef.current = null;
         }
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
         isWarningShownRef.current = false;
     }, []);
 
@@ -70,8 +79,8 @@ const useInactivityTimer = () => {
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(2px);
             z-index: 99999;
             display: flex;
             align-items: center;
@@ -83,11 +92,11 @@ const useInactivityTimer = () => {
         dialog.style.cssText = `
             background: white;
             border-radius: 16px;
-            padding: 32px;
-            max-width: 420px;
+            padding: 40px;
+            max-width: 480px;
             width: 90%;
             text-align: center;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             animation: slideUp 0.3s ease;
         `;
 
@@ -95,36 +104,91 @@ const useInactivityTimer = () => {
             <style>
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-                @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
             </style>
-            <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #FEF3C7, #FDE68A); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; animation: pulse 2s infinite;">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
+            
+            <h2 style="margin: 0 0 32px; font-size: 24px; font-weight: 600; color: #111827;">Your session is expiring in ...</h2>
+            
+            <div style="width: 160px; height: 160px; margin: 0 auto 32px; position: relative; display: flex; align-items: center; justify-content: center;">
+                <svg width="160" height="160" viewBox="0 0 160 160" style="position: absolute; inset: 0; transform: rotate(-90deg);">
+                    <defs>
+                        <mask id="progress-mask">
+                            <circle id="inactivity-progress-sweep" cx="80" cy="80" r="70" fill="none" stroke="white" stroke-width="16" 
+                                    stroke-dasharray="439.82" stroke-dashoffset="0" style="transition: stroke-dashoffset 1s linear;" />
+                        </mask>
+                    </defs>
+                    <!-- Background ticks -->
+                    <circle cx="80" cy="80" r="70" fill="none" stroke="#DBEAFE" stroke-width="8" stroke-dasharray="3 3.10865" />
+                    <!-- Active ticks -->
+                    <circle cx="80" cy="80" r="70" fill="none" stroke="#1D4ED8" stroke-width="8" stroke-dasharray="3 3.10865" mask="url(#progress-mask)" />
                 </svg>
+                
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1;">
+                    <span id="inactivity-countdown-text" style="font-size: 48px; font-weight: 700; color: #1D4ED8; line-height: 1; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;">60</span>
+                    <span style="font-size: 16px; font-weight: 600; color: #1D4ED8; margin-top: 4px;">sec</span>
+                </div>
             </div>
-            <h2 style="margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #1F2937;">Session Timeout Warning</h2>
-            <p style="margin: 0 0 24px; font-size: 14px; color: #6B7280; line-height: 1.6;">
-                You've been inactive for a while. Your session will expire in <strong style="color: #D97706;">1 minute</strong>. Click the button below to stay logged in.
+
+            <p style="margin: 0 0 24px; font-size: 16px; color: #374151;">
+                To stay logged in, click on the button below
             </p>
-            <button id="inactivity-stay-btn" style="
-                background: linear-gradient(135deg, #2E5090, #1a3461);
-                color: white;
-                border: none;
-                padding: 12px 32px;
-                border-radius: 10px;
-                font-size: 14px;
-                font-weight: 600;
-                cursor: pointer;
-                width: 100%;
-                transition: all 0.2s;
-                box-shadow: 0 4px 6px -1px rgba(46, 80, 144, 0.3);
-            ">Stay Logged In</button>
+            
+            <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 0 0 24px;" />
+            
+            <div style="display: flex; gap: 16px; justify-content: center;">
+                <button id="inactivity-logout-btn" style="
+                    background: white;
+                    color: #1D4ED8;
+                    border: 1px solid #1D4ED8;
+                    padding: 12px 24px;
+                    border-radius: 10px;
+                    font-size: 15px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    flex: 1;
+                    max-width: 180px;
+                    transition: all 0.2s;
+                ">Logout</button>
+                <button id="inactivity-stay-btn" style="
+                    background: #112586;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 10px;
+                    font-size: 15px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    flex: 1;
+                    max-width: 180px;
+                    transition: all 0.2s;
+                    box-shadow: 0 4px 6px -1px rgba(17, 37, 134, 0.3);
+                ">Stay Logged In</button>
+            </div>
         `;
 
         overlay.appendChild(dialog);
         document.body.appendChild(overlay);
         warningDialogRef.current = overlay;
+
+        // Start countdown timer
+        let timeLeft = Math.floor(WARNING_BEFORE_MS / 1000);
+        const countText = document.getElementById('inactivity-countdown-text');
+        const progressSweep = document.getElementById('inactivity-progress-sweep');
+        const circumference = 439.82;
+        
+        intervalRef.current = setInterval(() => {
+            timeLeft -= 1;
+            if (countText) countText.innerText = timeLeft;
+            if (progressSweep) {
+                const fraction = timeLeft / Math.floor(WARNING_BEFORE_MS / 1000);
+                progressSweep.style.strokeDashoffset = circumference - (fraction * circumference);
+            }
+            if (timeLeft <= 0) {
+                if (intervalRef.current) {
+                    clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                }
+            }
+        }, 1000);
 
         // Add click handler for the stay button
         const stayBtn = document.getElementById('inactivity-stay-btn');
@@ -135,11 +199,25 @@ const useInactivityTimer = () => {
             });
             stayBtn.addEventListener('mouseenter', () => {
                 stayBtn.style.transform = 'translateY(-1px)';
-                stayBtn.style.boxShadow = '0 6px 12px -2px rgba(46, 80, 144, 0.4)';
+                stayBtn.style.boxShadow = '0 6px 12px -2px rgba(17, 37, 134, 0.4)';
             });
             stayBtn.addEventListener('mouseleave', () => {
                 stayBtn.style.transform = 'translateY(0)';
-                stayBtn.style.boxShadow = '0 4px 6px -1px rgba(46, 80, 144, 0.3)';
+                stayBtn.style.boxShadow = '0 4px 6px -1px rgba(17, 37, 134, 0.3)';
+            });
+        }
+
+        // Add click handler for the logout button
+        const logoutBtn = document.getElementById('inactivity-logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                performLogout();
+            });
+            logoutBtn.addEventListener('mouseenter', () => {
+                logoutBtn.style.background = '#EFF6FF';
+            });
+            logoutBtn.addEventListener('mouseleave', () => {
+                logoutBtn.style.background = 'white';
             });
         }
     }, [dismissWarning]);

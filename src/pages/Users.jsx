@@ -22,7 +22,8 @@ import {
     fetchRoles,
     needsApprover,
     getApproverLabel,
-    getRoleById
+    getRoleById,
+    canManageOnboarding
 } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
 import { formatInTimezone, parseAppTimezone } from '../utils/timezone.util';
@@ -360,13 +361,11 @@ const Users = () => {
     // Close action dropdown when clicking outside
     useEffect(() => {
         if (!openActionMenu) return;
-        const handleOutside = (e) => {
-            if (!e.target.closest(`[data-action-menu="${openActionMenu}"]`)) {
-                setOpenActionMenu(null);
-            }
+        const handleOutside = () => {
+            setOpenActionMenu(null);
         };
-        document.addEventListener('mousedown', handleOutside);
-        return () => document.removeEventListener('mousedown', handleOutside);
+        document.addEventListener('click', handleOutside);
+        return () => document.removeEventListener('click', handleOutside);
     }, [openActionMenu]);
 
     const fetchUsers = async (page) => {
@@ -1160,13 +1159,16 @@ const Users = () => {
                                     : 'Manage your team members and their leave balances'}
                         </p>
                     </div>
-                    {isAdmin && canManageUsers && (
-                        <button
-                            onClick={handleAddUserClick}
-                            className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium flex items-center gap-2">
-                            <span className="text-green-300 text-lg">+</span> Add New User
-                        </button>
+                    {canManageOnboarding(user.role) && (
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => navigate('/onboard')}
+                                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2 shadow-sm">
+                                <span className="text-indigo-200 text-lg">+</span> Onboard Employee
+                            </button>
+                        </div>
                     )}
+
                 </div>
             </div>
 
@@ -1533,7 +1535,7 @@ const Users = () => {
                 {loading && (
                     <ModernLoader size="container" message="Updating user data..." fullScreen={false} />
                 )}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto md:overflow-x-visible min-h-[340px] pb-44">
                     <table className="w-full">
                         <thead className="bg-[#1e1b4b] text-white border-b border-[#1e1b4b]">
                             <tr>
@@ -1695,9 +1697,12 @@ const Users = () => {
                                             {canManageUsers && (
                                                 <td className="px-6 py-4">
                                                     {canManageSpecificUser(u) ? (
-                                                        <div className="relative" data-action-menu={u.staffid}>
+                                                        <div className="relative">
                                                             <button
-                                                                onClick={() => setOpenActionMenu(openActionMenu === u.staffid ? null : u.staffid)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setOpenActionMenu(openActionMenu === u.staffid ? null : u.staffid);
+                                                                }}
                                                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm"
                                                                 title="Actions"
                                                             >
@@ -1708,22 +1713,32 @@ const Users = () => {
                                                             </button>
 
                                                             {openActionMenu === u.staffid && (
-                                                                <div className="absolute right-0 mt-1.5 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
+                                                                <div className="absolute right-0 top-full mt-1.5 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
                                                                     <div className="py-1">
                                                                         <button
-                                                                            onClick={() => { handleEditUserClick(u); setOpenActionMenu(null); }}
-                                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                                                            onClick={() => { navigate(`/staff-profile/${u.staffid}`); setOpenActionMenu(null); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors font-semibold"
                                                                         >
-                                                                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                            </svg>
+                                                                            Joining Profile
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { handleEditUserClick(u); setOpenActionMenu(null); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors font-semibold"
+                                                                        >
+                                                                            <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                                             </svg>
                                                                             Edit User
                                                                         </button>
+
                                                                         <button
                                                                             onClick={() => { handleEditLeaveTypes(u); setOpenActionMenu(null); }}
-                                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors font-semibold"
                                                                         >
-                                                                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                                             </svg>
                                                                             Leave Types
@@ -1731,9 +1746,9 @@ const Users = () => {
                                                                         <div className="my-1 border-t border-gray-100" />
                                                                         <button
                                                                             onClick={() => { handleResetPasswordClick(u); setOpenActionMenu(null); }}
-                                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors font-semibold"
                                                                         >
-                                                                            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                                                             </svg>
                                                                             Reset Password
@@ -2240,7 +2255,7 @@ const Users = () => {
 
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                        First Name
+                                        First Name {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
                                         {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
                                     </label>
                                     <input
@@ -2257,7 +2272,7 @@ const Users = () => {
 
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                        Last Name
+                                        Last Name {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
                                         {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
                                     </label>
                                     <input
@@ -2274,7 +2289,7 @@ const Users = () => {
 
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                        Email
+                                        Email {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
                                         {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
                                     </label>
                                     <input
@@ -2305,7 +2320,7 @@ const Users = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">Role</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">Role <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                     <select
                                         name="role"
                                         value={formData.role}
@@ -2331,7 +2346,7 @@ const Users = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">Gender</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">Gender <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                     <select
                                         name="gender"
                                         value={formData.gender}
@@ -2419,7 +2434,7 @@ const Users = () => {
                                 {!editingUserId && (
                                     <>
                                         <div>
-                                            <label className="block text-base font-medium text-gray-700 mb-1">Password (required)</label>
+                                            <label className="block text-base font-medium text-gray-700 mb-1">Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                             <input
                                                 type="password"
                                                 name="password"
@@ -2432,7 +2447,7 @@ const Users = () => {
                                         </div>
 
                                         <div>
-                                            <label className="block text-base font-medium text-gray-700 mb-1">Confirm Password</label>
+                                            <label className="block text-base font-medium text-gray-700 mb-1">Confirm Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                             <input
                                                 type="password"
                                                 name="confirmPassword"
@@ -2528,7 +2543,7 @@ const Users = () => {
                             )}
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">New Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                 <input
                                     type="password"
                                     value={resetPasswordData.newPassword}
@@ -2540,7 +2555,7 @@ const Users = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                 <input
                                     type="password"
                                     value={resetPasswordData.confirmPassword}

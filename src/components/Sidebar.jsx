@@ -22,7 +22,7 @@ import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -32,6 +32,7 @@ const Sidebar = () => {
     const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
     const canManageUsersPermission = canManageUsersUtil(user.role); // Users page edit visibility
     const canAccessUsersPermission = canAccessUsersPage(user.role); // Users page visibility (view or manage)
+    const canManageOnboardingPermission = canManageOnboarding(user.role); // Onboarding permission
     const canManageRolesPermission = canManageRoles(user.role);
     const canManageEmailPermission = canManageEmailSettings(user.role);
     const canManageSystemPermission = canManageSystemSettings(user.role);
@@ -40,7 +41,7 @@ const Sidebar = () => {
     const canViewReportsPermission = canViewReports(user.role);
     const canViewActivitiesPermission = canViewActivities(user.role);
     // Show Configurations section if user has any configuration permission
-    const hasAnyConfigPermission = canAccessUsersPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission;
+    const hasAnyConfigPermission = canAccessUsersPermission || canManageOnboardingPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -294,6 +295,10 @@ const Sidebar = () => {
                         {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
                         )}
+                        {canManageOnboardingPermission && (
+                            <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
+                        )}
+
                         {/* Leave Types */}
                         {canManageLeaveTypes(user.role) && (
                             <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
@@ -340,6 +345,9 @@ const Sidebar = () => {
                     <div className="space-y-2">
                         {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
+                        )}
+                        {canManageOnboardingPermission && (
+                            <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
                         )}
                         {canManageLeaveTypes(user.role) && (
                             <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />

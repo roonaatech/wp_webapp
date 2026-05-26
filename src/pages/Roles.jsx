@@ -45,6 +45,7 @@ const Roles = () => {
         can_view_activities: 'none',
         // Global permissions - boolean
         can_manage_leave_types: false,
+        can_manage_onboarding: false,
         can_access_webapp: false,
         can_manage_roles: false,
         can_manage_email_settings: false,
@@ -132,6 +133,7 @@ const Roles = () => {
                 can_view_activities: role.can_view_activities || 'none',
                 // Global permissions
                 can_manage_leave_types: role.can_manage_leave_types,
+                can_manage_onboarding: role.can_manage_onboarding,
                 can_access_webapp: role.can_access_webapp,
                 can_manage_roles: role.can_manage_roles,
                 can_manage_email_settings: role.can_manage_email_settings,
@@ -157,6 +159,7 @@ const Roles = () => {
                 can_view_activities: 'none',
                 // Global permissions
                 can_manage_leave_types: false,
+                can_manage_onboarding: false,
                 can_access_webapp: false,
                 can_manage_roles: false,
                 can_manage_email_settings: false,
@@ -186,12 +189,16 @@ const Roles = () => {
 
         try {
             const token = localStorage.getItem('token');
+            const submissionData = { ...formData };
+            if (submissionData.name === 'manager' || submissionData.name === 'employee') {
+                submissionData.can_manage_onboarding = false;
+            }
 
             if (editingRole) {
                 // Update existing role
                 await axios.put(
                     `${API_BASE_URL}/api/roles/${editingRole.id}`,
-                    formData,
+                    submissionData,
                     { headers: { 'x-access-token': token } }
                 );
                 toast.success('Role updated successfully');
@@ -199,7 +206,7 @@ const Roles = () => {
                 // Create new role
                 await axios.post(
                     `${API_BASE_URL}/api/roles`,
-                    formData,
+                    submissionData,
                     { headers: { 'x-access-token': token } }
                 );
                 toast.success('Role created successfully');
@@ -575,6 +582,9 @@ const Roles = () => {
                                         )}
                                         {role.can_manage_email_settings && (
                                             <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">Email Config</span>
+                                        )}
+                                        {role.can_manage_onboarding && (
+                                            <span className="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-800">Onboarding</span>
                                         )}
                                         {role.can_manage_system_settings === 'all' && (
                                             <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">System Settings</span>
@@ -1029,7 +1039,7 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
-                                            <tr className="hover:bg-gray-50">
+                                            <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">Manage Email Settings</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <input
@@ -1038,6 +1048,19 @@ const Roles = () => {
                                                         checked={formData.can_manage_email_settings}
                                                         onChange={handleInputChange}
                                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Manage Onboarding</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_manage_onboarding"
+                                                        checked={formData.can_manage_onboarding && formData.name !== 'manager' && formData.name !== 'employee'}
+                                                        disabled={formData.name === 'manager' || formData.name === 'employee'}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
                                                     />
                                                 </td>
                                             </tr>

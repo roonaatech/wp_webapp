@@ -128,6 +128,16 @@ export const canManageLeaveTypes = (roleId) => {
 };
 
 /**
+ * Check if user can manage onboarding processes (global permission - boolean)
+ */
+export const canManageOnboarding = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_onboarding == true;
+};
+
+
+/**
  * Check if user can approve leave requests (any level - subordinates or all)
  */
 export const canApproveLeave = (roleId) => {
@@ -475,6 +485,7 @@ export default {
     canAccessWebApp,
     hasAdminPermission,
     canManageLeaveTypes,
+    canManageOnboarding,
     canApproveLeave,
     canApproveOnDuty,
     canApproveTimeOff,
