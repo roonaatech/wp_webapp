@@ -2053,6 +2053,12 @@ const OnboardEmployee = () => {
                                                     <td className="px-3 py-1.5">1</td>
                                                     <td className="px-3 py-1.5">1</td>
                                                 </tr>
+                                                <tr>
+                                                    <td className="px-3 py-1.5 font-bold text-blue-900">gender</td>
+                                                    <td className="px-3 py-1.5 text-slate-500">Optional</td>
+                                                    <td className="px-3 py-1.5">Male</td>
+                                                    <td className="px-3 py-1.5">Female</td>
+                                                </tr>
                                             </tbody>
                                         </table>
                                     </div>
