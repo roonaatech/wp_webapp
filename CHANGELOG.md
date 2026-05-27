@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.7.1](https://github.com/roonaatech/wp_webapp/compare/v2.7.0...v2.7.1) (2026-05-27)
+
+
+### Features
+
+* add gender row to employee onboarding documentation table ([d92e583](https://github.com/roonaatech/wp_webapp/commit/d92e5839ee143bda7a9e56eee4ac5b2ac99d1dfb))
+
 ## [2.7.0](https://github.com/roonaatech/wp_webapp/compare/v2.6.10...v2.7.0) (2026-05-27)
 
 
