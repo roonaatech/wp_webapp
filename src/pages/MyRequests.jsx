@@ -67,6 +67,16 @@ const MyRequests = () => {
     const [activeTab, setActiveTab] = useState('leave'); // 'leave' | 'onduty' | 'timeoff'
     const [activeView, setActiveView] = useState('apply'); // 'apply' | 'history'
 
+    // Change Password Modal State
+    const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+    const [changePasswordData, setChangePasswordData] = useState({
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+    const [changePasswordError, setChangePasswordError] = useState('');
+    const [changePasswordSubmitting, setChangePasswordSubmitting] = useState(false);
+
     // ── Confirm Delete Modal State ──
     const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null, deleting: false });
 
@@ -538,6 +548,51 @@ const MyRequests = () => {
         }
     };
 
+    const handleChangePasswordSubmit = async (e) => {
+        e.preventDefault();
+        setChangePasswordError('');
+
+        if (!changePasswordData.oldPassword || !changePasswordData.newPassword || !changePasswordData.confirmPassword) {
+            setChangePasswordError('All fields are required.');
+            return;
+        }
+        if (changePasswordData.newPassword.length < 6) {
+            setChangePasswordError('New password must be at least 6 characters long.');
+            return;
+        }
+        if (changePasswordData.newPassword !== changePasswordData.confirmPassword) {
+            setChangePasswordError('New passwords do not match.');
+            return;
+        }
+        if (changePasswordData.newPassword === changePasswordData.oldPassword) {
+            setChangePasswordError('New password must be different from current password.');
+            return;
+        }
+
+        setChangePasswordSubmitting(true);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(`${API_BASE_URL}/api/auth/change-password`, {
+                oldPassword: changePasswordData.oldPassword,
+                newPassword: changePasswordData.newPassword
+            }, { headers: { 'x-access-token': token } });
+
+            toast.success('Password changed successfully!', {
+                style: {
+                    background: '#1e1b4b',
+                    color: '#fff'
+                }
+            });
+            setShowChangePasswordModal(false);
+            setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+        } catch (err) {
+            console.error('Password change error:', err);
+            setChangePasswordError(err.response?.data?.message || 'Failed to change password. Please check your current password.');
+        } finally {
+            setChangePasswordSubmitting(false);
+        }
+    };
+
     // Duration formatter for active on-duty
     const formatDuration = (start) => {
         if (!start) return '';
@@ -757,35 +812,47 @@ const MyRequests = () => {
 
     // ─── Render ───────────────────────────────────
     return (
-        <div className="min-h-screen bg-gray-50" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-            {/* ── Top App Bar ── */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-50 safe-area-top shadow-lg">
-                <div className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg font-black backdrop-blur-sm">
-                            {(user.firstname || 'U').charAt(0)}
+        <div className="min-h-screen bg-slate-100 flex justify-center" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+            <div className="w-full max-w-xl bg-white shadow-xl min-h-screen flex flex-col relative border-x border-slate-200">
+                {/* ── Top App Bar ── */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-50 safe-area-top shadow-lg">
+                    <div className="flex items-center justify-between px-4 py-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg font-black backdrop-blur-sm">
+                                {(user.firstname || 'U').charAt(0)}
+                            </div>
+                            <div>
+                                <h1 className="text-base font-bold leading-tight">WorkPulse</h1>
+                                <p className="text-[11px] text-white/70 font-medium">{user.firstname || 'User'} • {getRoleDisplayName(user.role)}</p>
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="text-base font-bold leading-tight">WorkPulse</h1>
-                            <p className="text-[11px] text-white/70 font-medium">{user.firstname || 'User'} • {getRoleDisplayName(user.role)}</p>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setShowChangePasswordModal(true)}
+                                className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95 text-white/90 hover:text-white"
+                                title="Change Password"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                disabled={isLoggingOut}
+                                className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95"
+                                title="Sign Out"
+                            >
+                                {isLoggingOut ? (
+                                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin block"></span>
+                                ) : (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                    </svg>
+                                )}
+                            </button>
                         </div>
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        disabled={isLoggingOut}
-                        className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95"
-                        title="Sign Out"
-                    >
-                        {isLoggingOut ? (
-                            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin block"></span>
-                        ) : (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
-                        )}
-                    </button>
                 </div>
-            </div>
 
             {/* ── Tab Selector ── */}
             <div className="bg-white border-b border-gray-100 sticky top-[60px] z-40 shadow-sm">
@@ -1970,6 +2037,94 @@ const MyRequests = () => {
                     </div>
                 </div>
             )}
+
+            {/* ── Change Password Modal ── */}
+            {showChangePasswordModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 confirm-backdrop">
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl border border-gray-100 confirm-modal relative">
+                        <button
+                            onClick={() => {
+                                setShowChangePasswordModal(false);
+                                setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                                setChangePasswordError('');
+                            }}
+                            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50 transition-all font-bold"
+                            title="Close"
+                        >
+                            ✕
+                        </button>
+                        
+                        <div className="flex flex-col items-center mb-6">
+                            <div className="w-12 h-12 bg-indigo-50 text-[#1e1b4b] rounded-2xl flex items-center justify-center mb-3 shadow-inner">
+                                <svg className="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-black text-[#1e1b4b] uppercase tracking-tight">Change Password</h3>
+                            <p className="text-xs text-gray-400 text-center mt-1">Protect your account by creating a new secure password.</p>
+                        </div>
+
+                        {changePasswordError && (
+                            <div className="bg-rose-50 border-l-4 border-rose-500 p-3.5 rounded-r-xl mb-4">
+                                <p className="text-rose-700 text-xs font-bold flex items-center gap-1.5">
+                                    ⚠️ {changePasswordError}
+                                </p>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Current Password</label>
+                                <input
+                                    type="password"
+                                    value={changePasswordData.oldPassword}
+                                    onChange={(e) => setChangePasswordData(prev => ({ ...prev, oldPassword: e.target.value }))}
+                                    placeholder="Enter current password"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all text-gray-800 placeholder-gray-400"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">New Password</label>
+                                <input
+                                    type="password"
+                                    value={changePasswordData.newPassword}
+                                    onChange={(e) => setChangePasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                                    placeholder="Minimum 6 characters"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all text-gray-800 placeholder-gray-400"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Confirm New Password</label>
+                                <input
+                                    type="password"
+                                    value={changePasswordData.confirmPassword}
+                                    onChange={(e) => setChangePasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                                    placeholder="Confirm new password"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all text-gray-800 placeholder-gray-400"
+                                    required
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={changePasswordSubmitting}
+                                className="w-full py-3.5 bg-[#1e1b4b] text-white font-black rounded-xl shadow-lg active:scale-[0.97] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-2 mt-2"
+                            >
+                                {changePasswordSubmitting ? (
+                                    <>
+                                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                        Updating...
+                                    </>
+                                ) : 'Save New Password'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            </div>
 
             {/* ── CSS Animation ── */}
             <style>{`

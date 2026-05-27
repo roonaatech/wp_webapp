@@ -15,10 +15,18 @@ const ViewEmployeeProfile = () => {
     const [employee, setEmployee] = useState(null);
     const [loading, setLoading] = useState(true);
     const [roles, setRoles] = useState([]);
+    const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+    const [managers, setManagers] = useState([]);
+    const [approvalForm, setApprovalForm] = useState({ email: '', role: '', approving_manager_id: '', abis_access: false });
+    const [approvalErrors, setApprovalErrors] = useState({});
+    const [approving, setApproving] = useState(false);
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    const [lightboxImage, setLightboxImage] = useState('');
 
     useEffect(() => {
         fetchEmployeeProfile();
         fetchRoles();
+        fetchManagers();
     }, [id]);
 
     const fetchEmployeeProfile = async () => {
@@ -28,6 +36,12 @@ const ViewEmployeeProfile = () => {
                 headers: { 'x-access-token': token }
             });
             setEmployee(response.data);
+            setApprovalForm({
+                email: response.data.email || '',
+                role: response.data.role || '',
+                approving_manager_id: response.data.approving_manager_id || '',
+                abis_access: response.data.abis_access || false
+            });
         } catch (err) {
             console.error('Error fetching employee profile:', err);
             toast.error('Failed to load employee profile.');
@@ -45,6 +59,18 @@ const ViewEmployeeProfile = () => {
             setRoles(response.data);
         } catch (err) {
             console.error('Error fetching roles:', err);
+        }
+    };
+
+    const fetchManagers = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_BASE_URL}/api/admin/managers-admins`, {
+                headers: { 'x-access-token': token }
+            });
+            setManagers(response.data);
+        } catch (err) {
+            console.error('Error fetching managers:', err);
         }
     };
 
@@ -67,6 +93,46 @@ const ViewEmployeeProfile = () => {
         } catch (err) {
             console.error('Error downloading document:', err);
             toast.error('Failed to download document file.');
+        }
+    };
+
+
+    const handleApproveSubmit = async (e) => {
+        e.preventDefault();
+        setApprovalErrors({});
+
+        if (!approvalForm.email) {
+            setApprovalErrors(prev => ({ ...prev, email: 'Official email is required.' }));
+            return;
+        }
+        if (!approvalForm.role) {
+            setApprovalErrors(prev => ({ ...prev, role: 'Role assignment is required.' }));
+            return;
+        }
+
+        setApproving(true);
+        const token = localStorage.getItem('token');
+        try {
+            const response = await axios.post(
+                `${API_BASE_URL}/api/onboarding/employee/${id}/approve`,
+                {
+                    email: approvalForm.email,
+                    role: approvalForm.role,
+                    approving_manager_id: approvalForm.approving_manager_id || null,
+                    abis_access: approvalForm.abis_access
+                },
+                {
+                    headers: { 'x-access-token': token }
+                }
+            );
+            toast.success(response.data.message || 'Onboarding approved and finalized successfully!');
+            setIsApproveModalOpen(false);
+            fetchEmployeeProfile();
+        } catch (err) {
+            console.error('Error approving onboarding:', err);
+            toast.error(err.response?.data?.message || 'Failed to approve onboarding.');
+        } finally {
+            setApproving(false);
         }
     };
 
@@ -93,6 +159,36 @@ const ViewEmployeeProfile = () => {
     }
 
     const profile = employee.profile_info || {};
+
+    const getProfileCompletion = () => {
+        if (!employee) return 0;
+        const prof = employee.profile_info || {};
+        const checks = [
+            !!employee.firstname,
+            !!employee.lastname,
+            !!employee.email,
+            !!employee.gender,
+            !!prof.image_path,
+            !!prof.date_of_birth,
+            !!prof.birthplace,
+            !!prof.blood_group,
+            !!prof.present_address,
+            !!prof.present_contact_no,
+            !!prof.permanent_address,
+            !!prof.permanent_contact_no,
+            !!prof.father_name,
+            !!prof.mother_name,
+            !!prof.bank_account_number,
+            !!prof.bank_ifsc_code,
+            !!prof.bank_name_address,
+            !!(employee.educations && employee.educations.length > 0),
+            !!prof.consent_given,
+            !!prof.signature_path
+        ];
+        const filled = checks.filter(Boolean).length;
+        return Math.round((filled / checks.length) * 100);
+    };
+
     const roleObj = roles.find(r => r.id === employee.role);
     const roleName = roleObj ? roleObj.display_name : 'Staff';
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -126,8 +222,22 @@ const ViewEmployeeProfile = () => {
             {/* Profile Overview Card */}
             <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                 <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold text-2xl shadow-sm">
-                        {employee.firstname[0]}{employee.lastname[0]}
+                    <div className="relative w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shadow-sm">
+                        {profile.image_path ? (
+                            <img
+                                src={`${API_BASE_URL}/${profile.image_path.replace(/\\/g, '/')}`}
+                                alt={`${employee.firstname} ${employee.lastname}`}
+                                className="w-full h-full object-cover rounded-2xl cursor-zoom-in hover:brightness-95 transition duration-200"
+                                onClick={() => {
+                                    setLightboxImage(`${API_BASE_URL}/${profile.image_path.replace(/\\/g, '/')}`);
+                                    setIsLightboxOpen(true);
+                                }}
+                            />
+                        ) : (
+                            <span className="text-indigo-600 font-extrabold text-2xl">
+                                {employee.firstname[0]}{employee.lastname[0]}
+                            </span>
+                        )}
                     </div>
                     <div>
                         <div className="flex items-center gap-2.5 flex-wrap">
@@ -142,10 +252,45 @@ const ViewEmployeeProfile = () => {
                             )}
                         </div>
                         <p className="text-slate-500 font-medium text-sm mt-1">{roleName} • {employee.email}</p>
+
+                        {/* Profile Completion Score Progress Bar */}
+                        <div className="flex items-center gap-3 mt-3">
+                            <div className="w-32 bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner border border-slate-200/50">
+                                <div
+                                    className={`h-full rounded-full transition-all duration-700 ease-out ${getProfileCompletion() === 100
+                                            ? 'bg-emerald-500'
+                                            : getProfileCompletion() >= 75
+                                                ? 'bg-indigo-600'
+                                                : getProfileCompletion() >= 40
+                                                    ? 'bg-amber-500'
+                                                    : 'bg-rose-500'
+                                        }`}
+                                    style={{ width: `${getProfileCompletion()}%` }}
+                                ></div>
+                            </div>
+                            <span className={`text-xs font-black tracking-tight ${getProfileCompletion() === 100
+                                    ? 'text-emerald-600'
+                                    : getProfileCompletion() >= 75
+                                        ? 'text-indigo-600'
+                                        : getProfileCompletion() >= 40
+                                            ? 'text-amber-600'
+                                            : 'text-rose-600'
+                                }`}>
+                                {getProfileCompletion()}% Completed
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto">
+                    {canEdit && profile.onboarding_status === 'Pending_HR_Approval' && (
+                        <button
+                            onClick={() => setIsApproveModalOpen(true)}
+                            className="flex-1 md:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition text-sm shadow-sm"
+                        >
+                            Approve & Finalize Onboarding
+                        </button>
+                    )}
                     {canEdit && (
                         <button
                             onClick={() => navigate(`/onboard/${id}`)}
@@ -378,25 +523,6 @@ const ViewEmployeeProfile = () => {
 
                 {/* Column 3: Attachments, Bank and Signature box */}
                 <div className="space-y-8">
-                    {/* Bank Details */}
-                    <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm text-sm">
-                        <h2 className="text-base font-bold text-[#1e1b4b] border-b border-slate-100 pb-3 mb-4">Bank Details</h2>
-                        <div className="space-y-3.5">
-                            <div>
-                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Account Number</p>
-                                <p className="font-semibold text-slate-700 mt-0.5">{profile.bank_account_number || 'Not filled'}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Bank IFSC Code</p>
-                                <p className="font-semibold text-slate-700 mt-0.5">{profile.bank_ifsc_code || 'Not filled'}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Bank Name & Address</p>
-                                <p className="font-semibold text-slate-700 mt-0.5">{profile.bank_name_address || 'Not filled'}</p>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Document Attachments Inventory */}
                     <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
                         <h2 className="text-base font-bold text-[#1e1b4b] border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
@@ -438,6 +564,27 @@ const ViewEmployeeProfile = () => {
                                     </div>
                                 );
                             })}
+                        </div>
+                    </div>
+
+                    {/* Bank Details */}
+                    <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm text-sm">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                            <h2 className="text-base font-bold text-[#1e1b4b]">Bank Details</h2>
+                        </div>
+                        <div className="space-y-3.5">
+                            <div>
+                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Account Number</p>
+                                <p className="font-semibold text-slate-700 mt-0.5">{profile.bank_account_number || 'Not filled'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Bank IFSC Code</p>
+                                <p className="font-semibold text-slate-700 mt-0.5">{profile.bank_ifsc_code || 'Not filled'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Bank Name & Address</p>
+                                <p className="font-semibold text-slate-700 mt-0.5">{profile.bank_name_address || 'Not filled'}</p>
+                            </div>
                         </div>
                     </div>
 
@@ -504,6 +651,125 @@ const ViewEmployeeProfile = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Approval Modal */}
+            {isApproveModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-2xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200">
+                        <h3 className="text-xl font-black text-[#1e1b4b] mb-2">Approve & Finalize Onboarding</h3>
+                        <p className="text-sm text-slate-500 mb-6">Assign official credentials and system access details to finalize onboarding for this employee.</p>
+
+                        <form onSubmit={handleApproveSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Official Email Address</label>
+                                <input
+                                    type="email"
+                                    required
+                                    value={approvalForm.email}
+                                    onChange={(e) => setApprovalForm(prev => ({ ...prev, email: e.target.value }))}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
+                                    placeholder="e.g. employee@company.com"
+                                />
+                                {approvalErrors.email && <p className="text-xs text-rose-500 mt-1 font-bold">{approvalErrors.email}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Assign Role</label>
+                                <select
+                                    required
+                                    value={approvalForm.role}
+                                    onChange={(e) => setApprovalForm(prev => ({ ...prev, role: e.target.value }))}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
+                                >
+                                    <option value="">Select system role...</option>
+                                    {roles.map(r => (
+                                        <option key={r.id} value={r.id}>{r.display_name}</option>
+                                    ))}
+                                </select>
+                                {approvalErrors.role && <p className="text-xs text-rose-500 mt-1 font-bold">{approvalErrors.role}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Reporting Manager</label>
+                                <select
+                                    value={approvalForm.approving_manager_id}
+                                    onChange={(e) => setApprovalForm(prev => ({ ...prev, approving_manager_id: e.target.value }))}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
+                                >
+                                    <option value="">Select reporting manager...</option>
+                                    {managers.map(m => (
+                                        <option key={m.staffid} value={m.staffid}>{m.firstname} {m.lastname} ({m.role_name || 'Manager/Admin'})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="flex items-center gap-3 py-2">
+                                <input
+                                    type="checkbox"
+                                    id="abis_access"
+                                    checked={approvalForm.abis_access}
+                                    onChange={(e) => setApprovalForm(prev => ({ ...prev, abis_access: e.target.checked }))}
+                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                />
+                                <label htmlFor="abis_access" className="text-sm font-semibold text-slate-700 select-none cursor-pointer">
+                                    Enable ABIS Access
+                                </label>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsApproveModalOpen(false)}
+                                    className="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition"
+                                    disabled={approving}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-sm transition flex items-center gap-1.5"
+                                    disabled={approving}
+                                >
+                                    {approving ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Approving...
+                                        </>
+                                    ) : (
+                                        'Confirm & Approve'
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Lightbox Modal */}
+            {isLightboxOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md cursor-zoom-out select-none animate-in fade-in duration-200"
+                    onClick={() => setIsLightboxOpen(false)}
+                >
+                    <div
+                        className="relative max-w-4xl max-h-[90vh] animate-in fade-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setIsLightboxOpen(false)}
+                            className="absolute -top-12 right-0 bg-white/10 hover:bg-white/20 border border-white/20 text-white w-10 h-10 rounded-full flex items-center justify-center transition shadow-lg text-sm font-black"
+                            title="Close preview"
+                        >
+                            ✕
+                        </button>
+                        <img
+                            src={lightboxImage}
+                            alt="Bigger employee profile photo"
+                            className="max-w-full max-h-[85vh] rounded-3xl object-contain shadow-2xl border border-white/10 bg-black/20"
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

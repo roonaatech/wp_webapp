@@ -230,6 +230,7 @@ const Users = () => {
     const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
     const [letterFilter, setLetterFilter] = useState(''); // '' means no filter, or single letter A-Z
     const [openActionMenu, setOpenActionMenu] = useState(null); // staffid of the open action dropdown, or null
+
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -466,6 +467,7 @@ const Users = () => {
             console.error('Error fetching all users for chart:', error);
         }
     };
+
 
     const fetchLeaveBalance = async (userId) => {
         try {
@@ -871,10 +873,32 @@ const Users = () => {
             userId: user.staffid || user.id,
             userName: `${user.firstname} ${user.lastname}`,
             newPassword: '',
-            confirmPassword: ''
+            confirmPassword: '',
+            firstname: user.firstname
         });
         setResetPasswordError(null);
         setShowPasswordResetModal(true);
+    };
+
+    const generateAndSetPassword = () => {
+        const cleanName = (resetPasswordData.firstname || '').replace(/[^a-zA-Z]/g, '') || 'User';
+        const firstLetter = cleanName.charAt(0);
+        const lastLetter = cleanName.length > 1 ? cleanName.charAt(cleanName.length - 1) : cleanName.charAt(0);
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const currentMonthStr = months[new Date().getMonth()];
+        const todayDay = new Date().getDate();
+        const dayClamped = todayDay > 30 ? 30 : todayDay;
+        const dayStr = String(dayClamped).padStart(2, '0');
+        const alphabets = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        const randomAlphabet = alphabets.charAt(Math.floor(Math.random() * alphabets.length));
+
+        const generatedPassword = `${firstLetter}${lastLetter}${currentMonthStr}${dayStr}${randomAlphabet}`;
+
+        setResetPasswordData(prev => ({
+            ...prev,
+            newPassword: generatedPassword,
+            confirmPassword: generatedPassword
+        }));
     };
 
     const handleResetPasswordSubmit = async (e) => {
@@ -954,9 +978,9 @@ const Users = () => {
                 const resolveName = (managerId) => {
                     if (!managerId) return '-';
                     const mgr = managersAndAdmins.find(m => (m.staffid || m.id) === managerId) ||
-                                users.find(m => (m.staffid || m.id) === managerId) ||
-                                allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
-                                ((user.staffid || user.id) === managerId ? user : null);
+                        users.find(m => (m.staffid || m.id) === managerId) ||
+                        allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
+                        ((user.staffid || user.id) === managerId ? user : null);
                     return mgr ? `${mgr.firstname} ${mgr.lastname}` : 'Unknown';
                 };
                 aValue = resolveName(a.approving_manager_id).toLowerCase();
@@ -1001,10 +1025,10 @@ const Users = () => {
 
     const getManagerName = (managerId) => {
         if (!managerId) return '-';
-        const mgr = managersAndAdmins.find(m => (m.staffid || m.id) === managerId) || 
-                    users.find(m => (m.staffid || m.id) === managerId) || 
-                    allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
-                    ((user.staffid || user.id) === managerId ? user : null);
+        const mgr = managersAndAdmins.find(m => (m.staffid || m.id) === managerId) ||
+            users.find(m => (m.staffid || m.id) === managerId) ||
+            allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
+            ((user.staffid || user.id) === managerId ? user : null);
         return mgr ? `${mgr.firstname} ${mgr.lastname}` : 'Unknown';
     };
 
@@ -1163,7 +1187,7 @@ const Users = () => {
                         <div className="flex gap-3">
                             <button
                                 onClick={() => navigate('/onboard')}
-                                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2 shadow-sm">
+                                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors font-semibold flex items-center gap-2 shadow-sm text-sm">
                                 <span className="text-indigo-200 text-lg">+</span> Onboard Employee
                             </button>
                         </div>
@@ -1627,9 +1651,17 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold">
-                                                        {u.firstname.charAt(0)}{u.lastname.charAt(0)}
-                                                    </div>
+                                                    {u.profile_info?.image_path ? (
+                                                        <img
+                                                            src={`${API_BASE_URL}/${u.profile_info.image_path.replace(/\\/g, '/')}`}
+                                                            alt={`${u.firstname} ${u.lastname}`}
+                                                            className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold">
+                                                            {u.firstname.charAt(0)}{u.lastname.charAt(0)}
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <p className="font-medium text-gray-900">
                                                             {u.firstname} {u.lastname}
@@ -1722,16 +1754,7 @@ const Users = () => {
                                                                             <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                                             </svg>
-                                                                            Joining Profile
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => { handleEditUserClick(u); setOpenActionMenu(null); }}
-                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors font-semibold"
-                                                                        >
-                                                                            <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                                            </svg>
-                                                                            Edit User
+                                                                            View Profile
                                                                         </button>
 
                                                                         <button
@@ -1784,11 +1807,10 @@ const Users = () => {
                                                             <div className="flex border-b border-gray-200 mb-6">
                                                                 <button
                                                                     onClick={() => setActiveTab('leave')}
-                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                                                                        activeTab === 'leave'
+                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'leave'
                                                                             ? 'border-blue-600 text-blue-600'
                                                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                                                    }`}
+                                                                        }`}
                                                                 >
                                                                     <div className="flex items-center gap-2">
                                                                         <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'leave' ? 'bg-blue-600' : 'bg-transparent'}`}></span>
@@ -1797,11 +1819,10 @@ const Users = () => {
                                                                 </button>
                                                                 <button
                                                                     onClick={() => setActiveTab('org')}
-                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                                                                        activeTab === 'org'
+                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'org'
                                                                             ? 'border-purple-600 text-purple-600'
                                                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                                                    }`}
+                                                                        }`}
                                                                 >
                                                                     <div className="flex items-center gap-2">
                                                                         <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'org' ? 'bg-purple-600' : 'bg-transparent'}`}></span>
@@ -1810,11 +1831,10 @@ const Users = () => {
                                                                 </button>
                                                                 <button
                                                                     onClick={() => setActiveTab('history')}
-                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                                                                        activeTab === 'history'
+                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'history'
                                                                             ? 'border-emerald-600 text-emerald-600'
                                                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                                                    }`}
+                                                                        }`}
                                                                 >
                                                                     <div className="flex items-center gap-2">
                                                                         <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'history' ? 'bg-emerald-600' : 'bg-transparent'}`}></span>
@@ -1915,7 +1935,7 @@ const Users = () => {
                                                                         <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
                                                                         {new Date().getFullYear()} Attendance History
                                                                     </h4>
-                                                                    
+
                                                                     {loadingHistory[u.staffid] ? (
                                                                         <div className="flex items-center justify-center p-8">
                                                                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
@@ -1937,7 +1957,7 @@ const Users = () => {
                                                                                     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
                                                                                     const firstDayOfWeek = new Date(year, monthIndex, 1).getDay();
                                                                                     const monthName = new Date(year, monthIndex, 1).toLocaleString('default', { month: 'short' });
-                                                                                    
+
                                                                                     return (
                                                                                         <div key={monthIndex} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow">
                                                                                             <div className="text-xs font-extrabold text-gray-800 mb-2 text-center uppercase tracking-wide">{monthName}</div>
@@ -1951,25 +1971,25 @@ const Users = () => {
                                                                                                 {Array.from({ length: daysInMonth }).map((_, i) => {
                                                                                                     const day = i + 1;
                                                                                                     const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                                                                                    
+
                                                                                                     const dayEvents = (yearlyHistory[u.staffid] || []).filter(e => e.date === dateStr);
                                                                                                     let bgClass = "bg-gray-50 border border-gray-100 hover:border-gray-300";
                                                                                                     let title = `${dateStr}`;
-                                                                                                    
+
                                                                                                     if (dayEvents.length > 0) {
                                                                                                         const types = dayEvents.map(e => e.type);
                                                                                                         title += `\n${dayEvents.map(e => e.title).join(', ')}`;
-                                                                                                        
+
                                                                                                         if (types.includes('leave')) bgClass = "bg-blue-500 border-blue-600 shadow-sm text-white";
                                                                                                         else if (types.includes('on_duty')) bgClass = "bg-purple-500 border-purple-600 shadow-sm text-white";
                                                                                                         else if (types.includes('time_off')) bgClass = "bg-amber-500 border-amber-600 shadow-sm text-white";
                                                                                                     } else {
                                                                                                         bgClass += " text-gray-400";
                                                                                                     }
-                                                                                                    
+
                                                                                                     return (
-                                                                                                        <div 
-                                                                                                            key={day} 
+                                                                                                        <div
+                                                                                                            key={day}
                                                                                                             title={title}
                                                                                                             className={`aspect-square rounded flex items-center justify-center text-[10px] transition-all cursor-help ${bgClass} ${dayEvents.length > 0 ? 'font-bold transform hover:scale-110 z-10' : ''}`}
                                                                                                         >
@@ -2543,7 +2563,16 @@ const Users = () => {
                             )}
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">New Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="block text-sm font-medium text-gray-700">New Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                    <button
+                                        type="button"
+                                        onClick={generateAndSetPassword}
+                                        className="text-xs font-bold text-amber-600 hover:text-amber-700 transition flex items-center gap-1 bg-amber-50 hover:bg-amber-100/80 px-2 py-1 rounded-md"
+                                    >
+                                        ✨ Auto-Generate
+                                    </button>
+                                </div>
                                 <input
                                     type="password"
                                     value={resetPasswordData.newPassword}
@@ -2551,6 +2580,21 @@ const Users = () => {
                                     placeholder="Enter new password"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-600"
                                 />
+                                {resetPasswordData.newPassword && (
+                                    <div className="mt-2 p-2.5 bg-amber-50/50 border border-amber-200/60 rounded-lg flex items-center justify-between animate-fade-in">
+                                        <span className="text-xs font-semibold text-amber-800">Generated: <code className="text-xs font-mono font-black select-all bg-white px-1.5 py-0.5 border border-amber-200 rounded">{resetPasswordData.newPassword}</code></span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(resetPasswordData.newPassword);
+                                                toast.success('Password copied to clipboard!');
+                                            }}
+                                            className="text-[10px] font-bold text-amber-600 bg-white border border-amber-200 hover:bg-amber-50 px-2 py-1 rounded transition-colors"
+                                        >
+                                            Copy
+                                        </button>
+                                    </div>
+                                )}
                                 <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
                             </div>
 

@@ -30,6 +30,7 @@ import { fetchRoles } from './utils/roleUtils';
 import OnboardEmployee from './pages/OnboardEmployee';
 import ViewEmployeeProfile from './pages/ViewEmployeeProfile';
 import FirstTimeLoginFlow from './pages/FirstTimeLoginFlow';
+import CandidateOnboardingFlow from './pages/CandidateOnboardingFlow';
 
 
 
@@ -193,6 +194,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/session-expired" element={<SessionExpired />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
+            <Route path="/candidate-onboarding" element={<CandidateOnboardingFlow />} />
 
             {/* Protected Routes */}
             <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
