@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.7.0](https://github.com/roonaatech/wp_webapp/compare/v2.6.10...v2.7.0) (2026-05-27)
+
+
+### Features
+
+* implement employee onboarding module with profile management, document checklist, and new user onboarding flow ([a4faa1b](https://github.com/roonaatech/wp_webapp/commit/a4faa1b6aabd5522e80f38726a43421be3b50550))
+* implement multi-step candidate onboarding flow with draft persistence and digital signature functionality ([58d38d7](https://github.com/roonaatech/wp_webapp/commit/58d38d71fa173ed6b2c7a7e8ddb737d3f85bd487))
+
 ### [2.6.10](https://github.com/roonaatech/wp_webapp/compare/v2.6.9...v2.6.10) (2026-05-20)
 
 
