@@ -123,7 +123,7 @@ const OnboardEmployee = () => {
                 const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
                 await fetchRolesUtil(true);
                 const role = getRoleById(currentUser.role);
-                const canManage = role?.can_manage_onboarding == true || role?.name === 'super_admin' || role?.name === 'admin';
+                const canManage = role?.can_manage_onboarding == true;
                 if (!canManage) {
                     navigate('/unauthorized', { replace: true });
                 } else {
@@ -1026,22 +1026,20 @@ const OnboardEmployee = () => {
                                                 />
                                             </div>
 
-                                            {onboardingMode === 'manual' && (
+                                            {onboardingMode === 'manual' && !id && (
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                                                        Password {!id && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
-                                                        {id && <span className="text-slate-400 font-medium normal-case tracking-normal ml-1">(leave blank to keep current)</span>}
+                                                        Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>
                                                     </label>
                                                     <input
                                                         type="password"
                                                         name="password"
                                                         value={formData.password}
                                                         onChange={handleInputChange}
-                                                        placeholder={id ? '••••••••' : 'Enter password'}
+                                                        placeholder="Enter password"
                                                         className={`w-full px-4 py-3 rounded-xl border ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-indigo-500'} focus:outline-none focus:ring-2 bg-slate-50/50`}
                                                     />
                                                     {errors.password && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.password}</p>}
-                                                    {id && !formData.password && <p className="text-slate-400 text-xs mt-1">Password is already set. Only fill this to change it.</p>}
                                                 </div>
                                             )}
 

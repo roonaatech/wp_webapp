@@ -1304,6 +1304,38 @@ const Users = () => {
                                         <div className="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></div>
                                         <span className="text-sm font-medium text-gray-900 flex-1">Setup Required</span>
                                     </label>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-amber-50 rounded-lg transition-colors ${statusFilter.includes('unapproved') ? 'bg-amber-50' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.includes('unapproved')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setStatusFilter([...statusFilter, 'unapproved']);
+                                                } else {
+                                                    setStatusFilter(statusFilter.filter(s => s !== 'unapproved'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-2 focus:ring-amber-500"
+                                        />
+                                        <div className="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></div>
+                                        <span className="text-sm font-medium text-gray-900 flex-1">Unapproved Profiles</span>
+                                    </label>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-indigo-50 rounded-lg transition-colors ${statusFilter.includes('pending_declaration') ? 'bg-indigo-50' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.includes('pending_declaration')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setStatusFilter([...statusFilter, 'pending_declaration']);
+                                                } else {
+                                                    setStatusFilter(statusFilter.filter(s => s !== 'pending_declaration'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                        <div className="w-3 h-3 rounded-full bg-indigo-500 shadow-sm"></div>
+                                        <span className="text-sm font-medium text-gray-900 flex-1">Pending Declaration</span>
+                                    </label>
                                 </div>
                             </div>
                         )}
@@ -1666,6 +1698,16 @@ const Users = () => {
                                                         <p className="font-medium text-gray-900">
                                                             {u.firstname} {u.lastname}
                                                         </p>
+                                                        {u.profile_info?.onboarding_status === 'Pending_HR_Approval' && (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold rounded-md">
+                                                                Pending HR Approval
+                                                            </span>
+                                                        )}
+                                                        {u.profile_info?.onboarding_status === 'Pending_Candidate' && (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold rounded-md">
+                                                                Pending Declaration
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </td>
