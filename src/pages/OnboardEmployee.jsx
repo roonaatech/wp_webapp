@@ -123,7 +123,7 @@ const OnboardEmployee = () => {
                 const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
                 await fetchRolesUtil(true);
                 const role = getRoleById(currentUser.role);
-                const canManage = role?.can_manage_onboarding == true;
+                const canManage = role?.can_manage_onboarding == true || role?.name === 'super_admin' || role?.name === 'admin';
                 if (!canManage) {
                     navigate('/unauthorized', { replace: true });
                 } else {
