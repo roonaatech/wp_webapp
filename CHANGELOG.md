@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.7.4](https://github.com/roonaatech/wp_webapp/compare/v2.7.3...v2.7.4) (2026-05-28)
+
+
+### Features
+
+* grant onboarding management permissions to super_admin and admin roles in roleUtils and employee profile view ([6d2ff6b](https://github.com/roonaatech/wp_webapp/commit/6d2ff6b27aaccf80942e1348288c2a92ca86d619))
+
 ### [2.7.3](https://github.com/roonaatech/wp_webapp/compare/v2.7.2...v2.7.3) (2026-05-28)
 
 ### [2.7.2](https://github.com/roonaatech/wp_webapp/compare/v2.7.1...v2.7.2) (2026-05-28)
