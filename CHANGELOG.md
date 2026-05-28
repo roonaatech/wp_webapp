@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.7.5](https://github.com/roonaatech/wp_webapp/compare/v2.7.4...v2.7.5) (2026-05-28)
+
 ### [2.7.4](https://github.com/roonaatech/wp_webapp/compare/v2.7.3...v2.7.4) (2026-05-28)
 
 
