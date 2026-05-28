@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload } from "react-icons/lu";
+import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding } from '../utils/roleUtils';
 import { formatDateOnly } from '../utils/timezone.util';
@@ -22,6 +22,7 @@ const ViewEmployeeProfile = () => {
     const [approving, setApproving] = useState(false);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [lightboxImage, setLightboxImage] = useState('');
+    const [resendingEmail, setResendingEmail] = useState(false);
 
     useEffect(() => {
         fetchEmployeeProfile();
@@ -133,6 +134,22 @@ const ViewEmployeeProfile = () => {
             toast.error(err.response?.data?.message || 'Failed to approve onboarding.');
         } finally {
             setApproving(false);
+        }
+    };
+
+    const handleResendWelcomeEmail = async () => {
+        setResendingEmail(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.post(`${API_BASE_URL}/api/onboarding/employee/${id}/resend-welcome`, {}, {
+                headers: { 'x-access-token': token }
+            });
+            toast.success(response.data.message || 'Welcome email resent successfully!');
+        } catch (err) {
+            console.error('Error resending welcome email:', err);
+            toast.error(err.response?.data?.message || 'Failed to resend welcome email.');
+        } finally {
+            setResendingEmail(false);
         }
     };
 
@@ -289,6 +306,25 @@ const ViewEmployeeProfile = () => {
                             className="flex-1 md:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition text-sm shadow-sm"
                         >
                             Approve & Finalize Onboarding
+                        </button>
+                    )}
+                    {canEdit && !profile.consent_given && (
+                        <button
+                            onClick={handleResendWelcomeEmail}
+                            disabled={resendingEmail}
+                            className="flex-1 md:flex-none px-6 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold rounded-xl transition text-sm shadow-sm flex items-center justify-center gap-1.5"
+                        >
+                            {resendingEmail ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Resending...
+                                </>
+                            ) : (
+                                <>
+                                    <LuMail size={16} />
+                                    Resend Welcome Email
+                                </>
+                            )}
                         </button>
                     )}
                     {canEdit && (
