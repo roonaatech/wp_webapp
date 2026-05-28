@@ -209,7 +209,10 @@ const ViewEmployeeProfile = () => {
     const roleObj = roles.find(r => r.id === employee.role);
     const roleName = roleObj ? roleObj.display_name : 'Staff';
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const canEdit = canManageOnboarding(currentUser.role);
+    const userRoleObj = roles.find(r => r.id === parseInt(currentUser.role));
+    const canEdit = userRoleObj
+        ? (userRoleObj.can_manage_onboarding == true || userRoleObj.name === 'super_admin' || userRoleObj.name === 'admin')
+        : canManageOnboarding(currentUser.role);
 
     // Checklist documents mapping
     const checklistDocs = [

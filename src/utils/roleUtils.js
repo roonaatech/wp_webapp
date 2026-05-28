@@ -133,7 +133,7 @@ export const canManageLeaveTypes = (roleId) => {
 export const canManageOnboarding = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_manage_onboarding == true;
+    return role.can_manage_onboarding == true || role.name === 'super_admin' || role.name === 'admin';
 };
 
 
