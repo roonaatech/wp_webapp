@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.7.2](https://github.com/roonaatech/wp_webapp/compare/v2.7.1...v2.7.2) (2026-05-28)
+
+
+### Features
+
+* add functionality to resend welcome email to onboarding employees in ViewEmployeeProfile ([01e6622](https://github.com/roonaatech/wp_webapp/commit/01e6622ac5a2623b1e3711d937ab2c9877b70faf))
+
 ### [2.7.1](https://github.com/roonaatech/wp_webapp/compare/v2.7.0...v2.7.1) (2026-05-27)
 
 
