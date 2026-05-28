@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.7.7](https://github.com/roonaatech/wp_webapp/compare/v2.7.6...v2.7.7) (2026-05-28)
+
+
+### Code Refactoring
+
+* enforce strict role-based onboarding permissions and add unapproved status filtering to user view ([d72f98b](https://github.com/roonaatech/wp_webapp/commit/d72f98b46426cdd1a5a3c1101bd630aa1c410e19))
+
 ### [2.7.6](https://github.com/roonaatech/wp_webapp/compare/v2.7.5...v2.7.6) (2026-05-28)
 
 
