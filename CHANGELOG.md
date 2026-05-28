@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.7.6](https://github.com/roonaatech/wp_webapp/compare/v2.7.5...v2.7.6) (2026-05-28)
+
+
+### Features
+
+* update employee onboarding authorization to grant access to super_admin and admin roles ([319a6c3](https://github.com/roonaatech/wp_webapp/commit/319a6c3ba054025f94c1ff2909f5d8d4428811b6))
+
 ### [2.7.5](https://github.com/roonaatech/wp_webapp/compare/v2.7.4...v2.7.5) (2026-05-28)
 
 ### [2.7.4](https://github.com/roonaatech/wp_webapp/compare/v2.7.3...v2.7.4) (2026-05-28)
