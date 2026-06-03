@@ -5,7 +5,15 @@ const OnDutyLocationMap = ({ startLat, startLong, endLat, endLong, clientName, l
     // Debug logging
     console.log('OnDutyLocationMap props:', { startLat, startLong, endLat, endLong, clientName, location });
 
-    const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    // Try loading key from database-backed settings stored in localStorage, otherwise fallback to compile-time env
+    const settings = (() => {
+        try {
+            return JSON.parse(localStorage.getItem('settings') || '{}');
+        } catch (e) {
+            return {};
+        }
+    })();
+    const GOOGLE_MAPS_API_KEY = settings.google_maps_api_key || import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
     const hasStartLocation = startLat && startLong && startLat !== '0.0' && startLong !== '0.0';
     const hasEndLocation = endLat && endLong && endLat !== '0.0' && endLong !== '0.0';

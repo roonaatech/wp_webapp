@@ -23,7 +23,8 @@ export default function Settings() {
         leave_past_days_allowed: '0',
         enable_pending_request_reminders: 'true',
         pending_request_reminder_days: '3',
-        pending_request_reminder_schedule: '0 8 * * *'
+        pending_request_reminder_schedule: '0 8 * * *',
+        google_maps_api_key: ''
     });
 
     // Define settings configuration for easy expansion
@@ -64,6 +65,13 @@ export default function Settings() {
                         { value: '24h', label: '24-Hour (e.g. 14:30)' }
                     ],
                     placeholder: 'Select time format'
+                },
+                {
+                    key: 'google_maps_api_key',
+                    label: 'Google Maps API Key',
+                    description: 'API key used to display Google Maps on-duty routes and location details',
+                    type: 'text',
+                    placeholder: 'Enter Google Maps API Key'
                 }
             ]
         },
@@ -210,7 +218,7 @@ export default function Settings() {
             });
 
             // Update local storage if critical settings were changed
-            if (['application_timezone', 'application_date_format', 'application_time_format'].includes(key)) {
+            if (['application_timezone', 'application_date_format', 'application_time_format', 'google_maps_api_key'].includes(key)) {
                 const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
                 existingSettings[key] = value;
                 localStorage.setItem('settings', JSON.stringify(existingSettings));
