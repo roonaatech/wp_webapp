@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.7.8](https://github.com/roonaatech/wp_webapp/compare/v2.7.7...v2.7.8) (2026-06-03)
+
+
+### Features
+
+* add configurable Google Maps API key to settings and implement dynamic loading in OnDutyLocationMap ([298e450](https://github.com/roonaatech/wp_webapp/commit/298e4503389cbae7f767307a7fb0331786672924))
+
 ### [2.7.7](https://github.com/roonaatech/wp_webapp/compare/v2.7.6...v2.7.7) (2026-05-28)
 
 
