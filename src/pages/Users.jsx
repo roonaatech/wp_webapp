@@ -710,8 +710,8 @@ const Users = () => {
             }
         }
 
-        if (formData.role === '2' && !formData.approving_manager_id) {
-            setFormError('Manager role requires selecting an approving admin.');
+        if (!formData.approving_manager_id) {
+            setFormError('Reporting Manager is required.');
             return;
         }
         if (!formData.gender) {
@@ -738,12 +738,8 @@ const Users = () => {
                 payload.password = formData.password;
             }
 
-            if (formData.approving_manager_id && formData.approving_manager_id !== '') {
-                payload.approving_manager_id = parseInt(formData.approving_manager_id);
-            } else if (editingUserId) {
-                // For edit mode, always include the field (can be null)
-                payload.approving_manager_id = formData.approving_manager_id ? parseInt(formData.approving_manager_id) : null;
-            }
+            // Reporting manager is mandatory - always include
+            payload.approving_manager_id = parseInt(formData.approving_manager_id);
 
             let response;
             if (editingUserId) {
@@ -1320,21 +1316,21 @@ const Users = () => {
                                         <div className="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></div>
                                         <span className="text-sm font-medium text-gray-900 flex-1">Unapproved Profiles</span>
                                     </label>
-                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-indigo-50 rounded-lg transition-colors ${statusFilter.includes('pending_declaration') ? 'bg-indigo-50' : ''}`}>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-indigo-50 rounded-lg transition-colors ${statusFilter.includes('update_required') ? 'bg-indigo-50' : ''}`}>
                                         <input
                                             type="checkbox"
-                                            checked={statusFilter.includes('pending_declaration')}
+                                            checked={statusFilter.includes('update_required')}
                                             onChange={(e) => {
                                                 if (e.target.checked) {
-                                                    setStatusFilter([...statusFilter, 'pending_declaration']);
+                                                    setStatusFilter([...statusFilter, 'update_required']);
                                                 } else {
-                                                    setStatusFilter(statusFilter.filter(s => s !== 'pending_declaration'));
+                                                    setStatusFilter(statusFilter.filter(s => s !== 'update_required'));
                                                 }
                                             }}
                                             className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
                                         />
                                         <div className="w-3 h-3 rounded-full bg-indigo-500 shadow-sm"></div>
-                                        <span className="text-sm font-medium text-gray-900 flex-1">Pending Declaration</span>
+                                        <span className="text-sm font-medium text-gray-900 flex-1">Update Required</span>
                                     </label>
                                 </div>
                             </div>
@@ -1703,9 +1699,10 @@ const Users = () => {
                                                                 Pending HR Approval
                                                             </span>
                                                         )}
-                                                        {u.profile_info?.onboarding_status === 'Pending_Candidate' && (
-                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold rounded-md">
-                                                                Pending Declaration
+                                                        {/* Update Required: missing gender, reporting manager, email, date of birth, or declaration */}
+                                                        {((!u.gender || !u.approving_manager_id || !u.email || !u.profile_info?.date_of_birth || !u.profile_info?.consent_given || u.profile_info?.onboarding_status === 'Pending_Candidate') && u.profile_info?.onboarding_status !== 'Pending_HR_Approval') && (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-orange-50 border border-orange-200 text-orange-700 text-[10px] font-bold rounded-md">
+                                                                Update Required
                                                             </span>
                                                         )}
                                                     </div>
@@ -1844,7 +1841,8 @@ const Users = () => {
                                                             <span className="font-medium">{leaveBalances[u.staffid].error}</span>
                                                         </div>
                                                     ) : (
-                                                        <div className="flex flex-col md:flex-row gap-5">
+                                                        <div className="flex flex-col gap-5">
+                                                            <div className="flex flex-col md:flex-row gap-5">
                                                             {/* Modern Vertical Nav */}
                                                             <div className="w-full md:w-48 flex-shrink-0">
                                                                 <nav className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-gray-100 p-1.5 flex flex-col gap-0.5">
@@ -2058,6 +2056,7 @@ const Users = () => {
                                                                 </div>
                                                             )}
                                                             </div>
+                                                        </div>
                                                         </div>
                                                     )}
                                                 </td>
@@ -2432,16 +2431,16 @@ const Users = () => {
                                     </select>
                                 </div>
 
-                                {/* Reporting Manager Selection - Show for all roles */}
-                                {formData.role && (
-                                    <div>
-                                        <label className="block text-base font-medium text-gray-700 mb-1">
-                                            {getApproverLabel()}
-                                        </label>
-                                        <select
-                                            name="approving_manager_id"
-                                            value={formData.approving_manager_id}
-                                            onChange={handleFormChange}
+                                {/* Reporting Manager Selection - Always shown, mandatory */}
+                                <div>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">
+                                        {getApproverLabel()} <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        name="approving_manager_id"
+                                        value={formData.approving_manager_id}
+                                        onChange={handleFormChange}
+                                        required
                                             className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                         >
                                             <option value="">Select Reporting Manager</option>
@@ -2496,11 +2495,10 @@ const Users = () => {
                                                     ));
                                             })()}
                                         </select>
-                                        {formError && formError.includes('Manager role requires') && (
+                                        {formError && formError.includes('Reporting Manager') && (
                                             <p className="text-xs text-red-600 mt-1">⚠️ This field is required</p>
                                         )}
                                     </div>
-                                )}
 
                                 {/* Only show password fields for new users */}
                                 {!editingUserId && (

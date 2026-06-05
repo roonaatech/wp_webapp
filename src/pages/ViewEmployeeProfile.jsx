@@ -177,6 +177,15 @@ const ViewEmployeeProfile = () => {
 
     const profile = employee.profile_info || {};
 
+    const missingGender = !employee.gender;
+    const missingManager = !employee.approving_manager_id;
+    const missingEmail = !employee.email;
+    const missingDob = !profile.date_of_birth;
+    const missingDeclaration = !profile.consent_given || profile.onboarding_status === 'Pending_Candidate';
+
+    const isUpdateRequired = (missingGender || missingManager || missingEmail || missingDob || missingDeclaration) &&
+        profile.onboarding_status !== 'Pending_HR_Approval';
+
     const getProfileCompletion = () => {
         if (!employee) return 0;
         const prof = employee.profile_info || {};
@@ -299,6 +308,28 @@ const ViewEmployeeProfile = () => {
                                 {getProfileCompletion()}% Completed
                             </span>
                         </div>
+
+                        {/* Update Required Warning Box inside Header card */}
+                        {isUpdateRequired && (
+                            <div className="mt-2.5 text-xs text-orange-700 font-bold flex items-center gap-1.5 flex-wrap select-none">
+                                <LuInfo size={14} className="text-orange-500 flex-shrink-0" />
+                                <span className="text-orange-950 font-black">Update Required:</span>
+                                <span className="text-orange-700 font-medium">
+                                    Missing {(() => {
+                                        const items = [
+                                            missingGender && "Gender",
+                                            missingManager && "Reporting Manager",
+                                            missingEmail && "Primary Email",
+                                            missingDob && "Date of Birth",
+                                            missingDeclaration && "Declaration"
+                                        ].filter(Boolean);
+                                        if (items.length === 0) return "";
+                                        if (items.length === 1) return items[0];
+                                        return items.slice(0, -1).join(", ") + " and " + items[items.length - 1];
+                                    })()}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

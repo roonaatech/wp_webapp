@@ -563,15 +563,43 @@ const OnboardEmployee = () => {
             } else {
                 delete newErrors.role;
             }
+
+            if (!formData.approving_manager_id) {
+                newErrors.approving_manager_id = 'Reporting manager is required';
+            } else {
+                delete newErrors.approving_manager_id;
+            }
         }
 
         setErrors(newErrors);
 
         if (tabId === 'personal') {
-            return !newErrors.firstname && !newErrors.lastname && !newErrors.gender && !newErrors.date_of_birth;
+            const isValid = !newErrors.firstname && !newErrors.lastname && !newErrors.gender && !newErrors.date_of_birth;
+            if (!isValid) {
+                setTimeout(() => {
+                    const firstErrorField = ['firstname', 'lastname', 'gender', 'date_of_birth'].find(
+                        field => newErrors[field]
+                    );
+                    if (firstErrorField) {
+                        document.querySelector(`[name="${firstErrorField}"]`)?.focus();
+                    }
+                }, 50);
+            }
+            return isValid;
         }
         if (tabId === 'system') {
-            return !newErrors.email && !newErrors.password && !newErrors.role;
+            const isValid = !newErrors.email && !newErrors.password && !newErrors.role && !newErrors.approving_manager_id;
+            if (!isValid) {
+                setTimeout(() => {
+                    const firstErrorField = ['email', 'password', 'role', 'approving_manager_id'].find(
+                        field => newErrors[field]
+                    );
+                    if (firstErrorField) {
+                        document.querySelector(`[name="${firstErrorField}"]`)?.focus();
+                    }
+                }, 50);
+            }
+            return isValid;
         }
         return true;
     };
@@ -621,6 +649,9 @@ const OnboardEmployee = () => {
         if (!formData.role) {
             newErrors.role = 'Role assignment is required';
         }
+        if (!formData.approving_manager_id) {
+            newErrors.approving_manager_id = 'Reporting manager is required';
+        }
 
         setErrors(newErrors);
         return newErrors;
@@ -636,8 +667,24 @@ const OnboardEmployee = () => {
             if (onboardingMode !== 'self_service') {
                 if (validationErrors.firstname || validationErrors.lastname || validationErrors.gender || validationErrors.date_of_birth) {
                     setActiveTab('personal');
-                } else if (validationErrors.email || validationErrors.password || validationErrors.role) {
+                    setTimeout(() => {
+                        const firstErrorField = ['firstname', 'lastname', 'gender', 'date_of_birth'].find(
+                            field => validationErrors[field]
+                        );
+                        if (firstErrorField) {
+                            document.querySelector(`[name="${firstErrorField}"]`)?.focus();
+                        }
+                    }, 100);
+                } else if (validationErrors.email || validationErrors.password || validationErrors.role || validationErrors.approving_manager_id) {
                     setActiveTab('system');
+                    setTimeout(() => {
+                        const firstErrorField = ['email', 'password', 'role', 'approving_manager_id'].find(
+                            field => validationErrors[field]
+                        );
+                        if (firstErrorField) {
+                            document.querySelector(`[name="${firstErrorField}"]`)?.focus();
+                        }
+                    }, 100);
                 }
             }
             return;
@@ -1060,12 +1107,12 @@ const OnboardEmployee = () => {
                                             </div>
 
                                             <div>
-                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Reporting Manager</label>
+                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Reporting Manager <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                                 <select
                                                     name="approving_manager_id"
                                                     value={formData.approving_manager_id}
                                                     onChange={handleInputChange}
-                                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
+                                                    className={`w-full px-4 py-3 rounded-xl border ${errors.approving_manager_id ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-indigo-500'} focus:outline-none focus:ring-2 bg-slate-50/50`}
                                                 >
                                                     <option value="">Select Manager</option>
                                                     {managers.map(m => (
@@ -1074,6 +1121,7 @@ const OnboardEmployee = () => {
                                                         </option>
                                                     ))}
                                                 </select>
+                                                {errors.approving_manager_id && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.approving_manager_id}</p>}
                                             </div>
 
                                             <div className="flex items-center gap-3 bg-slate-50/80 p-4 rounded-xl border border-slate-100 mt-4 md:col-span-3">
