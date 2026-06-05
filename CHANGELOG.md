@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.7.9](https://github.com/roonaatech/wp_webapp/compare/v2.7.8...v2.7.9) (2026-06-05)
+
+
+### Features
+
+* add support for time-off requests, including UI rendering and duration calculation in the dashboard and user views. ([6372035](https://github.com/roonaatech/wp_webapp/commit/6372035df37b0ac71bd900724069cd82b0e7ba97))
+
 ### [2.7.8](https://github.com/roonaatech/wp_webapp/compare/v2.7.7...v2.7.8) (2026-06-03)
 
 
