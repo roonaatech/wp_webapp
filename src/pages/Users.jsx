@@ -1844,48 +1844,57 @@ const Users = () => {
                                                             <span className="font-medium">{leaveBalances[u.staffid].error}</span>
                                                         </div>
                                                     ) : (
-                                                        <div>
-                                                            {/* Tabs Header */}
-                                                            <div className="flex border-b border-gray-200 mb-6">
-                                                                <button
-                                                                    onClick={() => setActiveTab('leave')}
-                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'leave'
-                                                                            ? 'border-blue-600 text-blue-600'
-                                                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                                        <div className="flex flex-col md:flex-row gap-5">
+                                                            {/* Modern Vertical Nav */}
+                                                            <div className="w-full md:w-48 flex-shrink-0">
+                                                                <nav className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-gray-100 p-1.5 flex flex-col gap-0.5">
+                                                                    <button
+                                                                        onClick={() => setActiveTab('leave')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'leave'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
                                                                         }`}
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'leave' ? 'bg-blue-600' : 'bg-transparent'}`}></span>
+                                                                    >
+                                                                        {activeTab === 'leave' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'leave' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                                                        </svg>
                                                                         Leave Balances
-                                                                    </div>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setActiveTab('org')}
-                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'org'
-                                                                            ? 'border-purple-600 text-purple-600'
-                                                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setActiveTab('org')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'org'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
                                                                         }`}
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'org' ? 'bg-purple-600' : 'bg-transparent'}`}></span>
-                                                                        Organization Structure
-                                                                    </div>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setActiveTab('history')}
-                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'history'
-                                                                            ? 'border-emerald-600 text-emerald-600'
-                                                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                                                    >
+                                                                        {activeTab === 'org' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'org' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                                                                        </svg>
+                                                                        Org Structure
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setActiveTab('history')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'history'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
                                                                         }`}
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'history' ? 'bg-emerald-600' : 'bg-transparent'}`}></span>
+                                                                    >
+                                                                        {activeTab === 'history' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                        </svg>
                                                                         Yearly History
-                                                                    </div>
-                                                                </button>
+                                                                    </button>
+                                                                </nav>
                                                             </div>
 
-                                                            {/* Tab Content */}
+                                                            {/* Tab Content Panel */}
+                                                            <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm min-w-0">
                                                             {activeTab === 'leave' && (
                                                                 <div>
                                                                     <div className="flex items-center justify-between mb-4">
@@ -2048,6 +2057,7 @@ const Users = () => {
                                                                     )}
                                                                 </div>
                                                             )}
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </td>
