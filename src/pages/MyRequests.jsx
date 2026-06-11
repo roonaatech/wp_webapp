@@ -115,6 +115,7 @@ const MyRequests = () => {
     const [odStartTime, setOdStartTime] = useState(null);
     const [myOnDuty, setMyOnDuty] = useState([]);
     const [onDutyLoading, setOnDutyLoading] = useState(false);
+    const [odEndLocation, setOdEndLocation] = useState('');
 
     // ── Time-Off State ──
     const [toDate, setToDate] = useState('');
@@ -145,6 +146,7 @@ const MyRequests = () => {
     const [editOdLocation, setEditOdLocation] = useState('');
     const [editOdPurpose, setEditOdPurpose] = useState('');
     const [editOdSubmitting, setEditOdSubmitting] = useState(false);
+    const [editOdEndLocation, setEditOdEndLocation] = useState('');
 
     const [editingTimeOff, setEditingTimeOff] = useState(null);
     const [editToDate, setEditToDate] = useState('');
@@ -326,10 +328,15 @@ const MyRequests = () => {
     };
 
     const handleEndOnDuty = async () => {
+        if (!odEndLocation.trim()) {
+            toast.error('Please fill End Location');
+            return;
+        }
         setOdSubmitting(true);
         try {
             const coords = await getCurrentLocation();
             await axios.post(`${API_BASE_URL}/api/onduty/end`, {
+                end_location: odEndLocation.trim(),
                 latitude: coords.latitude,
                 longitude: coords.longitude
             }, { headers });
@@ -339,6 +346,7 @@ const MyRequests = () => {
             setOdClientName('');
             setOdLocation('');
             setOdPurpose('');
+            setOdEndLocation('');
             setOdStartTime(null);
             fetchMyOnDuty(); // refresh history
         } catch (e) {
@@ -472,16 +480,17 @@ const MyRequests = () => {
     };
 
     const startEditOnDuty = (od) => {
-        const clientName = od.title ? od.title.replace('On-Duty: ', '') : od.client_name || '';
+        const clientName = od.client_name || (od.title ? od.title.replace('On-Duty: ', '') : '');
         const parts = od.subtitle ? od.subtitle.split(' - ') : [];
         setEditingOnDuty(od.id);
         setEditOdClient(clientName);
-        setEditOdLocation(parts[0] || od.location || '');
-        setEditOdPurpose(parts.slice(1).join(' - ') || od.purpose || '');
+        setEditOdLocation(od.location || parts[0] || '');
+        setEditOdPurpose(od.purpose || parts.slice(1).join(' - ') || '');
+        setEditOdEndLocation(od.end_location || '');
     };
 
     const handleEditOnDuty = async (id) => {
-        if (!editOdClient.trim() || !editOdLocation.trim() || !editOdPurpose.trim()) {
+        if (!editOdClient.trim() || !editOdLocation.trim() || !editOdPurpose.trim() || !editOdEndLocation.trim()) {
             toast.error('Please fill all fields');
             return;
         }
@@ -490,7 +499,8 @@ const MyRequests = () => {
             await axios.put(`${API_BASE_URL}/api/onduty/${id}`, {
                 client_name: editOdClient.trim(),
                 location: editOdLocation.trim(),
-                purpose: editOdPurpose.trim()
+                purpose: editOdPurpose.trim(),
+                end_location: editOdEndLocation.trim()
             }, { headers });
             toast.success('On-Duty updated!');
             setEditingOnDuty(null);
@@ -1139,7 +1149,7 @@ const MyRequests = () => {
                                         <div className="flex items-center gap-3">
                                             <span className="text-lg">📍</span>
                                             <div>
-                                                <p className="text-[10px] text-white/60 font-semibold">Location</p>
+                                                <p className="text-[10px] text-white/60 font-semibold">Start Location</p>
                                                 <p className="text-sm font-bold">{odLocation}</p>
                                             </div>
                                         </div>
@@ -1170,6 +1180,21 @@ const MyRequests = () => {
                                         </div>
                                     </div>
                                 )}
+
+                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">End Location</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg">🏁</span>
+                                        <input
+                                            type="text"
+                                            value={odEndLocation}
+                                            onChange={(e) => setOdEndLocation(e.target.value)}
+                                            placeholder="Enter End Location"
+                                            required
+                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all placeholder:text-gray-400 text-gray-800"
+                                        />
+                                    </div>
+                                </div>
 
                                 <button
                                     onClick={handleEndOnDuty}
@@ -1208,14 +1233,14 @@ const MyRequests = () => {
                                 </div>
 
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Location</label>
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Start Location</label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg">📍</span>
                                         <input
                                             type="text"
                                             value={odLocation}
                                             onChange={(e) => setOdLocation(e.target.value)}
-                                            placeholder="Enter location"
+                                            placeholder="Enter start location"
                                             className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all"
                                         />
                                     </div>
@@ -1297,7 +1322,11 @@ const MyRequests = () => {
                                             </div>
                                             <div className="relative">
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base">📍</span>
-                                                <input type="text" value={editOdLocation} onChange={(e) => setEditOdLocation(e.target.value)} placeholder="Location" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
+                                                <input type="text" value={editOdLocation} onChange={(e) => setEditOdLocation(e.target.value)} placeholder="Start Location" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
+                                            </div>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base">🏁</span>
+                                                <input type="text" value={editOdEndLocation} onChange={(e) => setEditOdEndLocation(e.target.value)} placeholder="End Location" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
                                             </div>
                                             <div className="relative">
                                                 <span className="absolute left-3 top-3 text-base">📝</span>

@@ -1,9 +1,9 @@
 import React from 'react';
 import { FiMapPin } from 'react-icons/fi';
 
-const OnDutyLocationMap = ({ startLat, startLong, endLat, endLong, clientName, location }) => {
+const OnDutyLocationMap = ({ startLat, startLong, endLat, endLong, clientName, location, endLocation }) => {
     // Debug logging
-    console.log('OnDutyLocationMap props:', { startLat, startLong, endLat, endLong, clientName, location });
+    console.log('OnDutyLocationMap props:', { startLat, startLong, endLat, endLong, clientName, location, endLocation });
 
     // Try loading key from database-backed settings stored in localStorage, otherwise fallback to compile-time env
     const settings = (() => {
@@ -81,7 +81,7 @@ const OnDutyLocationMap = ({ startLat, startLong, endLat, endLong, clientName, l
                                     <FiMapPin className="w-4 h-4 mr-2" />
                                     End Location
                                 </h4>
-                                <p className="text-sm text-red-700 mt-1">{location || clientName}</p>
+                                <p className="text-sm text-red-700 mt-1">{endLocation || clientName}</p>
                             </div>
                             <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full">End</span>
                         </div>

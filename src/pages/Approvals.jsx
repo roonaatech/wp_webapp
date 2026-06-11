@@ -195,18 +195,20 @@ const Approvals = () => {
 
             const onDuty = allRequests.filter(item => item.type === 'on_duty').map(item => {
                 const reasonMatch = item.reason.match(/^(.+?)\s*\((.+?)\)$/);
-                const location = reasonMatch ? reasonMatch[2] : '';
+                const location = item.location || (reasonMatch ? reasonMatch[2] : '');
+                const end_location = item.end_location || '';
                 return {
                     id: item.id,
                     staff_id: item.staff_id,
                     tblstaff: item.tblstaff,
-                    client_name: item.title.replace('On-Duty: ', ''),
-                    purpose: reasonMatch ? reasonMatch[1] : item.reason,
+                    client_name: item.client_name || item.title.replace('On-Duty: ', ''),
+                    purpose: item.purpose || (reasonMatch ? reasonMatch[1] : item.reason),
                     start_time: item.start_date,
                     end_time: item.end_date,
                     status: item.status,
                     rejection_reason: item.rejection_reason,
                     location: location,
+                    end_location: end_location,
                     manager_id: item.manager_id,
                     approver: item.approver,
                     createdAt: item.createdAt,
@@ -1210,7 +1212,10 @@ const Approvals = () => {
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <p className="text-sm font-medium text-gray-900">{req.client_name}</p>
-                                                        <p className="text-xs text-gray-500">{req.location || 'Remote'}</p>
+                                                        <p className="text-xs text-gray-500">
+                                                            Start: {req.location || 'Remote'}
+                                                            {req.end_location && ` | End: ${req.end_location}`}
+                                                        </p>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-900">
                                                         {formatDateOnly(req.start_time)}
@@ -1554,12 +1559,16 @@ const Approvals = () => {
                                         {detailsModal.type === 'leave' ? detailsModal.item.leave_type : (detailsModal.type === 'timeoff' ? 'Time-Off' : detailsModal.item.client_name)}
                                     </p>
                                     {detailsModal.type === 'onduty' && (
-                                        <p className="text-sm text-[#2E5090] font-medium flex items-center gap-1">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                                <path fillRule="evenodd" d="m9.69 18.94.027.013a2.358 2.358 0 0 0 2.566-.013l.027-.013c.12-.058.214-.144.3-.23.111-.11.23-.235.343-.352l.006-.006c.928-.971 1.636-1.742 2.146-2.583.506-.833.76-1.614.76-2.345 0-2.433-2.029-4.409-4.528-4.409-2.5 0-4.528 1.976-4.528 4.409 0 .731.254 1.512.759 2.345.51.841 1.218 1.612 2.147 2.583l.006.006c.113.117.232.243.343.352.086.086.18.172.3.23ZM10 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
-                                            </svg>
-                                            {detailsModal.item.location || 'Client Office'}
-                                        </p>
+                                        <div className="text-sm text-gray-500 font-medium space-y-1">
+                                            <p className="flex items-center gap-1">
+                                                <span className="text-[#2E5090] font-semibold">Start:</span> {detailsModal.item.location || 'Client Office'}
+                                            </p>
+                                            {detailsModal.item.end_location && (
+                                                <p className="flex items-center gap-1">
+                                                    <span className="text-[#2E5090] font-semibold">End:</span> {detailsModal.item.end_location}
+                                                </p>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                                 <div className="space-y-1">
@@ -1613,6 +1622,7 @@ const Approvals = () => {
                                         endLong={detailsModal.item.end_long}
                                         clientName={detailsModal.item.client_name}
                                         location={detailsModal.item.location}
+                                        endLocation={detailsModal.item.end_location}
                                     />
                                 </div>
                             )}

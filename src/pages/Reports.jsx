@@ -341,7 +341,7 @@ const Reports = () => {
                     isLeave ? formatDateOnly(report.start_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.start_time)}` : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A'),
                     isLeave ? formatDateOnly(report.end_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.end_time)}` : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A'),
                     duration,
-                    isLeave || isTimeOff ? 'N/A' : (report.location || 'N/A'),
+                    isLeave || isTimeOff ? 'N/A' : (report.end_location ? `${report.location || 'Remote'} to ${report.end_location}` : (report.location || 'N/A')),
                     isLeave ? (report.reason || 'N/A') : isTimeOff ? (report.reason || 'N/A') : (report.purpose || 'N/A'),
                     activityStatus,
                     approvalStatus,
@@ -470,19 +470,6 @@ const Reports = () => {
             ) : (
             <>
 
-            {/* Export Button for Detailed */}
-            <div className="mb-4 flex justify-end">
-                <button
-                    onClick={downloadCSV}
-                    disabled={reports.length === 0}
-                    className="group relative overflow-hidden px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center gap-2 z-10"
-                >
-                    <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
-                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
-                    📥 Export to CSV
-                </button>
-            </div>
-
             {/* Error Message */}
             {error && (
                 <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -514,7 +501,7 @@ const Reports = () => {
 
             {/* Filters */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Record Type</label>
                         <select
@@ -631,6 +618,17 @@ const Reports = () => {
                             <option value="active">Active</option>
                         </select>
                     </div>
+                    <div>
+                        <button
+                            onClick={downloadCSV}
+                            disabled={reports.length === 0}
+                            className="group relative overflow-hidden w-full px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center justify-center gap-2 z-10"
+                        >
+                            <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
+                            <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                            📥 Export
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -706,7 +704,7 @@ const Reports = () => {
                                     const days = calculateLeaveDays(effectiveStart, effectiveEnd) - (report.is_half_day === true || report.is_half_day === 1 ? 0.5 : 0);
                                     return `${days} day(s)`;
                                 })() : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
-                                const locationCell = isLeave || isTimeOff ? 'N/A' : (report.location || report.client_name || 'N/A');
+                                const locationCell = isLeave || isTimeOff ? 'N/A' : (report.end_location ? `${report.location || 'Remote'} to ${report.end_location}` : (report.location || report.client_name || 'N/A'));
                                 const statusCell = (report.type === 'leave' || report.type === 'timeoff') ? (report.status || 'N/A') : (report.check_out_time ? 'Completed' : 'Active');
 
                                 // Timestamps: backend may return camelCase or snake_case fields

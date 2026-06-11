@@ -243,7 +243,7 @@ const ActiveOnDuty = () => {
                                             onClick={() => handleSort('location')}
                                             className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                         >
-                                            Location <TableSortIcon column="location" sortConfig={sortConfig} />
+                                            Start Location <TableSortIcon column="location" sortConfig={sortConfig} />
                                         </button>
                                     </th>
                                     <th className="px-6 py-3 text-left">
@@ -335,7 +335,7 @@ const ActiveOnDuty = () => {
                                                                         <span className="ml-2 text-gray-900 font-medium">{record.client_name}</span>
                                                                     </p>
                                                                     <p>
-                                                                        <span className="text-gray-600">Location:</span>
+                                                                        <span className="text-gray-600">Start Location:</span>
                                                                         <span className="ml-2 text-gray-900">{record.location}</span>
                                                                     </p>
                                                                     <p>
