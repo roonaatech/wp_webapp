@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.8.0](https://github.com/roonaatech/wp_webapp/compare/v2.7.11...v2.8.0) (2026-06-11)
+
+
+### Features
+
+* add profile completion warnings and mandatory reporting manager field to employee onboarding and profiles, and reorganize sidebar navigation ([b96e408](https://github.com/roonaatech/wp_webapp/commit/b96e4088feb116baaec32a4030da063a17ecac57))
+
+
+### Code Refactoring
+
+* update grid layouts and column spans for onboarding form fields to improve responsive alignment ([12615aa](https://github.com/roonaatech/wp_webapp/commit/12615aa4dad377c62250cb1aec1cf40e993c9623))
+
 ### [2.7.11](https://github.com/roonaatech/wp_webapp/compare/v2.7.10...v2.7.11) (2026-06-05)
 
 ### [2.7.10](https://github.com/roonaatech/wp_webapp/compare/v2.7.9...v2.7.10) (2026-06-05)
