@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.8.4](https://github.com/roonaatech/wp_webapp/compare/v2.8.3...v2.8.4) (2026-06-12)
+
+
+### Features
+
+* reorder and display additional permission badges in roles list view ([2cecba3](https://github.com/roonaatech/wp_webapp/commit/2cecba3565d834ac3b616e38ea77972d01b1f278))
+
 ### [2.8.3](https://github.com/roonaatech/wp_webapp/compare/v2.8.2...v2.8.3) (2026-06-12)
 
 
