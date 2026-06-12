@@ -473,7 +473,7 @@ const Roles = () => {
                                 )}
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissions</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[320px]">Permissions</th>
                             <th className="px-6 py-3 text-left">
                                 {!hierarchyMode ? (
                                     <button
@@ -530,64 +530,64 @@ const Roles = () => {
                                         {getUserCount(role.id)} users
                                     </span>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-wrap gap-1">
+                                <td className="px-6 py-4 min-w-[320px] max-w-[400px]">
+                                    <div className="grid grid-cols-2 gap-x-2 gap-y-1">
                                         {role.can_approve_leave && role.can_approve_leave !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_approve_leave === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_approve_leave === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
                                                 Leave {role.can_approve_leave === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_approve_onduty && role.can_approve_onduty !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_approve_onduty === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_approve_onduty === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
                                                 OnDuty {role.can_approve_onduty === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_approve_timeoff && role.can_approve_timeoff !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_approve_timeoff === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_approve_timeoff === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
                                                 TimeOff {role.can_approve_timeoff === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_users && role.can_manage_users !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_manage_users === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_manage_users === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
                                                 Users {role.can_manage_users === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_view_users && role.can_view_users !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_view_users === 'all' ? 'bg-indigo-100 text-indigo-800' : 'bg-indigo-50 text-indigo-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_view_users === 'all' ? 'bg-indigo-100 text-indigo-800' : 'bg-indigo-50 text-indigo-700'}`}>
                                                 View Users {role.can_view_users === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_leave_types && (
-                                            <span className="px-2 py-1 text-xs rounded bg-purple-100 text-purple-800">LeaveTypes</span>
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center bg-purple-100 text-purple-800">LeaveTypes</span>
                                         )}
                                         {role.can_view_reports && role.can_view_reports !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_view_reports === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-blue-50 text-blue-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_view_reports === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-blue-50 text-blue-700'}`}>
                                                 Reports {role.can_view_reports === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_active_onduty && role.can_manage_active_onduty !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_manage_active_onduty === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_manage_active_onduty === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
                                                 Active OnDuty {role.can_manage_active_onduty === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_schedule && role.can_manage_schedule !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_manage_schedule === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_manage_schedule === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
                                                 Schedule {role.can_manage_schedule === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_view_activities && role.can_view_activities !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_view_activities === 'all' ? 'bg-cyan-100 text-cyan-800' : 'bg-cyan-50 text-cyan-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_view_activities === 'all' ? 'bg-cyan-100 text-cyan-800' : 'bg-cyan-50 text-cyan-700'}`}>
                                                 Activities {role.can_view_activities === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_email_settings && (
-                                            <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">Email Config</span>
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center bg-gray-100 text-gray-800">Email Config</span>
                                         )}
                                         {role.can_manage_onboarding && (
-                                            <span className="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-800">Onboarding</span>
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center bg-indigo-100 text-indigo-800">Onboarding</span>
                                         )}
                                         {role.can_manage_system_settings === 'all' && (
-                                            <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">System Settings</span>
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center bg-blue-100 text-blue-800">System Settings</span>
                                         )}
                                     </div>
                                 </td>
