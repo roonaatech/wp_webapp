@@ -141,6 +141,11 @@ const Calendar = () => {
     };
 
     const getEventsForDate = (day) => {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        if (date.getDay() === 0) {
+            return []; // Ignore Sunday (0)
+        }
+
         const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         let dayEvents = events.filter(event => event.date === dateStr);
         if (selectedEmployee) {
@@ -174,6 +179,12 @@ const Calendar = () => {
 
     const handleDateClickInternal = (day) => {
         setSelectedDate(day);
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        if (date.getDay() === 0) {
+            setSelectedEvents([]); // Ignore Sunday (0)
+            return;
+        }
+
         const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         let dayEvents = events.filter(event => event.date === dateStr);
         if (selectedEmployee) {
@@ -340,6 +351,9 @@ const Calendar = () => {
 
                         {/* Calendar days */}
                         {days.map((day) => {
+                            const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                            const isSunday = date.getDay() === 0;
+
                             const today = getCurrentInAppTimezone().full;
                             const isToday = today.getFullYear() === currentDate.getFullYear() &&
                                 today.getMonth() === currentDate.getMonth() &&
@@ -365,24 +379,26 @@ const Calendar = () => {
                                     dayClasses += ' bg-indigo-600 border-indigo-700';
                                 }
                             } else {
-                                dayTextClasses += ' text-gray-900';
-                                let bgColor = 'bg-white';
+                                dayTextClasses += isSunday ? ' text-gray-400' : ' text-gray-900';
+                                let bgColor = isSunday ? 'bg-gray-50' : 'bg-white';
                                 let borderColor = 'border-gray-200';
                                 if (isSelected) {
                                     bgColor = 'bg-blue-50';
                                     borderColor = 'border-blue-600';
-                                } else if ((hasLeave && hasOnDuty) || (hasLeave && hasTimeOff) || (hasOnDuty && hasTimeOff)) {
-                                    bgColor = 'bg-purple-50';
-                                    borderColor = 'border-purple-300';
-                                } else if (hasLeave) {
-                                    bgColor = 'bg-blue-50';
-                                    borderColor = 'border-blue-300';
-                                } else if (hasOnDuty) {
-                                    bgColor = 'bg-green-50';
-                                    borderColor = 'border-green-300';
-                                } else if (hasTimeOff) {
-                                    bgColor = 'bg-orange-50';
-                                    borderColor = 'border-orange-300';
+                                } else if (!isSunday) {
+                                    if ((hasLeave && hasOnDuty) || (hasLeave && hasTimeOff) || (hasOnDuty && hasTimeOff)) {
+                                        bgColor = 'bg-purple-50';
+                                        borderColor = 'border-purple-300';
+                                    } else if (hasLeave) {
+                                        bgColor = 'bg-blue-50';
+                                        borderColor = 'border-blue-300';
+                                    } else if (hasOnDuty) {
+                                        bgColor = 'bg-green-50';
+                                        borderColor = 'border-green-300';
+                                    } else if (hasTimeOff) {
+                                        bgColor = 'bg-orange-50';
+                                        borderColor = 'border-orange-300';
+                                    }
                                 }
                                 dayClasses += ` ${bgColor} ${borderColor}`;
                             }
@@ -426,6 +442,7 @@ const Calendar = () => {
                             <span className="text-sm text-gray-700">Leave</span>
                         </div>
                         <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full bg-green-500"></span>
                             <span className="text-sm text-gray-700">On-Duty</span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -575,7 +592,12 @@ const Calendar = () => {
                                 );
                             })
                         ) : (
-                            <p className="text-gray-500">No events for this day.</p>
+                            <p className="text-gray-500">
+                                {(() => {
+                                    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDate);
+                                    return date.getDay() === 0 ? 'Weekly Off (Sunday)' : 'No events for this day.';
+                                })()}
+                            </p>
                         )}
                     </div>
                 </div>

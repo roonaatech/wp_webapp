@@ -550,9 +550,9 @@ const OnboardEmployee = () => {
                 delete newErrors.email;
             }
 
-            if (!id && !formData.password) {
+            if (!id && !formData.send_welcome_email && !formData.password) {
                 newErrors.password = 'Password is required';
-            } else if (formData.password && formData.password.length < 6) {
+            } else if (!formData.send_welcome_email && formData.password && formData.password.length < 6) {
                 newErrors.password = 'Password must be at least 6 characters';
             } else {
                 delete newErrors.password;
@@ -641,9 +641,9 @@ const OnboardEmployee = () => {
         } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
             newErrors.email = 'Please provide a valid email address';
         }
-        if (!id && !formData.password) {
+        if (!id && !formData.send_welcome_email && !formData.password) {
             newErrors.password = 'Password is required';
-        } else if (formData.password && formData.password.length < 6) {
+        } else if (!formData.send_welcome_email && formData.password && formData.password.length < 6) {
             newErrors.password = 'Password must be at least 6 characters';
         }
         if (!formData.role) {
@@ -1052,7 +1052,7 @@ const OnboardEmployee = () => {
                                     ) : (
                                         <>
                                             <div>
-                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Primary Email (Official) <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Primary Email (Official) <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                                 <input
                                                     type="email"
                                                     name="email"
@@ -1063,7 +1063,7 @@ const OnboardEmployee = () => {
                                                 {errors.email && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.email}</p>}
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Secondary Email (Personal)</label>
+                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Secondary Email (Personal)</label>
                                                 <input
                                                     type="email"
                                                     name="secondary_email"
@@ -1073,9 +1073,9 @@ const OnboardEmployee = () => {
                                                 />
                                             </div>
 
-                                            {onboardingMode === 'manual' && !id && (
+                                            {onboardingMode === 'manual' && !id && !formData.send_welcome_email && (
                                                 <div>
-                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">
                                                         Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>
                                                     </label>
                                                     <input
@@ -1091,7 +1091,7 @@ const OnboardEmployee = () => {
                                             )}
 
                                             <div>
-                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Assign Role <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Assign Role <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                                 <select
                                                     name="role"
                                                     value={formData.role}
@@ -1107,7 +1107,7 @@ const OnboardEmployee = () => {
                                             </div>
 
                                             <div>
-                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Reporting Manager <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Reporting Manager <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                                 <select
                                                     name="approving_manager_id"
                                                     value={formData.approving_manager_id}
@@ -1276,7 +1276,7 @@ const OnboardEmployee = () => {
                                     {/* Core Identity Fields */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">First Name <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">First Name <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                             <input
                                                 type="text"
                                                 name="firstname"
@@ -1287,7 +1287,7 @@ const OnboardEmployee = () => {
                                             {errors.firstname && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.firstname}</p>}
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Last Name <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Last Name <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                             <input
                                                 type="text"
                                                 name="lastname"
@@ -1298,7 +1298,7 @@ const OnboardEmployee = () => {
                                             {errors.lastname && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.lastname}</p>}
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Gender <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Gender <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                             <select
                                                 name="gender"
                                                 value={formData.gender}
@@ -1316,7 +1316,7 @@ const OnboardEmployee = () => {
 
                                     <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Birthplace</label>
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Birthplace</label>
                                             <input
                                                 type="text"
                                                 name="birthplace"
@@ -1326,7 +1326,7 @@ const OnboardEmployee = () => {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Height / Weight</label>
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Height / Weight</label>
                                             <input
                                                 type="text"
                                                 name="height_weight"
@@ -1337,7 +1337,7 @@ const OnboardEmployee = () => {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Blood Group</label>
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Blood Group</label>
                                             <input
                                                 type="text"
                                                 name="blood_group"
@@ -1348,7 +1348,7 @@ const OnboardEmployee = () => {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Date of Birth <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Date of Birth <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                             <input
                                                 type="text"
                                                 name="date_of_birth"
@@ -1360,7 +1360,7 @@ const OnboardEmployee = () => {
                                             {errors.date_of_birth && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.date_of_birth}</p>}
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Age</label>
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Age</label>
                                             <input
                                                 type="number"
                                                 name="age"
