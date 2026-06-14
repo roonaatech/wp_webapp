@@ -102,8 +102,12 @@ const ViewEmployeeProfile = () => {
         e.preventDefault();
         setApprovalErrors({});
 
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!approvalForm.email) {
             setApprovalErrors(prev => ({ ...prev, email: 'Official email is required.' }));
+            return;
+        } else if (!emailRegex.test(approvalForm.email)) {
+            setApprovalErrors(prev => ({ ...prev, email: 'Please enter a valid email address.' }));
             return;
         }
         if (!approvalForm.role) {
