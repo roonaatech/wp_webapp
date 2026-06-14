@@ -742,7 +742,7 @@ const ViewEmployeeProfile = () => {
                         <h3 className="text-xl font-black text-[#1e1b4b] mb-2">Approve & Finalize Onboarding</h3>
                         <p className="text-sm text-slate-500 mb-6">Assign official credentials and system access details to finalize onboarding for this employee.</p>
 
-                        <form onSubmit={handleApproveSubmit} className="space-y-4">
+                        <form onSubmit={handleApproveSubmit} className="space-y-4" noValidate>
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Official Email Address <span className="text-rose-500">*</span></label>
                                 <input
