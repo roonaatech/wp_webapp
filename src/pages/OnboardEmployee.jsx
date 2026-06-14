@@ -19,8 +19,6 @@ const OnboardEmployee = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const [permissionChecked, setPermissionChecked] = useState(false);
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const userRoleObj = roles.find(r => r.id == currentUser.role);
     const [hasPermission, setHasPermission] = useState(false);
     const [activeTab, setActiveTab] = useState('personal');
     const [roles, setRoles] = useState([]);
@@ -35,6 +33,9 @@ const OnboardEmployee = () => {
     const [uploadingBulk, setUploadingBulk] = useState(false);
     const [bulkUploadSummary, setBulkUploadSummary] = useState(null);
     const [dragActive, setDragActive] = useState(false);
+
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userRoleObj = roles.find(r => r.id == currentUser.role);
 
     // Form State
     const [formData, setFormData] = useState({
