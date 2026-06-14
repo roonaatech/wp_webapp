@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.8.7](https://github.com/roonaatech/wp_webapp/compare/v2.8.6...v2.8.7) (2026-06-14)
+
+
+### Code Refactoring
+
+* remove ABiS credentials instruction section from login page ([b0ca548](https://github.com/roonaatech/wp_webapp/commit/b0ca548ad3c85a8c2e53a2c84f5c6145a7526500))
+
 ### [2.8.6](https://github.com/roonaatech/wp_webapp/compare/v2.8.5...v2.8.6) (2026-06-14)
 
 
