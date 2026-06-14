@@ -38,7 +38,7 @@ const ViewEmployeeProfile = () => {
             });
             setEmployee(response.data);
             setApprovalForm({
-                email: response.data.email || '',
+                email: '',
                 role: response.data.role || '',
                 approving_manager_id: response.data.approving_manager_id || '',
                 abis_access: response.data.abis_access || false
@@ -110,6 +110,10 @@ const ViewEmployeeProfile = () => {
             setApprovalErrors(prev => ({ ...prev, role: 'Role assignment is required.' }));
             return;
         }
+        if (!approvalForm.approving_manager_id) {
+            setApprovalErrors(prev => ({ ...prev, approving_manager_id: 'Reporting manager is required.' }));
+            return;
+        }
 
         setApproving(true);
         const token = localStorage.getItem('token');
@@ -131,7 +135,12 @@ const ViewEmployeeProfile = () => {
             fetchEmployeeProfile();
         } catch (err) {
             console.error('Error approving onboarding:', err);
-            toast.error(err.response?.data?.message || 'Failed to approve onboarding.');
+            const errMsg = err.response?.data?.message || 'Failed to approve onboarding.';
+            if (err.response?.status === 409 || errMsg.toLowerCase().includes('email')) {
+                setApprovalErrors(prev => ({ ...prev, email: errMsg }));
+            } else {
+                toast.error(errMsg);
+            }
         } finally {
             setApproving(false);
         }
@@ -731,7 +740,7 @@ const ViewEmployeeProfile = () => {
 
                         <form onSubmit={handleApproveSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Official Email Address</label>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Official Email Address <span className="text-rose-500">*</span></label>
                                 <input
                                     type="email"
                                     required
@@ -744,7 +753,7 @@ const ViewEmployeeProfile = () => {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Assign Role</label>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Assign Role <span className="text-rose-500">*</span></label>
                                 <select
                                     required
                                     value={approvalForm.role}
@@ -766,8 +775,9 @@ const ViewEmployeeProfile = () => {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Reporting Manager</label>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Reporting Manager <span className="text-rose-500">*</span></label>
                                 <select
+                                    required
                                     value={approvalForm.approving_manager_id}
                                     onChange={(e) => setApprovalForm(prev => ({ ...prev, approving_manager_id: e.target.value }))}
                                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
@@ -786,6 +796,7 @@ const ViewEmployeeProfile = () => {
                                         ))
                                     }
                                 </select>
+                                {approvalErrors.approving_manager_id && <p className="text-xs text-rose-500 mt-1 font-bold">{approvalErrors.approving_manager_id}</p>}
                             </div>
 
                             <div className="flex items-center gap-3 py-2">
