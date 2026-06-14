@@ -19,6 +19,8 @@ const OnboardEmployee = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const [permissionChecked, setPermissionChecked] = useState(false);
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userRoleObj = roles.find(r => r.id == currentUser.role);
     const [hasPermission, setHasPermission] = useState(false);
     const [activeTab, setActiveTab] = useState('personal');
     const [roles, setRoles] = useState([]);
@@ -1099,9 +1101,15 @@ const OnboardEmployee = () => {
                                                     className={`w-full px-4 py-3 rounded-xl border ${errors.role ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-indigo-500'} focus:outline-none focus:ring-2 bg-slate-50/50`}
                                                 >
                                                     <option value="">Select Role</option>
-                                                    {roles.map(r => (
-                                                        <option key={r.id} value={r.id}>{r.display_name}</option>
-                                                    ))}
+                                                    {roles
+                                                        .filter(r => {
+                                                            if (!userRoleObj) return true;
+                                                            return r.hierarchy_level >= userRoleObj.hierarchy_level;
+                                                        })
+                                                        .map(r => (
+                                                            <option key={r.id} value={r.id}>{r.display_name}</option>
+                                                        ))
+                                                    }
                                                 </select>
                                                 {errors.role && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.role}</p>}
                                             </div>
@@ -1115,11 +1123,20 @@ const OnboardEmployee = () => {
                                                     className={`w-full px-4 py-3 rounded-xl border ${errors.approving_manager_id ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-indigo-500'} focus:outline-none focus:ring-2 bg-slate-50/50`}
                                                 >
                                                     <option value="">Select Manager</option>
-                                                    {managers.map(m => (
-                                                        <option key={m.staffid || m.id} value={m.staffid || m.id}>
-                                                            {m.firstname} {m.lastname}
-                                                        </option>
-                                                    ))}
+                                                    {managers
+                                                        .filter(m => {
+                                                            const selectedRoleObj = roles.find(r => r.id == formData.role);
+                                                            if (!selectedRoleObj) return true;
+                                                            const managerRole = roles.find(r => r.id == m.role);
+                                                            if (!managerRole) return true;
+                                                            return managerRole.hierarchy_level <= selectedRoleObj.hierarchy_level;
+                                                        })
+                                                        .map(m => (
+                                                            <option key={m.staffid || m.id} value={m.staffid || m.id}>
+                                                                {m.firstname} {m.lastname} ({m.role_name || 'Manager/Admin'})
+                                                            </option>
+                                                        ))
+                                                    }
                                                 </select>
                                                 {errors.approving_manager_id && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.approving_manager_id}</p>}
                                             </div>
