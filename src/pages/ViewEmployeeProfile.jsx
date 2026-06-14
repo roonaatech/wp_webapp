@@ -773,9 +773,18 @@ const ViewEmployeeProfile = () => {
                                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
                                 >
                                     <option value="">Select reporting manager...</option>
-                                    {managers.map(m => (
-                                        <option key={m.staffid} value={m.staffid}>{m.firstname} {m.lastname} ({m.role_name || 'Manager/Admin'})</option>
-                                    ))}
+                                    {managers
+                                        .filter(m => {
+                                            const selectedRoleObj = roles.find(r => r.id == approvalForm.role);
+                                            if (!selectedRoleObj) return true;
+                                            const managerRole = roles.find(r => r.id == m.role);
+                                            if (!managerRole) return true;
+                                            return managerRole.hierarchy_level <= selectedRoleObj.hierarchy_level;
+                                        })
+                                        .map(m => (
+                                            <option key={m.staffid} value={m.staffid}>{m.firstname} {m.lastname} ({m.role_name || 'Manager/Admin'})</option>
+                                        ))
+                                    }
                                 </select>
                             </div>
 
