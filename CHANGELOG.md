@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.8.8](https://github.com/roonaatech/wp_webapp/compare/v2.8.7...v2.8.8) (2026-06-14)
+
+
+### Features
+
+* restrict system role selection based on user hierarchy level in ViewEmployeeProfile ([d72234b](https://github.com/roonaatech/wp_webapp/commit/d72234b3606ada739403b4e29c8d6f7d945cf825))
+
 ### [2.8.7](https://github.com/roonaatech/wp_webapp/compare/v2.8.6...v2.8.7) (2026-06-14)
 
 
