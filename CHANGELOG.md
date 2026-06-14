@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.8.6](https://github.com/roonaatech/wp_webapp/compare/v2.8.5...v2.8.6) (2026-06-14)
+
+
+### Features
+
+* add role-based navigation logic to handle redirects after first-time login flow ([4f89342](https://github.com/roonaatech/wp_webapp/commit/4f89342d0b9ca07ce9794ac9ae56b02336e8c9d6))
+
 ### [2.8.5](https://github.com/roonaatech/wp_webapp/compare/v2.8.4...v2.8.5) (2026-06-14)
 
 ### [2.8.4](https://github.com/roonaatech/wp_webapp/compare/v2.8.3...v2.8.4) (2026-06-12)
