@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.8.15](https://github.com/roonaatech/wp_webapp/compare/v2.8.14...v2.8.15) (2026-06-14)
+
+
+### Features
+
+* add email format validation to employee profile approval form ([4039dd6](https://github.com/roonaatech/wp_webapp/commit/4039dd657b455d27f0a231ee4351b6ea993d2062))
+
+
+### Bug Fixes
+
+* disable browser validation for onboarding approval form ([d06791c](https://github.com/roonaatech/wp_webapp/commit/d06791c566d6af0a7202b84ce24e5a7e6e3a486e))
+
 ### [2.8.14](https://github.com/roonaatech/wp_webapp/compare/v2.8.13...v2.8.14) (2026-06-14)
 
 
