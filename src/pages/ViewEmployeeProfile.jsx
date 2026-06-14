@@ -752,9 +752,15 @@ const ViewEmployeeProfile = () => {
                                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
                                 >
                                     <option value="">Select system role...</option>
-                                    {roles.map(r => (
-                                        <option key={r.id} value={r.id}>{r.display_name}</option>
-                                    ))}
+                                    {roles
+                                        .filter(r => {
+                                            if (!userRoleObj) return true;
+                                            return r.hierarchy_level >= userRoleObj.hierarchy_level;
+                                        })
+                                        .map(r => (
+                                            <option key={r.id} value={r.id}>{r.display_name}</option>
+                                        ))
+                                    }
                                 </select>
                                 {approvalErrors.role && <p className="text-xs text-rose-500 mt-1 font-bold">{approvalErrors.role}</p>}
                             </div>
