@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.8.14](https://github.com/roonaatech/wp_webapp/compare/v2.8.13...v2.8.14) (2026-06-14)
+
+
+### Bug Fixes
+
+* enforce mandatory approval fields, add validation, and improve error handling for employee onboarding ([f371631](https://github.com/roonaatech/wp_webapp/commit/f3716314ddfffc96622bc8192bdcf9715cad3009))
+
 ### [2.8.13](https://github.com/roonaatech/wp_webapp/compare/v2.8.12...v2.8.13) (2026-06-14)
 
 
