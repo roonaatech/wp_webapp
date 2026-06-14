@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { LuLock, LuShieldAlert, LuUserCheck, LuSignature, LuCheck, LuUndo2, LuArrowRight } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { formatDateOnly } from '../utils/timezone.util';
+import { fetchRoles, canAccessWebApp, isSelfServiceOnly } from '../utils/roleUtils';
 
 const FirstTimeLoginFlow = () => {
     const navigate = useNavigate();
@@ -223,8 +224,35 @@ const FirstTimeLoginFlow = () => {
         }
     };
 
-    const handleFinishFlow = () => {
+    const handleFinishFlow = async () => {
         setShowSuccessModal(false);
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        if (user && user.role) {
+            try {
+                // Ensure roles are cached/fetched
+                await fetchRoles();
+                
+                const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (isMobileDevice) {
+                    navigate('/my-requests');
+                    return;
+                }
+
+                if (!canAccessWebApp(user.role)) {
+                    navigate('/my-requests');
+                    return;
+                }
+
+                if (isSelfServiceOnly(user.role)) {
+                    navigate('/my-requests');
+                    return;
+                }
+            } catch (err) {
+                console.error('Error redirecting after first time login flow:', err);
+            }
+        }
+        
         navigate('/'); // Redirect to standard dashboard!
     };
 
