@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.8.10](https://github.com/roonaatech/wp_webapp/compare/v2.8.9...v2.8.10) (2026-06-14)
+
+
+### Features
+
+* filter reporting managers based on hierarchical level in ViewEmployeeProfile ([4b155a4](https://github.com/roonaatech/wp_webapp/commit/4b155a4ebc05e2769e2f848f7f15c302886686dc))
+* restrict employee roles and managers based on hierarchy levels during onboarding ([1aa8318](https://github.com/roonaatech/wp_webapp/commit/1aa831884abd243c7c543185ca669a77802043f7))
+
 ### [2.8.9](https://github.com/roonaatech/wp_webapp/compare/v2.8.8...v2.8.9) (2026-06-14)
 
 ### [2.8.8](https://github.com/roonaatech/wp_webapp/compare/v2.8.7...v2.8.8) (2026-06-14)
