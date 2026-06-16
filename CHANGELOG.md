@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.8.18](https://github.com/roonaatech/wp_webapp/compare/v2.8.17...v2.8.18) (2026-06-16)
+
+
+### Features
+
+* add mandatory date of birth validation with guided modal prompt in login flow ([05aab00](https://github.com/roonaatech/wp_webapp/commit/05aab003f275787f855f66b3f065cbd6ae559565))
+
 ### [2.8.17](https://github.com/roonaatech/wp_webapp/compare/v2.8.16...v2.8.17) (2026-06-16)
 
 
