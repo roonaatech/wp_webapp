@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.8.17](https://github.com/roonaatech/wp_webapp/compare/v2.8.16...v2.8.17) (2026-06-16)
+
+
+### Features
+
+* implement profile editing functionality with form management, input validation, and date formatting in FirstTimeLoginFlow ([d6110c6](https://github.com/roonaatech/wp_webapp/commit/d6110c6d3d8f81fac26c8a4ff1af8c07e8e5899d))
+
 ### [2.8.16](https://github.com/roonaatech/wp_webapp/compare/v2.8.15...v2.8.16) (2026-06-15)
 
 ### [2.8.15](https://github.com/roonaatech/wp_webapp/compare/v2.8.14...v2.8.15) (2026-06-14)
