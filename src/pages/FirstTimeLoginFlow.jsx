@@ -15,6 +15,19 @@ const FirstTimeLoginFlow = () => {
     const [auditData, setAuditData] = useState(null);
     const [auditLoading, setAuditLoading] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showDobModal, setShowDobModal] = useState(false);
+
+    const handleResolveDob = () => {
+        setShowDobModal(false);
+        setIsEditing(true);
+        setTimeout(() => {
+            const dobInput = document.getElementsByName('date_of_birth')[0];
+            if (dobInput) {
+                dobInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                dobInput.focus();
+            }
+        }, 100);
+    };
 
     // Initial flags from localStorage
     const mustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
@@ -386,6 +399,12 @@ const FirstTimeLoginFlow = () => {
         e.preventDefault();
         setPasswordError('');
 
+        if (!editForm.date_of_birth) {
+            setPasswordError('Date of birth is required.');
+            setShowDobModal(true);
+            return;
+        }
+
         if (!passwordData.password) {
             setPasswordError('New password is required.');
             return;
@@ -421,6 +440,7 @@ const FirstTimeLoginFlow = () => {
         }
         if (!editForm.date_of_birth) {
             setDeclarationError('Date of birth is required.');
+            setShowDobModal(true);
             return;
         }
 
@@ -459,6 +479,11 @@ const FirstTimeLoginFlow = () => {
     };
 
     const submitDeclaration = async (newPassword, signatureData = null) => {
+        if (!editForm.date_of_birth) {
+            toast.error('Date of birth is required.');
+            setShowDobModal(true);
+            return;
+        }
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -771,15 +796,15 @@ const FirstTimeLoginFlow = () => {
                                                 <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">System Account & Identity</h3>
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">First Name *</label>
+                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">First Name <span className="text-red-500 font-bold">*</span></label>
                                                         <input type="text" name="firstname" value={editForm.firstname} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" required />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Last Name *</label>
+                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Last Name <span className="text-red-500 font-bold">*</span></label>
                                                         <input type="text" name="lastname" value={editForm.lastname} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" required />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Gender *</label>
+                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Gender <span className="text-red-500 font-bold">*</span></label>
                                                         <select name="gender" value={editForm.gender} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" required>
                                                             <option value="">Select Gender</option>
                                                             <option value="Male">Male</option>
@@ -795,7 +820,7 @@ const FirstTimeLoginFlow = () => {
                                                 <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Personal Details</h3>
                                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date of Birth *</label>
+                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date of Birth <span className="text-red-500 font-bold">*</span></label>
                                                         <input type="text" name="date_of_birth" placeholder="dd/mm/yyyy" value={dobDisplay} onChange={handleDobChange} className={`w-full px-3 py-2 text-xs rounded-lg border ${errors.date_of_birth ? 'border-red-500' : 'border-slate-200'} focus:outline-none focus:ring-1 focus:ring-indigo-500`} required />
                                                         {errors.date_of_birth && <p className="text-red-500 text-[10px] mt-0.5">{errors.date_of_birth}</p>}
                                                     </div>
@@ -1414,6 +1439,29 @@ const FirstTimeLoginFlow = () => {
                             className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black hover:bg-indigo-700 transition-all text-xs uppercase tracking-widest shadow-lg shadow-indigo-200"
                         >
                             Enter Dashboard
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* DOB Required Modal */}
+            {showDobModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-modal-in">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center border border-slate-100">
+                        <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-rose-50/50">
+                            <LuShieldAlert size={42} />
+                        </div>
+                        <h3 className="text-2xl font-black text-[#1e1b4b] mb-2 uppercase tracking-tighter">Date of Birth Required</h3>
+                        <p className="text-slate-500 mb-6 leading-relaxed text-sm">
+                            A valid Date of Birth is required to complete your declaration and set your password. 
+                            <br /><br />
+                            Please click the button below to open edit mode and update your Date of Birth.
+                        </p>
+                        <button
+                            onClick={handleResolveDob}
+                            className="w-full py-4 bg-rose-600 text-white rounded-xl font-black hover:bg-rose-700 transition-all text-xs uppercase tracking-widest shadow-lg shadow-rose-200"
+                        >
+                            Update Date of Birth
                         </button>
                     </div>
                 </div>
