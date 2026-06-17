@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.8.19](https://github.com/roonaatech/wp_webapp/compare/v2.8.18...v2.8.19) (2026-06-17)
+
+
+### Features
+
+* implement format-aware date input utilities and integrate date auto-formatting and validation across onboarding and profile pages. ([91e999d](https://github.com/roonaatech/wp_webapp/commit/91e999dd116f6420009008f83d29e7ae7d618f63))
+
 ### [2.8.18](https://github.com/roonaatech/wp_webapp/compare/v2.8.17...v2.8.18) (2026-06-16)
 
 
