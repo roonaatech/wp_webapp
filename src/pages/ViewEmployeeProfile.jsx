@@ -1,13 +1,60 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail } from "react-icons/lu";
+import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding } from '../utils/roleUtils';
-import { formatDateOnly } from '../utils/timezone.util';
+import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 
 
+
+const calculateExperience = (dateOfJoining) => {
+    if (!dateOfJoining) return '';
+    try {
+        const joinDate = parseAppTimezone(dateOfJoining);
+        const today = getCurrentInAppTimezone().full;
+        if (!joinDate || isNaN(joinDate.getTime())) return '';
+
+        joinDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        if (joinDate > today) {
+            return 'Not started yet';
+        }
+
+        let years = today.getFullYear() - joinDate.getFullYear();
+        let months = today.getMonth() - joinDate.getMonth();
+        let days = today.getDate() - joinDate.getDate();
+
+        if (days < 0) {
+            months--;
+            const prevMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+            days += prevMonth.getDate();
+        }
+
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+
+        const parts = [];
+        if (years > 0) {
+            parts.push(`${years} year${years > 1 ? 's' : ''}`);
+        }
+        if (months > 0) {
+            parts.push(`${months} month${months > 1 ? 's' : ''}`);
+        }
+        if (days > 0 || parts.length === 0) {
+            parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+        }
+
+        return parts.join(', ');
+    } catch (e) {
+        console.error('Error calculating experience:', e);
+        return '';
+    }
+};
 
 const ViewEmployeeProfile = () => {
     const { id } = useParams();
@@ -17,12 +64,14 @@ const ViewEmployeeProfile = () => {
     const [roles, setRoles] = useState([]);
     const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
     const [managers, setManagers] = useState([]);
-    const [approvalForm, setApprovalForm] = useState({ email: '', role: '', approving_manager_id: '', abis_access: false });
+    const [approvalForm, setApprovalForm] = useState({ email: '', role: '', approving_manager_id: '', abis_access: false, date_of_joining: '' });
     const [approvalErrors, setApprovalErrors] = useState({});
     const [approving, setApproving] = useState(false);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [lightboxImage, setLightboxImage] = useState('');
     const [resendingEmail, setResendingEmail] = useState(false);
+    const [dojDisplay, setDojDisplay] = useState('');
+    const dojPickerRef = useRef(null);
 
     useEffect(() => {
         fetchEmployeeProfile();
@@ -41,13 +90,40 @@ const ViewEmployeeProfile = () => {
                 email: '',
                 role: response.data.role || '',
                 approving_manager_id: response.data.approving_manager_id || '',
-                abis_access: response.data.abis_access || false
+                abis_access: response.data.abis_access || false,
+                date_of_joining: response.data.profile_info?.date_of_joining || ''
             });
         } catch (err) {
             console.error('Error fetching employee profile:', err);
             toast.error('Failed to load employee profile.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDojChange = (e) => {
+        const formatted = autoFormatDateInput(e.target.value);
+        setDojDisplay(formatted);
+
+        const partialError = validatePartialDateInput(formatted);
+        if (partialError) {
+            setApprovalErrors(prev => ({ ...prev, date_of_joining: partialError }));
+            setApprovalForm(prev => ({ ...prev, date_of_joining: '' }));
+            return;
+        }
+
+        if (formatted.length === 10) {
+            const { parsed, error } = validateAndParseDate(formatted, { allowFuture: true });
+            if (error) {
+                setApprovalErrors(prev => ({ ...prev, date_of_joining: error }));
+                setApprovalForm(prev => ({ ...prev, date_of_joining: '' }));
+            } else {
+                setApprovalForm(prev => ({ ...prev, date_of_joining: parsed }));
+                setApprovalErrors(prev => { const u = { ...prev }; delete u.date_of_joining; return u; });
+            }
+        } else {
+            setApprovalForm(prev => ({ ...prev, date_of_joining: '' }));
+            setApprovalErrors(prev => { const u = { ...prev }; delete u.date_of_joining; return u; });
         }
     };
 
@@ -118,6 +194,10 @@ const ViewEmployeeProfile = () => {
             setApprovalErrors(prev => ({ ...prev, approving_manager_id: 'Reporting manager is required.' }));
             return;
         }
+        if (!approvalForm.date_of_joining) {
+            setApprovalErrors(prev => ({ ...prev, date_of_joining: 'Date of joining is required.' }));
+            return;
+        }
 
         setApproving(true);
         const token = localStorage.getItem('token');
@@ -128,7 +208,8 @@ const ViewEmployeeProfile = () => {
                     email: approvalForm.email,
                     role: approvalForm.role,
                     approving_manager_id: approvalForm.approving_manager_id || null,
-                    abis_access: approvalForm.abis_access
+                    abis_access: approvalForm.abis_access,
+                    date_of_joining: approvalForm.date_of_joining
                 },
                 {
                     headers: { 'x-access-token': token }
@@ -293,7 +374,10 @@ const ViewEmployeeProfile = () => {
                                 </span>
                             )}
                         </div>
-                        <p className="text-slate-500 font-medium text-sm mt-1">{roleName} • {employee.email}</p>
+                        <p className="text-slate-500 font-medium text-sm mt-1">
+                            {roleName} • {employee.email}
+                            {profile.date_of_joining ? ` • Experience: ${calculateExperience(profile.date_of_joining)}` : ''}
+                        </p>
 
                         {/* Profile Completion Score Progress Bar */}
                         <div className="flex items-center gap-3 mt-3">
@@ -404,6 +488,10 @@ const ViewEmployeeProfile = () => {
                             <div>
                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Date of Birth</p>
                                 <p className="font-semibold text-slate-700 mt-1">{profile.date_of_birth ? formatDateOnly(profile.date_of_birth) : 'Not filled'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Date of Joining</p>
+                                <p className="font-semibold text-slate-700 mt-1">{profile.date_of_joining ? formatDateOnly(profile.date_of_joining) : 'Not filled'}</p>
                             </div>
                             <div>
                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Birthplace</p>
@@ -801,6 +889,40 @@ const ViewEmployeeProfile = () => {
                                     }
                                 </select>
                                 {approvalErrors.approving_manager_id && <p className="text-xs text-rose-500 mt-1 font-bold">{approvalErrors.approving_manager_id}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Date of Joining <span className="text-rose-500">*</span></label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder={getDateInputPlaceholder()}
+                                        value={dojDisplay}
+                                        onChange={handleDojChange}
+                                        className="w-full pr-10 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => dojPickerRef.current && dojPickerRef.current.showPicker()}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 focus:outline-none transition-colors"
+                                        title="Choose date"
+                                    >
+                                        <LuCalendar className="w-5 h-5" />
+                                    </button>
+                                    <input
+                                        type="date"
+                                        ref={dojPickerRef}
+                                        onChange={(e) => {
+                                            if (e.target.value) {
+                                                const displayVal = isoToDisplayDate(e.target.value);
+                                                handleDojChange({ target: { value: displayVal } });
+                                            }
+                                        }}
+                                        style={{ opacity: 0, width: 0, height: 0, position: 'absolute', pointerEvents: 'none' }}
+                                    />
+                                </div>
+                                {approvalErrors.date_of_joining && <p className="text-xs text-rose-500 mt-1 font-bold">{approvalErrors.date_of_joining}</p>}
                             </div>
 
                             <div className="flex items-center gap-3 py-2">

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuUser, LuContact, LuGraduationCap, LuCoins, LuFileUp, LuPlus, LuTrash2, LuSave, LuArrowLeft, LuShieldAlert, LuCamera } from "react-icons/lu";
+import { LuUser, LuContact, LuGraduationCap, LuCoins, LuFileUp, LuPlus, LuTrash2, LuSave, LuArrowLeft, LuShieldAlert, LuCamera, LuCalendar } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { fetchRoles as fetchRolesUtil, getRoleById } from '../utils/roleUtils';
-import { getAppDateFormat } from '../utils/timezone.util';
+import { getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate } from '../utils/timezone.util';
 
 const TABS = [
     { id: 'personal', name: 'Personal Details', icon: <LuContact /> },
@@ -27,6 +27,9 @@ const OnboardEmployee = () => {
     const [errors, setErrors] = useState({});
     const [existingDocs, setExistingDocs] = useState([]);
     const [dobDisplay, setDobDisplay] = useState('');
+    const [dojDisplay, setDojDisplay] = useState('');
+    const dobPickerRef = useRef(null);
+    const dojPickerRef = useRef(null);
 
     const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
     const [bulkFile, setBulkFile] = useState(null);
@@ -50,6 +53,7 @@ const OnboardEmployee = () => {
         gender: '',
         abis_access: false,
         send_welcome_email: true,
+        date_of_joining: '',
 
         // Personal
         birthplace: '',
@@ -169,6 +173,9 @@ const OnboardEmployee = () => {
                     if (savedForm.date_of_birth) {
                         setDobDisplay(formatDateForInput(savedForm.date_of_birth));
                     }
+                    if (savedForm.date_of_joining) {
+                        setDojDisplay(formatDateForInput(savedForm.date_of_joining));
+                    }
                 }
                 if (savedEdu) setEducations(savedEdu);
                 if (savedExp) setExperiences(savedExp);
@@ -231,6 +238,7 @@ const OnboardEmployee = () => {
                 approving_manager_id: emp.approving_manager_id || '',
                 gender: emp.gender || '',
                 abis_access: emp.abis_access || false,
+                date_of_joining: profile.date_of_joining || '',
 
                 birthplace: profile.birthplace || '',
                 height_weight: profile.height_weight || '',
@@ -277,6 +285,9 @@ const OnboardEmployee = () => {
             if (profile.date_of_birth) {
                 setDobDisplay(formatDateForInput(profile.date_of_birth));
             }
+            if (profile.date_of_joining) {
+                setDojDisplay(formatDateForInput(profile.date_of_joining));
+            }
 
         } catch (err) {
             console.error('Error fetching employee profile:', err);
@@ -313,126 +324,67 @@ const OnboardEmployee = () => {
         }
     };
 
-    const formatDateForInput = (dateStr) => {
-        if (!dateStr) return '';
-        const parts = dateStr.split('-');
-        if (parts.length !== 3) return dateStr;
-        const [y, m, d] = parts;
-        return `${d}/${m}/${y}`;
+    const formatDateForInput = (dateStr) => isoToDisplayDate(dateStr);
+
+    const handleDojChange = (e) => {
+        const formatted = autoFormatDateInput(e.target.value);
+        setDojDisplay(formatted);
+
+        // Partial validation while typing
+        const partialError = validatePartialDateInput(formatted);
+        if (partialError) {
+            setErrors(prev => ({ ...prev, date_of_joining: partialError }));
+            setFormData(prev => ({ ...prev, date_of_joining: '' }));
+            return;
+        }
+
+        // Full validation when complete
+        if (formatted.length === 10) {
+            const { parsed, error } = validateAndParseDate(formatted, { allowFuture: true });
+            if (error) {
+                setErrors(prev => ({ ...prev, date_of_joining: error }));
+                setFormData(prev => ({ ...prev, date_of_joining: '' }));
+            } else {
+                setFormData(prev => ({ ...prev, date_of_joining: parsed }));
+                setErrors(prev => { const u = { ...prev }; delete u.date_of_joining; return u; });
+            }
+        } else {
+            setFormData(prev => ({ ...prev, date_of_joining: '' }));
+            setErrors(prev => { const u = { ...prev }; delete u.date_of_joining; return u; });
+        }
     };
 
     const handleDobChange = (e) => {
-        let val = e.target.value;
-        
-        // Remove all non-digits
-        let digits = val.replace(/\D/g, '');
-        if (digits.length > 8) digits = digits.substring(0, 8);
-        
-        let formatted = digits;
-        if (digits.length > 2 && digits.length <= 4) {
-            formatted = `${digits.substring(0, 2)}/${digits.substring(2)}`;
-        } else if (digits.length > 4) {
-            formatted = `${digits.substring(0, 2)}/${digits.substring(2, 4)}/${digits.substring(4)}`;
-        }
-        
+        const formatted = autoFormatDateInput(e.target.value);
         setDobDisplay(formatted);
 
-        let parsed = '';
-        let dobError = null;
+        // Partial validation while typing
+        const partialError = validatePartialDateInput(formatted);
+        if (partialError) {
+            setErrors(prev => ({ ...prev, date_of_birth: partialError }));
+            setFormData(prev => ({ ...prev, date_of_birth: '', age: '' }));
+            return;
+        }
 
-        // Instant realistic validation
-        if (formatted.length >= 2) {
-            const day = parseInt(formatted.substring(0, 2), 10);
-            if (day < 1 || day > 31) {
-                dobError = "Day must be between 01 and 31";
-            }
-        }
-        if (!dobError && formatted.length >= 5) {
-            const month = parseInt(formatted.substring(3, 5), 10);
-            if (month < 1 || month > 12) {
-                dobError = "Month must be between 01 and 12";
-            }
-        }
-        if (!dobError && formatted.length === 10) {
-            const parts = formatted.split('/');
-            const d = parseInt(parts[0], 10);
-            const m = parseInt(parts[1], 10);
-            const y = parseInt(parts[2], 10);
-            
-            const currentYear = new Date().getFullYear();
-            if (y < 1900) {
-                dobError = "Year must be 1900 or later";
-            } else if (y > currentYear) {
-                dobError = "Date of birth cannot be in the future";
+        // Full validation when complete
+        if (formatted.length === 10) {
+            const { parsed, error } = validateAndParseDate(formatted, { allowFuture: false, maxAge: 120 });
+            if (error) {
+                setErrors(prev => ({ ...prev, date_of_birth: error }));
+                setFormData(prev => ({ ...prev, date_of_birth: '', age: '' }));
             } else {
-                const daysInMonth = [31, (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-                if (d > daysInMonth[m - 1]) {
-                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                    dobError = `${monthNames[m - 1]} ${y} only has ${daysInMonth[m - 1]} days`;
-                } else {
-                    const dateObj = new Date(y, m - 1, d);
-                    const today = new Date();
-                    if (dateObj > today) {
-                        dobError = "Date of birth cannot be in the future";
-                    } else if (today.getFullYear() - y > 120) {
-                        dobError = "Please enter a realistic year";
-                    } else {
-                        parsed = `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
-                    }
-                }
+                const birthDate = new Date(parsed);
+                const today = new Date();
+                let ageVal = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) ageVal--;
+                const calculatedAge = ageVal >= 0 ? ageVal : '';
+                setFormData(prev => ({ ...prev, date_of_birth: parsed, age: calculatedAge }));
+                setErrors(prev => { const u = { ...prev }; delete u.date_of_birth; return u; });
             }
-        }
-
-        if (dobError) {
-            setErrors(prev => ({ ...prev, date_of_birth: dobError }));
-            setFormData(prev => ({
-                ...prev,
-                date_of_birth: '',
-                age: ''
-            }));
-        } else if (formatted.length === 10 && parsed) {
-            let calculatedAge = '';
-            const birthDate = new Date(parsed);
-            const today = new Date();
-            let ageVal = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                ageVal--;
-            }
-            calculatedAge = ageVal >= 0 ? ageVal : '';
-
-            setFormData(prev => ({
-                ...prev,
-                date_of_birth: parsed,
-                age: calculatedAge
-            }));
-
-            setErrors(prev => {
-                const updated = { ...prev };
-                delete updated.date_of_birth;
-                return updated;
-            });
         } else {
-            setFormData(prev => ({
-                ...prev,
-                date_of_birth: '',
-                age: ''
-            }));
-            
-            if (formatted.length < 10) {
-                setErrors(prev => {
-                    const updated = { ...prev };
-                    if (updated.date_of_birth && (
-                        updated.date_of_birth.includes("only has") || 
-                        updated.date_of_birth.includes("future") || 
-                        updated.date_of_birth.includes("realistic year") ||
-                        updated.date_of_birth.includes("1900 or later")
-                    )) {
-                        delete updated.date_of_birth;
-                    }
-                    return updated;
-                });
-            }
+            setFormData(prev => ({ ...prev, date_of_birth: '', age: '' }));
+            setErrors(prev => { const u = { ...prev }; delete u.date_of_birth; return u; });
         }
     };
 
@@ -538,7 +490,7 @@ const OnboardEmployee = () => {
             }
 
             if (!formData.date_of_birth) {
-                newErrors.date_of_birth = 'Date of birth is required (format: dd/mm/yyyy)';
+                newErrors.date_of_birth = `Date of birth is required (format: ${getDateInputPlaceholder()})`;
             } else {
                 delete newErrors.date_of_birth;
             }
@@ -572,6 +524,12 @@ const OnboardEmployee = () => {
             } else {
                 delete newErrors.approving_manager_id;
             }
+
+            if (!formData.date_of_joining) {
+                newErrors.date_of_joining = 'Date of joining is required';
+            } else {
+                delete newErrors.date_of_joining;
+            }
         }
 
         setErrors(newErrors);
@@ -591,10 +549,10 @@ const OnboardEmployee = () => {
             return isValid;
         }
         if (tabId === 'system') {
-            const isValid = !newErrors.email && !newErrors.password && !newErrors.role && !newErrors.approving_manager_id;
+            const isValid = !newErrors.email && !newErrors.password && !newErrors.role && !newErrors.approving_manager_id && !newErrors.date_of_joining;
             if (!isValid) {
                 setTimeout(() => {
-                    const firstErrorField = ['email', 'password', 'role', 'approving_manager_id'].find(
+                    const firstErrorField = ['email', 'password', 'role', 'approving_manager_id', 'date_of_joining'].find(
                         field => newErrors[field]
                     );
                     if (firstErrorField) {
@@ -635,7 +593,7 @@ const OnboardEmployee = () => {
             newErrors.gender = 'Gender selection is required';
         }
         if (!formData.date_of_birth) {
-            newErrors.date_of_birth = 'Date of birth is required (format: dd/mm/yyyy)';
+            newErrors.date_of_birth = `Date of birth is required (format: ${getDateInputPlaceholder()})`;
         }
 
         // System tab fields
@@ -654,6 +612,9 @@ const OnboardEmployee = () => {
         }
         if (!formData.approving_manager_id) {
             newErrors.approving_manager_id = 'Reporting manager is required';
+        }
+        if (!formData.date_of_joining) {
+            newErrors.date_of_joining = 'Date of joining is required';
         }
 
         setErrors(newErrors);
@@ -678,10 +639,10 @@ const OnboardEmployee = () => {
                             document.querySelector(`[name="${firstErrorField}"]`)?.focus();
                         }
                     }, 100);
-                } else if (validationErrors.email || validationErrors.password || validationErrors.role || validationErrors.approving_manager_id) {
+                } else if (validationErrors.email || validationErrors.password || validationErrors.role || validationErrors.approving_manager_id || validationErrors.date_of_joining) {
                     setActiveTab('system');
                     setTimeout(() => {
-                        const firstErrorField = ['email', 'password', 'role', 'approving_manager_id'].find(
+                        const firstErrorField = ['email', 'password', 'role', 'approving_manager_id', 'date_of_joining'].find(
                             field => validationErrors[field]
                         );
                         if (firstErrorField) {
@@ -1142,6 +1103,40 @@ const OnboardEmployee = () => {
                                                 {errors.approving_manager_id && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.approving_manager_id}</p>}
                                             </div>
 
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Date of Joining <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        name="date_of_joining"
+                                                        placeholder={getDateInputPlaceholder()}
+                                                        value={dojDisplay}
+                                                        onChange={handleDojChange}
+                                                        className={`w-full pr-10 px-4 py-3 rounded-xl border ${errors.date_of_joining ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-indigo-500'} focus:outline-none focus:ring-2 bg-slate-50/50 text-xs font-semibold text-slate-700`}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => dojPickerRef.current && dojPickerRef.current.showPicker()}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 focus:outline-none transition-colors"
+                                                        title="Choose date"
+                                                    >
+                                                        <LuCalendar className="w-5 h-5" />
+                                                    </button>
+                                                    <input
+                                                        type="date"
+                                                        ref={dojPickerRef}
+                                                        onChange={(e) => {
+                                                            if (e.target.value) {
+                                                                const displayVal = isoToDisplayDate(e.target.value);
+                                                                handleDojChange({ target: { value: displayVal } });
+                                                            }
+                                                        }}
+                                                        style={{ opacity: 0, width: 0, height: 0, position: 'absolute', pointerEvents: 'none' }}
+                                                    />
+                                                </div>
+                                                {errors.date_of_joining && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.date_of_joining}</p>}
+                                            </div>
+
                                             <div className="flex items-center gap-3 bg-slate-50/80 p-4 rounded-xl border border-slate-100 mt-4 md:col-span-3">
                                                 <input
                                                     type="checkbox"
@@ -1367,14 +1362,35 @@ const OnboardEmployee = () => {
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 h-5 leading-5">Date of Birth <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
-                                            <input
-                                                type="text"
-                                                name="date_of_birth"
-                                                placeholder="dd/mm/yyyy"
-                                                value={dobDisplay}
-                                                onChange={handleDobChange}
-                                                className={`w-full px-4 py-3 rounded-xl border ${errors.date_of_birth ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-indigo-500'} focus:outline-none focus:ring-2 bg-slate-50/50`}
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    name="date_of_birth"
+                                                    placeholder={getDateInputPlaceholder()}
+                                                    value={dobDisplay}
+                                                    onChange={handleDobChange}
+                                                    className={`w-full pr-10 px-4 py-3 rounded-xl border ${errors.date_of_birth ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-indigo-500'} focus:outline-none focus:ring-2 bg-slate-50/50`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => dobPickerRef.current && dobPickerRef.current.showPicker()}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 focus:outline-none transition-colors"
+                                                    title="Choose date"
+                                                >
+                                                    <LuCalendar className="w-5 h-5" />
+                                                </button>
+                                                <input
+                                                    type="date"
+                                                    ref={dobPickerRef}
+                                                    onChange={(e) => {
+                                                        if (e.target.value) {
+                                                            const displayVal = isoToDisplayDate(e.target.value);
+                                                            handleDobChange({ target: { value: displayVal } });
+                                                        }
+                                                    }}
+                                                    style={{ opacity: 0, width: 0, height: 0, position: 'absolute', pointerEvents: 'none' }}
+                                                />
+                                            </div>
                                             {errors.date_of_birth && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.date_of_birth}</p>}
                                         </div>
                                         <div>

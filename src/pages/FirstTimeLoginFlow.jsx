@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'react-hot-toast'; // Wait, let's keep axios as is: import axios from 'axios' and toast from 'react-hot-toast'
 import axiosInstance from 'axios'; // Actually the original was: import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuLock, LuShieldAlert, LuUserCheck, LuSignature, LuCheck, LuUndo2, LuArrowRight, LuPlus, LuTrash2, LuUser, LuEye } from "react-icons/lu";
+import { LuLock, LuShieldAlert, LuUserCheck, LuSignature, LuCheck, LuUndo2, LuArrowRight, LuPlus, LuTrash2, LuUser, LuEye, LuCalendar } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
-import { formatDateOnly } from '../utils/timezone.util';
+import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate } from '../utils/timezone.util';
 import { fetchRoles, canAccessWebApp, isSelfServiceOnly } from '../utils/roleUtils';
 
 const FirstTimeLoginFlow = () => {
@@ -52,6 +52,7 @@ const FirstTimeLoginFlow = () => {
     // Editing States
     const [isEditing, setIsEditing] = useState(false);
     const [dobDisplay, setDobDisplay] = useState('');
+    const dobPickerRef = useRef(null);
     const [errors, setErrors] = useState({});
 
     const [editForm, setEditForm] = useState({
@@ -143,10 +144,7 @@ const FirstTimeLoginFlow = () => {
             });
 
             if (pInfo.date_of_birth) {
-                const parts = pInfo.date_of_birth.substring(0, 10).split('-');
-                if (parts.length === 3) {
-                    setDobDisplay(`${parts[2]}/${parts[1]}/${parts[0]}`);
-                }
+                setDobDisplay(isoToDisplayDate(pInfo.date_of_birth.substring(0, 10)));
             } else {
                 setDobDisplay('');
             }
@@ -185,113 +183,36 @@ const FirstTimeLoginFlow = () => {
     };
 
     const handleDobChange = (e) => {
-        let val = e.target.value;
-        let digits = val.replace(/\D/g, '');
-        if (digits.length > 8) digits = digits.substring(0, 8);
-        
-        let formatted = digits;
-        if (digits.length > 2 && digits.length <= 4) {
-            formatted = `${digits.substring(0, 2)}/${digits.substring(2)}`;
-        } else if (digits.length > 4) {
-            formatted = `${digits.substring(0, 2)}/${digits.substring(2, 4)}/${digits.substring(4)}`;
-        }
-        
+        const formatted = autoFormatDateInput(e.target.value);
         setDobDisplay(formatted);
-        let parsed = '';
-        let dobError = null;
 
-        if (formatted.length >= 2) {
-            const day = parseInt(formatted.substring(0, 2), 10);
-            if (day < 1 || day > 31) {
-                dobError = "Day must be between 01 and 31";
-            }
+        // Partial validation while typing
+        const partialError = validatePartialDateInput(formatted);
+        if (partialError) {
+            setErrors(prev => ({ ...prev, date_of_birth: partialError }));
+            setEditForm(prev => ({ ...prev, date_of_birth: '', age: '' }));
+            return;
         }
-        if (!dobError && formatted.length >= 5) {
-            const month = parseInt(formatted.substring(3, 5), 10);
-            if (month < 1 || month > 12) {
-                dobError = "Month must be between 01 and 12";
-            }
-        }
-        if (!dobError && formatted.length === 10) {
-            const parts = formatted.split('/');
-            const d = parseInt(parts[0], 10);
-            const m = parseInt(parts[1], 10);
-            const y = parseInt(parts[2], 10);
-            
-            const currentYear = new Date().getFullYear();
-            if (y < 1900) {
-                dobError = "Year must be 1900 or later";
-            } else if (y > currentYear) {
-                dobError = "Date of birth cannot be in the future";
+
+        // Full validation when complete
+        if (formatted.length === 10) {
+            const { parsed, error } = validateAndParseDate(formatted, { allowFuture: false, maxAge: 120 });
+            if (error) {
+                setErrors(prev => ({ ...prev, date_of_birth: error }));
+                setEditForm(prev => ({ ...prev, date_of_birth: '', age: '' }));
             } else {
-                const daysInMonth = [31, (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-                if (d > daysInMonth[m - 1]) {
-                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                    dobError = `${monthNames[m - 1]} ${y} only has ${daysInMonth[m - 1]} days`;
-                } else {
-                    const dateObj = new Date(y, m - 1, d);
-                    const today = new Date();
-                    if (dateObj > today) {
-                        dobError = "Date of birth cannot be in the future";
-                    } else if (today.getFullYear() - y > 120) {
-                        dobError = "Please enter a realistic year";
-                    } else {
-                        parsed = `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
-                    }
-                }
+                const birthDate = new Date(parsed);
+                const today = new Date();
+                let ageVal = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) ageVal--;
+                const calculatedAge = ageVal >= 0 ? ageVal : '';
+                setEditForm(prev => ({ ...prev, date_of_birth: parsed, age: calculatedAge }));
+                setErrors(prev => { const u = { ...prev }; delete u.date_of_birth; return u; });
             }
-        }
-
-        if (dobError) {
-            setErrors(prev => ({ ...prev, date_of_birth: dobError }));
-            setEditForm(prev => ({
-                ...prev,
-                date_of_birth: '',
-                age: ''
-            }));
-        } else if (formatted.length === 10 && parsed) {
-            let calculatedAge = '';
-            const birthDate = new Date(parsed);
-            const today = new Date();
-            let ageVal = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                ageVal--;
-            }
-            calculatedAge = ageVal >= 0 ? ageVal : '';
-
-            setEditForm(prev => ({
-                ...prev,
-                date_of_birth: parsed,
-                age: calculatedAge
-            }));
-
-            setErrors(prev => {
-                const updated = { ...prev };
-                delete updated.date_of_birth;
-                return updated;
-            });
         } else {
-            setEditForm(prev => ({
-                ...prev,
-                date_of_birth: '',
-                age: ''
-            }));
-            
-            if (formatted.length < 10) {
-                setErrors(prev => {
-                    const updated = { ...prev };
-                    if (updated.date_of_birth && (
-                        updated.date_of_birth.includes("only has") || 
-                        updated.date_of_birth.includes("future") || 
-                        updated.date_of_birth.includes("realistic year") ||
-                        updated.date_of_birth.includes("1900 or later")
-                    )) {
-                        delete updated.date_of_birth;
-                    }
-                    return updated;
-                });
-            }
+            setEditForm(prev => ({ ...prev, date_of_birth: '', age: '' }));
+            setErrors(prev => { const u = { ...prev }; delete u.date_of_birth; return u; });
         }
     };
 
@@ -348,16 +269,22 @@ const FirstTimeLoginFlow = () => {
         if (!canvas) return { x: 0, y: 0 };
         const rect = canvas.getBoundingClientRect();
 
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+
         // Support mouse and touch events
         if (e.touches && e.touches[0]) {
-            return {
-                x: e.touches[0].clientX - rect.left,
-                y: e.touches[0].clientY - rect.top
-            };
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
         }
+
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        // Scale coordinates to match the canvas internal resolution
         return {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: x * (canvas.width / rect.width),
+            y: y * (canvas.height / rect.height)
         };
     };
 
@@ -660,22 +587,22 @@ const FirstTimeLoginFlow = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-8 font-sans">
-            <div className="max-w-4xl w-full bg-white border border-slate-200 rounded-3xl shadow-xl p-6 sm:p-10 transform transition-all">
+            <div className="max-w-6xl w-full bg-white border border-slate-200 rounded-3xl shadow-xl p-6 sm:p-10 transform transition-all">
                 {/* Header indicators */}
                 <div className="flex items-center justify-between mb-8 border-b border-slate-100 pb-5">
                     <div>
-                        <h1 className="text-2xl font-black text-[#1e1b4b]">Profile Setup & Audit</h1>
-                        <p className="text-xs text-slate-400 mt-0.5">Please complete the mandatory first-time verification steps.</p>
+                        <h1 className="text-3xl font-black text-[#1e1b4b]">Profile Setup & Audit</h1>
+                        <p className="text-base text-slate-500 mt-1.5">Please complete the mandatory first-time verification steps.</p>
                     </div>
                     {/* Stepper indicator badges */}
                     <div className="flex gap-2">
                         {mustCompleteDeclaration && (
-                            <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${step === 2 ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
+                            <span className={`px-4 py-2 rounded-full text-base font-bold ${step === 2 ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
                                 {mustChangePassword ? '1. Review & Sign' : 'Review & Sign Declaration'}
                             </span>
                         )}
                         {mustChangePassword && (
-                            <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${step === 1 ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
+                            <span className={`px-4 py-2 rounded-full text-base font-bold ${step === 1 ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
                                 {mustCompleteDeclaration ? '2. Password' : 'Password'}
                             </span>
                         )}
@@ -689,36 +616,36 @@ const FirstTimeLoginFlow = () => {
                             <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
                                 <LuLock size={26} />
                             </div>
-                            <h2 className="text-lg font-black text-[#1e1b4b]">Change Temporary Password</h2>
-                            <p className="text-xs text-slate-400">To secure your profile, please change your temporary password.</p>
+                            <h2 className="text-xl font-black text-[#1e1b4b]">Change Temporary Password</h2>
+                            <p className="text-base text-slate-500">To secure your profile, please change your temporary password.</p>
                         </div>
 
                         {passwordError && (
                             <div className="bg-rose-50 border-l-4 border-rose-500 p-3.5 rounded-r-xl">
-                                <p className="text-rose-700 text-xs font-bold flex items-center gap-1.5"><LuShieldAlert size={14} /> {passwordError}</p>
+                                <p className="text-rose-700 text-base font-bold flex items-center gap-1.5"><LuShieldAlert size={14} /> {passwordError}</p>
                             </div>
                         )}
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">New Password</label>
+                                <label className="block text-base font-bold text-slate-700 uppercase tracking-wider mb-2">New Password</label>
                                 <input
                                     type="password"
                                     value={passwordData.password}
                                     onChange={(e) => setPasswordData(prev => ({ ...prev, password: e.target.value }))}
                                     placeholder="Minimum 6 characters"
-                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-base"
                                     required
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Confirm New Password</label>
+                                <label className="block text-base font-bold text-slate-700 uppercase tracking-wider mb-2">Confirm New Password</label>
                                 <input
                                     type="password"
                                     value={passwordData.confirmPassword}
                                     onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                                     placeholder="Re-type password"
-                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-base"
                                     required
                                 />
                             </div>
@@ -729,7 +656,7 @@ const FirstTimeLoginFlow = () => {
                                 <button
                                     type="button"
                                     onClick={() => setStep(2)}
-                                    className="flex-1 py-3.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition text-sm"
+                                    className="flex-1 py-3.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition text-base"
                                 >
                                     Back
                                 </button>
@@ -737,7 +664,7 @@ const FirstTimeLoginFlow = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-1.5 text-sm disabled:opacity-50"
+                                className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-1.5 text-base disabled:opacity-50"
                             >
                                 {loading ? 'Completing Setup...' : 'Complete Setup'} <LuCheck size={16} />
                             </button>
@@ -752,15 +679,15 @@ const FirstTimeLoginFlow = () => {
                             <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
                                 <LuUserCheck size={26} />
                             </div>
-                            <h2 className="text-lg font-black text-[#1e1b4b]">Review Profile & Sign Declaration</h2>
-                            <p className="text-xs text-slate-400">Please audit the details entered by HR and execute your digital signature.</p>
+                            <h2 className="text-xl font-black text-[#1e1b4b]">Review Profile & Sign Declaration</h2>
+                            <p className="text-sm text-slate-500">Please audit the details entered by HR and execute your digital signature.</p>
                         </div>
 
                         <div className="flex justify-end mb-2">
                             <button
                                 type="button"
                                 onClick={() => setIsEditing(!isEditing)}
-                                className="px-4 py-2 text-xs font-black bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition flex items-center gap-1.5 border border-indigo-100 shadow-sm"
+                                className="px-4 py-2 text-sm font-black bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition flex items-center gap-1.5 border border-indigo-100 shadow-sm"
                             >
                                 {isEditing ? (
                                     <>
@@ -777,35 +704,35 @@ const FirstTimeLoginFlow = () => {
                         {auditLoading ? (
                             <div className="flex flex-col items-center justify-center py-16 gap-3">
                                 <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                                <p className="text-xs text-slate-400">Fetching audit profile details...</p>
+                                <p className="text-sm text-slate-500">Fetching audit profile details...</p>
                             </div>
                         ) : auditData ? (
                             <form onSubmit={handleDeclarationSubmit} className="space-y-6">
                                 {declarationError && (
                                     <div className="bg-rose-50 border-l-4 border-rose-500 p-3.5 rounded-r-xl">
-                                        <p className="text-rose-700 text-xs font-bold flex items-center gap-1.5"><LuShieldAlert size={14} /> {declarationError}</p>
+                                        <p className="text-rose-700 text-sm font-bold flex items-center gap-1.5"><LuShieldAlert size={14} /> {declarationError}</p>
                                     </div>
                                 )}
 
                                 {/* Scrollable dossier details */}
-                                <div className="space-y-6 max-h-[420px] overflow-y-auto pr-2 border border-slate-100 p-4 rounded-2xl bg-slate-50/30 shadow-inner">
+                                <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 border border-slate-100 p-4 rounded-2xl bg-slate-50/30 shadow-inner">
                                     {isEditing ? (
                                         <div className="space-y-6">
                                             {/* Basic Credentials */}
                                             <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">System Account & Identity</h3>
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">System Account & Identity</h3>
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">First Name <span className="text-red-500 font-bold">*</span></label>
-                                                        <input type="text" name="firstname" value={editForm.firstname} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" required />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">First Name <span className="text-red-500 font-bold">*</span></label>
+                                                        <input type="text" name="firstname" value={editForm.firstname} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" required />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Last Name <span className="text-red-500 font-bold">*</span></label>
-                                                        <input type="text" name="lastname" value={editForm.lastname} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" required />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Last Name <span className="text-red-500 font-bold">*</span></label>
+                                                        <input type="text" name="lastname" value={editForm.lastname} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" required />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Gender <span className="text-red-500 font-bold">*</span></label>
-                                                        <select name="gender" value={editForm.gender} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" required>
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Gender <span className="text-red-500 font-bold">*</span></label>
+                                                        <select name="gender" value={editForm.gender} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" required>
                                                             <option value="">Select Gender</option>
                                                             <option value="Male">Male</option>
                                                             <option value="Female">Female</option>
@@ -817,32 +744,61 @@ const FirstTimeLoginFlow = () => {
 
                                             {/* Personal Details */}
                                             <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Personal Details</h3>
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Personal Details</h3>
                                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date of Birth <span className="text-red-500 font-bold">*</span></label>
-                                                        <input type="text" name="date_of_birth" placeholder="dd/mm/yyyy" value={dobDisplay} onChange={handleDobChange} className={`w-full px-3 py-2 text-xs rounded-lg border ${errors.date_of_birth ? 'border-red-500' : 'border-slate-200'} focus:outline-none focus:ring-1 focus:ring-indigo-500`} required />
-                                                        {errors.date_of_birth && <p className="text-red-500 text-[10px] mt-0.5">{errors.date_of_birth}</p>}
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Date of Birth <span className="text-red-500 font-bold">*</span></label>
+                                                        <div className="relative">
+                                                            <input
+                                                                type="text"
+                                                                name="date_of_birth"
+                                                                placeholder={getDateInputPlaceholder()}
+                                                                value={dobDisplay}
+                                                                onChange={handleDobChange}
+                                                                className={`w-full pr-8 px-4 py-2.5 text-base rounded-xl border ${errors.date_of_birth ? 'border-red-500' : 'border-slate-200'} focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50`}
+                                                                required
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => dobPickerRef.current && dobPickerRef.current.showPicker()}
+                                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 focus:outline-none transition-colors"
+                                                                title="Choose date"
+                                                            >
+                                                                <LuCalendar className="w-4 h-4" />
+                                                            </button>
+                                                            <input
+                                                                type="date"
+                                                                ref={dobPickerRef}
+                                                                onChange={(e) => {
+                                                                    if (e.target.value) {
+                                                                        const displayVal = isoToDisplayDate(e.target.value);
+                                                                        handleDobChange({ target: { value: displayVal } });
+                                                                    }
+                                                                }}
+                                                                style={{ opacity: 0, width: 0, height: 0, position: 'absolute', pointerEvents: 'none' }}
+                                                            />
+                                                        </div>
+                                                        {errors.date_of_birth && <p className="text-red-500 text-xs mt-1">{errors.date_of_birth}</p>}
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Age</label>
-                                                        <input type="text" name="age" value={editForm.age} disabled className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Age</label>
+                                                        <input type="text" name="age" value={editForm.age} disabled className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed" />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Birthplace</label>
-                                                        <input type="text" name="birthplace" value={editForm.birthplace} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Birthplace</label>
+                                                        <input type="text" name="birthplace" value={editForm.birthplace} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Blood Group</label>
-                                                        <input type="text" name="blood_group" value={editForm.blood_group} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Blood Group</label>
+                                                        <input type="text" name="blood_group" value={editForm.blood_group} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Height & Weight</label>
-                                                        <input type="text" name="height_weight" placeholder="e.g. 170cm / 60kg" value={editForm.height_weight} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Height & Weight</label>
+                                                        <input type="text" name="height_weight" placeholder="e.g. 170cm / 60kg" value={editForm.height_weight} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Marital Status</label>
-                                                        <select name="marital_status" value={editForm.marital_status} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Marital Status</label>
+                                                        <select name="marital_status" value={editForm.marital_status} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50">
                                                             <option value="Single">Single</option>
                                                             <option value="Married">Married</option>
                                                             <option value="Divorced">Divorced</option>
@@ -850,99 +806,99 @@ const FirstTimeLoginFlow = () => {
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">No. of Children</label>
-                                                        <input type="number" name="no_of_children" value={editForm.no_of_children} disabled={editForm.marital_status === 'Single'} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">No. of Children</label>
+                                                        <input type="number" name="no_of_children" value={editForm.no_of_children} disabled={editForm.marital_status === 'Single'} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 bg-slate-50/50" />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nationality</label>
-                                                        <input type="text" name="nationality" value={editForm.nationality} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Nationality</label>
+                                                        <input type="text" name="nationality" value={editForm.nationality} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Religion</label>
-                                                        <input type="text" name="religion" value={editForm.religion} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Religion</label>
+                                                        <input type="text" name="religion" value={editForm.religion} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                     </div>
                                                     <div className="col-span-2 sm:col-span-3">
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hobbies</label>
-                                                        <textarea name="hobbies" rows="2" value={editForm.hobbies} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Hobbies</label>
+                                                        <textarea name="hobbies" rows="2" value={editForm.hobbies} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                     </div>
                                                 </div>
                                                 
                                                 <div className="mt-4 border-t border-slate-100 pt-3">
-                                                    <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase mb-1 select-none cursor-pointer">
+                                                    <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5 select-none cursor-pointer">
                                                         <input type="checkbox" name="has_disability" checked={editForm.has_disability} onChange={handleInputChange} className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500" />
                                                         Declare any Disability?
                                                     </label>
-                                                    <textarea name="disability_details" rows="2" disabled={!editForm.has_disability} placeholder={editForm.has_disability ? "Describe disability details..." : "No disability declared"} value={editForm.disability_details} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 mt-1" />
+                                                    <textarea name="disability_details" rows="2" disabled={!editForm.has_disability} placeholder={editForm.has_disability ? "Describe disability details..." : "No disability declared"} value={editForm.disability_details} onChange={handleInputChange} className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 mt-1 bg-slate-50/50" />
                                                 </div>
                                             </div>
 
                                             {/* Addresses */}
                                             <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm">
                                                 <div className="flex justify-between items-center mb-3">
-                                                    <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider">Addresses & Contact Details</h3>
-                                                    <button type="button" onClick={copyAddress} className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold border border-indigo-200 hover:bg-indigo-50 px-2 py-1 rounded-lg transition">Copy Present to Permanent</button>
+                                                    <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider">Addresses & Contact Details</h3>
+                                                    <button type="button" onClick={copyAddress} className="text-xs text-indigo-600 hover:text-indigo-800 font-bold border border-indigo-200 hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition">Copy Present to Permanent</button>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div className="space-y-3">
-                                                        <h4 className="text-[10px] font-black text-indigo-500 uppercase">Present Address</h4>
+                                                        <h4 className="text-xs font-black text-indigo-500 uppercase">Present Address</h4>
                                                         <div>
-                                                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Full Address</label>
-                                                            <textarea name="present_address" rows="2" value={editForm.present_address} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Full Address</label>
+                                                            <textarea name="present_address" rows="2" value={editForm.present_address} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Local Contact No.</label>
-                                                            <input type="text" name="present_contact_no" value={editForm.present_contact_no} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Local Contact No.</label>
+                                                            <input type="text" name="present_contact_no" value={editForm.present_contact_no} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                         </div>
                                                     </div>
                                                     <div className="space-y-3">
-                                                        <h4 className="text-[10px] font-black text-indigo-500 uppercase">Permanent Address</h4>
+                                                        <h4 className="text-xs font-black text-indigo-500 uppercase">Permanent Address</h4>
                                                         <div>
-                                                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Full Address</label>
-                                                            <textarea name="permanent_address" rows="2" value={editForm.permanent_address} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Full Address</label>
+                                                            <textarea name="permanent_address" rows="2" value={editForm.permanent_address} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Permanent Contact No.</label>
-                                                            <input type="text" name="permanent_contact_no" value={editForm.permanent_contact_no} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Permanent Contact No.</label>
+                                                            <input type="text" name="permanent_contact_no" value={editForm.permanent_contact_no} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {/* Parental Profiles */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Parental Profiles</h3>
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Parental Profiles</h3>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div className="p-3 border border-slate-100 rounded-lg bg-slate-50/50 space-y-2">
-                                                        <p className="font-bold text-slate-500 text-[10px] uppercase">Father's Details</p>
+                                                        <p className="font-bold text-slate-600 text-xs uppercase">Father's Details</p>
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Full Name</label>
-                                                            <input type="text" name="father_name" value={editForm.father_name} onChange={handleInputChange} className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Full Name</label>
+                                                            <input type="text" name="father_name" value={editForm.father_name} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div>
-                                                                <label className="block text-[9px] text-slate-400 mb-0.5">Age</label>
-                                                                <input type="number" name="father_age" value={editForm.father_age} onChange={handleInputChange} className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                                <label className="block text-xs font-bold text-slate-600 mb-1">Age</label>
+                                                                <input type="number" name="father_age" value={editForm.father_age} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                             </div>
                                                             <div>
-                                                                <label className="block text-[9px] text-slate-400 mb-0.5">Occupation</label>
-                                                                <input type="text" name="father_occupation" value={editForm.father_occupation} onChange={handleInputChange} className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                                <label className="block text-xs font-bold text-slate-600 mb-1">Occupation</label>
+                                                                <input type="text" name="father_occupation" value={editForm.father_occupation} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                             </div>
                                                         </div>
                                                     </div>
                                                     <div className="p-3 border border-slate-100 rounded-lg bg-slate-50/50 space-y-2">
-                                                        <p className="font-bold text-slate-500 text-[10px] uppercase">Mother's Details</p>
+                                                        <p className="font-bold text-slate-600 text-xs uppercase">Mother's Details</p>
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Maiden Name</label>
-                                                            <input type="text" name="mother_name" value={editForm.mother_name} onChange={handleInputChange} className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Maiden Name</label>
+                                                            <input type="text" name="mother_name" value={editForm.mother_name} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div>
-                                                                <label className="block text-[9px] text-slate-400 mb-0.5">Age</label>
-                                                                <input type="number" name="mother_age" value={editForm.mother_age} onChange={handleInputChange} className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                                <label className="block text-xs font-bold text-slate-600 mb-1">Age</label>
+                                                                <input type="number" name="mother_age" value={editForm.mother_age} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                             </div>
                                                             <div>
-                                                                <label className="block text-[9px] text-slate-400 mb-0.5">Occupation</label>
-                                                                <input type="text" name="mother_occupation" value={editForm.mother_occupation} onChange={handleInputChange} className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                                <label className="block text-xs font-bold text-slate-600 mb-1">Occupation</label>
+                                                                <input type="text" name="mother_occupation" value={editForm.mother_occupation} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -950,127 +906,127 @@ const FirstTimeLoginFlow = () => {
                                             </div>
 
                                             {/* Academic Qualifications */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
                                                 <div className="flex justify-between items-center mb-3">
-                                                    <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider">Academic Qualifications</h3>
-                                                    <button type="button" onClick={addEducation} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-bold rounded-lg flex items-center gap-1"><LuPlus /> Add Qualification</button>
+                                                    <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider">Academic Qualifications</h3>
+                                                    <button type="button" onClick={addEducation} className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-lg flex items-center gap-1"><LuPlus /> Add Qualification</button>
                                                 </div>
                                                 {editEducations.map((edu, idx) => (
                                                     <div key={idx} className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-2 p-2 border border-slate-50 bg-slate-50/50 rounded-lg relative items-end">
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Qualification</label>
-                                                            <input type="text" placeholder="Degree / Diploma" value={edu.qualification} onChange={(e) => updateEducation(idx, 'qualification', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" required />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Qualification</label>
+                                                            <input type="text" placeholder="Degree / Diploma" value={edu.qualification} onChange={(e) => updateEducation(idx, 'qualification', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" required />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Specialization</label>
-                                                            <input type="text" placeholder="Major" value={edu.specialization || ''} onChange={(e) => updateEducation(idx, 'specialization', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Specialization</label>
+                                                            <input type="text" placeholder="Major" value={edu.specialization || ''} onChange={(e) => updateEducation(idx, 'specialization', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Grade / GPA</label>
-                                                            <input type="text" placeholder="Grade" value={edu.grade || ''} onChange={(e) => updateEducation(idx, 'grade', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Grade / GPA</label>
+                                                            <input type="text" placeholder="Grade" value={edu.grade || ''} onChange={(e) => updateEducation(idx, 'grade', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                         </div>
                                                         <div className="flex gap-2 items-center">
                                                             <div className="flex-1">
-                                                                <label className="block text-[9px] text-slate-400 mb-0.5">Completion Year</label>
-                                                                <input type="number" placeholder="YYYY" value={edu.year_of_completion || ''} onChange={(e) => updateEducation(idx, 'year_of_completion', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                                <label className="block text-xs font-bold text-slate-600 mb-1">Completion Year</label>
+                                                                <input type="number" placeholder="YYYY" value={edu.year_of_completion || ''} onChange={(e) => updateEducation(idx, 'year_of_completion', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                             </div>
-                                                            <button type="button" onClick={() => removeEducation(idx)} className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg mt-4 transition"><LuTrash2 size={14} /></button>
+                                                            <button type="button" onClick={() => removeEducation(idx)} className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg mt-4 transition"><LuTrash2 size={16} /></button>
                                                         </div>
                                                     </div>
                                                 ))}
-                                                {editEducations.length === 0 && <p className="text-[10px] text-slate-400 text-center py-2">No educational history. Click add to declare.</p>}
+                                                {editEducations.length === 0 && <p className="text-xs text-slate-400 text-center py-2">No educational history. Click add to declare.</p>}
                                             </div>
 
                                             {/* Siblings Registry */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
                                                 <div className="flex justify-between items-center mb-3">
-                                                    <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider">Siblings Registry</h3>
-                                                    <button type="button" onClick={addFamily} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-bold rounded-lg flex items-center gap-1"><LuPlus /> Add Sibling</button>
+                                                    <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider">Siblings Registry</h3>
+                                                    <button type="button" onClick={addFamily} className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-lg flex items-center gap-1"><LuPlus /> Add Sibling</button>
                                                 </div>
                                                 {editFamilyMembers.map((sibling, idx) => (
                                                     <div key={idx} className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-2 p-2 border border-slate-50 bg-slate-50/50 rounded-lg relative items-end">
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Name</label>
-                                                            <input type="text" placeholder="Full Name" value={sibling.name} onChange={(e) => updateFamily(idx, 'name', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" required />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Name</label>
+                                                            <input type="text" placeholder="Full Name" value={sibling.name} onChange={(e) => updateFamily(idx, 'name', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" required />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Relationship</label>
-                                                            <input type="text" placeholder="Brother / Sister" value={sibling.relationship} onChange={(e) => updateFamily(idx, 'relationship', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" required />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Relationship</label>
+                                                            <input type="text" placeholder="Brother / Sister" value={sibling.relationship} onChange={(e) => updateFamily(idx, 'relationship', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" required />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Education</label>
-                                                            <input type="text" placeholder="Education" value={sibling.education || sibling.educational_status || ''} onChange={(e) => updateFamily(idx, 'education', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Education</label>
+                                                            <input type="text" placeholder="Education" value={sibling.education || sibling.educational_status || ''} onChange={(e) => updateFamily(idx, 'education', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Occupation</label>
-                                                            <input type="text" placeholder="Occupation" value={sibling.work_occupation || sibling.work_status || ''} onChange={(e) => updateFamily(idx, 'work_occupation', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Occupation</label>
+                                                            <input type="text" placeholder="Occupation" value={sibling.work_occupation || sibling.work_status || ''} onChange={(e) => updateFamily(idx, 'work_occupation', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                         </div>
                                                         <div className="flex gap-2 items-center">
                                                             <div className="flex-1">
-                                                                <label className="block text-[9px] text-slate-400 mb-0.5">Marital Status</label>
-                                                                <select value={sibling.marital_status || 'Single'} onChange={(e) => updateFamily(idx, 'marital_status', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none">
+                                                                <label className="block text-xs font-bold text-slate-600 mb-1">Marital Status</label>
+                                                                <select value={sibling.marital_status || 'Single'} onChange={(e) => updateFamily(idx, 'marital_status', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none">
                                                                     <option value="Single">Single</option>
                                                                     <option value="Married">Married</option>
                                                                 </select>
                                                             </div>
-                                                            <button type="button" onClick={() => removeFamily(idx)} className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg mt-4 transition"><LuTrash2 size={14} /></button>
+                                                            <button type="button" onClick={() => removeFamily(idx)} className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg mt-4 transition"><LuTrash2 size={16} /></button>
                                                         </div>
                                                     </div>
                                                 ))}
-                                                {editFamilyMembers.length === 0 && <p className="text-[10px] text-slate-400 text-center py-2">No sibling records. Click add to declare.</p>}
+                                                {editFamilyMembers.length === 0 && <p className="text-xs text-slate-400 text-center py-2">No sibling records. Click add to declare.</p>}
                                             </div>
 
                                             {/* Past Work History */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
                                                 <div className="flex justify-between items-center mb-3">
-                                                    <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider">Past Work History</h3>
-                                                    <button type="button" onClick={addExperience} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-bold rounded-lg flex items-center gap-1"><LuPlus /> Add Past Job</button>
+                                                    <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider">Past Work History</h3>
+                                                    <button type="button" onClick={addExperience} className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-lg flex items-center gap-1"><LuPlus /> Add Past Job</button>
                                                 </div>
                                                 {editExperiences.map((exp, idx) => (
                                                     <div key={idx} className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-2 p-2 border border-slate-50 bg-slate-50/50 rounded-lg relative items-end">
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Company</label>
-                                                            <input type="text" placeholder="Company Name" value={exp.company_name} onChange={(e) => updateExperience(idx, 'company_name', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" required />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Company</label>
+                                                            <input type="text" placeholder="Company Name" value={exp.company_name} onChange={(e) => updateExperience(idx, 'company_name', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" required />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">City</label>
-                                                            <input type="text" placeholder="City" value={exp.city || ''} onChange={(e) => updateExperience(idx, 'city', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">City</label>
+                                                            <input type="text" placeholder="City" value={exp.city || ''} onChange={(e) => updateExperience(idx, 'city', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Post Held</label>
-                                                            <input type="text" placeholder="Designation" value={exp.post_held} onChange={(e) => updateExperience(idx, 'post_held', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" required />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Post Held</label>
+                                                            <input type="text" placeholder="Designation" value={exp.post_held} onChange={(e) => updateExperience(idx, 'post_held', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" required />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[9px] text-slate-400 mb-0.5">Tenure</label>
-                                                            <input type="text" placeholder="e.g. 2 years" value={exp.tenure || ''} onChange={(e) => updateExperience(idx, 'tenure', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Tenure</label>
+                                                            <input type="text" placeholder="e.g. 2 years" value={exp.tenure || ''} onChange={(e) => updateExperience(idx, 'tenure', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                         </div>
                                                         <div className="flex gap-2 items-center">
                                                             <div className="flex-1">
-                                                                <label className="block text-[9px] text-slate-400 mb-0.5">Reference Contact</label>
-                                                                <input type="text" placeholder="Name/Phone" value={exp.reference_contact || ''} onChange={(e) => updateExperience(idx, 'reference_contact', e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none" />
+                                                                <label className="block text-xs font-bold text-slate-600 mb-1">Reference Contact</label>
+                                                                <input type="text" placeholder="Name/Phone" value={exp.reference_contact || ''} onChange={(e) => updateExperience(idx, 'reference_contact', e.target.value)} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 bg-white focus:outline-none" />
                                                             </div>
-                                                            <button type="button" onClick={() => removeExperience(idx)} className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg mt-4 transition"><LuTrash2 size={14} /></button>
+                                                            <button type="button" onClick={() => removeExperience(idx)} className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg mt-4 transition"><LuTrash2 size={16} /></button>
                                                         </div>
                                                     </div>
                                                 ))}
-                                                {editExperiences.length === 0 && <p className="text-[10px] text-slate-400 text-center py-2">No past work history. Click add to declare.</p>}
+                                                {editExperiences.length === 0 && <p className="text-xs text-slate-400 text-center py-2">No past work history. Click add to declare.</p>}
                                             </div>
 
                                             {/* Bank Coordinates */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Bank Details (for Payroll Deposits)</h3>
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Bank Details (for Payroll Deposits)</h3>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Account Number</label>
-                                                        <input type="text" name="bank_account_number" value={editForm.bank_account_number} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Account Number</label>
+                                                        <input type="text" name="bank_account_number" value={editForm.bank_account_number} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">IFSC Code</label>
-                                                        <input type="text" name="bank_ifsc_code" value={editForm.bank_ifsc_code} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">IFSC Code</label>
+                                                        <input type="text" name="bank_ifsc_code" value={editForm.bank_ifsc_code} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                     </div>
                                                     <div className="col-span-2">
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Bank Name & Branch Address</label>
-                                                        <textarea name="bank_name_address" rows="2" value={editForm.bank_name_address} onChange={handleInputChange} className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1.5">Bank Name & Branch Address</label>
+                                                        <textarea name="bank_name_address" rows="2" value={editForm.bank_name_address} onChange={handleInputChange} className="w-full px-4 py-2.5 text-base rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50" />
                                                     </div>
                                                 </div>
                                             </div>
@@ -1079,34 +1035,34 @@ const FirstTimeLoginFlow = () => {
                                         <div className="space-y-6">
                                             {/* Basic Credentials */}
                                             <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">System Account & Identity</h3>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs font-semibold text-slate-700">
-                                                    <div><p className="text-slate-400">Name</p><p className="mt-0.5">{editForm.firstname} {editForm.lastname}</p></div>
-                                                    <div><p className="text-slate-400">Email</p><p className="mt-0.5">{auditData.email}</p></div>
-                                                    <div><p className="text-slate-400">Gender</p><p className="mt-0.5">{editForm.gender || '—'}</p></div>
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">System Account & Identity</h3>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-base font-semibold text-slate-700">
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Name</p><p className="mt-0.5">{editForm.firstname} {editForm.lastname}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email</p><p className="mt-0.5">{auditData.email}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Gender</p><p className="mt-0.5">{editForm.gender || '—'}</p></div>
                                                 </div>
                                             </div>
 
                                             {/* Personal Details */}
                                             <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Personal Details</h3>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs font-semibold text-slate-700">
-                                                    <div><p className="text-slate-400">Date of Birth</p><p className="mt-0.5">{editForm.date_of_birth ? formatDateOnly(editForm.date_of_birth) : '—'}</p></div>
-                                                    <div><p className="text-slate-400">Age</p><p className="mt-0.5">{editForm.age ? `${editForm.age} years` : '—'}</p></div>
-                                                    <div><p className="text-slate-400">Birthplace</p><p className="mt-0.5">{editForm.birthplace || '—'}</p></div>
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Personal Details</h3>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-base font-semibold text-slate-700">
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Date of Birth</p><p className="mt-0.5">{editForm.date_of_birth ? formatDateOnly(editForm.date_of_birth) : '—'}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Age</p><p className="mt-0.5">{editForm.age ? `${editForm.age} years` : '—'}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Birthplace</p><p className="mt-0.5">{editForm.birthplace || '—'}</p></div>
                                                     
-                                                    <div><p className="text-slate-400">Blood Group</p><p className="mt-0.5">{editForm.blood_group || '—'}</p></div>
-                                                    <div><p className="text-slate-400">Height & Weight</p><p className="mt-0.5">{editForm.height_weight || '—'}</p></div>
-                                                    <div><p className="text-slate-400">Marital Status</p><p className="mt-0.5">{editForm.marital_status || 'Single'}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Blood Group</p><p className="mt-0.5">{editForm.blood_group || '—'}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Height & Weight</p><p className="mt-0.5">{editForm.height_weight || '—'}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Marital Status</p><p className="mt-0.5">{editForm.marital_status || 'Single'}</p></div>
                                                     
-                                                    <div><p className="text-slate-400">No. of Children</p><p className="mt-0.5">{editForm.no_of_children || 0}</p></div>
-                                                    <div><p className="text-slate-400">Nationality</p><p className="mt-0.5">{editForm.nationality || 'Indian'}</p></div>
-                                                    <div><p className="text-slate-400">Religion</p><p className="mt-0.5">{editForm.religion || '—'}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">No. of Children</p><p className="mt-0.5">{editForm.no_of_children || 0}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nationality</p><p className="mt-0.5">{editForm.nationality || 'Indian'}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Religion</p><p className="mt-0.5">{editForm.religion || '—'}</p></div>
                                                     
-                                                    <div className="col-span-2 sm:col-span-3"><p className="text-slate-400">Hobbies</p><p className="mt-0.5 whitespace-pre-wrap">{editForm.hobbies || '—'}</p></div>
+                                                    <div className="col-span-2 sm:col-span-3"><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Hobbies</p><p className="mt-0.5 whitespace-pre-wrap">{editForm.hobbies || '—'}</p></div>
                                                     
                                                     {editForm.has_disability && (
-                                                        <div className="col-span-2 sm:col-span-3 p-3 bg-rose-50/50 border border-rose-100 rounded-xl text-xs text-rose-800">
+                                                        <div className="col-span-2 sm:col-span-3 p-3 bg-rose-50/50 border border-rose-100 rounded-xl text-sm text-rose-800">
                                                             <p className="font-bold">Disability Details:</p>
                                                             <p className="mt-1 font-medium">{editForm.disability_details}</p>
                                                         </div>
@@ -1116,55 +1072,55 @@ const FirstTimeLoginFlow = () => {
 
                                             {/* Addresses */}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
-                                                    <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-2">Present Address</h3>
+                                                <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
+                                                    <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-3">Present Address</h3>
                                                     <p className="whitespace-pre-wrap">{editForm.present_address || '—'}</p>
-                                                    <p className="text-slate-400 mt-2">Local Contact No: <span className="text-slate-700 font-bold ml-0.5">{editForm.present_contact_no || '—'}</span></p>
+                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-2">Local Contact No: <span className="text-slate-700 font-bold ml-0.5 text-base">{editForm.present_contact_no || '—'}</span></p>
                                                 </div>
-                                                <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
-                                                    <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-2">Permanent Address</h3>
+                                                <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
+                                                    <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-2">Permanent Address</h3>
                                                     <p className="whitespace-pre-wrap">{editForm.permanent_address || '—'}</p>
-                                                    <p className="text-slate-400 mt-2">Permanent Contact No: <span className="text-slate-700 font-bold ml-0.5">{editForm.permanent_contact_no || '—'}</span></p>
+                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-2">Permanent Contact No: <span className="text-slate-700 font-bold ml-0.5 text-base">{editForm.permanent_contact_no || '—'}</span></p>
                                                 </div>
                                             </div>
 
                                             {/* Parental Profiles */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Parental Profiles</h3>
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Parental Profiles</h3>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 divide-y md:divide-y-0 md:divide-x divide-slate-100">
                                                     <div className="space-y-2">
-                                                        <p className="font-black text-indigo-500 text-[10px] uppercase tracking-wider">Father's Record</p>
+                                                        <p className="font-bold text-indigo-500 text-xs uppercase tracking-wider">Father's Record</p>
                                                         <div className="grid grid-cols-2 gap-3 mt-1">
-                                                            <div className="col-span-2"><p className="text-slate-400">Full Name</p><p className="mt-0.5">{editForm.father_name || '—'}</p></div>
-                                                            <div><p className="text-slate-400">Age</p><p className="mt-0.5">{editForm.father_age ? `${editForm.father_age} yrs` : '—'}</p></div>
-                                                            <div><p className="text-slate-400">Occupation</p><p className="mt-0.5">{editForm.father_occupation || '—'}</p></div>
+                                                            <div className="col-span-2"><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Full Name</p><p className="mt-0.5">{editForm.father_name || '—'}</p></div>
+                                                            <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Age</p><p className="mt-0.5">{editForm.father_age ? `${editForm.father_age} yrs` : '—'}</p></div>
+                                                            <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Occupation</p><p className="mt-0.5">{editForm.father_occupation || '—'}</p></div>
                                                         </div>
                                                     </div>
                                                     <div className="space-y-2 pt-4 md:pt-0 md:pl-6">
-                                                        <p className="font-black text-indigo-500 text-[10px] uppercase tracking-wider">Mother's Record</p>
+                                                        <p className="font-bold text-indigo-500 text-xs uppercase tracking-wider">Mother's Record</p>
                                                         <div className="grid grid-cols-2 gap-3 mt-1">
-                                                            <div className="col-span-2"><p className="text-slate-400">Maiden Name</p><p className="mt-0.5">{editForm.mother_name || '—'}</p></div>
-                                                            <div><p className="text-slate-400">Age</p><p className="mt-0.5">{editForm.mother_age ? `${editForm.mother_age} yrs` : '—'}</p></div>
-                                                            <div><p className="text-slate-400">Occupation</p><p className="mt-0.5">{editForm.mother_occupation || '—'}</p></div>
+                                                            <div className="col-span-2"><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Maiden Name</p><p className="mt-0.5">{editForm.mother_name || '—'}</p></div>
+                                                            <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Age</p><p className="mt-0.5">{editForm.mother_age ? `${editForm.mother_age} yrs` : '—'}</p></div>
+                                                            <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Occupation</p><p className="mt-0.5">{editForm.mother_occupation || '—'}</p></div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {/* Academic Qualifications */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Academic Qualifications</h3>
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Academic Qualifications</h3>
                                                 {(!editEducations || editEducations.length === 0) ? (
-                                                    <p className="text-xs text-slate-400">No educational background added.</p>
+                                                    <p className="text-sm text-slate-400">No educational background added.</p>
                                                 ) : (
                                                     <div className="overflow-x-auto">
-                                                        <table className="min-w-full divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                                                        <table className="min-w-full divide-y divide-slate-100 text-base font-semibold text-slate-700">
                                                             <thead>
                                                                 <tr>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Qualification</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Specialization</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Grade</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Completion Year</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Qualification</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Specialization</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Grade</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Completion Year</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-slate-50">
@@ -1183,20 +1139,20 @@ const FirstTimeLoginFlow = () => {
                                             </div>
 
                                             {/* Siblings Registry */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Siblings Registry</h3>
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Siblings Registry</h3>
                                                 {(!editFamilyMembers || editFamilyMembers.length === 0) ? (
-                                                    <p className="text-xs text-slate-400">No sibling records added.</p>
+                                                    <p className="text-sm text-slate-400">No sibling records added.</p>
                                                 ) : (
                                                     <div className="overflow-x-auto">
-                                                        <table className="min-w-full divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                                                        <table className="min-w-full divide-y divide-slate-100 text-base font-semibold text-slate-700">
                                                             <thead>
                                                                 <tr>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Name</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Relationship</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Education</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Occupation</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Marital Status</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Name</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Relationship</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Education</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Occupation</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Marital Status</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-slate-50">
@@ -1216,20 +1172,20 @@ const FirstTimeLoginFlow = () => {
                                             </div>
 
                                             {/* Past Work History */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Past Work History</h3>
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Past Work History</h3>
                                                 {(!editExperiences || editExperiences.length === 0) ? (
-                                                    <p className="text-xs text-slate-400">No previous job history added.</p>
+                                                    <p className="text-sm text-slate-400">No previous job history added.</p>
                                                 ) : (
                                                     <div className="overflow-x-auto">
-                                                        <table className="min-w-full divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                                                        <table className="min-w-full divide-y divide-slate-100 text-base font-semibold text-slate-700">
                                                             <thead>
                                                                 <tr>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Company</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">City</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Post Held</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Department</th>
-                                                                    <th className="text-left py-1 text-slate-400 uppercase tracking-wide">Tenure</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Company</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">City</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Post Held</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Department</th>
+                                                                    <th className="text-left py-1 text-xs font-bold uppercase text-slate-500 tracking-wider">Tenure</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-slate-50">
@@ -1249,20 +1205,20 @@ const FirstTimeLoginFlow = () => {
                                             </div>
 
                                             {/* Bank coordinates */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Bank coordinates (for Payroll Deposits)</h3>
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Bank coordinates (for Payroll Deposits)</h3>
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <div><p className="text-slate-400">Account Number</p><p className="mt-0.5">{editForm.bank_account_number || '—'}</p></div>
-                                                    <div><p className="text-slate-400">IFSC Code</p><p className="mt-0.5">{editForm.bank_ifsc_code || '—'}</p></div>
-                                                    <div className="col-span-2"><p className="text-slate-400">Bank Name & Branch Address</p><p className="mt-0.5">{editForm.bank_name_address || '—'}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Account Number</p><p className="mt-0.5">{editForm.bank_account_number || '—'}</p></div>
+                                                    <div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">IFSC Code</p><p className="mt-0.5">{editForm.bank_ifsc_code || '—'}</p></div>
+                                                    <div className="col-span-2"><p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Bank Name & Branch Address</p><p className="mt-0.5">{editForm.bank_name_address || '—'}</p></div>
                                                 </div>
                                             </div>
 
                                             {/* Uploaded Onboarding Attachments with Secure Download query params */}
-                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-xs font-semibold text-slate-700">
-                                                <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-3">Uploaded Onboarding Attachments</h3>
+                                            <div className="p-4 border border-slate-100 rounded-xl bg-white shadow-sm text-base font-semibold text-slate-700">
+                                                <h3 className="text-base font-black text-indigo-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Uploaded Onboarding Attachments</h3>
                                                 {(!auditData.documents || auditData.documents.length === 0) ? (
-                                                    <p className="text-xs text-slate-400">No attachments uploaded by HR.</p>
+                                                    <p className="text-sm text-slate-400">No attachments uploaded by HR.</p>
                                                 ) : (
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
                                                         {auditData.documents.map((doc, i) => {
@@ -1306,7 +1262,7 @@ const FirstTimeLoginFlow = () => {
                                             type="button"
                                             onClick={handleSaveProfileOnly}
                                             disabled={loading}
-                                            className="px-8 py-3 bg-[#4f46e5] hover:bg-[#4338ca] text-white font-black rounded-xl shadow-lg transition flex items-center gap-1.5 disabled:opacity-50 text-xs uppercase tracking-wider"
+                                            className="px-8 py-3 bg-[#4f46e5] hover:bg-[#4338ca] text-white font-black rounded-xl shadow-lg transition flex items-center gap-1.5 disabled:opacity-50 text-sm uppercase tracking-wider"
                                         >
                                             {loading ? 'Saving details...' : 'Save Profile Details'}
                                         </button>
@@ -1316,8 +1272,8 @@ const FirstTimeLoginFlow = () => {
                                 {/* INTEGRATED DECLARATION SIGN-OFF & SIGNATURE CANVAS */}
                                 <div className="space-y-6 pt-4 border-t border-slate-100">
                                     {/* Legal Declaration Statement Box */}
-                                    <div className="p-5 bg-[#faf5ff] border border-[#f3e8ff] text-[#581c87] rounded-2xl text-xs leading-relaxed space-y-3 shadow-inner max-h-[160px] overflow-y-auto">
-                                        <p className="font-black text-xs uppercase tracking-wider text-[#6b21a8] border-b border-[#f3e8ff] pb-1.5">Employment Sign-off Declaration</p>
+                                    <div className="p-5 bg-[#faf5ff] border border-[#f3e8ff] text-purple-900 rounded-2xl text-sm leading-relaxed space-y-3 shadow-inner max-h-[160px] overflow-y-auto">
+                                        <p className="font-black text-sm uppercase tracking-wider text-[#6b21a8] border-b border-[#f3e8ff] pb-1.5">Employment Sign-off Declaration</p>
                                         <p>
                                             I hereby declare that all the information furnished above by me is true, complete, and correct to the best of my knowledge and belief. I understand that if any of the information is found to be false or inaccurate at any stage, the company reserves the absolute right to take disciplinary action up to and including termination of my employment contract immediately without prior notice or compensation.
                                         </p>
@@ -1329,11 +1285,11 @@ const FirstTimeLoginFlow = () => {
                                     {/* Interactive Signature Canvas Pad */}
                                     <div>
                                         <div className="flex justify-between items-center mb-2">
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">Draw Digital Signature <span className="text-red-500 font-bold">*</span></label>
+                                            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider">Draw Digital Signature <span className="text-red-500 font-bold">*</span></label>
                                             <button
                                                 type="button"
                                                 onClick={clearCanvas}
-                                                className="text-slate-500 hover:text-rose-600 text-xs font-bold flex items-center gap-1 border border-slate-200 hover:border-rose-200 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition"
+                                                className="text-slate-500 hover:text-rose-600 text-sm font-bold flex items-center gap-1 border border-slate-200 hover:border-rose-200 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition"
                                             >
                                                 <LuUndo2 size={12} /> Clear Drawing
                                             </button>
@@ -1342,7 +1298,7 @@ const FirstTimeLoginFlow = () => {
                                             <canvas
                                                 ref={canvasRef}
                                                 width={700}
-                                                height={180}
+                                                height={240}
                                                 onMouseDown={startDrawing}
                                                 onMouseMove={draw}
                                                 onMouseUp={stopDrawing}
@@ -1350,38 +1306,38 @@ const FirstTimeLoginFlow = () => {
                                                 onTouchStart={startDrawing}
                                                 onTouchMove={draw}
                                                 onTouchEnd={stopDrawing}
-                                                className="w-full h-[160px] bg-white rounded-xl shadow-inner border border-slate-100 cursor-crosshair touch-none"
+                                                className="w-full h-[240px] bg-white rounded-xl shadow-inner border border-slate-100 cursor-crosshair touch-none"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Full Sign-off Name <span className="text-red-500 font-bold">*</span></label>
+                                            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Full Sign-off Name <span className="text-red-500 font-bold">*</span></label>
                                             <input
                                                 type="text"
                                                 value={declarationData.signature_name}
                                                 onChange={(e) => setDeclarationData(prev => ({ ...prev, signature_name: e.target.value }))}
                                                 placeholder="Type your official full name"
-                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-sm"
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-base"
                                                 required
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Signing Location / Place <span className="text-red-500 font-bold">*</span></label>
+                                            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Signing Location / Place <span className="text-red-500 font-bold">*</span></label>
                                             <input
                                                 type="text"
                                                 value={declarationData.onboarding_place}
                                                 onChange={(e) => setDeclarationData(prev => ({ ...prev, onboarding_place: e.target.value }))}
                                                 placeholder="e.g. Chennai, Bangalore"
-                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-sm"
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-base"
                                                 required
                                             />
                                         </div>
                                     </div>
 
                                     {/* Consent Checkbox */}
-                                    <label className="flex items-start gap-2.5 p-4 border border-indigo-100 bg-indigo-50/20 rounded-xl text-slate-700 text-xs font-semibold cursor-pointer select-none">
+                                    <label className="flex items-start gap-2.5 p-4 border border-indigo-100 bg-indigo-50/20 rounded-xl text-slate-700 text-sm font-semibold cursor-pointer select-none">
                                         <input
                                             type="checkbox"
                                             checked={declarationData.consent_given}
@@ -1399,7 +1355,7 @@ const FirstTimeLoginFlow = () => {
                                         <button
                                             type="submit"
                                             disabled={loading}
-                                            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg transition flex items-center gap-1.5 disabled:opacity-50"
+                                            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg transition flex items-center gap-1.5 disabled:opacity-50 text-base"
                                         >
                                             {mustChangePassword ? (
                                                 <>
@@ -1415,7 +1371,7 @@ const FirstTimeLoginFlow = () => {
                                 </div>
                             </form>
                         ) : (
-                            <p className="text-center text-xs text-rose-500 font-bold">Failed to load audit profile. Refresh page.</p>
+                            <p className="text-center text-sm text-rose-500 font-bold">Failed to load audit profile. Refresh page.</p>
                         )}
                     </div>
                 )}

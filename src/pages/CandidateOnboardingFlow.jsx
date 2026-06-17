@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuUser, LuContact, LuGraduationCap, LuFileText, LuSave, LuUndo2, LuFileUp, LuCoins, LuCheck, LuPlus, LuTrash2, LuShieldAlert } from "react-icons/lu";
+import { LuUser, LuContact, LuGraduationCap, LuFileText, LuSave, LuUndo2, LuFileUp, LuCoins, LuCheck, LuPlus, LuTrash2, LuShieldAlert, LuCalendar } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
+import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate } from '../utils/timezone.util';
 
 const TABS = [
     { id: 'personal', name: 'Personal Details', icon: <LuContact /> },
@@ -11,10 +12,6 @@ const TABS = [
     { id: 'bank', name: 'Bank & Uploads', icon: <LuCoins /> },
     { id: 'declaration', name: 'Declaration & Sign', icon: <LuFileText /> }
 ];
-
-const getAppDateFormat = () => {
-    return localStorage.getItem('system_date_format') || 'DD/MM/YYYY';
-};
 
 const CandidateOnboardingFlow = () => {
     const [searchParams] = useSearchParams();
@@ -29,6 +26,7 @@ const CandidateOnboardingFlow = () => {
     const [activeTab, setActiveTab] = useState('personal');
     const [errors, setErrors] = useState({});
     const [dobDisplay, setDobDisplay] = useState('');
+    const dobPickerRef = useRef(null);
 
     // Forms
     const [formData, setFormData] = useState({
@@ -159,15 +157,22 @@ const CandidateOnboardingFlow = () => {
         const canvas = canvasRef.current;
         if (!canvas) return { x: 0, y: 0 };
         const rect = canvas.getBoundingClientRect();
+
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+
         if (e.touches && e.touches[0]) {
-            return {
-                x: e.touches[0].clientX - rect.left,
-                y: e.touches[0].clientY - rect.top
-            };
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
         }
+
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        // Scale coordinates to match the canvas internal resolution
         return {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: x * (canvas.width / rect.width),
+            y: y * (canvas.height / rect.height)
         };
     };
 
@@ -224,117 +229,36 @@ const CandidateOnboardingFlow = () => {
     };
 
     const handleDobChange = (e) => {
-        let val = e.target.value;
-        
-        // Remove all non-digits
-        let digits = val.replace(/\D/g, '');
-        if (digits.length > 8) digits = digits.substring(0, 8);
-        
-        let formatted = digits;
-        if (digits.length > 2 && digits.length <= 4) {
-            formatted = `${digits.substring(0, 2)}/${digits.substring(2)}`;
-        } else if (digits.length > 4) {
-            formatted = `${digits.substring(0, 2)}/${digits.substring(2, 4)}/${digits.substring(4)}`;
-        }
-        
+        const formatted = autoFormatDateInput(e.target.value);
         setDobDisplay(formatted);
 
-        let parsed = '';
-        let dobError = null;
+        // Partial validation while typing
+        const partialError = validatePartialDateInput(formatted);
+        if (partialError) {
+            setErrors(prev => ({ ...prev, date_of_birth: partialError }));
+            setFormData(prev => ({ ...prev, date_of_birth: '', age: '' }));
+            return;
+        }
 
-        // Instant realistic validation
-        if (formatted.length >= 2) {
-            const day = parseInt(formatted.substring(0, 2), 10);
-            if (day < 1 || day > 31) {
-                dobError = "Day must be between 01 and 31";
-            }
-        }
-        if (!dobError && formatted.length >= 5) {
-            const month = parseInt(formatted.substring(3, 5), 10);
-            if (month < 1 || month > 12) {
-                dobError = "Month must be between 01 and 12";
-            }
-        }
-        if (!dobError && formatted.length === 10) {
-            const parts = formatted.split('/');
-            const d = parseInt(parts[0], 10);
-            const m = parseInt(parts[1], 10);
-            const y = parseInt(parts[2], 10);
-            
-            const currentYear = new Date().getFullYear();
-            if (y < 1900) {
-                dobError = "Year must be 1900 or later";
-            } else if (y > currentYear) {
-                dobError = "Date of birth cannot be in the future";
+        // Full validation when complete
+        if (formatted.length === 10) {
+            const { parsed, error } = validateAndParseDate(formatted, { allowFuture: false, maxAge: 120 });
+            if (error) {
+                setErrors(prev => ({ ...prev, date_of_birth: error }));
+                setFormData(prev => ({ ...prev, date_of_birth: '', age: '' }));
             } else {
-                const daysInMonth = [31, (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-                if (d > daysInMonth[m - 1]) {
-                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                    dobError = `${monthNames[m - 1]} ${y} only has ${daysInMonth[m - 1]} days`;
-                } else {
-                    const dateObj = new Date(y, m - 1, d);
-                    const today = new Date();
-                    if (dateObj > today) {
-                        dobError = "Date of birth cannot be in the future";
-                    } else if (today.getFullYear() - y > 120) {
-                        dobError = "Please enter a realistic year";
-                    } else {
-                        parsed = `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
-                    }
-                }
+                const birthDate = new Date(parsed);
+                const today = new Date();
+                let ageVal = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) ageVal--;
+                const calculatedAge = ageVal >= 0 ? ageVal : '';
+                setFormData(prev => ({ ...prev, date_of_birth: parsed, age: calculatedAge }));
+                setErrors(prev => { const u = { ...prev }; delete u.date_of_birth; return u; });
             }
-        }
-
-        if (dobError) {
-            setErrors(prev => ({ ...prev, date_of_birth: dobError }));
-            setFormData(prev => ({
-                ...prev,
-                date_of_birth: '',
-                age: ''
-            }));
-        } else if (formatted.length === 10 && parsed) {
-            let calculatedAge = '';
-            const birthDate = new Date(parsed);
-            const today = new Date();
-            let ageVal = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                ageVal--;
-            }
-            calculatedAge = ageVal >= 0 ? ageVal : '';
-
-            setFormData(prev => ({
-                ...prev,
-                date_of_birth: parsed,
-                age: calculatedAge
-            }));
-
-            setErrors(prev => {
-                const updated = { ...prev };
-                delete updated.date_of_birth;
-                return updated;
-            });
         } else {
-            setFormData(prev => ({
-                ...prev,
-                date_of_birth: '',
-                age: ''
-            }));
-            
-            if (formatted.length < 10) {
-                setErrors(prev => {
-                    const updated = { ...prev };
-                    if (updated.date_of_birth && (
-                        updated.date_of_birth.includes("only has") || 
-                        updated.date_of_birth.includes("future") || 
-                        updated.date_of_birth.includes("realistic year") ||
-                        updated.date_of_birth.includes("1900 or later")
-                    )) {
-                        delete updated.date_of_birth;
-                    }
-                    return updated;
-                });
-            }
+            setFormData(prev => ({ ...prev, date_of_birth: '', age: '' }));
+            setErrors(prev => { const u = { ...prev }; delete u.date_of_birth; return u; });
         }
     };
 
@@ -381,7 +305,7 @@ const CandidateOnboardingFlow = () => {
         if (!formData.firstname?.trim()) newErrors.firstname = 'First name is required';
         if (!formData.lastname?.trim()) newErrors.lastname = 'Last name is required';
         if (!formData.gender) newErrors.gender = 'Gender selection is required';
-        if (!formData.date_of_birth) newErrors.date_of_birth = 'Date of birth is required (format: dd/mm/yyyy)';
+        if (!formData.date_of_birth) newErrors.date_of_birth = `Date of birth is required (format: ${getDateInputPlaceholder()})`;
 
         // Declaration Tab
         if (activeTab === 'declaration') {
@@ -594,7 +518,35 @@ const CandidateOnboardingFlow = () => {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Date of Birth <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
-                                    <input type="text" name="date_of_birth" placeholder="dd/mm/yyyy" value={dobDisplay} onChange={handleDobChange} className={`w-full px-4 py-3 rounded-xl border ${errors.date_of_birth ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-indigo-500'} focus:outline-none focus:ring-2 bg-slate-50/50`} />
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            name="date_of_birth"
+                                            placeholder={getDateInputPlaceholder()}
+                                            value={dobDisplay}
+                                            onChange={handleDobChange}
+                                            className={`w-full pr-10 px-4 py-3 rounded-xl border ${errors.date_of_birth ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-indigo-500'} focus:outline-none focus:ring-2 bg-slate-50/50`}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => dobPickerRef.current && dobPickerRef.current.showPicker()}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 focus:outline-none transition-colors"
+                                            title="Choose date"
+                                        >
+                                            <LuCalendar className="w-5 h-5" />
+                                        </button>
+                                        <input
+                                            type="date"
+                                            ref={dobPickerRef}
+                                            onChange={(e) => {
+                                                if (e.target.value) {
+                                                    const displayVal = isoToDisplayDate(e.target.value);
+                                                    handleDobChange({ target: { value: displayVal } });
+                                                }
+                                            }}
+                                            style={{ opacity: 0, width: 0, height: 0, position: 'absolute', pointerEvents: 'none' }}
+                                        />
+                                    </div>
                                     {errors.date_of_birth && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.date_of_birth}</p>}
                                 </div>
                                 <div>
@@ -897,7 +849,7 @@ const CandidateOnboardingFlow = () => {
                                     <canvas
                                         ref={canvasRef}
                                         width={700}
-                                        height={180}
+                                        height={240}
                                         onMouseDown={startDrawing}
                                         onMouseMove={draw}
                                         onMouseUp={stopDrawing}
@@ -905,7 +857,7 @@ const CandidateOnboardingFlow = () => {
                                         onTouchStart={startDrawing}
                                         onTouchMove={draw}
                                         onTouchEnd={stopDrawing}
-                                        className="w-full h-[160px] bg-white rounded-xl shadow-inner border border-slate-100 cursor-crosshair touch-none"
+                                        className="w-full h-[240px] bg-white rounded-xl shadow-inner border border-slate-100 cursor-crosshair touch-none"
                                     />
                                 </div>
                             </div>
