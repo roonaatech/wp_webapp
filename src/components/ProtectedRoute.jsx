@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import { canAccessWebApp, hasAdminPermission, isSelfServiceOnly, getCachedRoles } from '../utils/roleUtils';
 
-const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false }) => {
+const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false, skipProfileCheck = false }) => {
     const [authState, setAuthState] = useState('checking'); // 'checking' | 'valid' | 'invalid'
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -54,6 +54,15 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false 
     // Token was invalid
     if (authState === 'invalid') {
         return <Navigate to="/session-expired" replace />;
+    }
+
+    // Check if user must change password or sign declaration (gated flow)
+    if (!skipProfileCheck) {
+        const mustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
+        const mustCompleteDeclaration = localStorage.getItem('mustCompleteDeclaration') === 'true';
+        if (mustChangePassword || mustCompleteDeclaration) {
+            return <Navigate to="/verify-profile" replace />;
+        }
     }
 
     // Force all mobile users to my-requests

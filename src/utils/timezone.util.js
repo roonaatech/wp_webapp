@@ -290,3 +290,201 @@ export const parseAppTimezone = (dateStr, timezone = null) => {
         return new Date(dateStr);
     }
 };
+
+// ─── Date Input Utilities ───────────────────────────────────────────────────
+// These functions provide format-aware date input handling based on the
+// application's configured date format (DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, etc.)
+
+/**
+ * Get the placeholder string for date input fields based on system date format.
+ * @returns {string} e.g. "dd/mm/yyyy", "mm/dd/yyyy", "yyyy-mm-dd"
+ */
+export const getDateInputPlaceholder = () => {
+    const fmt = getAppDateFormat();
+    if (fmt === 'MM/DD/YYYY') return 'mm/dd/yyyy';
+    if (fmt === 'YYYY-MM-DD') return 'yyyy-mm-dd';
+    // DD/MM/YYYY and MMM DD, YYYY both use dd/mm/yyyy for input
+    return 'dd/mm/yyyy';
+};
+
+/**
+ * Get the separator character used in the date format.
+ */
+const getDateSeparator = () => {
+    const fmt = getAppDateFormat();
+    if (fmt === 'YYYY-MM-DD') return '-';
+    return '/';
+};
+
+/**
+ * Convert an ISO date string (YYYY-MM-DD) to the system's display format for input fields.
+ * @param {string} isoDate - Date in YYYY-MM-DD format
+ * @returns {string} Formatted date string (e.g. "25/06/2026" or "06/25/2026" or "2026-06-25")
+ */
+export const isoToDisplayDate = (isoDate) => {
+    if (!isoDate) return '';
+    const parts = isoDate.substring(0, 10).split('-');
+    if (parts.length !== 3) return isoDate;
+    const [y, m, d] = parts;
+    const fmt = getAppDateFormat();
+    const sep = getDateSeparator();
+    if (fmt === 'MM/DD/YYYY') return `${m}${sep}${d}${sep}${y}`;
+    if (fmt === 'YYYY-MM-DD') return `${y}${sep}${m}${sep}${d}`;
+    // DD/MM/YYYY (default)
+    return `${d}${sep}${m}${sep}${y}`;
+};
+
+/**
+ * Auto-format raw user input for a date field based on the system date format.
+ * Inserts separators as the user types digits.
+ * @param {string} rawValue - The raw input value
+ * @returns {string} Auto-formatted string with separators
+ */
+export const autoFormatDateInput = (rawValue) => {
+    const fmt = getAppDateFormat();
+    const sep = getDateSeparator();
+    let digits = rawValue.replace(/\D/g, '');
+
+    if (fmt === 'YYYY-MM-DD') {
+        // Format: YYYY-MM-DD (4-2-2 grouping)
+        if (digits.length > 8) digits = digits.substring(0, 8);
+        if (digits.length > 4 && digits.length <= 6) {
+            return `${digits.substring(0, 4)}${sep}${digits.substring(4)}`;
+        } else if (digits.length > 6) {
+            return `${digits.substring(0, 4)}${sep}${digits.substring(4, 6)}${sep}${digits.substring(6)}`;
+        }
+        return digits;
+    }
+
+    // DD/MM/YYYY or MM/DD/YYYY (2-2-4 grouping)
+    if (digits.length > 8) digits = digits.substring(0, 8);
+    if (digits.length > 2 && digits.length <= 4) {
+        return `${digits.substring(0, 2)}${sep}${digits.substring(2)}`;
+    } else if (digits.length > 4) {
+        return `${digits.substring(0, 2)}${sep}${digits.substring(2, 4)}${sep}${digits.substring(4)}`;
+    }
+    return digits;
+};
+
+/**
+ * Get the expected total length of a fully typed date string.
+ */
+export const getDateInputMaxLength = () => {
+    return 10; // All formats: XX/XX/XXXX or XXXX-XX-XX
+};
+
+/**
+ * Parse a formatted display date string into its day, month, year components
+ * based on the system date format.
+ * @param {string} displayDate - The formatted date string
+ * @returns {{ day: number, month: number, year: number } | null}
+ */
+export const parseDisplayDateParts = (displayDate) => {
+    if (!displayDate || displayDate.length < 10) return null;
+    const fmt = getAppDateFormat();
+    const sep = getDateSeparator();
+    const parts = displayDate.split(sep);
+    if (parts.length !== 3) return null;
+
+    if (fmt === 'YYYY-MM-DD') {
+        return { year: parseInt(parts[0], 10), month: parseInt(parts[1], 10), day: parseInt(parts[2], 10) };
+    }
+    if (fmt === 'MM/DD/YYYY') {
+        return { month: parseInt(parts[0], 10), day: parseInt(parts[1], 10), year: parseInt(parts[2], 10) };
+    }
+    // DD/MM/YYYY (default)
+    return { day: parseInt(parts[0], 10), month: parseInt(parts[1], 10), year: parseInt(parts[2], 10) };
+};
+
+/**
+ * Validate partial input while the user is typing (inline feedback).
+ * Returns an error string or null if valid so far.
+ * @param {string} formatted - The auto-formatted input string
+ * @returns {string|null} Error message or null
+ */
+export const validatePartialDateInput = (formatted) => {
+    const fmt = getAppDateFormat();
+    const sep = getDateSeparator();
+
+    if (fmt === 'YYYY-MM-DD') {
+        // Validate year prefix (first 4 digits)
+        if (formatted.length >= 4) {
+            const year = parseInt(formatted.substring(0, 4), 10);
+            if (year < 1900) return "Year must be 1900 or later";
+        }
+        // Validate month (positions 5-6)
+        if (formatted.length >= 7) {
+            const month = parseInt(formatted.substring(5, 7), 10);
+            if (month < 1 || month > 12) return "Month must be between 01 and 12";
+        }
+        // Validate day (positions 8-9)
+        if (formatted.length >= 10) {
+            const day = parseInt(formatted.substring(8, 10), 10);
+            if (day < 1 || day > 31) return "Day must be between 01 and 31";
+        }
+    } else if (fmt === 'MM/DD/YYYY') {
+        if (formatted.length >= 2) {
+            const month = parseInt(formatted.substring(0, 2), 10);
+            if (month < 1 || month > 12) return "Month must be between 01 and 12";
+        }
+        if (formatted.length >= 5) {
+            const day = parseInt(formatted.substring(3, 5), 10);
+            if (day < 1 || day > 31) return "Day must be between 01 and 31";
+        }
+    } else {
+        // DD/MM/YYYY
+        if (formatted.length >= 2) {
+            const day = parseInt(formatted.substring(0, 2), 10);
+            if (day < 1 || day > 31) return "Day must be between 01 and 31";
+        }
+        if (formatted.length >= 5) {
+            const month = parseInt(formatted.substring(3, 5), 10);
+            if (month < 1 || month > 12) return "Month must be between 01 and 12";
+        }
+    }
+    return null;
+};
+
+/**
+ * Fully validate and parse a complete date input string.
+ * Returns { parsed: 'YYYY-MM-DD', error: null } on success,
+ * or { parsed: '', error: 'message' } on failure.
+ * @param {string} formatted - The fully entered date string (length === 10)
+ * @param {{ allowFuture?: boolean, maxAge?: number }} options
+ * @returns {{ parsed: string, error: string|null }}
+ */
+export const validateAndParseDate = (formatted, options = {}) => {
+    const { allowFuture = true, maxAge = null } = options;
+    const dateParts = parseDisplayDateParts(formatted);
+    if (!dateParts) return { parsed: '', error: 'Invalid date format' };
+
+    const { day: d, month: m, year: y } = dateParts;
+
+    if (y < 1900) return { parsed: '', error: "Year must be 1900 or later" };
+
+    const currentYear = new Date().getFullYear();
+    if (!allowFuture && y > currentYear) {
+        return { parsed: '', error: "Date cannot be in the future" };
+    }
+
+    const daysInMonth = [31, (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if (m < 1 || m > 12) return { parsed: '', error: "Month must be between 01 and 12" };
+    if (d < 1 || d > daysInMonth[m - 1]) {
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        return { parsed: '', error: `${monthNames[m - 1]} ${y} only has ${daysInMonth[m - 1]} days` };
+    }
+
+    if (!allowFuture) {
+        const dateObj = new Date(y, m - 1, d);
+        const today = new Date();
+        if (dateObj > today) return { parsed: '', error: "Date cannot be in the future" };
+    }
+
+    if (maxAge && (new Date().getFullYear() - y > maxAge)) {
+        return { parsed: '', error: "Please enter a realistic year" };
+    }
+
+    const parsed = `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+    return { parsed, error: null };
+};
+

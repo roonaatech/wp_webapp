@@ -44,6 +44,8 @@ const Login = () => {
         // Fetch roles from API and cache them for permission checks
         // Store token temporarily to make the API call
         localStorage.setItem('token', data.accessToken);
+        localStorage.setItem('mustChangePassword', data.mustChangePassword ? 'true' : 'false');
+        localStorage.setItem('mustCompleteDeclaration', data.mustCompleteDeclaration ? 'true' : 'false');
 
         try {
             const roles = await fetchRoles(true); // Force refresh roles cache
@@ -262,14 +264,6 @@ const Login = () => {
                         </div>
                     </div>
                 </form>
-
-                {/* ABiS Credentials Instruction */}
-                <div className="mt-10 max-w-md w-full bg-gray-50 border border-gray-100 rounded-2xl p-6">
-                    <div className="text-center">
-                        <p className="text-xs font-black text-[#1e1b4b] mb-1 uppercase tracking-tighter opacity-70">Login Credentials</p>
-                        <p className="text-[11px] text-gray-500">Use your <span className="font-bold text-[#1e1b4b]">ABiS Application</span> account credentials to access WorkPulse</p>
-                    </div>
-                </div>
 
                 {/* Mobile App Download Link */}
                 <div className="mt-8 text-center w-full">

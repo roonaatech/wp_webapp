@@ -13,7 +13,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays } from '../utils/dateUtils';
-import { formatInTimezone, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
@@ -326,7 +326,8 @@ const Dashboard = () => {
                     start_lat: item.start_lat,
                     start_long: item.start_long,
                     end_lat: item.end_lat,
-                    end_long: item.end_long
+                    end_long: item.end_long,
+                    date: item.date
                 };
             });
 
@@ -338,13 +339,41 @@ const Dashboard = () => {
         }
     };
 
-    const formatDateForModal = (startDateString, endDateString = null, isLeave = false, isHalfDay = false) => {
-        if (!startDateString) return 'N/A';
-        const startFormatted = isLeave ? formatDateOnly(startDateString) : formatInTimezone(startDateString);
+    const calculateTimeOffDuration = (startTime, endTime) => {
+        if (!startTime || !endTime) return '-';
+        const [startH, startM] = startTime.split(':').map(Number);
+        const [endH, endM] = endTime.split(':').map(Number);
+        const start = startH * 60 + startM;
+        const end = endH * 60 + endM;
+        const diff = end - start;
+        const hours = Math.floor(diff / 60);
+        const mins = diff % 60;
+        if (hours > 0) return `${hours}h ${mins}m`;
+        return `${mins}m`;
+    };
 
-        if (isLeave && endDateString) {
-            const endFormatted = formatDateOnly(endDateString);
-            const daysCount = calculateLeaveDays(startDateString, endDateString) - (isHalfDay ? 0.5 : 0);
+    const formatDateForModal = (item) => {
+        if (!item) return 'N/A';
+
+        // Time-Off: Show time range and duration in hours
+        if (item.type === 'time_off') {
+            const date = item.date ? formatDateOnly(item.date) : '';
+            const startTime = item.start_time ? formatTimeOnly(item.start_time) : '';
+            const endTime = item.end_time ? formatTimeOnly(item.end_time) : '';
+            const duration = calculateTimeOffDuration(item.start_time, item.end_time);
+
+            return (
+                <span>
+                    {startTime} - {endTime} (On {date}) <span className="text-red-600 font-bold ml-1">( {duration} )</span>
+                </span>
+            );
+        }
+
+        // Leave: Show date range with days
+        if (item.type === 'leave') {
+            const startFormatted = formatDateOnly(item.start_date);
+            const endFormatted = formatDateOnly(item.end_date);
+            const daysCount = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
             const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
 
             if (startFormatted !== endFormatted) {
@@ -362,6 +391,8 @@ const Dashboard = () => {
             }
         }
 
+        // On-Duty: Show date-time range
+        const startFormatted = formatInTimezone(item.start_time);
         return startFormatted;
     };
 
@@ -1118,14 +1149,14 @@ const Dashboard = () => {
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
                             <div className="bg-green-50 border-b border-green-200 px-6 py-4">
-                                <h2 className="text-lg font-bold text-green-900">Approve {approveModal.isLeave ? 'Leave' : 'On-Duty'} Request</h2>
+                                <h2 className="text-lg font-bold text-green-900">Approve {approveModal.item?.type === 'leave' ? 'Leave' : (approveModal.item?.type === 'time_off' ? 'Time-Off' : 'On-Duty')} Request</h2>
                                 <p className="text-sm text-green-700 mt-1">Are you sure you want to approve this request?</p>
                             </div>
                             <div className="p-6">
                                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {approveModal.item?.name}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {approveModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item?.start_date, approveModal.item?.end_date, approveModal.isLeave, approveModal.item?.is_half_day)}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item)}</p>
                                 </div>
                                 {modalError && (
                                     <div className="mb-3 flex items-center gap-3 rounded-lg border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-4 py-3 shadow-sm">
@@ -1167,14 +1198,14 @@ const Dashboard = () => {
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
                             <div className="bg-red-50 border-b border-red-200 px-6 py-4">
-                                <h2 className="text-lg font-bold text-red-900">Reject {rejectModal.isLeave ? 'Leave' : 'On-Duty'} Request</h2>
+                                <h2 className="text-lg font-bold text-red-900">Reject {rejectModal.item?.type === 'leave' ? 'Leave' : (rejectModal.item?.type === 'time_off' ? 'Time-Off' : 'On-Duty')} Request</h2>
                                 <p className="text-sm text-red-700 mt-1">Please provide a reason for rejection</p>
                             </div>
                             <div className="p-6">
                                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {rejectModal.item?.name}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {rejectModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item?.start_date, rejectModal.item?.end_date, rejectModal.isLeave, rejectModal.item?.is_half_day)}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item)}</p>
                                 </div>
                                 <textarea
                                     value={rejectModal.reason}
@@ -1242,12 +1273,12 @@ const Dashboard = () => {
 
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl font-bold shadow-inner border border-white/20">
-                                        {detailsModal.isLeave ? '📄' : '📍'}
+                                        {detailsModal.isLeave ? '📄' : (detailsModal.item.type === 'time_off' ? '⏱️' : '📍')}
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-bold">{detailsModal.isLeave ? 'Leave Request Details' : 'On-Duty Details'}</h2>
+                                        <h2 className="text-xl font-bold">{detailsModal.isLeave ? 'Leave Request Details' : (detailsModal.item.type === 'time_off' ? 'Time-Off Details' : 'On-Duty Details')}</h2>
                                         <p className="text-white/80 text-xs font-semibold tracking-wide">
-                                            {detailsModal.isLeave ? 'Leave Application Details' : 'On-Duty Transaction Details'}
+                                            {detailsModal.isLeave ? 'Leave Application Details' : (detailsModal.item.type === 'time_off' ? 'Hourly Permission Details' : 'On-Duty Transaction Details')}
                                         </p>
                                     </div>
                                 </div>
@@ -1280,9 +1311,9 @@ const Dashboard = () => {
                                     <div className="space-y-1">
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Category Type</p>
                                         <p className="text-base font-semibold text-gray-900">
-                                            {detailsModal.item.title}
+                                            {detailsModal.isLeave ? detailsModal.item.title : (detailsModal.item.type === 'time_off' ? 'Time-Off' : detailsModal.item.title)}
                                         </p>
-                                        {!detailsModal.isLeave && detailsModal.item.location && (
+                                        {!detailsModal.isLeave && detailsModal.item.type !== 'time_off' && detailsModal.item.location && (
                                             <p className="text-sm text-[#2E5090] font-medium flex items-center gap-1">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                                     <path fillRule="evenodd" d="m9.69 18.94.027.013a2.358 2.358 0 0 0 2.566-.013l.027-.013c.12-.058.214-.144.3-.23.111-.11.23-.235.343-.352l.006-.006c.928-.971 1.636-1.742 2.146-2.583.506-.833.76-1.614.76-2.345 0-2.433-2.029-4.409-4.528-4.409-2.5 0-4.528 1.976-4.528 4.409 0 .731.254 1.512.759 2.345.51.841 1.218 1.612 2.147 2.583l.006.006c.113.117.232.243.343.352.086.086.18.172.3.23ZM10 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
@@ -1296,7 +1327,9 @@ const Dashboard = () => {
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.isLeave
                                                 ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0)} Day(s)`
-                                                : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time)
+                                                : (detailsModal.item.type === 'time_off'
+                                                    ? calculateTimeOffDuration(detailsModal.item.start_time, detailsModal.item.end_time)
+                                                    : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time))
                                             }
                                         </p>
                                     </div>
@@ -1304,7 +1337,11 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective Start</p>
                                         <div className="flex items-center gap-2">
                                             <p className="text-base font-semibold text-gray-900">
-                                                {detailsModal.isLeave ? formatDateOnly(detailsModal.item.start_date) : formatInTimezone(detailsModal.item.start_time)}
+                                                {detailsModal.isLeave 
+                                                    ? formatDateOnly(detailsModal.item.start_date) 
+                                                    : (detailsModal.item.type === 'time_off' 
+                                                        ? `${formatTimeOnly(detailsModal.item.start_time)} (On ${formatDateOnly(detailsModal.item.date)})` 
+                                                        : formatInTimezone(detailsModal.item.start_time))}
                                             </p>
                                         </div>
                                     </div>
@@ -1312,7 +1349,11 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective End</p>
                                         <div className="flex items-center gap-2">
                                             <p className="text-base font-semibold text-gray-900">
-                                                {detailsModal.isLeave ? formatDateOnly(detailsModal.item.end_date) : (detailsModal.item.end_time ? formatInTimezone(detailsModal.item.end_time) : '—')}
+                                                {detailsModal.isLeave 
+                                                    ? formatDateOnly(detailsModal.item.end_date) 
+                                                    : (detailsModal.item.type === 'time_off' 
+                                                        ? formatTimeOnly(detailsModal.item.end_time) 
+                                                        : (detailsModal.item.end_time ? formatInTimezone(detailsModal.item.end_time) : '—'))}
                                             </p>
                                         </div>
                                     </div>
@@ -1322,12 +1363,16 @@ const Dashboard = () => {
                                 <div className="space-y-3">
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Applied Reason / Purpose</p>
                                     <div className="p-5 bg-gray-50 rounded-xl border border-gray-100 text-gray-700 leading-relaxed font-medium">
-                                        {detailsModal.isLeave ? detailsModal.item.reason : detailsModal.item.purpose || 'Task documentation provided.'}
+                                        {detailsModal.isLeave 
+                                            ? detailsModal.item.reason 
+                                            : (detailsModal.item.type === 'time_off' 
+                                                ? detailsModal.item.reason 
+                                                : detailsModal.item.purpose || 'Task documentation provided.')}
                                     </div>
                                 </div>
 
                                 {/* Location Map for On-Duty */}
-                                {!detailsModal.isLeave && (
+                                {!detailsModal.isLeave && detailsModal.item.type !== 'time_off' && (
                                     <div className="space-y-3">
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Location Tracking</p>
                                         <OnDutyLocationMap

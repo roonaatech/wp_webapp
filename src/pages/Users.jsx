@@ -22,7 +22,8 @@ import {
     fetchRoles,
     needsApprover,
     getApproverLabel,
-    getRoleById
+    getRoleById,
+    canManageOnboarding
 } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
 import { formatInTimezone, parseAppTimezone } from '../utils/timezone.util';
@@ -229,6 +230,7 @@ const Users = () => {
     const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
     const [letterFilter, setLetterFilter] = useState(''); // '' means no filter, or single letter A-Z
     const [openActionMenu, setOpenActionMenu] = useState(null); // staffid of the open action dropdown, or null
+
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -360,13 +362,11 @@ const Users = () => {
     // Close action dropdown when clicking outside
     useEffect(() => {
         if (!openActionMenu) return;
-        const handleOutside = (e) => {
-            if (!e.target.closest(`[data-action-menu="${openActionMenu}"]`)) {
-                setOpenActionMenu(null);
-            }
+        const handleOutside = () => {
+            setOpenActionMenu(null);
         };
-        document.addEventListener('mousedown', handleOutside);
-        return () => document.removeEventListener('mousedown', handleOutside);
+        document.addEventListener('click', handleOutside);
+        return () => document.removeEventListener('click', handleOutside);
     }, [openActionMenu]);
 
     const fetchUsers = async (page) => {
@@ -467,6 +467,7 @@ const Users = () => {
             console.error('Error fetching all users for chart:', error);
         }
     };
+
 
     const fetchLeaveBalance = async (userId) => {
         try {
@@ -709,8 +710,8 @@ const Users = () => {
             }
         }
 
-        if (formData.role === '2' && !formData.approving_manager_id) {
-            setFormError('Manager role requires selecting an approving admin.');
+        if (!formData.approving_manager_id) {
+            setFormError('Reporting Manager is required.');
             return;
         }
         if (!formData.gender) {
@@ -737,12 +738,8 @@ const Users = () => {
                 payload.password = formData.password;
             }
 
-            if (formData.approving_manager_id && formData.approving_manager_id !== '') {
-                payload.approving_manager_id = parseInt(formData.approving_manager_id);
-            } else if (editingUserId) {
-                // For edit mode, always include the field (can be null)
-                payload.approving_manager_id = formData.approving_manager_id ? parseInt(formData.approving_manager_id) : null;
-            }
+            // Reporting manager is mandatory - always include
+            payload.approving_manager_id = parseInt(formData.approving_manager_id);
 
             let response;
             if (editingUserId) {
@@ -872,10 +869,32 @@ const Users = () => {
             userId: user.staffid || user.id,
             userName: `${user.firstname} ${user.lastname}`,
             newPassword: '',
-            confirmPassword: ''
+            confirmPassword: '',
+            firstname: user.firstname
         });
         setResetPasswordError(null);
         setShowPasswordResetModal(true);
+    };
+
+    const generateAndSetPassword = () => {
+        const cleanName = (resetPasswordData.firstname || '').replace(/[^a-zA-Z]/g, '') || 'User';
+        const firstLetter = cleanName.charAt(0);
+        const lastLetter = cleanName.length > 1 ? cleanName.charAt(cleanName.length - 1) : cleanName.charAt(0);
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const currentMonthStr = months[new Date().getMonth()];
+        const todayDay = new Date().getDate();
+        const dayClamped = todayDay > 30 ? 30 : todayDay;
+        const dayStr = String(dayClamped).padStart(2, '0');
+        const alphabets = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        const randomAlphabet = alphabets.charAt(Math.floor(Math.random() * alphabets.length));
+
+        const generatedPassword = `${firstLetter}${lastLetter}${currentMonthStr}${dayStr}${randomAlphabet}`;
+
+        setResetPasswordData(prev => ({
+            ...prev,
+            newPassword: generatedPassword,
+            confirmPassword: generatedPassword
+        }));
     };
 
     const handleResetPasswordSubmit = async (e) => {
@@ -955,9 +974,9 @@ const Users = () => {
                 const resolveName = (managerId) => {
                     if (!managerId) return '-';
                     const mgr = managersAndAdmins.find(m => (m.staffid || m.id) === managerId) ||
-                                users.find(m => (m.staffid || m.id) === managerId) ||
-                                allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
-                                ((user.staffid || user.id) === managerId ? user : null);
+                        users.find(m => (m.staffid || m.id) === managerId) ||
+                        allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
+                        ((user.staffid || user.id) === managerId ? user : null);
                     return mgr ? `${mgr.firstname} ${mgr.lastname}` : 'Unknown';
                 };
                 aValue = resolveName(a.approving_manager_id).toLowerCase();
@@ -1002,10 +1021,10 @@ const Users = () => {
 
     const getManagerName = (managerId) => {
         if (!managerId) return '-';
-        const mgr = managersAndAdmins.find(m => (m.staffid || m.id) === managerId) || 
-                    users.find(m => (m.staffid || m.id) === managerId) || 
-                    allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
-                    ((user.staffid || user.id) === managerId ? user : null);
+        const mgr = managersAndAdmins.find(m => (m.staffid || m.id) === managerId) ||
+            users.find(m => (m.staffid || m.id) === managerId) ||
+            allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
+            ((user.staffid || user.id) === managerId ? user : null);
         return mgr ? `${mgr.firstname} ${mgr.lastname}` : 'Unknown';
     };
 
@@ -1160,13 +1179,16 @@ const Users = () => {
                                     : 'Manage your team members and their leave balances'}
                         </p>
                     </div>
-                    {isAdmin && canManageUsers && (
-                        <button
-                            onClick={handleAddUserClick}
-                            className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium flex items-center gap-2">
-                            <span className="text-green-300 text-lg">+</span> Add New User
-                        </button>
+                    {canManageOnboarding(user.role) && (
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => navigate('/onboard')}
+                                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors font-semibold flex items-center gap-2 shadow-sm text-sm">
+                                <span className="text-indigo-200 text-lg">+</span> Onboard Employee
+                            </button>
+                        </div>
                     )}
+
                 </div>
             </div>
 
@@ -1277,6 +1299,38 @@ const Users = () => {
                                         />
                                         <div className="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></div>
                                         <span className="text-sm font-medium text-gray-900 flex-1">Setup Required</span>
+                                    </label>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-amber-50 rounded-lg transition-colors ${statusFilter.includes('unapproved') ? 'bg-amber-50' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.includes('unapproved')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setStatusFilter([...statusFilter, 'unapproved']);
+                                                } else {
+                                                    setStatusFilter(statusFilter.filter(s => s !== 'unapproved'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-2 focus:ring-amber-500"
+                                        />
+                                        <div className="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></div>
+                                        <span className="text-sm font-medium text-gray-900 flex-1">Unapproved Profiles</span>
+                                    </label>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-indigo-50 rounded-lg transition-colors ${statusFilter.includes('update_required') ? 'bg-indigo-50' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.includes('update_required')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setStatusFilter([...statusFilter, 'update_required']);
+                                                } else {
+                                                    setStatusFilter(statusFilter.filter(s => s !== 'update_required'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                        <div className="w-3 h-3 rounded-full bg-indigo-500 shadow-sm"></div>
+                                        <span className="text-sm font-medium text-gray-900 flex-1">Update Required</span>
                                     </label>
                                 </div>
                             </div>
@@ -1533,7 +1587,7 @@ const Users = () => {
                 {loading && (
                     <ModernLoader size="container" message="Updating user data..." fullScreen={false} />
                 )}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto md:overflow-x-visible min-h-[340px] pb-44">
                     <table className="w-full">
                         <thead className="bg-[#1e1b4b] text-white border-b border-[#1e1b4b]">
                             <tr>
@@ -1625,13 +1679,32 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold">
-                                                        {u.firstname.charAt(0)}{u.lastname.charAt(0)}
-                                                    </div>
+                                                    {u.profile_info?.image_path ? (
+                                                        <img
+                                                            src={`${API_BASE_URL}/${u.profile_info.image_path.replace(/\\/g, '/')}`}
+                                                            alt={`${u.firstname} ${u.lastname}`}
+                                                            className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold">
+                                                            {u.firstname.charAt(0)}{u.lastname.charAt(0)}
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <p className="font-medium text-gray-900">
                                                             {u.firstname} {u.lastname}
                                                         </p>
+                                                        {u.profile_info?.onboarding_status === 'Pending_HR_Approval' && (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold rounded-md">
+                                                                Pending HR Approval
+                                                            </span>
+                                                        )}
+                                                        {/* Update Required: missing gender, reporting manager, email, date of birth, or declaration */}
+                                                        {((!u.gender || !u.approving_manager_id || !u.email || !u.profile_info?.date_of_birth || !u.profile_info?.consent_given || u.profile_info?.onboarding_status === 'Pending_Candidate') && u.profile_info?.onboarding_status !== 'Pending_HR_Approval') && (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-orange-50 border border-orange-200 text-orange-700 text-[10px] font-bold rounded-md">
+                                                                Update Required
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </td>
@@ -1695,9 +1768,12 @@ const Users = () => {
                                             {canManageUsers && (
                                                 <td className="px-6 py-4">
                                                     {canManageSpecificUser(u) ? (
-                                                        <div className="relative" data-action-menu={u.staffid}>
+                                                        <div className="relative">
                                                             <button
-                                                                onClick={() => setOpenActionMenu(openActionMenu === u.staffid ? null : u.staffid)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setOpenActionMenu(openActionMenu === u.staffid ? null : u.staffid);
+                                                                }}
                                                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm"
                                                                 title="Actions"
                                                             >
@@ -1708,22 +1784,23 @@ const Users = () => {
                                                             </button>
 
                                                             {openActionMenu === u.staffid && (
-                                                                <div className="absolute right-0 mt-1.5 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
+                                                                <div className="absolute right-0 top-full mt-1.5 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
                                                                     <div className="py-1">
                                                                         <button
-                                                                            onClick={() => { handleEditUserClick(u); setOpenActionMenu(null); }}
-                                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                                                            onClick={() => { navigate(`/staff-profile/${u.staffid}`); setOpenActionMenu(null); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors font-semibold"
                                                                         >
-                                                                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                            <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                                             </svg>
-                                                                            Edit User
+                                                                            View Profile
                                                                         </button>
+
                                                                         <button
                                                                             onClick={() => { handleEditLeaveTypes(u); setOpenActionMenu(null); }}
-                                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors font-semibold"
                                                                         >
-                                                                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                                             </svg>
                                                                             Leave Types
@@ -1731,9 +1808,9 @@ const Users = () => {
                                                                         <div className="my-1 border-t border-gray-100" />
                                                                         <button
                                                                             onClick={() => { handleResetPasswordClick(u); setOpenActionMenu(null); }}
-                                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors font-semibold"
                                                                         >
-                                                                            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                                                             </svg>
                                                                             Reset Password
@@ -1764,51 +1841,58 @@ const Users = () => {
                                                             <span className="font-medium">{leaveBalances[u.staffid].error}</span>
                                                         </div>
                                                     ) : (
-                                                        <div>
-                                                            {/* Tabs Header */}
-                                                            <div className="flex border-b border-gray-200 mb-6">
-                                                                <button
-                                                                    onClick={() => setActiveTab('leave')}
-                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                                                                        activeTab === 'leave'
-                                                                            ? 'border-blue-600 text-blue-600'
-                                                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                                                    }`}
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'leave' ? 'bg-blue-600' : 'bg-transparent'}`}></span>
+                                                        <div className="flex flex-col gap-5">
+                                                            <div className="flex flex-col md:flex-row gap-5">
+                                                            {/* Modern Vertical Nav */}
+                                                            <div className="w-full md:w-48 flex-shrink-0">
+                                                                <nav className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-gray-100 p-1.5 flex flex-col gap-0.5">
+                                                                    <button
+                                                                        onClick={() => setActiveTab('leave')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'leave'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                        }`}
+                                                                    >
+                                                                        {activeTab === 'leave' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'leave' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                                                        </svg>
                                                                         Leave Balances
-                                                                    </div>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setActiveTab('org')}
-                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                                                                        activeTab === 'org'
-                                                                            ? 'border-purple-600 text-purple-600'
-                                                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                                                    }`}
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'org' ? 'bg-purple-600' : 'bg-transparent'}`}></span>
-                                                                        Organization Structure
-                                                                    </div>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setActiveTab('history')}
-                                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                                                                        activeTab === 'history'
-                                                                            ? 'border-emerald-600 text-emerald-600'
-                                                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                                                    }`}
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'history' ? 'bg-emerald-600' : 'bg-transparent'}`}></span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setActiveTab('org')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'org'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                        }`}
+                                                                    >
+                                                                        {activeTab === 'org' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'org' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                                                                        </svg>
+                                                                        Org Structure
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setActiveTab('history')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'history'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                        }`}
+                                                                    >
+                                                                        {activeTab === 'history' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                        </svg>
                                                                         Yearly History
-                                                                    </div>
-                                                                </button>
+                                                                    </button>
+                                                                </nav>
                                                             </div>
 
-                                                            {/* Tab Content */}
+                                                            {/* Tab Content Panel */}
+                                                            <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm min-w-0">
                                                             {activeTab === 'leave' && (
                                                                 <div>
                                                                     <div className="flex items-center justify-between mb-4">
@@ -1900,7 +1984,7 @@ const Users = () => {
                                                                         <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
                                                                         {new Date().getFullYear()} Attendance History
                                                                     </h4>
-                                                                    
+
                                                                     {loadingHistory[u.staffid] ? (
                                                                         <div className="flex items-center justify-center p-8">
                                                                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
@@ -1922,7 +2006,7 @@ const Users = () => {
                                                                                     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
                                                                                     const firstDayOfWeek = new Date(year, monthIndex, 1).getDay();
                                                                                     const monthName = new Date(year, monthIndex, 1).toLocaleString('default', { month: 'short' });
-                                                                                    
+
                                                                                     return (
                                                                                         <div key={monthIndex} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow">
                                                                                             <div className="text-xs font-extrabold text-gray-800 mb-2 text-center uppercase tracking-wide">{monthName}</div>
@@ -1936,25 +2020,25 @@ const Users = () => {
                                                                                                 {Array.from({ length: daysInMonth }).map((_, i) => {
                                                                                                     const day = i + 1;
                                                                                                     const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                                                                                    
+
                                                                                                     const dayEvents = (yearlyHistory[u.staffid] || []).filter(e => e.date === dateStr);
                                                                                                     let bgClass = "bg-gray-50 border border-gray-100 hover:border-gray-300";
                                                                                                     let title = `${dateStr}`;
-                                                                                                    
+
                                                                                                     if (dayEvents.length > 0) {
                                                                                                         const types = dayEvents.map(e => e.type);
                                                                                                         title += `\n${dayEvents.map(e => e.title).join(', ')}`;
-                                                                                                        
+
                                                                                                         if (types.includes('leave')) bgClass = "bg-blue-500 border-blue-600 shadow-sm text-white";
                                                                                                         else if (types.includes('on_duty')) bgClass = "bg-purple-500 border-purple-600 shadow-sm text-white";
                                                                                                         else if (types.includes('time_off')) bgClass = "bg-amber-500 border-amber-600 shadow-sm text-white";
                                                                                                     } else {
                                                                                                         bgClass += " text-gray-400";
                                                                                                     }
-                                                                                                    
+
                                                                                                     return (
-                                                                                                        <div 
-                                                                                                            key={day} 
+                                                                                                        <div
+                                                                                                            key={day}
                                                                                                             title={title}
                                                                                                             className={`aspect-square rounded flex items-center justify-center text-[10px] transition-all cursor-help ${bgClass} ${dayEvents.length > 0 ? 'font-bold transform hover:scale-110 z-10' : ''}`}
                                                                                                         >
@@ -1971,6 +2055,8 @@ const Users = () => {
                                                                     )}
                                                                 </div>
                                                             )}
+                                                            </div>
+                                                        </div>
                                                         </div>
                                                     )}
                                                 </td>
@@ -2240,7 +2326,7 @@ const Users = () => {
 
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                        First Name
+                                        First Name {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
                                         {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
                                     </label>
                                     <input
@@ -2257,7 +2343,7 @@ const Users = () => {
 
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                        Last Name
+                                        Last Name {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
                                         {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
                                     </label>
                                     <input
@@ -2274,7 +2360,7 @@ const Users = () => {
 
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                        Email
+                                        Email {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
                                         {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
                                     </label>
                                     <input
@@ -2305,7 +2391,7 @@ const Users = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">Role</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">Role <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                     <select
                                         name="role"
                                         value={formData.role}
@@ -2331,7 +2417,7 @@ const Users = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">Gender</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">Gender <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                     <select
                                         name="gender"
                                         value={formData.gender}
@@ -2345,16 +2431,16 @@ const Users = () => {
                                     </select>
                                 </div>
 
-                                {/* Reporting Manager Selection - Show for all roles */}
-                                {formData.role && (
-                                    <div>
-                                        <label className="block text-base font-medium text-gray-700 mb-1">
-                                            {getApproverLabel()}
-                                        </label>
-                                        <select
-                                            name="approving_manager_id"
-                                            value={formData.approving_manager_id}
-                                            onChange={handleFormChange}
+                                {/* Reporting Manager Selection - Always shown, mandatory */}
+                                <div>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">
+                                        {getApproverLabel()} <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        name="approving_manager_id"
+                                        value={formData.approving_manager_id}
+                                        onChange={handleFormChange}
+                                        required
                                             className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                         >
                                             <option value="">Select Reporting Manager</option>
@@ -2409,17 +2495,16 @@ const Users = () => {
                                                     ));
                                             })()}
                                         </select>
-                                        {formError && formError.includes('Manager role requires') && (
+                                        {formError && formError.includes('Reporting Manager') && (
                                             <p className="text-xs text-red-600 mt-1">⚠️ This field is required</p>
                                         )}
                                     </div>
-                                )}
 
                                 {/* Only show password fields for new users */}
                                 {!editingUserId && (
                                     <>
                                         <div>
-                                            <label className="block text-base font-medium text-gray-700 mb-1">Password (required)</label>
+                                            <label className="block text-base font-medium text-gray-700 mb-1">Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                             <input
                                                 type="password"
                                                 name="password"
@@ -2432,7 +2517,7 @@ const Users = () => {
                                         </div>
 
                                         <div>
-                                            <label className="block text-base font-medium text-gray-700 mb-1">Confirm Password</label>
+                                            <label className="block text-base font-medium text-gray-700 mb-1">Confirm Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                             <input
                                                 type="password"
                                                 name="confirmPassword"
@@ -2528,7 +2613,16 @@ const Users = () => {
                             )}
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="block text-sm font-medium text-gray-700">New Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                    <button
+                                        type="button"
+                                        onClick={generateAndSetPassword}
+                                        className="text-xs font-bold text-amber-600 hover:text-amber-700 transition flex items-center gap-1 bg-amber-50 hover:bg-amber-100/80 px-2 py-1 rounded-md"
+                                    >
+                                        ✨ Auto-Generate
+                                    </button>
+                                </div>
                                 <input
                                     type="password"
                                     value={resetPasswordData.newPassword}
@@ -2536,11 +2630,26 @@ const Users = () => {
                                     placeholder="Enter new password"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-600"
                                 />
+                                {resetPasswordData.newPassword && (
+                                    <div className="mt-2 p-2.5 bg-amber-50/50 border border-amber-200/60 rounded-lg flex items-center justify-between animate-fade-in">
+                                        <span className="text-xs font-semibold text-amber-800">Generated: <code className="text-xs font-mono font-black select-all bg-white px-1.5 py-0.5 border border-amber-200 rounded">{resetPasswordData.newPassword}</code></span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(resetPasswordData.newPassword);
+                                                toast.success('Password copied to clipboard!');
+                                            }}
+                                            className="text-[10px] font-bold text-amber-600 bg-white border border-amber-200 hover:bg-amber-50 px-2 py-1 rounded transition-colors"
+                                        >
+                                            Copy
+                                        </button>
+                                    </div>
+                                )}
                                 <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                 <input
                                     type="password"
                                     value={resetPasswordData.confirmPassword}
