@@ -12,7 +12,7 @@ import { Doughnut } from 'react-chartjs-2';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
-import { calculateLeaveDays } from '../utils/dateUtils';
+import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
 
@@ -374,7 +374,7 @@ const Dashboard = () => {
             const startFormatted = formatDateOnly(item.start_date);
             const endFormatted = formatDateOnly(item.end_date);
             const daysCount = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
-            const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
+            const daysText = formatLeaveDuration(daysCount, { lowercase: true });
 
             if (startFormatted !== endFormatted) {
                 return (
@@ -806,7 +806,7 @@ const Dashboard = () => {
                                                                 <span className="text-red-500">
                                                                     {(() => {
                                                                         const count = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
-                                                                        return `${count} Day${count === 1 ? '' : 's'}`;
+                                                                        return formatLeaveDuration(count);
                                                                     })()}
                                                                 </span>
                                                             ) : (
@@ -1326,7 +1326,7 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.isLeave
-                                                ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0)} Day(s)`
+                                                ? formatLeaveDuration(calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0))
                                                 : (detailsModal.item.type === 'time_off'
                                                     ? calculateTimeOffDuration(detailsModal.item.start_time, detailsModal.item.end_time)
                                                     : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time))
@@ -1502,7 +1502,7 @@ const Dashboard = () => {
                                             return 'Partial Day';
                                         }
                                         const days = calculateLeaveDays(onLeaveDetailModal.emp.start_date, onLeaveDetailModal.emp.end_date) - (onLeaveDetailModal.emp.is_half_day ? 0.5 : 0);
-                                        return `${days} ${days === 1 ? 'Day' : 'Days'}`;
+                                        return formatLeaveDuration(days);
                                     })()}
                                 </p>
                             </div>

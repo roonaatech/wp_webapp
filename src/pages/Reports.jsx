@@ -4,7 +4,7 @@ import axios from 'axios';
 import { FiPlusCircle, FiMinusCircle } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
-import { calculateLeaveDays } from '../utils/dateUtils';
+import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
 import { fetchRoles, canViewReports } from '../utils/roleUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 
@@ -315,7 +315,7 @@ const Reports = () => {
                     const effectiveStart = (startDate && report.start_date < startDate) ? startDate : report.start_date;
                     const effectiveEnd = (endDate && report.end_date > endDate) ? endDate : report.end_date;
                     const days = calculateLeaveDays(effectiveStart, effectiveEnd) - (report.is_half_day === true || report.is_half_day === 1 ? 0.5 : 0);
-                    duration = days + ' day' + (days > 1 ? 's' : '');
+                    duration = formatLeaveDuration(days, { lowercase: true });
                 } else if (isTimeOff) {
                     duration = calculateTimeOffDuration(report.start_time, report.end_time);
                 } else {
@@ -702,7 +702,7 @@ const Reports = () => {
                                     const effectiveStart = (startDate && report.start_date < startDate) ? startDate : report.start_date;
                                     const effectiveEnd = (endDate && report.end_date > endDate) ? endDate : report.end_date;
                                     const days = calculateLeaveDays(effectiveStart, effectiveEnd) - (report.is_half_day === true || report.is_half_day === 1 ? 0.5 : 0);
-                                    return `${days} day(s)`;
+                                    return formatLeaveDuration(days, { lowercase: true });
                                 })() : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
                                 const locationCell = isLeave || isTimeOff ? 'N/A' : (report.end_location ? `${report.location || 'Remote'} to ${report.end_location}` : (report.location || report.client_name || 'N/A'));
                                 const statusCell = (report.type === 'leave' || report.type === 'timeoff') ? (report.status || 'N/A') : (report.check_out_time ? 'Completed' : 'Active');
