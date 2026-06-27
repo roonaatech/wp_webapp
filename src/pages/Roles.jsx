@@ -375,7 +375,7 @@ const Roles = () => {
 
 
     return (
-        <div className="p-6 max-w-7xl mx-auto relative min-h-[600px]">
+        <div className="p-6 relative min-h-[600px]">
             {loading && (
                 <ModernLoader size="container" message="Fetching roles..." fullScreen={false} />
             )/* Localization: Overlay instead of full-page blur */}
@@ -435,8 +435,8 @@ const Roles = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            {hierarchyMode && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drag</th>}
-                            <th className="px-6 py-3 text-left">
+                            {hierarchyMode && <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drag</th>}
+                            <th className="px-3 py-3 text-left">
                                 {!hierarchyMode ? (
                                     <button
                                         onClick={() => handleSort('display_name')}
@@ -448,7 +448,7 @@ const Roles = () => {
                                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Display Name</span>
                                 )}
                             </th>
-                            <th className="px-6 py-3 text-left">
+                            <th className="px-3 py-3 text-left">
                                 {!hierarchyMode ? (
                                     <button
                                         onClick={() => handleSort('name')}
@@ -460,7 +460,7 @@ const Roles = () => {
                                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name</span>
                                 )}
                             </th>
-                            <th className="px-6 py-3 text-left">
+                            <th className="px-3 py-3 text-left">
                                 {!hierarchyMode ? (
                                     <button
                                         onClick={() => handleSort('hierarchy_level')}
@@ -472,9 +472,9 @@ const Roles = () => {
                                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Hierarchy</span>
                                 )}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[320px]">Permissions</th>
-                            <th className="px-6 py-3 text-left">
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissions</th>
+                            <th className="px-3 py-3 text-left">
                                 {!hierarchyMode ? (
                                     <button
                                         onClick={() => handleSort('active')}
@@ -486,7 +486,7 @@ const Roles = () => {
                                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</span>
                                 )}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">Actions</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -507,91 +507,91 @@ const Roles = () => {
                                 `}
                             >
                                 {hierarchyMode && (
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    <td className="px-3 py-4 whitespace-nowrap">
                                         <MdDragIndicator className="w-5 h-5 text-gray-400" />
                                     </td>
                                 )}
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <div className="text-sm font-medium text-gray-900">{role.display_name}</div>
                                     {role.description && (
                                         <div className="text-sm text-gray-500">{role.description}</div>
                                     )}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <span className="text-sm font-mono text-gray-700">{role.name}</span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                                         Level {role.hierarchy_level}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
                                         {getUserCount(role.id)} users
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 min-w-[320px] max-w-[400px]">
-                                    <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                                <td className="px-3 py-4 align-top">
+                                    <div className="grid gap-1.5" style={{ width: '300px', gridTemplateColumns: '1fr 1fr' }}>
                                         {role.can_manage_active_onduty && role.can_manage_active_onduty !== 'none' && (
-                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_manage_active_onduty === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_manage_active_onduty === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
                                                 Active OnDuty {role.can_manage_active_onduty === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_view_activities && role.can_view_activities !== 'none' && (
-                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_view_activities === 'all' ? 'bg-cyan-100 text-cyan-800' : 'bg-cyan-50 text-cyan-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_view_activities === 'all' ? 'bg-cyan-100 text-cyan-800' : 'bg-cyan-50 text-cyan-700'}`}>
                                                 Activities {role.can_view_activities === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_email_settings && (
-                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center bg-gray-100 text-gray-800">Email Config</span>
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-gray-100 text-gray-800">Email Config</span>
                                         )}
                                         {role.can_approve_leave && role.can_approve_leave !== 'none' && (
-                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_approve_leave === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_approve_leave === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
                                                 Leave {role.can_approve_leave === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_leave_types && (
-                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center bg-purple-100 text-purple-800">LeaveTypes</span>
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-purple-100 text-purple-800">LeaveTypes</span>
                                         )}
                                         {role.can_manage_onboarding && (
-                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center bg-indigo-100 text-indigo-800">Onboarding</span>
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-indigo-100 text-indigo-800">Onboarding</span>
                                         )}
                                         {role.can_approve_onduty && role.can_approve_onduty !== 'none' && (
-                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_approve_onduty === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_approve_onduty === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
                                                 OnDuty {role.can_approve_onduty === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_view_reports && role.can_view_reports !== 'none' && (
-                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_view_reports === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-blue-50 text-blue-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_view_reports === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-blue-50 text-blue-700'}`}>
                                                 Reports {role.can_view_reports === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_schedule && role.can_manage_schedule !== 'none' && (
-                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_manage_schedule === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_manage_schedule === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
                                                 Schedule {role.can_manage_schedule === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_system_settings === 'all' && (
-                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center bg-blue-100 text-blue-800">System Settings</span>
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-blue-100 text-blue-800">System Settings</span>
                                         )}
                                         {role.can_approve_timeoff && role.can_approve_timeoff !== 'none' && (
-                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_approve_timeoff === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_approve_timeoff === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
                                                 TimeOff {role.can_approve_timeoff === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_users && role.can_manage_users !== 'none' && (
-                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_manage_users === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_manage_users === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
                                                 Users {role.can_manage_users === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_view_users && role.can_view_users !== 'none' && (
-                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center ${role.can_view_users === 'all' ? 'bg-indigo-100 text-indigo-800' : 'bg-indigo-50 text-indigo-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_view_users === 'all' ? 'bg-indigo-100 text-indigo-800' : 'bg-indigo-50 text-indigo-700'}`}>
                                                 View Users {role.can_view_users === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${role.active
                                         ? 'bg-green-100 text-green-800'
                                         : 'bg-red-100 text-red-800'
@@ -599,7 +599,7 @@ const Roles = () => {
                                         {role.active ? 'Active' : 'Inactive'}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium sticky right-0 bg-white z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
                                     {!hierarchyMode && (
                                         <div className="flex space-x-2">
                                             <button

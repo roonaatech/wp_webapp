@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -198,6 +198,37 @@ const Users = () => {
     const [loadingBalance, setLoadingBalance] = useState({});
     const [yearlyHistory, setYearlyHistory] = useState({});
     const [loadingHistory, setLoadingHistory] = useState({});
+    const [historyTooltip, setHistoryTooltip] = useState({ show: false, events: [], anchor: null, date: null });
+    const tooltipRef = useRef(null);
+    const [tooltipCoords, setTooltipCoords] = useState({ left: 0, top: 0, ready: false });
+
+    // Keep the Yearly History tooltip inside the viewport: flip to the left of the
+    // hovered cell when it would overflow on the right, and clamp it vertically.
+    useLayoutEffect(() => {
+        if (!historyTooltip.show || !historyTooltip.anchor || !tooltipRef.current) {
+            return;
+        }
+        const MARGIN = 8;
+        const GAP = 10;
+        const a = historyTooltip.anchor;
+        const tw = tooltipRef.current.offsetWidth;
+        const th = tooltipRef.current.offsetHeight;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
+        // Horizontal: prefer right side, flip to left if it would overflow
+        let left = a.right + GAP;
+        if (left + tw + MARGIN > vw) {
+            left = a.left - GAP - tw;
+        }
+        left = Math.max(MARGIN, Math.min(left, vw - tw - MARGIN));
+
+        // Vertical: align with the cell top, clamp within the viewport
+        let top = a.top;
+        top = Math.max(MARGIN, Math.min(top, vh - th - MARGIN));
+
+        setTooltipCoords({ left, top, ready: true });
+    }, [historyTooltip.show, historyTooltip.anchor, historyTooltip.events]);
     const [formData, setFormData] = useState({
         firstname: '',
         lastname: '',
@@ -2022,25 +2053,56 @@ const Users = () => {
                                                                                                     const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
                                                                                                     const dayEvents = (yearlyHistory[u.staffid] || []).filter(e => e.date === dateStr);
-                                                                                                    let bgClass = "bg-gray-50 border border-gray-100 hover:border-gray-300";
-                                                                                                    let title = `${dateStr}`;
+                                                                                                    let bgClass = "bg-gray-50 border border-gray-100 hover:border-gray-300 text-gray-400";
+                                                                                                    let bgStyle = undefined;
 
                                                                                                     if (dayEvents.length > 0) {
+                                                                                                        const TYPE_ORDER = ['leave', 'on_duty', 'time_off'];
+                                                                                                        const TYPE_COLORS = { leave: '#3b82f6', on_duty: '#a855f7', time_off: '#f59e0b' };
                                                                                                         const types = dayEvents.map(e => e.type);
-                                                                                                        title += `\n${dayEvents.map(e => e.title).join(', ')}`;
+                                                                                                        // Keep a stable, deduplicated order of the event types present that day
+                                                                                                        const presentTypes = TYPE_ORDER.filter(t => types.includes(t));
 
-                                                                                                        if (types.includes('leave')) bgClass = "bg-blue-500 border-blue-600 shadow-sm text-white";
-                                                                                                        else if (types.includes('on_duty')) bgClass = "bg-purple-500 border-purple-600 shadow-sm text-white";
-                                                                                                        else if (types.includes('time_off')) bgClass = "bg-amber-500 border-amber-600 shadow-sm text-white";
-                                                                                                    } else {
-                                                                                                        bgClass += " text-gray-400";
+                                                                                                        bgClass = "border border-black/10 shadow-sm text-white";
+                                                                                                        if (presentTypes.length === 1) {
+                                                                                                            bgStyle = { backgroundColor: TYPE_COLORS[presentTypes[0]] };
+                                                                                                        } else {
+                                                                                                            // Multiple event types: split the cell into equal diagonal stripes,
+                                                                                                            // one solid color per type, so it's clear there's more than one event
+                                                                                                            const n = presentTypes.length;
+                                                                                                            const stops = presentTypes.map((t, idx) => {
+                                                                                                                const start = ((idx / n) * 100).toFixed(2);
+                                                                                                                const end = (((idx + 1) / n) * 100).toFixed(2);
+                                                                                                                return `${TYPE_COLORS[t]} ${start}%, ${TYPE_COLORS[t]} ${end}%`;
+                                                                                                            }).join(', ');
+                                                                                                            bgStyle = { backgroundImage: `linear-gradient(135deg, ${stops})` };
+                                                                                                        }
                                                                                                     }
+
+                                                                                                    const handleMouseEnter = (e) => {
+                                                                                                        if (dayEvents.length > 0) {
+                                                                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                                                                            setTooltipCoords(prev => ({ ...prev, ready: false }));
+                                                                                                            setHistoryTooltip({
+                                                                                                                show: true,
+                                                                                                                events: dayEvents,
+                                                                                                                anchor: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
+                                                                                                                date: dateStr
+                                                                                                            });
+                                                                                                        }
+                                                                                                    };
+
+                                                                                                    const handleMouseLeave = () => {
+                                                                                                        setHistoryTooltip(prev => ({ ...prev, show: false }));
+                                                                                                    };
 
                                                                                                     return (
                                                                                                         <div
                                                                                                             key={day}
-                                                                                                            title={title}
-                                                                                                            className={`aspect-square rounded flex items-center justify-center text-[10px] transition-all cursor-help ${bgClass} ${dayEvents.length > 0 ? 'font-bold transform hover:scale-110 z-10' : ''}`}
+                                                                                                            onMouseEnter={handleMouseEnter}
+                                                                                                            onMouseLeave={handleMouseLeave}
+                                                                                                            style={bgStyle ? { ...bgStyle, textShadow: '0 1px 1px rgba(0,0,0,0.35)' } : undefined}
+                                                                                                            className={`aspect-square rounded flex items-center justify-center text-[10px] transition-all ${dayEvents.length > 0 ? 'cursor-pointer font-bold transform hover:scale-110 z-10' : 'cursor-default'} ${bgClass}`}
                                                                                                         >
                                                                                                             {day}
                                                                                                         </div>
@@ -2124,6 +2186,45 @@ const Users = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Yearly History Hover Tooltip */}
+            {historyTooltip.show && historyTooltip.events.length > 0 && (
+                <div
+                    ref={tooltipRef}
+                    className="fixed z-[60] pointer-events-none bg-gray-900 text-white rounded-lg shadow-xl px-3 py-2 text-xs w-max max-w-[min(18rem,calc(100vw-1rem))] overflow-y-auto"
+                    style={{
+                        left: tooltipCoords.left,
+                        top: tooltipCoords.top,
+                        maxHeight: 'calc(100vh - 1rem)',
+                        visibility: tooltipCoords.ready ? 'visible' : 'hidden'
+                    }}
+                >
+                    <div className="font-semibold text-gray-200 mb-1.5 pb-1 border-b border-gray-700 whitespace-nowrap">
+                        {historyTooltip.date && new Date(historyTooltip.date).toLocaleDateString('default', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                    <div className="space-y-2">
+                        {historyTooltip.events.map((ev, idx) => {
+                            const typeMeta = {
+                                leave: { label: 'Leave', dot: 'bg-blue-400' },
+                                on_duty: { label: 'On-Duty', dot: 'bg-purple-400' },
+                                time_off: { label: 'Time-Off', dot: 'bg-amber-400' }
+                            }[ev.type] || { label: ev.type, dot: 'bg-gray-400' };
+                            return (
+                                <div key={idx}>
+                                    <div className="flex items-start gap-1.5 font-semibold">
+                                        <span className={`w-2 h-2 mt-1 shrink-0 rounded-full ${typeMeta.dot}`}></span>
+                                        <span className="whitespace-nowrap">{typeMeta.label}</span>
+                                        {ev.title && <span className="text-gray-300 font-normal break-words">· {ev.title}</span>}
+                                    </div>
+                                    <div className="text-gray-300 mt-0.5 pl-3.5 leading-snug break-words">
+                                        {ev.reason ? ev.reason : <span className="italic text-gray-500">No reason provided</span>}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Edit Leave Types Modal */}
             {showLeaveModal && (
