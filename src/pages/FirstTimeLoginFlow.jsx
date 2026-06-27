@@ -97,6 +97,9 @@ const FirstTimeLoginFlow = () => {
             fetchMyProfile();
         } else if (mustChangePassword) {
             setStep(1); // Password update step
+            // Declaration already done, but we still need the existing profile
+            // (e.g. date_of_birth) so the password submit validation/payload has it.
+            fetchMyProfile();
         } else {
             navigate('/'); // Fallback if no gating flags
         }
