@@ -8,7 +8,7 @@ import { FiRefreshCw } from "react-icons/fi";
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
-import { calculateLeaveDays } from '../utils/dateUtils';
+import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, parseAppTimezone } from '../utils/timezone.util';
 
 import { fetchRoles, canApproveLeave, canApproveOnDuty, canApproveTimeOff } from '../utils/roleUtils';
@@ -933,7 +933,7 @@ const Approvals = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-600">
-                                                        {calculateLeaveDays(req.start_date, req.end_date) - (req.is_half_day === true || req.is_half_day === 1 ? 0.5 : 0)} Days
+                                                        {formatLeaveDuration(calculateLeaveDays(req.start_date, req.end_date) - (req.is_half_day === true || req.is_half_day === 1 ? 0.5 : 0))}
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <div className="text-sm text-gray-900">
@@ -1575,7 +1575,7 @@ const Approvals = () => {
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                     <p className="text-base font-semibold text-gray-900">
                                         {detailsModal.type === 'leave'
-                                            ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0)} Day(s)`
+                                            ? formatLeaveDuration(calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0))
                                             : (detailsModal.type === 'timeoff'
                                                 ? calculateTimeOffDuration(detailsModal.item.start_time, detailsModal.item.end_time)
                                                 : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time))
@@ -1777,7 +1777,7 @@ const formatDateForModal = (item, type) => {
         const startFormatted = formatDateOnly(item.start_date);
         const endFormatted = formatDateOnly(item.end_date);
         const daysCount = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
-        const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
+        const daysText = formatLeaveDuration(daysCount, { lowercase: true });
 
         if (startFormatted !== endFormatted) {
             return (

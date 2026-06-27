@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName } from '../utils/roleUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatLeaveDuration } from '../utils/dateUtils';
 
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
@@ -962,7 +963,7 @@ const MyRequests = () => {
                             {leaveStartDate && leaveEndDate && (
                                 <div className="mt-3 px-3 py-2 bg-blue-50 rounded-xl space-y-2">
                                     <p className="text-xs font-bold text-blue-600">
-                                        📅 {calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap) - (leaveHalfDay ? 0.5 : 0)} day(s) <span className="text-blue-400 font-medium">(Sundays excluded)</span>
+                                        📅 {formatLeaveDuration(calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap) - (leaveHalfDay ? 0.5 : 0), { lowercase: true })} <span className="text-blue-400 font-medium">(Sundays excluded)</span>
                                     </p>
                                     <label className="flex flex-row items-center gap-2 cursor-pointer mt-1 border-t border-blue-100 pt-2">
                                         <input
@@ -1877,7 +1878,7 @@ const MyRequests = () => {
                                 <div className="bg-indigo-50 rounded-xl p-3 flex items-center gap-2">
                                     <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     <span className="text-sm font-semibold text-indigo-700">
-                                        Duration: {calculateLeaveDaysExcludingSunday(selectedDetail.start_date || selectedDetail.start, selectedDetail.end_date || selectedDetail.end) - (selectedDetail.is_half_day === true || selectedDetail.is_half_day === 1 ? 0.5 : 0)} day(s)
+                                        Duration: {formatLeaveDuration(calculateLeaveDaysExcludingSunday(selectedDetail.start_date || selectedDetail.start, selectedDetail.end_date || selectedDetail.end) - (selectedDetail.is_half_day === true || selectedDetail.is_half_day === 1 ? 0.5 : 0), { lowercase: true })}
                                         <span className="text-xs font-normal text-indigo-400 ml-1">(excl. Sundays)</span>
                                     </span>
                                 </div>

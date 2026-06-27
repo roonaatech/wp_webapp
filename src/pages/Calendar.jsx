@@ -549,8 +549,13 @@ const Calendar = () => {
                                                     return (
                                                         <div key={idx} className="bg-white p-2 rounded-md shadow-sm">
                                                             <div className="flex items-center justify-between">
-                                                                <p className="font-semibold text-xs text-gray-800">
+                                                                <p className="font-semibold text-xs text-gray-800 flex items-center gap-1.5">
                                                                     {event.type === 'leave' ? `Leave: ${event.title}` : (event.type === 'time_off' ? 'Time-Off' : 'On-Duty')}
+                                                                    {event.type === 'leave' && (event.is_half_day === true || event.is_half_day === 1) && (
+                                                                        <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-wide">
+                                                                            Half Day
+                                                                        </span>
+                                                                    )}
                                                                 </p>
                                                                 <span className={`px-2 py-0.5 rounded text-xs font-bold ${statusBg} ${statusText}`}>
                                                                     {statusLabel}

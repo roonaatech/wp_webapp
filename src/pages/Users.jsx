@@ -2214,6 +2214,9 @@ const Users = () => {
                                     <div className="flex items-start gap-1.5 font-semibold">
                                         <span className={`w-2 h-2 mt-1 shrink-0 rounded-full ${typeMeta.dot}`}></span>
                                         <span className="whitespace-nowrap">{typeMeta.label}</span>
+                                        {ev.type === 'leave' && (ev.is_half_day === true || ev.is_half_day === 1) && (
+                                            <span className="shrink-0 px-1 py-0.5 rounded bg-orange-400/20 text-orange-300 text-[10px] font-bold uppercase tracking-wide leading-none">Half Day</span>
+                                        )}
                                         {ev.title && <span className="text-gray-300 font-normal break-words">· {ev.title}</span>}
                                     </div>
                                     <div className="text-gray-300 mt-0.5 pl-3.5 leading-snug break-words">

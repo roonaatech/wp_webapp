@@ -41,3 +41,24 @@ export const calculateLeaveDays = (startDate, endDate) => {
 
     return count;
 };
+
+/**
+ * Formats a leave duration (in days) for display.
+ * A half-day leave (0.5 days) is shown as "Half Day" instead of "0.5 Days".
+ *
+ * @param {number} days - The leave duration in days (e.g. 0.5, 1, 2.5).
+ * @param {Object} [options]
+ * @param {boolean} [options.lowercase=false] - Use lowercase wording ("half day" / "day(s)").
+ * @returns {string} e.g. "Half Day", "1 Day", "3 Days".
+ */
+export const formatLeaveDuration = (days, options = {}) => {
+    const { lowercase = false } = options;
+    const numeric = Number(days);
+
+    if (numeric === 0.5) {
+        return lowercase ? 'half day' : 'Half Day';
+    }
+
+    const unit = lowercase ? 'day' : 'Day';
+    return `${numeric} ${unit}${numeric === 1 ? '' : 's'}`;
+};
