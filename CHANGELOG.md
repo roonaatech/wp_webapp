@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.6](https://github.com/roonaatech/wp_webapp/compare/v2.9.5...v2.9.6) (2026-07-08)
+
+
+### Features
+
+* add Service Accounts management feature with role-based access control ([9cb6083](https://github.com/roonaatech/wp_webapp/commit/9cb6083603900e460686c3817edbb45074703e65))
+
 ### [2.9.5](https://github.com/roonaatech/wp_webapp/compare/v2.9.4...v2.9.5) (2026-07-08)
 
 
