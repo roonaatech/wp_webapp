@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LuCalendar } from 'react-icons/lu';
 import {
     isoToDisplayDate,
@@ -20,6 +20,7 @@ import {
 const DateFilterInput = ({ value, onChange, className = '' }) => {
     const [display, setDisplay] = useState(isoToDisplayDate(value));
     const [error, setError] = useState('');
+    const nativeRef = useRef(null);
 
     // Keep the display value in sync when the ISO value changes externally
     // (e.g. "Clear Filters" resetting the range).
@@ -55,6 +56,25 @@ const DateFilterInput = ({ value, onChange, className = '' }) => {
         }
     };
 
+    // Native date picker (calendar) selection — emits an ISO date directly.
+    const handleNativeChange = (e) => {
+        const iso = e.target.value; // '' or 'YYYY-MM-DD'
+        setError('');
+        setDisplay(iso ? isoToDisplayDate(iso) : '');
+        onChange(iso || '');
+    };
+
+    const openPicker = () => {
+        const el = nativeRef.current;
+        if (!el) return;
+        if (typeof el.showPicker === 'function') {
+            el.showPicker();
+        } else {
+            el.focus();
+            el.click();
+        }
+    };
+
     return (
         <div className="flex flex-col gap-1">
             <div className="relative">
@@ -67,7 +87,25 @@ const DateFilterInput = ({ value, onChange, className = '' }) => {
                     maxLength={getDateInputMaxLength()}
                     className={className}
                 />
-                <LuCalendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                {/* Transparent native date input overlaid on the calendar icon so
+                    clicking the icon opens the browser's native calendar picker. */}
+                <input
+                    ref={nativeRef}
+                    type="date"
+                    value={value || ''}
+                    onChange={handleNativeChange}
+                    tabIndex={-1}
+                    aria-label="Open calendar"
+                    className="absolute right-0 top-0 h-full w-10 opacity-0 cursor-pointer"
+                />
+                <button
+                    type="button"
+                    onClick={openPicker}
+                    aria-label="Open calendar"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-indigo-600 transition"
+                >
+                    <LuCalendar size={16} />
+                </button>
             </div>
             {error && <span className="text-[11px] text-rose-500 font-medium">{error}</span>}
         </div>

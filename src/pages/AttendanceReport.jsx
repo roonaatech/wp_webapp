@@ -7,7 +7,7 @@ import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
 import { fetchRoles, canViewAttendanceReport, canManageAttendance } from '../utils/roleUtils';
 import { formatDateOnly, formatTimeOnly, getCurrentInAppTimezone } from '../utils/timezone.util';
-import { LuSearch, LuCalendar, LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuEye, LuX, LuPencil, LuTrash2 } from 'react-icons/lu';
+import { LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuEye, LuX, LuPencil, LuTrash2 } from 'react-icons/lu';
 
 const AttendanceReport = () => {
     const navigate = useNavigate();
@@ -258,9 +258,9 @@ const AttendanceReport = () => {
     }
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div className="p-6 max-w-7xl mx-auto space-y-4">
             {/* Header section */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Attendance Review</h1>
                     <p className="text-sm text-slate-500 mt-1">Review check-in/out records, location verification, and face snapshots.</p>
@@ -268,13 +268,13 @@ const AttendanceReport = () => {
             </div>
 
             {/* Filter Panel */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-4">
-                <div className="flex items-center gap-2 text-slate-700 font-bold border-b border-slate-50 pb-3">
-                    <LuFilter size={18} className="text-indigo-600" />
+            <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-slate-700 font-bold border-b border-slate-50 pb-2.5">
+                    <LuFilter size={16} className="text-indigo-600" />
                     <span className="uppercase tracking-wider text-sm">Filter Reports</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     {/* Employee Filter */}
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Employee</label>
@@ -282,7 +282,7 @@ const AttendanceReport = () => {
                             <select
                                 value={selectedUserId}
                                 onChange={(e) => { setSelectedUserId(e.target.value); setPage(1); }}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
                             >
                                 <option value="">All Employees</option>
                                 {users.map(u => (
@@ -303,7 +303,7 @@ const AttendanceReport = () => {
                         <DateFilterInput
                             value={startDate}
                             onChange={(iso) => { setStartDate(iso); setPage(1); }}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                         />
                     </div>
 
@@ -312,25 +312,20 @@ const AttendanceReport = () => {
                         <DateFilterInput
                             value={endDate}
                             onChange={(iso) => { setEndDate(iso); setPage(1); }}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                         />
                     </div>
 
-                </div>
+                    {/* Clear Filters — shares the row with the filter inputs, aligned to the bottom */}
+                    <div className="flex items-end justify-end">
+                        <button
+                            onClick={handleClearFilters}
+                            className="px-4 py-2 border border-rose-200 bg-rose-50 rounded-xl hover:bg-rose-100 text-rose-600 text-xs font-bold transition uppercase tracking-wider"
+                        >
+                            Clear Filters
+                        </button>
+                    </div>
 
-                <div className="flex justify-end gap-3 pt-2 border-t border-slate-50">
-                    <button
-                        onClick={handleClearFilters}
-                        className="px-4 py-2 border rounded-xl hover:bg-slate-50 text-slate-600 text-xs font-bold transition uppercase tracking-wider"
-                    >
-                        Clear Filters
-                    </button>
-                    <button
-                        onClick={fetchAttendanceLogs}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 uppercase tracking-wider"
-                    >
-                        <LuSearch size={14} /> Search
-                    </button>
                 </div>
             </div>
 
@@ -359,13 +354,13 @@ const AttendanceReport = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-100">
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Employee</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-In</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-Out</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Face Capture</th>
-                                    {canManage && <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>}
+                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Employee</th>
+                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-In</th>
+                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-Out</th>
+                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</th>
+                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Face Capture</th>
+                                    {canManage && <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -377,17 +372,17 @@ const AttendanceReport = () => {
                                     return (
                                         <tr key={log.id} className="hover:bg-slate-50/50 transition">
                                             {/* Employee info */}
-                                            <td className="p-4">
+                                            <td className="px-4 py-2.5">
                                                 <div className="flex items-center gap-3">
                                                     {profile.image_path ? (
                                                         <img
                                                             src={`${API_BASE_URL}/${profile.image_path}`}
                                                             alt=""
-                                                            className="w-10 h-10 rounded-full object-cover border border-slate-100"
-                                                            onError={(e) => { e.target.src = ''; e.target.className = 'w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold border border-slate-100'; }}
+                                                            className="w-8 h-8 rounded-full object-cover border border-slate-100"
+                                                            onError={(e) => { e.target.src = ''; e.target.className = 'w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold border border-slate-100'; }}
                                                         />
                                                     ) : (
-                                                        <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm border border-slate-100">
+                                                        <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs border border-slate-100">
                                                             {initials}
                                                         </div>
                                                     )}
@@ -401,26 +396,26 @@ const AttendanceReport = () => {
                                             </td>
 
                                             {/* Date */}
-                                            <td className="p-4 text-sm font-semibold text-slate-600">
+                                            <td className="px-4 py-2.5 text-sm font-semibold text-slate-600">
                                                 {formatDateOnly(log.date)}
                                             </td>
 
                                             {/* Check-In */}
-                                            <td className="p-4">
+                                            <td className="px-4 py-2.5">
                                                 <p className="text-sm font-semibold text-slate-700">
                                                     {log.check_in_time ? formatTimeOnly(log.check_in_time) : '-'}
                                                 </p>
                                             </td>
 
                                             {/* Check-Out */}
-                                            <td className="p-4">
+                                            <td className="px-4 py-2.5">
                                                 <p className="text-sm font-semibold text-slate-700">
                                                     {log.check_out_time ? formatTimeOnly(log.check_out_time) : '-'}
                                                 </p>
                                             </td>
 
                                             {/* Work Duration */}
-                                            <td className="p-4">
+                                            <td className="px-4 py-2.5">
                                                 <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-black ${
                                                     log.check_out_time 
                                                         ? 'bg-slate-100 text-slate-700' 
@@ -431,7 +426,7 @@ const AttendanceReport = () => {
                                             </td>
 
                                             {/* Verification Snapshot */}
-                                            <td className="p-4 text-center">
+                                            <td className="px-4 py-2.5 text-center">
                                                 {log.snapshot_url ? (
                                                     <div 
                                                         onClick={() => setSelectedSnapshot(log.snapshot_url)}
@@ -453,7 +448,7 @@ const AttendanceReport = () => {
 
                                             {/* Actions cell */}
                                             {canManage && (
-                                                <td className="p-4">
+                                                <td className="px-4 py-2.5">
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             onClick={() => handleEditClick(log)}
@@ -482,7 +477,7 @@ const AttendanceReport = () => {
 
                 {/* Table Footer: Pagination controls */}
                 {!loading && logs.length > 0 && (
-                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50 border-t border-slate-100 p-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50 border-t border-slate-100 px-4 py-2.5">
                         <div className="flex items-center gap-2">
                             <span className="text-xs text-slate-500 font-bold uppercase">Rows per page:</span>
                             <select
