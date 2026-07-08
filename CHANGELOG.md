@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.2](https://github.com/roonaatech/wp_webapp/compare/v2.9.1...v2.9.2) (2026-07-08)
+
+
+### Features
+
+* implement centered face cropping for registration snapshots to match UI preview dimensions ([a1d6e29](https://github.com/roonaatech/wp_webapp/commit/a1d6e299028204fbe8d9ddaefe65486ed937f5db))
+
 ### [2.9.1](https://github.com/roonaatech/wp_webapp/compare/v2.9.0...v2.9.1) (2026-07-08)
 
 ## [2.9.0](https://github.com/roonaatech/wp_webapp/compare/v2.8.21...v2.9.0) (2026-07-08)
