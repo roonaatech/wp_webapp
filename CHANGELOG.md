@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.9.0](https://github.com/roonaatech/wp_webapp/compare/v2.8.21...v2.9.0) (2026-07-08)
+
+
+### Features
+
+* implement attendance tracking system with portal, report views, and role-based permissions ([f1b08a0](https://github.com/roonaatech/wp_webapp/commit/f1b08a0bd0fdbaa7e187fbf4fea0385a7c79b335))
+
 ### [2.8.21](https://github.com/roonaatech/wp_webapp/compare/v2.8.20...v2.8.21) (2026-06-27)
 
 
