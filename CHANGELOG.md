@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.8](https://github.com/roonaatech/wp_webapp/compare/v2.9.7...v2.9.8) (2026-07-08)
+
+
+### Features
+
+* enhance DateFilterInput with native date picker and improve AttendanceReport layout ([5e8703b](https://github.com/roonaatech/wp_webapp/commit/5e8703b6c4d98d3ce30e581275062177715e5945))
+
 ### [2.9.7](https://github.com/roonaatech/wp_webapp/compare/v2.9.6...v2.9.7) (2026-07-08)
 
 
