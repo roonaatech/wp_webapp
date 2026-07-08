@@ -17,13 +17,14 @@ import {
     LuChevronRight,
     LuClipboardPen,
     LuSettings,
-    LuCamera
+    LuCamera,
+    LuUserCog
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport, canManageServiceAccounts } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -43,10 +44,11 @@ const Sidebar = () => {
     const canViewActivitiesPermission = canViewActivities(user.role);
     const canAccessAttendance = canAccessAttendancePortal(user.role);
     const canViewAttendanceReportPermission = canViewAttendanceReport(user.role);
+    const canManageServiceAccountsPermission = canManageServiceAccounts(user.role);
     // Show Management section only if the user has at least one item in it
     const hasAnyManagementPermission = canApprove || canManageActiveOnDutyPermission || canManageSchedulePermission || canAccessAttendance;
-    // Show Staff section if user has staff management permission
-    const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission;
+    // Show Staff section if user has staff management permission or service accounts permission
+    const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission || canManageServiceAccountsPermission;
     // Show Configurations section if user has any configuration permission
     const hasAnyConfigPermission = canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
@@ -312,6 +314,9 @@ const Sidebar = () => {
                         {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
                         )}
+                        {canManageServiceAccountsPermission && (
+                            <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" />
+                        )}
                         {canManageOnboardingPermission && (
                             <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
                         )}
@@ -368,6 +373,9 @@ const Sidebar = () => {
                     <div className="space-y-2">
                         {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
+                        )}
+                        {canManageServiceAccountsPermission && (
+                            <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" />
                         )}
                         {canManageOnboardingPermission && (
                             <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />

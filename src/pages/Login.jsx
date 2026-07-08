@@ -28,12 +28,14 @@ const Login = () => {
             lastname: data.lastname,
             email: data.email,
             role: data.role,
-            gender: data.gender // Include gender for validation
+            gender: data.gender, // Include gender for validation
+            isServiceAccount: data.isServiceAccount === true // Service accounts have no human profile
         };
 
         // --- Role & Gender Validation (First Time / Setup Required) ---
-        // If role is missing (0/null) OR gender is missing (null/empty string)
-        if (!user.role || !user.gender) {
+        // If role is missing (0/null) OR gender is missing (null/empty string).
+        // Service accounts are exempt: they are non-human credentials with no gender/profile.
+        if (!user.role || (!user.gender && !user.isServiceAccount)) {
             setShowWelcomeModal(true);
             setLoading(false);
             // DO NOT SAVE TOKEN - prevent login

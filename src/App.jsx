@@ -13,6 +13,7 @@ import SessionExpired from './pages/SessionExpired';
 import Unauthorized from './pages/Unauthorized';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
+import ServiceAccounts from './pages/ServiceAccounts';
 import Approvals from './pages/Approvals';
 import Reports from './pages/Reports';
 import Activities from './pages/Activities';
@@ -201,6 +202,7 @@ function App() {
             {/* Protected Routes */}
             <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
             <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
+            <Route path="/service-accounts" element={<ProtectedLayout><ServiceAccounts /></ProtectedLayout>} />
             <Route path="/attendance" element={<ProtectedLayout><Attendance /></ProtectedLayout>} />
             <Route path="/approvals" element={<ProtectedLayout><Approvals /></ProtectedLayout>} />
             <Route path="/calendar" element={<ProtectedLayout><Calendar /></ProtectedLayout>} />

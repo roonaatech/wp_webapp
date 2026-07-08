@@ -327,6 +327,15 @@ export const canManageRoles = (roleId) => {
 };
 
 /**
+ * Check if user can manage service accounts (global permission - boolean)
+ */
+export const canManageServiceAccounts = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_service_accounts === true;
+};
+
+/**
  * Check if user can manage email settings (global permission - boolean)
  */
 export const canManageEmailSettings = (roleId) => {

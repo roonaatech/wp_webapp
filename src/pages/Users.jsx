@@ -198,6 +198,8 @@ const Users = () => {
     const [loadingBalance, setLoadingBalance] = useState({});
     const [yearlyHistory, setYearlyHistory] = useState({});
     const [loadingHistory, setLoadingHistory] = useState({});
+    const [attendanceHistory, setAttendanceHistory] = useState({});
+    const [loadingAttendance, setLoadingAttendance] = useState({});
     const [historyTooltip, setHistoryTooltip] = useState({ show: false, events: [], anchor: null, date: null });
     const tooltipRef = useRef(null);
     const [tooltipCoords, setTooltipCoords] = useState({ left: 0, top: 0, ready: false });
@@ -553,6 +555,33 @@ const Users = () => {
         }
     };
 
+    const fetchAttendanceHistory = async (userId) => {
+        try {
+            setLoadingAttendance(prev => ({ ...prev, [userId]: true }));
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const currentYear = new Date().getFullYear();
+
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users/${userId}/attendance-history?year=${currentYear}`, {
+                headers: { 'x-access-token': token }
+            });
+
+            setAttendanceHistory(prev => ({
+                ...prev,
+                [userId]: response.data
+            }));
+        } catch (error) {
+            console.error(`Error fetching attendance history for user ${userId}:`, error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to load attendance';
+            setAttendanceHistory(prev => ({
+                ...prev,
+                [userId]: { error: errorMessage }
+            }));
+        } finally {
+            setLoadingAttendance(prev => ({ ...prev, [userId]: false }));
+        }
+    };
+
     const handleExpandUser = (userId) => {
         if (expandedUserId === userId) {
             setExpandedUserId(null);
@@ -565,6 +594,9 @@ const Users = () => {
             }
             if (!yearlyHistory[userId]) {
                 fetchYearlyHistory(userId);
+            }
+            if (!attendanceHistory[userId]) {
+                fetchAttendanceHistory(userId);
             }
             // Fetch all users for org chart if not already loaded
             if (allUsersRef.length === 0) {
@@ -1919,6 +1951,20 @@ const Users = () => {
                                                                         </svg>
                                                                         Yearly History
                                                                     </button>
+                                                                    <button
+                                                                        onClick={() => setActiveTab('attendance')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'attendance'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                        }`}
+                                                                    >
+                                                                        {activeTab === 'attendance' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'attendance' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                        </svg>
+                                                                        Attendance History
+                                                                    </button>
                                                                 </nav>
                                                             </div>
 
@@ -2013,7 +2059,7 @@ const Users = () => {
                                                                 <div className="animate-fadeIn">
                                                                     <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
                                                                         <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
-                                                                        {new Date().getFullYear()} Attendance History
+                                                                        {new Date().getFullYear()} Leave &amp; On-Duty History
                                                                     </h4>
 
                                                                     {loadingHistory[u.staffid] ? (
@@ -2115,6 +2161,103 @@ const Users = () => {
                                                                             </div>
                                                                         </div>
                                                                     )}
+                                                                </div>
+                                                            )}
+
+                                                            {activeTab === 'attendance' && (
+                                                                <div className="animate-fadeIn">
+                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
+                                                                        <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
+                                                                        {new Date().getFullYear()} Attendance History
+                                                                    </h4>
+
+                                                                    {loadingAttendance[u.staffid] ? (
+                                                                        <div className="flex items-center justify-center p-8">
+                                                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                                                                        </div>
+                                                                    ) : attendanceHistory[u.staffid]?.error ? (
+                                                                        <div className="p-4 bg-red-50 text-red-600 rounded-lg">
+                                                                            {attendanceHistory[u.staffid].error}
+                                                                        </div>
+                                                                    ) : (() => {
+                                                                        const data = attendanceHistory[u.staffid] || {};
+                                                                        const presentMap = {};
+                                                                        (data.present || []).forEach(p => { presentMap[p.date] = p; });
+                                                                        const excusedSet = new Set(data.excused || []);
+                                                                        const todayStr = data.today || new Date().toISOString().split('T')[0];
+                                                                        const fmtTime = (t) => t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
+                                                                        return (
+                                                                            <div>
+                                                                                <div className="flex flex-wrap items-center gap-4 mb-6 text-xs font-medium text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 shadow-sm"></span> Present</div>
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500 shadow-sm"></span> Absent</div>
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 shadow-sm"></span> Leave / On-Duty / Time-Off</div>
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-200 border border-slate-300"></span> Week-off</div>
+                                                                                </div>
+                                                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                                                                                    {Array.from({ length: 12 }).map((_, monthIndex) => {
+                                                                                        const year = new Date().getFullYear();
+                                                                                        const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+                                                                                        const firstDayOfWeek = new Date(year, monthIndex, 1).getDay();
+                                                                                        const monthName = new Date(year, monthIndex, 1).toLocaleString('default', { month: 'short' });
+
+                                                                                        return (
+                                                                                            <div key={monthIndex} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow">
+                                                                                                <div className="text-xs font-extrabold text-gray-800 mb-2 text-center uppercase tracking-wide">{monthName}</div>
+                                                                                                <div className="grid grid-cols-7 gap-1 text-[9px] font-semibold text-center text-gray-400 mb-1.5">
+                                                                                                    <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+                                                                                                </div>
+                                                                                                <div className="grid grid-cols-7 gap-1">
+                                                                                                    {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                                                                                                        <div key={`empty-${i}`} className="aspect-square"></div>
+                                                                                                    ))}
+                                                                                                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                                                                                                        const day = i + 1;
+                                                                                                        const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                                                                                        const isSunday = new Date(year, monthIndex, day).getDay() === 0;
+                                                                                                        const isFuture = dateStr > todayStr;
+                                                                                                        const p = presentMap[dateStr];
+
+                                                                                                        let cellClass;
+                                                                                                        let title;
+                                                                                                        // Colored (solid) cells get a subtle text shadow for legibility
+                                                                                                        const isColored = !!p || (!isSunday && !isFuture);
+                                                                                                        if (p) {
+                                                                                                            cellClass = "bg-emerald-500 border border-black/10 text-white shadow-sm font-bold";
+                                                                                                            title = `Present — In ${fmtTime(p.check_in_time)}${p.check_out_time ? `, Out ${fmtTime(p.check_out_time)}` : ''}`;
+                                                                                                        } else if (isSunday) {
+                                                                                                            cellClass = "bg-slate-100 border border-slate-200 text-slate-400";
+                                                                                                            title = 'Week-off (Sunday)';
+                                                                                                        } else if (isFuture) {
+                                                                                                            cellClass = "bg-gray-50 border border-gray-100 text-gray-300";
+                                                                                                            title = '';
+                                                                                                        } else if (excusedSet.has(dateStr)) {
+                                                                                                            cellClass = "bg-blue-500 border border-black/10 text-white shadow-sm font-bold";
+                                                                                                            title = 'Leave / On-Duty / Time-Off';
+                                                                                                        } else {
+                                                                                                            cellClass = "bg-red-500 border border-black/10 text-white shadow-sm font-bold";
+                                                                                                            title = 'Absent';
+                                                                                                        }
+
+                                                                                                        return (
+                                                                                                            <div
+                                                                                                                key={day}
+                                                                                                                title={title}
+                                                                                                                className={`aspect-square rounded flex items-center justify-center text-[10px] cursor-default transition-all ${cellClass}`}
+                                                                                                                style={isColored ? { textShadow: '0 1px 1px rgba(0,0,0,0.25)' } : undefined}
+                                                                                                            >
+                                                                                                                {day}
+                                                                                                            </div>
+                                                                                                        );
+                                                                                                    })}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })()}
                                                                 </div>
                                                             )}
                                                             </div>

@@ -48,6 +48,7 @@ const Roles = () => {
         can_manage_onboarding: false,
         can_access_webapp: false,
         can_manage_roles: false,
+        can_manage_service_accounts: false,
         can_manage_email_settings: false,
         can_manage_system_settings: 'none',
         can_access_attendance_portal: false,
@@ -139,6 +140,7 @@ const Roles = () => {
                 can_manage_onboarding: role.can_manage_onboarding,
                 can_access_webapp: role.can_access_webapp,
                 can_manage_roles: role.can_manage_roles,
+                can_manage_service_accounts: role.can_manage_service_accounts || false,
                 can_manage_email_settings: role.can_manage_email_settings,
                 can_manage_system_settings: role.can_manage_system_settings,
                 can_access_attendance_portal: role.can_access_attendance_portal || false,
@@ -168,6 +170,7 @@ const Roles = () => {
                 can_manage_onboarding: false,
                 can_access_webapp: false,
                 can_manage_roles: false,
+                can_manage_service_accounts: false,
                 can_manage_email_settings: false,
                 can_manage_system_settings: 'none',
                 can_access_attendance_portal: false,
@@ -578,6 +581,11 @@ const Roles = () => {
                                         {role.can_manage_roles && (
                                             <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-rose-100 text-rose-800">
                                                 Manage Roles
+                                            </span>
+                                        )}
+                                        {role.can_manage_service_accounts && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-teal-100 text-teal-800">
+                                                Manage Service Accounts
                                             </span>
                                         )}
                                         {role.can_approve_onduty && role.can_approve_onduty !== 'none' && (
@@ -1116,6 +1124,18 @@ const Roles = () => {
                                                         type="checkbox"
                                                         name="can_manage_roles"
                                                         checked={formData.can_manage_roles}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Manage Service Accounts</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_manage_service_accounts"
+                                                        checked={formData.can_manage_service_accounts}
                                                         onChange={handleInputChange}
                                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                                     />
