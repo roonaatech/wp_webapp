@@ -1949,7 +1949,7 @@ const Users = () => {
                                                                         <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                                         </svg>
-                                                                        Yearly History
+                                                                        Leave History
                                                                     </button>
                                                                     <button
                                                                         onClick={() => setActiveTab('attendance')}
