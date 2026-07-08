@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.7](https://github.com/roonaatech/wp_webapp/compare/v2.9.6...v2.9.7) (2026-07-08)
+
+
+### Bug Fixes
+
+* update button label from 'Yearly History' to 'Leave History' for clarity ([eeee513](https://github.com/roonaatech/wp_webapp/commit/eeee513f5ca88a447ab2723f7fbb660b31945dbe))
+
 ### [2.9.6](https://github.com/roonaatech/wp_webapp/compare/v2.9.5...v2.9.6) (2026-07-08)
 
 
