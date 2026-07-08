@@ -70,20 +70,20 @@ const VirtualKeyboard = ({ value = '', onChange, onClose, title = 'On-Screen Key
 
     const renderKey = (key, index) => {
         let content = key;
-        let keyClass = "flex-1 h-12 sm:h-14 flex items-center justify-center rounded-lg text-sm sm:text-base font-bold shadow transition-all active:scale-95 touch-manipulation ";
+        let keyClass = "flex-1 h-12 sm:h-14 flex items-center justify-center rounded-lg text-base sm:text-lg font-extrabold shadow transition-all active:scale-95 touch-manipulation ";
 
         // Style overrides based on function keys
         if (key === 'shift') {
-            content = <LuArrowUp className={`w-5 h-5 ${layout === 'shift' ? 'text-indigo-400' : 'text-slate-300'}`} />;
+            content = <LuArrowUp className={`w-6 h-6 ${layout === 'shift' ? 'text-indigo-400' : 'text-slate-300'}`} />;
             keyClass += layout === 'shift' 
                 ? 'bg-slate-700/80 border border-indigo-500/50 text-indigo-400 hover:bg-slate-650' 
                 : 'bg-slate-800/80 text-slate-300 hover:bg-slate-750 border border-slate-700/50';
         } else if (key === 'backspace') {
-            content = <LuDelete className="w-5 h-5" />;
+            content = <LuDelete className="w-6 h-6" />;
             keyClass += 'bg-slate-800/80 text-slate-300 hover:bg-slate-750 border border-slate-700/50 flex-[1.5]';
         } else if (key === 'space') {
             content = 'Space';
-            keyClass += 'bg-slate-850 hover:bg-slate-850 border border-slate-700/50 text-white flex-[3]';
+            keyClass += 'bg-slate-855 hover:bg-slate-855 border border-slate-700/50 text-white flex-[3]';
         } else if (key === 'clear') {
             content = 'Clear';
             keyClass += 'bg-rose-950/80 border border-rose-900/40 text-rose-300 hover:bg-rose-900/60 flex-[1.2]';
@@ -126,7 +126,7 @@ const VirtualKeyboard = ({ value = '', onChange, onClose, title = 'On-Screen Key
             onMouseDown={handleMouseDown}
             onTouchStart={handleMouseDown}
         >
-            <div className="w-full max-w-3xl flex flex-col gap-3">
+            <div className="w-full max-w-5xl flex flex-col gap-3">
                 {/* Keyboard Header / Value Preview */}
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-1">
                     <div className="flex flex-col text-left">
@@ -163,7 +163,7 @@ const VirtualKeyboard = ({ value = '', onChange, onClose, title = 'On-Screen Key
                 {/* Keyboard Keys Grid */}
                 <div className="flex flex-col gap-2 select-none">
                     {getRows().map((row, rowIndex) => (
-                        <div key={rowIndex} className="flex gap-1.5 sm:gap-2 justify-center w-full">
+                        <div key={rowIndex} className="flex gap-1 sm:gap-1.5 justify-center w-full">
                             {row.map((key, keyIndex) => renderKey(key, keyIndex))}
                         </div>
                     ))}
