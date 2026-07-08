@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { canViewActivities, fetchRoles } from '../utils/roleUtils';
-import { formatInTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, getCurrentInAppTimezone, formatTimeOnly, formatDateOnly } from '../utils/timezone.util';
 import TableSortIcon from '../components/TableSortIcon';
 
 const Activities = () => {
@@ -226,7 +226,10 @@ const Activities = () => {
             'APPROVE': 'bg-green-100 text-green-800',
             'REJECT': 'bg-orange-100 text-orange-800',
             'LOGIN': 'bg-purple-100 text-purple-800',
-            'LOGOUT': 'bg-gray-100 text-gray-800'
+            'LOGOUT': 'bg-gray-100 text-gray-800',
+            'CHECK_IN': 'bg-emerald-100 text-emerald-800',
+            'CHECK_OUT': 'bg-sky-100 text-sky-800',
+            'REGISTER_FACE': 'bg-teal-100 text-teal-800'
         };
         return colors[action] || 'bg-gray-100 text-gray-800';
     };
@@ -240,6 +243,60 @@ const Activities = () => {
             }
         }
         return activity.description;
+    };
+
+    // Human-readable labels for audited fields
+    const CHANGE_FIELD_LABELS = {
+        date: 'Date',
+        check_in_time: 'Check-In',
+        check_out_time: 'Check-Out'
+    };
+
+    const formatChangeValue = (key, value) => {
+        if (value === null || value === undefined || value === '') return '—';
+        if (key === 'date') return formatDateOnly(value);
+        if (key === 'check_in_time' || key === 'check_out_time') return formatTimeOnly(value);
+        return String(value);
+    };
+
+    // JSON columns may arrive parsed or as a raw string depending on the driver
+    const parseValues = (val) => {
+        if (!val) return null;
+        if (typeof val === 'string') {
+            try { return JSON.parse(val); } catch { return null; }
+        }
+        return val;
+    };
+
+    // Render "field: old → new" lines for entries that captured before/after values
+    const renderChanges = (activity) => {
+        const oldValues = parseValues(activity.old_values);
+        const newValues = parseValues(activity.new_values);
+        if (!newValues || typeof newValues !== 'object') return null;
+
+        const changes = Object.keys(newValues)
+            .map((key) => {
+                const before = formatChangeValue(key, oldValues ? oldValues[key] : undefined);
+                const after = formatChangeValue(key, newValues[key]);
+                if (before === after) return null; // skip unchanged fields
+                return { key, label: CHANGE_FIELD_LABELS[key] || key, before, after };
+            })
+            .filter(Boolean);
+
+        if (changes.length === 0) return null;
+
+        return (
+            <div className="mt-1.5 space-y-0.5">
+                {changes.map((c) => (
+                    <div key={c.key} className="text-xs text-gray-500 flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold text-gray-600">{c.label}:</span>
+                        <span className="line-through text-rose-500">{c.before}</span>
+                        <span className="text-gray-400">→</span>
+                        <span className="font-medium text-emerald-600">{c.after}</span>
+                    </div>
+                ))}
+            </div>
+        );
     };
 
     const extractIPv4 = (ip) => {
@@ -261,7 +318,8 @@ const Activities = () => {
             'TimeOffRequest': 'bg-orange-100 text-orange-800',
             'LeaveType': 'bg-blue-100 text-blue-800',
             'Approval': 'bg-green-100 text-green-800',
-            'Setting': 'bg-yellow-100 text-yellow-800'
+            'Setting': 'bg-yellow-100 text-yellow-800',
+            'AttendanceLog': 'bg-teal-100 text-teal-800'
         };
         return colors[entity] || 'bg-gray-100 text-gray-800';
     };
@@ -422,6 +480,9 @@ const Activities = () => {
                             <option value="REJECT">REJECT</option>
                             <option value="LOGIN">LOGIN</option>
                             <option value="LOGOUT">LOGOUT</option>
+                            <option value="CHECK_IN">CHECK IN</option>
+                            <option value="CHECK_OUT">CHECK OUT</option>
+                            <option value="REGISTER_FACE">REGISTER FACE</option>
                         </select>
                     </div>
 
@@ -452,6 +513,7 @@ const Activities = () => {
                             <option value="LeaveType">Leave Type</option>
                             <option value="Approval">Approval</option>
                             <option value="Setting">System Setting</option>
+                            <option value="AttendanceLog">Attendance Log</option>
                         </select>
                     </div>
 
@@ -714,6 +776,7 @@ const Activities = () => {
                                                     <div className="whitespace-normal break-words leading-relaxed">
                                                         {formatDescription(activity)}
                                                     </div>
+                                                    {renderChanges(activity)}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap text-xs">
                                                     {extractIPv4(activity.ip_address) || <span className="text-gray-400">—</span>}

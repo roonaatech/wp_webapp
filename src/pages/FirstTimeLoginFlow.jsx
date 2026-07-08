@@ -1,21 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'react-hot-toast'; // Wait, let's keep axios as is: import axios from 'axios' and toast from 'react-hot-toast'
-import axiosInstance from 'axios'; // Actually the original was: import axios from 'axios';
+import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuLock, LuShieldAlert, LuUserCheck, LuSignature, LuCheck, LuUndo2, LuArrowRight, LuPlus, LuTrash2, LuUser, LuEye, LuCalendar } from "react-icons/lu";
+import { LuLock, LuShieldAlert, LuUserCheck, LuSignature, LuCheck, LuUndo2, LuArrowRight, LuPlus, LuTrash2, LuUser, LuEye, LuCalendar, LuCamera } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate } from '../utils/timezone.util';
 import { fetchRoles, canAccessWebApp, isSelfServiceOnly } from '../utils/roleUtils';
+import * as faceapi from '@vladmandic/face-api';
 
 const FirstTimeLoginFlow = () => {
     const navigate = useNavigate();
+    const axiosInstance = axios;
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [auditData, setAuditData] = useState(null);
     const [auditLoading, setAuditLoading] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showDobModal, setShowDobModal] = useState(false);
+    const [modelsLoaded, setModelsLoaded] = useState(false);
+    const [faceDetected, setFaceDetected] = useState(false);
+    const [registeringFace, setRegisteringFace] = useState(false);
+    const faceVideoRef = useRef(null);
+    const faceStreamRef = useRef(null);
+    const faceDetectIntervalRef = useRef(null);
 
     const handleResolveDob = () => {
         setShowDobModal(false);
@@ -467,7 +474,9 @@ const FirstTimeLoginFlow = () => {
             localStorage.setItem('mustChangePassword', 'false');
             localStorage.setItem('mustCompleteDeclaration', 'false');
 
-            setShowSuccessModal(true);
+            // Move to Step 3: Face ID Registration
+            setStep(3);
+            startFaceCamera();
         } catch (err) {
             console.error('Error completing verification:', err);
             const errMsg = err.response?.data?.message || 'Failed to complete profile verification.';
@@ -553,6 +562,123 @@ const FirstTimeLoginFlow = () => {
             toast.error(errMsg);
         } finally {
             setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            stopFaceCamera();
+        };
+    }, []);
+
+    // Load Face API Models
+    const loadFaceModels = async () => {
+        if (modelsLoaded) return true;
+        try {
+            await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+            setModelsLoaded(true);
+            return true;
+        } catch (err) {
+            console.log('Failed loading local models, trying CDN...', err);
+            try {
+                const CDN_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+                await faceapi.nets.ssdMobilenetv1.loadFromUri(CDN_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(CDN_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(CDN_URL);
+                setModelsLoaded(true);
+                return true;
+            } catch (cdnErr) {
+                console.error('All model loading attempts failed:', cdnErr);
+                toast.error('Face Identification Model Loading Failed.');
+                return false;
+            }
+        }
+    };
+
+    const startFaceCamera = async () => {
+        try {
+            const hasModels = await loadFaceModels();
+            if (!hasModels) return;
+
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: 640, height: 480, facingMode: "user" } 
+            });
+            if (faceVideoRef.current) {
+                faceVideoRef.current.srcObject = stream;
+            }
+            faceStreamRef.current = stream;
+
+            faceDetectIntervalRef.current = setInterval(async () => {
+                if (faceVideoRef.current && faceapi.nets.ssdMobilenetv1.params) {
+                    const detection = await faceapi.detectSingleFace(
+                        faceVideoRef.current, 
+                        new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
+                    );
+                    setFaceDetected(!!detection);
+                }
+            }, 1000);
+        } catch (err) {
+            console.error("Error accessing webcam:", err);
+            toast.error("Webcam access denied or unavailable.");
+        }
+    };
+
+    const stopFaceCamera = () => {
+        if (faceDetectIntervalRef.current) {
+            clearInterval(faceDetectIntervalRef.current);
+            faceDetectIntervalRef.current = null;
+        }
+        if (faceStreamRef.current) {
+            faceStreamRef.current.getTracks().forEach(track => track.stop());
+            faceStreamRef.current = null;
+        }
+        if (faceVideoRef.current) {
+            faceVideoRef.current.srcObject = null;
+        }
+        setFaceDetected(false);
+    };
+
+    const handleRegisterFace = async () => {
+        if (!faceVideoRef.current) return;
+        setRegisteringFace(true);
+
+        try {
+            const detection = await faceapi.detectSingleFace(faceVideoRef.current)
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            if (!detection) {
+                toast.error("No face detected. Please align yourself in front of the camera.");
+                setRegisteringFace(false);
+                return;
+            }
+
+            // Capture cropped frame for profile picture
+            const canvas = document.createElement('canvas');
+            canvas.width = faceVideoRef.current.videoWidth || 640;
+            canvas.height = faceVideoRef.current.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(faceVideoRef.current, 0, 0, canvas.width, canvas.height);
+            const snapshotImage = canvas.toDataURL('image/jpeg', 0.8);
+
+            const token = localStorage.getItem('token');
+            const response = await axios.post(`${API_BASE_URL}/api/attendance/register-face`, {
+                faceDescriptor: Array.from(detection.descriptor),
+                profileImage: snapshotImage
+            }, {
+                headers: { 'x-access-token': token }
+            });
+
+            toast.success(response.data.message || 'Face registered successfully!');
+            stopFaceCamera();
+            setShowSuccessModal(true);
+        } catch (err) {
+            console.error('Error registering face:', err);
+            toast.error(err.response?.data?.message || 'Failed to register face.');
+        } finally {
+            setRegisteringFace(false);
         }
     };
 
@@ -1376,6 +1502,75 @@ const FirstTimeLoginFlow = () => {
                         ) : (
                             <p className="text-center text-sm text-rose-500 font-bold">Failed to load audit profile. Refresh page.</p>
                         )}
+                    </div>
+                )}
+
+                {/* STEP 3: FACE ID REGISTRATION (OPTIONAL) */}
+                {step === 3 && (
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 max-w-2xl mx-auto space-y-6 text-center">
+                        <div className="flex flex-col items-center">
+                            <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-[#1e1b4b] flex items-center justify-center mb-4">
+                                <LuCamera size={28} />
+                            </div>
+                            <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Register Face ID</h2>
+                            <p className="text-gray-500 text-sm mt-1">
+                                Secure your account and enable instant checking at the front desk webcam.
+                            </p>
+                        </div>
+
+                        {/* Camera Window */}
+                        <div className="relative aspect-video max-w-md mx-auto bg-[#0f172a] rounded-2xl overflow-hidden border border-slate-700/50 flex items-center justify-center shadow-inner">
+                            <video 
+                                ref={faceVideoRef}
+                                autoPlay 
+                                muted 
+                                playsInline 
+                                className="w-full h-full object-cover transform -scale-x-100"
+                            />
+                            
+                            <div className="absolute inset-0 border-2 border-dashed border-sky-400/20 rounded-2xl pointer-events-none flex items-center justify-center">
+                                <div className={`w-40 h-40 border-2 rounded-full pointer-events-none transition-all duration-300 ${
+                                    faceDetected ? 'border-emerald-500/80 bg-emerald-500/5 scale-105 animate-pulse' : 'border-sky-400/30 scale-100'
+                                }`}>
+                                    <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-sky-400 to-transparent animate-pulse absolute top-1/2 left-0" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-3 bg-slate-50 rounded-xl max-w-md mx-auto">
+                            <p className="text-xs font-semibold text-slate-600">
+                                {faceDetected ? '✅ Face detected. Ready to register.' : '🔍 Center your face in the circle.'}
+                            </p>
+                        </div>
+
+                        <div className="flex gap-4 max-w-md mx-auto pt-4">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    stopFaceCamera();
+                                    setShowSuccessModal(true);
+                                }}
+                                className="flex-1 py-4 bg-gray-50 hover:bg-gray-100 border text-gray-700 font-bold rounded-xl text-sm transition"
+                                disabled={registeringFace}
+                            >
+                                Skip Setup
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleRegisterFace}
+                                className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-sm transition shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                                disabled={registeringFace || !modelsLoaded}
+                            >
+                                {registeringFace ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Saving...</span>
+                                    </>
+                                ) : (
+                                    <span>Capture & Register</span>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

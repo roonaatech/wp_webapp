@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar } from "react-icons/lu";
+import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding } from '../utils/roleUtils';
 import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
+import * as faceapi from '@vladmandic/face-api';
 
 
 
@@ -72,6 +73,13 @@ const ViewEmployeeProfile = () => {
     const [resendingEmail, setResendingEmail] = useState(false);
     const [dojDisplay, setDojDisplay] = useState('');
     const dojPickerRef = useRef(null);
+    const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+    const [modelsLoaded, setModelsLoaded] = useState(false);
+    const [registeringFace, setRegisteringFace] = useState(false);
+    const [faceDetected, setFaceDetected] = useState(false);
+    const faceVideoRef = useRef(null);
+    const faceStreamRef = useRef(null);
+    const faceDetectIntervalRef = useRef(null);
 
     useEffect(() => {
         fetchEmployeeProfile();
@@ -247,6 +255,118 @@ const ViewEmployeeProfile = () => {
         }
     };
 
+    // Load Face API Models
+    const loadFaceModels = async () => {
+        if (modelsLoaded) return true;
+        try {
+            await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+            setModelsLoaded(true);
+            return true;
+        } catch (err) {
+            console.log('Failed loading local models, trying CDN...', err);
+            try {
+                const CDN_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+                await faceapi.nets.ssdMobilenetv1.loadFromUri(CDN_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(CDN_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(CDN_URL);
+                setModelsLoaded(true);
+                return true;
+            } catch (cdnErr) {
+                console.error('All model loading attempts failed:', cdnErr);
+                toast.error('Face Identification Model Loading Failed.');
+                return false;
+            }
+        }
+    };
+
+    const startFaceCamera = async () => {
+        try {
+            const hasModels = await loadFaceModels();
+            if (!hasModels) return;
+
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: 640, height: 480, facingMode: "user" } 
+            });
+            if (faceVideoRef.current) {
+                faceVideoRef.current.srcObject = stream;
+            }
+            faceStreamRef.current = stream;
+
+            faceDetectIntervalRef.current = setInterval(async () => {
+                if (faceVideoRef.current && faceapi.nets.ssdMobilenetv1.params) {
+                    const detection = await faceapi.detectSingleFace(
+                        faceVideoRef.current, 
+                        new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
+                    );
+                    setFaceDetected(!!detection);
+                }
+            }, 1000);
+        } catch (err) {
+            console.error("Error accessing webcam:", err);
+            toast.error("Webcam access denied or unavailable.");
+        }
+    };
+
+    const stopFaceCamera = () => {
+        if (faceDetectIntervalRef.current) {
+            clearInterval(faceDetectIntervalRef.current);
+            faceDetectIntervalRef.current = null;
+        }
+        if (faceStreamRef.current) {
+            faceStreamRef.current.getTracks().forEach(track => track.stop());
+            faceStreamRef.current = null;
+        }
+        if (faceVideoRef.current) {
+            faceVideoRef.current.srcObject = null;
+        }
+        setFaceDetected(false);
+    };
+
+    const handleRegisterFace = async () => {
+        if (!faceVideoRef.current) return;
+        setRegisteringFace(true);
+
+        try {
+            const detection = await faceapi.detectSingleFace(faceVideoRef.current)
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            if (!detection) {
+                toast.error("No face detected. Please align yourself in front of the camera.");
+                setRegisteringFace(false);
+                return;
+            }
+
+            // Capture cropped frame for profile picture
+            const canvas = document.createElement('canvas');
+            canvas.width = faceVideoRef.current.videoWidth || 640;
+            canvas.height = faceVideoRef.current.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(faceVideoRef.current, 0, 0, canvas.width, canvas.height);
+            const snapshotImage = canvas.toDataURL('image/jpeg', 0.8);
+
+            const token = localStorage.getItem('token');
+            const response = await axios.post(`${API_BASE_URL}/api/admin/users/${id}/register-face`, {
+                faceDescriptor: Array.from(detection.descriptor),
+                profileImage: snapshotImage
+            }, {
+                headers: { 'x-access-token': token }
+            });
+
+            toast.success(response.data.message || 'Face registered successfully!');
+            setIsFaceModalOpen(false);
+            stopFaceCamera();
+            fetchEmployeeProfile(); // Reload profile details
+        } catch (err) {
+            console.error('Error registering face:', err);
+            toast.error(err.response?.data?.message || 'Failed to register face.');
+        } finally {
+            setRegisteringFace(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -362,6 +482,27 @@ const ViewEmployeeProfile = () => {
                             </span>
                         )}
                     </div>
+
+                    {/* Registered Face ID image (kept separate from the profile photo) */}
+                    {employee.face_image_path && (
+                        <div className="flex flex-col items-center gap-1">
+                            <div className="relative w-16 h-16 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center shadow-sm overflow-hidden">
+                                <img
+                                    src={`${API_BASE_URL}/${employee.face_image_path.replace(/\\/g, '/')}`}
+                                    alt={`${employee.firstname} ${employee.lastname} Face ID`}
+                                    className="w-full h-full object-cover rounded-2xl cursor-zoom-in hover:brightness-95 transition duration-200"
+                                    onClick={() => {
+                                        setLightboxImage(`${API_BASE_URL}/${employee.face_image_path.replace(/\\/g, '/')}`);
+                                        setIsLightboxOpen(true);
+                                    }}
+                                />
+                            </div>
+                            <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wide flex items-center gap-1">
+                                <LuCamera size={11} /> Face ID
+                            </span>
+                        </div>
+                    )}
+
                     <div>
                         <div className="flex items-center gap-2.5 flex-wrap">
                             <h1 className="text-2xl font-black text-[#1e1b4b]">{employee.firstname} {employee.lastname}</h1>
@@ -456,6 +597,18 @@ const ViewEmployeeProfile = () => {
                                     Resend Welcome Email
                                 </>
                             )}
+                        </button>
+                    )}
+                    {canEdit && (
+                        <button
+                            onClick={() => {
+                                setIsFaceModalOpen(true);
+                                startFaceCamera();
+                            }}
+                            className="flex-1 md:flex-none px-6 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl transition text-sm shadow-sm flex items-center justify-center gap-1.5"
+                        >
+                            <LuCamera size={16} />
+                            {employee.face_image_path ? 'Update Face ID' : 'Register Face ID'}
                         </button>
                     )}
                     {canEdit && (
@@ -989,6 +1142,81 @@ const ViewEmployeeProfile = () => {
                             alt="Bigger employee profile photo"
                             className="max-w-full max-h-[85vh] rounded-3xl object-contain shadow-2xl border border-white/10 bg-black/20"
                         />
+                    </div>
+                </div>
+            )}
+
+            {/* Face Registration Modal */}
+            {isFaceModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 flex flex-col justify-between">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                <LuCamera className="text-indigo-600" />
+                                Register Face ID
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setIsFaceModalOpen(false);
+                                    stopFaceCamera();
+                                }}
+                                className="text-gray-400 hover:text-gray-600 text-sm font-semibold"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        {/* Webcam Viewport */}
+                        <div className="relative aspect-video bg-[#0f172a] rounded-2xl overflow-hidden border border-slate-700/50 flex items-center justify-center">
+                            <video 
+                                ref={faceVideoRef}
+                                autoPlay 
+                                muted 
+                                playsInline 
+                                className="w-full h-full object-cover transform -scale-x-100"
+                            />
+                            
+                            <div className="absolute inset-0 border-2 border-dashed border-sky-400/20 rounded-2xl pointer-events-none flex items-center justify-center">
+                                <div className={`w-40 h-40 border-2 rounded-full pointer-events-none transition-all duration-300 ${
+                                    faceDetected ? 'border-emerald-500/80 bg-emerald-500/5 scale-105 animate-pulse' : 'border-sky-400/30 scale-100'
+                                }`}>
+                                    <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-sky-400 to-transparent animate-pulse absolute top-1/2 left-0" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 p-3 bg-slate-50 rounded-xl text-center">
+                            <p className="text-xs font-semibold text-slate-600">
+                                {faceDetected ? '✅ Face Aligned. Ready to register.' : '🔍 Center your face in the circle.'}
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    setIsFaceModalOpen(false);
+                                    stopFaceCamera();
+                                }}
+                                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition"
+                                disabled={registeringFace}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRegisterFace}
+                                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-sm transition shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 cursor-pointer"
+                                disabled={registeringFace || !modelsLoaded}
+                            >
+                                {registeringFace ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Registering...</span>
+                                    </>
+                                ) : (
+                                    <span>Capture & Register</span>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

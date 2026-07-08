@@ -16,13 +16,14 @@ import {
     LuChevronLeft,
     LuChevronRight,
     LuClipboardPen,
-    LuSettings
+    LuSettings,
+    LuCamera
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -40,6 +41,10 @@ const Sidebar = () => {
     const canManageSchedulePermission = canManageSchedule(user.role);
     const canViewReportsPermission = canViewReports(user.role);
     const canViewActivitiesPermission = canViewActivities(user.role);
+    const canAccessAttendance = canAccessAttendancePortal(user.role);
+    const canViewAttendanceReportPermission = canViewAttendanceReport(user.role);
+    // Show Management section only if the user has at least one item in it
+    const hasAnyManagementPermission = canApprove || canManageActiveOnDutyPermission || canManageSchedulePermission || canAccessAttendance;
     // Show Staff section if user has staff management permission
     const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission;
     // Show Configurations section if user has any configuration permission
@@ -262,11 +267,13 @@ const Sidebar = () => {
                     <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
                 )}
 
-                {!isCollapsed && (
+                {!isCollapsed && hasAnyManagementPermission && (
                     <div>
                         <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Management</p>
-                        {/* Approvals - Both Admin and Manager */}
-                        <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
+                        {/* Approvals - Only for users who can approve leave or on-duty requests */}
+                        {canApprove && (
+                            <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
+                        )}
                         {/* Active On-Duty - For users with can_manage_active_onduty permission */}
                         {canManageActiveOnDutyPermission && (
                             <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
@@ -275,16 +282,24 @@ const Sidebar = () => {
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                         )}
+                        {canAccessAttendance && (
+                            <NavLink to="/attendance" icon={<LuCamera />} label="Face Attendance" />
+                        )}
                     </div>
                 )}
-                {isCollapsed && (
+                {isCollapsed && hasAnyManagementPermission && (
                     <div className="space-y-2">
-                        <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
+                        {canApprove && (
+                            <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
+                        )}
                         {canManageActiveOnDutyPermission && (
                             <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
                         )}
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
+                        )}
+                        {canAccessAttendance && (
+                            <NavLink to="/attendance" icon={<LuCamera />} label="Face Attendance" />
                         )}
                     </div>
                 )}
@@ -373,11 +388,14 @@ const Sidebar = () => {
                     </div>
                 )}
 
-                {!isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
+                {!isCollapsed && (canViewReportsPermission || canViewActivitiesPermission || canViewAttendanceReportPermission) && (
                     <div>
                         <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Analysis</p>
                         {canViewReportsPermission && (
                             <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        )}
+                        {canViewAttendanceReportPermission && (
+                            <NavLink to="/attendance-report" icon={<LuCalendarDays />} label="Attendance Review" />
                         )}
                         {/* Activities - Based on can_view_activities permission */}
                         {canViewActivitiesPermission && (
@@ -390,10 +408,13 @@ const Sidebar = () => {
                         </div>
                     </div>
                 )}
-                {isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
+                {isCollapsed && (canViewReportsPermission || canViewActivitiesPermission || canViewAttendanceReportPermission) && (
                     <div className="space-y-2">
                         {canViewReportsPermission && (
                             <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        )}
+                        {canViewAttendanceReportPermission && (
+                            <NavLink to="/attendance-report" icon={<LuCalendarDays />} label="Attendance Review" />
                         )}
                         {canViewActivitiesPermission && (
                             <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />

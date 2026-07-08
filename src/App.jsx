@@ -31,6 +31,8 @@ import OnboardEmployee from './pages/OnboardEmployee';
 import ViewEmployeeProfile from './pages/ViewEmployeeProfile';
 import FirstTimeLoginFlow from './pages/FirstTimeLoginFlow';
 import CandidateOnboardingFlow from './pages/CandidateOnboardingFlow';
+import Attendance from './pages/Attendance';
+import AttendanceReport from './pages/AttendanceReport';
 
 
 
@@ -199,9 +201,11 @@ function App() {
             {/* Protected Routes */}
             <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
             <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
+            <Route path="/attendance" element={<ProtectedLayout><Attendance /></ProtectedLayout>} />
             <Route path="/approvals" element={<ProtectedLayout><Approvals /></ProtectedLayout>} />
             <Route path="/calendar" element={<ProtectedLayout><Calendar /></ProtectedLayout>} />
             <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
+            <Route path="/attendance-report" element={<ProtectedLayout><AttendanceReport /></ProtectedLayout>} />
             <Route path="/activities" element={<ProtectedLayout><Activities /></ProtectedLayout>} />
             <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
             <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />

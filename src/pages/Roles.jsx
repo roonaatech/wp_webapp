@@ -50,6 +50,9 @@ const Roles = () => {
         can_manage_roles: false,
         can_manage_email_settings: false,
         can_manage_system_settings: 'none',
+        can_access_attendance_portal: false,
+        can_view_attendance_report: 'none',
+        can_manage_attendance: 'none',
         active: true
     });
 
@@ -138,6 +141,9 @@ const Roles = () => {
                 can_manage_roles: role.can_manage_roles,
                 can_manage_email_settings: role.can_manage_email_settings,
                 can_manage_system_settings: role.can_manage_system_settings,
+                can_access_attendance_portal: role.can_access_attendance_portal || false,
+                can_view_attendance_report: role.can_view_attendance_report || 'none',
+                can_manage_attendance: role.can_manage_attendance || 'none',
                 active: role.active
             });
         } else {
@@ -164,6 +170,9 @@ const Roles = () => {
                 can_manage_roles: false,
                 can_manage_email_settings: false,
                 can_manage_system_settings: 'none',
+                can_access_attendance_portal: false,
+                can_view_attendance_report: 'none',
+                can_manage_attendance: 'none',
                 active: true
             });
         }
@@ -532,6 +541,16 @@ const Roles = () => {
                                 </td>
                                 <td className="px-3 py-4 align-top">
                                     <div className="grid gap-1.5" style={{ width: '300px', gridTemplateColumns: '1fr 1fr' }}>
+                                        {role.can_access_attendance_portal && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-amber-100 text-amber-800">
+                                                Attendance Portal
+                                            </span>
+                                        )}
+                                        {role.can_access_webapp && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-teal-100 text-teal-800">
+                                                Web App
+                                            </span>
+                                        )}
                                         {role.can_manage_active_onduty && role.can_manage_active_onduty !== 'none' && (
                                             <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_manage_active_onduty === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
                                                 Active OnDuty {role.can_manage_active_onduty === 'subordinates' ? '(Sub)' : '(All)'}
@@ -555,6 +574,11 @@ const Roles = () => {
                                         )}
                                         {role.can_manage_onboarding && (
                                             <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-indigo-100 text-indigo-800">Onboarding</span>
+                                        )}
+                                        {role.can_manage_roles && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-rose-100 text-rose-800">
+                                                Manage Roles
+                                            </span>
                                         )}
                                         {role.can_approve_onduty && role.can_approve_onduty !== 'none' && (
                                             <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_approve_onduty === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
@@ -870,7 +894,7 @@ const Roles = () => {
                                             </tr>
 
                                             {/* View Reports */}
-                                            <tr className="hover:bg-gray-50">
+                                            <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Reports</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <input
@@ -899,7 +923,7 @@ const Roles = () => {
                                             </tr>
 
                                             {/* View Active On-Duty */}
-                                            <tr className="hover:bg-gray-50">
+                                            <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Active On-Duty</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <input
@@ -957,7 +981,7 @@ const Roles = () => {
                                             </tr>
 
                                             {/* View Activities */}
-                                            <tr className="hover:bg-gray-50">
+                                            <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Activities</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <input
@@ -979,6 +1003,64 @@ const Roles = () => {
                                                         checked={formData.can_view_activities === 'all'}
                                                         onChange={(e) => {
                                                             setFormData(prev => ({ ...prev, can_view_activities: e.target.checked ? 'all' : (prev.can_view_activities === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+
+                                            {/* View Attendance Report */}
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">View Attendance Report</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_view_attendance_report === 'subordinates' || formData.can_view_attendance_report === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_view_attendance_report: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_view_attendance_report: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_view_attendance_report === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_view_attendance_report: e.target.checked ? 'all' : (prev.can_view_attendance_report === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+
+                                            {/* Edit/Delete Attendance */}
+                                            <tr className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Edit/Delete Attendance</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_manage_attendance === 'subordinates' || formData.can_manage_attendance === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_manage_attendance: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_manage_attendance: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_manage_attendance === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_manage_attendance: e.target.checked ? 'all' : (prev.can_manage_attendance === 'all' ? 'subordinates' : 'none') }));
                                                         }}
                                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                                     />
@@ -1083,6 +1165,18 @@ const Roles = () => {
                                                     </td>
                                                 </tr>
                                             )}
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Access Face Attendance Portal</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_access_attendance_portal"
+                                                        checked={formData.can_access_attendance_portal}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>

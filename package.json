@@ -21,6 +21,7 @@
     "axios": "^1.6.8",
     "chart.js": "^4.5.1",
     "exceljs": "^4.4.0",
+    "@vladmandic/face-api": "^1.7.12",
     "file-saver": "^2.0.5",
     "mermaid": "^11.12.2",
     "postcss": "^8.4.38",

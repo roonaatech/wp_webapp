@@ -345,6 +345,52 @@ export const canManageSystemSettings = (roleId) => {
 };
 
 /**
+ * Check if user can access the face attendance portal (global permission - boolean)
+ */
+export const canAccessAttendancePortal = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_access_attendance_portal == true;
+};
+
+/**
+ * Check if user can view attendance report (any level - subordinates or all)
+ */
+export const canViewAttendanceReport = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_attendance_report === 'subordinates' || role.can_view_attendance_report === 'all';
+};
+
+/**
+ * Check if user can view attendance report for all users
+ */
+export const canViewAttendanceReportAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_attendance_report === 'all';
+};
+
+/**
+ * Check if user can edit/delete attendance records (any level - subordinates or all)
+ */
+export const canManageAttendance = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
+};
+
+/**
+ * Check if user can edit/delete attendance records for all users
+ */
+export const canManageAttendanceAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_attendance === 'all';
+};
+
+
+/**
  * Check if a user is "self-service only" - i.e. has NO management/admin/approval permissions.
  * These users should be directed to the My Requests page instead of the full dashboard.
  * Returns true if the user has NONE of the management permissions.
@@ -367,7 +413,10 @@ export const isSelfServiceOnly = (roleId) => {
         role.can_manage_leave_types == true ||
         role.can_manage_roles == true ||
         role.can_manage_email_settings == true ||
-        role.can_manage_system_settings === 'all';
+        role.can_manage_system_settings === 'all' ||
+        role.can_access_attendance_portal == true ||
+        role.can_view_attendance_report === 'subordinates' || role.can_view_attendance_report === 'all' ||
+        role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
 
     return !hasAnyManagement;
 };
@@ -494,6 +543,11 @@ export default {
     canManageUsers,
     canViewUsers,
     canAccessUsersPage,
+    canAccessAttendancePortal,
+    canViewAttendanceReport,
+    canViewAttendanceReportAll,
+    canManageAttendance,
+    canManageAttendanceAll,
     getHierarchyLevel,
     isHigherRole,
     getApproverRoles,
