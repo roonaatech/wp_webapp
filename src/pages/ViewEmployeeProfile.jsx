@@ -339,13 +339,27 @@ const ViewEmployeeProfile = () => {
                 return;
             }
 
-            // Capture cropped frame for profile picture
+            // Capture cropped frame matching the green circle (w-40 h-40 = 160px diameter)
+            const video = faceVideoRef.current;
+            const vW = video.videoWidth || 640;
+            const vH = video.videoHeight || 480;
+            const dW = video.clientWidth || vW;
+            const dH = video.clientHeight || vH;
+
+            const scale = Math.max(dW / vW, dH / vH);
+            
+            // Green circle is 160px diameter in CSS pixels (w-40 h-40)
+            const vD = Math.min(160 / scale, vW, vH);
+            
+            const sx = Math.max(0, (vW - vD) / 2);
+            const sy = Math.max(0, (vH - vD) / 2);
+
             const canvas = document.createElement('canvas');
-            canvas.width = faceVideoRef.current.videoWidth || 640;
-            canvas.height = faceVideoRef.current.videoHeight || 480;
+            canvas.width = 300;
+            canvas.height = 300;
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(faceVideoRef.current, 0, 0, canvas.width, canvas.height);
-            const snapshotImage = canvas.toDataURL('image/jpeg', 0.8);
+            ctx.drawImage(video, sx, sy, vD, vD, 0, 0, 300, 300);
+            const snapshotImage = canvas.toDataURL('image/jpeg', 0.85);
 
             const token = localStorage.getItem('token');
             const response = await axios.post(`${API_BASE_URL}/api/admin/users/${id}/register-face`, {
