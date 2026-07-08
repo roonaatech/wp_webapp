@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.5](https://github.com/roonaatech/wp_webapp/compare/v2.9.4...v2.9.5) (2026-07-08)
+
+
+### Code Refactoring
+
+* adjust VirtualKeyboard styling, typography, and container width for improved UI consistency ([e9c3ad7](https://github.com/roonaatech/wp_webapp/commit/e9c3ad701153acc99544d8c738041b49533d024d))
+
 ### [2.9.4](https://github.com/roonaatech/wp_webapp/compare/v2.9.3...v2.9.4) (2026-07-08)
 
 ### [2.9.3](https://github.com/roonaatech/wp_webapp/compare/v2.9.2...v2.9.3) (2026-07-08)
