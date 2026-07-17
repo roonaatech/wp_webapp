@@ -9,6 +9,7 @@ import { fetchRoles, canAccessAttendancePortal } from '../utils/roleUtils';
 import ModernLoader from '../components/ModernLoader';
 import VirtualKeyboard from '../components/VirtualKeyboard';
 import BrandLogo from '../components/BrandLogo';
+import { formatTimeOnly, getCurrentInAppTimezone } from '../utils/timezone.util';
 
 const Attendance = () => {
     const navigate = useNavigate();
@@ -37,6 +38,25 @@ const Attendance = () => {
         attendanceStatusRef.current = typeof val === 'function' ? val(attendanceStatusRef.current) : val;
     };
     const attendanceStatus = attendanceStatusState;
+
+    const [checkInTime, setCheckInTimeState] = useState(null);
+    const checkInTimeRef = useRef(null);
+    const setCheckInTime = (val) => {
+        setCheckInTimeState(val);
+        checkInTimeRef.current = typeof val === 'function' ? val(checkInTimeRef.current) : val;
+    };
+
+    const [checkInRaw, setCheckInRawState] = useState(null);
+    const checkInRawRef = useRef(null);
+    const setCheckInRaw = (val) => {
+        setCheckInRawState(val);
+        checkInRawRef.current = typeof val === 'function' ? val(checkInRawRef.current) : val;
+    };
+
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [confirmModalType, setConfirmModalType] = useState('CHECK_IN');
+    const [confirmModalTimestamp, setConfirmModalTimestamp] = useState('');
+    const [confirmModalDuration, setConfirmModalDuration] = useState('');
 
     const [statusEmployeeName, setStatusEmployeeName] = useState('');
 
@@ -250,7 +270,18 @@ const Attendance = () => {
 
         const dx = dispX - cW / 2;
         const dy = dispY - cH / 2;
-        return Math.hypot(dx, dy) <= CIRCLE_RADIUS_PX;
+
+        // In fullscreen mode or once identified, the face moves more in absolute pixels.
+        // We scale the allowed circle radius dynamically to prevent recognition failures.
+        let allowedRadius = CIRCLE_RADIUS_PX;
+        if (fsActive) {
+            allowedRadius = CIRCLE_RADIUS_PX * Math.max(1, cW / 600);
+        }
+        if (identifiedEmployeeRef.current) {
+            allowedRadius = allowedRadius * 1.6;
+        }
+
+        return Math.hypot(dx, dy) <= allowedRadius;
     };
 
     const detectFaceInsideCircle = async () => {
@@ -284,11 +315,47 @@ const Attendance = () => {
         }
     };
 
-    const handleLivenessConfirm = async () => {
+    const calculateDuration = (checkInStr) => {
+        if (!checkInStr) return '0h 0m';
+        try {
+            const cleanStr = checkInStr.replace(' ', 'T');
+            const checkInDate = new Date(cleanStr);
+            const now = new Date();
+            const diffMs = now - checkInDate;
+            if (isNaN(diffMs) || diffMs < 0) return '0h 0m';
+            const diffHrs = diffMs / (1000 * 60 * 60);
+            const hours = Math.floor(diffHrs);
+            const minutes = Math.floor((diffHrs % 1) * 60);
+            return `${hours}h ${minutes}m`;
+        } catch (e) {
+            console.error("Error calculating duration:", e);
+            return '0h 0m';
+        }
+    };
+
+    const handleLivenessConfirm = () => {
         if (!livenessDetectionRef.current) {
             toast.error("Scanner snapshot missing. Please re-scan.");
             return;
         }
+
+        const nowStr = formatTimeOnly(new Date());
+        setConfirmModalTimestamp(nowStr);
+
+        if (attendanceStatusRef.current === 'CHECKED_IN') {
+            setConfirmModalType('CHECK_OUT');
+            const duration = calculateDuration(checkInRawRef.current);
+            setConfirmModalDuration(duration);
+        } else {
+            setConfirmModalType('CHECK_IN');
+        }
+
+        setShowConfirmModal(true);
+    };
+
+    const executeLivenessAttendance = async () => {
+        setShowConfirmModal(false);
+        if (!livenessDetectionRef.current) return;
         await handlePasswordlessAttendance(livenessDetectionRef.current);
         setLivenessVerified(false);
         livenessDetectionRef.current = null;
@@ -309,6 +376,8 @@ const Attendance = () => {
         setRightProfile(null);
         leftDescriptorRef.current = null;
         rightDescriptorRef.current = null;
+        setCheckInTime(null);
+        setCheckInRaw(null);
         setStatusMessage("System Ready. Stand in front of camera.");
     };
 
@@ -333,6 +402,8 @@ const Attendance = () => {
                 });
                 status = statusRes.data.status;
                 setAttendanceStatus(status);
+                setCheckInTime(statusRes.data.checkInTime || null);
+                setCheckInRaw(statusRes.data.checkInRaw || null);
             }
 
             if (status === 'COMPLETED') {
@@ -389,6 +460,8 @@ const Attendance = () => {
             setRightProfile(null);
             leftDescriptorRef.current = null;
             rightDescriptorRef.current = null;
+            setCheckInTime(null);
+            setCheckInRaw(null);
             setActiveInput(null);
             setFailedAttempts(0); // Reset attempts on successful logging
 
@@ -469,6 +542,8 @@ const Attendance = () => {
                             setRightProfile(null);
                             leftDescriptorRef.current = null;
                             rightDescriptorRef.current = null;
+                            setCheckInTime(null);
+                            setCheckInRaw(null);
 
                             // If not in password-fallback mode, clear identified info
                             if (!showPasswordFieldRef.current) {
@@ -530,6 +605,8 @@ const Attendance = () => {
                                             headers: { 'x-access-token': token }
                                         });
                                         setAttendanceStatus(statusRes.data.status);
+                                        setCheckInTime(statusRes.data.checkInTime || null);
+                                        setCheckInRaw(statusRes.data.checkInRaw || null);
                                     } else {
                                         setIdentifiedEmployee(null);
                                         // Count as a failed attempt to log in
@@ -677,6 +754,8 @@ const Attendance = () => {
             });
             setAttendanceStatus(res.data.status);
             setStatusEmployeeName(res.data.employeeName || '');
+            setCheckInTime(res.data.checkInTime || null);
+            setCheckInRaw(res.data.checkInRaw || null);
         } catch {
             setAttendanceStatus('unknown');
             setStatusEmployeeName('');
@@ -1405,6 +1484,81 @@ const Attendance = () => {
                             </button>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {/* Action Confirmation Modal */}
+            {showConfirmModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-modal-in">
+                    <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 text-center space-y-6">
+                        <div className="flex flex-col items-center">
+                            {confirmModalType === 'CHECK_IN' ? (
+                                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                                    <LuUserCheck size={32} />
+                                </div>
+                            ) : (
+                                <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-4">
+                                    <LuLogOut size={32} />
+                                </div>
+                            )}
+                            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight animate-pulse">
+                                {confirmModalType === 'CHECK_IN' ? 'Confirm Check In' : 'Confirm Check Out'}
+                            </h3>
+                            <p className="text-gray-500 text-xs mt-1">
+                                Please verify the details below before logging.
+                            </p>
+                        </div>
+
+                        <div className="bg-slate-50 rounded-2xl p-4 space-y-3.5 text-left border border-slate-100">
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-gray-400 font-semibold uppercase tracking-wider">Employee</span>
+                                <span className="text-gray-800 font-bold">{identifiedEmployee?.employeeName || email}</span>
+                            </div>
+
+                            {confirmModalType === 'CHECK_IN' ? (
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-400 font-semibold uppercase tracking-wider">Check In Time</span>
+                                    <span className="text-emerald-600 font-black">{confirmModalTimestamp}</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex justify-between items-center text-xs border-b border-slate-200/60 pb-2.5">
+                                        <span className="text-gray-400 font-semibold uppercase tracking-wider">Checked In At</span>
+                                        <span className="text-gray-700 font-bold">{checkInRaw ? formatTimeOnly(checkInRaw) : 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs pt-0.5">
+                                        <span className="text-gray-400 font-semibold uppercase tracking-wider">Total Duration</span>
+                                        <span className="text-rose-600 font-black text-sm">{confirmModalDuration}</span>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowConfirmModal(false);
+                                }}
+                                className="flex-1 py-3 border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-widest transition"
+                                disabled={loading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={executeLivenessAttendance}
+                                disabled={loading}
+                                className={`flex-1 py-3 text-white rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center justify-center gap-1.5 shadow-lg ${confirmModalType === 'CHECK_IN' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/10' : 'bg-[#1e1b4b] hover:bg-[#312e81] shadow-indigo-650/10'}`}
+                            >
+                                {loading ? (
+                                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    confirmModalType === 'CHECK_IN' ? 'Confirm In' : 'Confirm Out'
+                                )}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

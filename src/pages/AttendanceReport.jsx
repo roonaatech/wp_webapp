@@ -7,7 +7,7 @@ import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
 import { fetchRoles, canViewAttendanceReport, canManageAttendance } from '../utils/roleUtils';
 import { formatDateOnly, formatTimeOnly, getCurrentInAppTimezone } from '../utils/timezone.util';
-import { LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuEye, LuX, LuPencil, LuTrash2 } from 'react-icons/lu';
+import { LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2 } from 'react-icons/lu';
 
 const AttendanceReport = () => {
     const navigate = useNavigate();
@@ -53,6 +53,22 @@ const AttendanceReport = () => {
     // Delete Confirmation Modal State
     const [deletingLogId, setDeletingLogId] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+
+    // Grouped Rows State
+    const [expandedUsers, setExpandedUsers] = useState({});
+    
+    // Clear expanded list on logs refresh
+    useEffect(() => {
+        setExpandedUsers({});
+    }, [logs]);
+
+    const toggleUserExpand = (userId) => {
+        setExpandedUsers(prev => ({
+            ...prev,
+            [userId]: !prev[userId]
+        }));
+    };
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const canManage = canManageAttendance(user.role);
@@ -158,6 +174,36 @@ const AttendanceReport = () => {
             return '-';
         }
     };
+
+    const calculateTotalDuration = (userLogs) => {
+        let totalMs = 0;
+        let hasActive = false;
+        userLogs.forEach(log => {
+            if (log.check_in_time && log.check_out_time) {
+                const diff = new Date(log.check_out_time).getTime() - new Date(log.check_in_time).getTime();
+                if (diff > 0) totalMs += diff;
+            } else if (log.check_in_time && !log.check_out_time) {
+                hasActive = true;
+            }
+        });
+
+        if (totalMs === 0) {
+            return hasActive ? 'Active' : '-';
+        }
+
+        const diffMins = Math.floor(totalMs / 60000);
+        const hours = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        
+        let timeStr = '';
+        if (hours > 0) timeStr += `${hours}h ${mins}m`;
+        else timeStr += `${mins}m`;
+
+        if (hasActive) timeStr += ' + Active';
+        return timeStr;
+    };
+
+
 
     const handleClearFilters = () => {
         setSelectedUserId('');
@@ -364,112 +410,263 @@ const AttendanceReport = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {logs.map((log) => {
-                                    const emp = log.user || {};
-                                    const profile = emp.profile_info || {};
-                                    const initials = emp.firstname ? `${emp.firstname[0]}${emp.lastname[0]}`.toUpperCase() : 'EE';
+                                {(() => {
+                                    // Group logs by user
+                                    const groupedLogs = [];
+                                    logs.forEach(log => {
+                                        const userId = log.user?.staffid || log.staff_id;
+                                        let group = groupedLogs.find(g => g.userId === userId);
+                                        if (!group) {
+                                            group = {
+                                                userId,
+                                                user: log.user || {},
+                                                logs: []
+                                            };
+                                            groupedLogs.push(group);
+                                        }
+                                        group.logs.push(log);
+                                    });
 
-                                    return (
-                                        <tr key={log.id} className="hover:bg-slate-50/50 transition">
-                                            {/* Employee info */}
-                                            <td className="px-4 py-2.5">
-                                                <div className="flex items-center gap-3">
-                                                    {profile.image_path ? (
-                                                        <img
-                                                            src={`${API_BASE_URL}/${profile.image_path}`}
-                                                            alt=""
-                                                            className="w-8 h-8 rounded-full object-cover border border-slate-100"
-                                                            onError={(e) => { e.target.src = ''; e.target.className = 'w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold border border-slate-100'; }}
-                                                        />
-                                                    ) : (
-                                                        <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs border border-slate-100">
-                                                            {initials}
+                                    return groupedLogs.map((group) => {
+                                        const emp = group.user || {};
+                                        const profile = emp.profile_info || {};
+                                        const initials = emp.firstname ? `${emp.firstname[0]}${emp.lastname[0]}`.toUpperCase() : 'EE';
+                                        const isExpanded = !!expandedUsers[group.userId];
+                                        const hasMultiple = group.logs.length >= 2;
+
+                                        if (!hasMultiple) {
+                                            const log = group.logs[0];
+                                            return (
+                                                <tr key={log.id} className="hover:bg-slate-50/50 transition">
+                                                    {/* Employee info */}
+                                                    <td className="px-4 py-2.5">
+                                                        <div className="flex items-center gap-3">
+                                                            {profile.image_path ? (
+                                                                <img
+                                                                    src={`${API_BASE_URL}/${profile.image_path}`}
+                                                                    alt=""
+                                                                    className="w-8 h-8 rounded-full object-cover border border-slate-100"
+                                                                    onError={(e) => { e.target.src = ''; e.target.className = 'w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold border border-slate-100'; }}
+                                                                />
+                                                            ) : (
+                                                                <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs border border-slate-100">
+                                                                    {initials}
+                                                                </div>
+                                                            )}
+                                                            <div>
+                                                                <p className="font-bold text-slate-800 leading-tight">
+                                                                    {emp.firstname} {emp.lastname}
+                                                                </p>
+                                                                <p className="text-xs text-slate-400 mt-0.5">{emp.email}</p>
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                    <div>
-                                                        <p className="font-bold text-slate-800 leading-tight">
-                                                            {emp.firstname} {emp.lastname}
+                                                    </td>
+
+                                                    {/* Date */}
+                                                    <td className="px-4 py-2.5 text-sm font-semibold text-slate-600">
+                                                        {formatDateOnly(log.date)}
+                                                    </td>
+
+                                                    {/* Check-In */}
+                                                    <td className="px-4 py-2.5">
+                                                        <p className="text-sm font-semibold text-slate-700">
+                                                            {log.check_in_time ? formatTimeOnly(log.check_in_time) : '-'}
                                                         </p>
-                                                        <p className="text-xs text-slate-400 mt-0.5">{emp.email}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
+                                                    </td>
 
-                                            {/* Date */}
-                                            <td className="px-4 py-2.5 text-sm font-semibold text-slate-600">
-                                                {formatDateOnly(log.date)}
-                                            </td>
+                                                    {/* Check-Out */}
+                                                    <td className="px-4 py-2.5">
+                                                        <p className="text-sm font-semibold text-slate-700">
+                                                            {log.check_out_time ? formatTimeOnly(log.check_out_time) : '-'}
+                                                        </p>
+                                                    </td>
 
-                                            {/* Check-In */}
-                                            <td className="px-4 py-2.5">
-                                                <p className="text-sm font-semibold text-slate-700">
-                                                    {log.check_in_time ? formatTimeOnly(log.check_in_time) : '-'}
-                                                </p>
-                                            </td>
+                                                    {/* Work Duration */}
+                                                    <td className="px-4 py-2.5">
+                                                        <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-black ${
+                                                            log.check_out_time 
+                                                                ? 'bg-slate-100 text-slate-700' 
+                                                                : 'bg-indigo-50 text-indigo-700 animate-pulse'
+                                                        }`}>
+                                                            {calculateDuration(log.check_in_time, log.check_out_time)}
+                                                        </span>
+                                                    </td>
 
-                                            {/* Check-Out */}
-                                            <td className="px-4 py-2.5">
-                                                <p className="text-sm font-semibold text-slate-700">
-                                                    {log.check_out_time ? formatTimeOnly(log.check_out_time) : '-'}
-                                                </p>
-                                            </td>
-
-                                            {/* Work Duration */}
-                                            <td className="px-4 py-2.5">
-                                                <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-black ${
-                                                    log.check_out_time 
-                                                        ? 'bg-slate-100 text-slate-700' 
-                                                        : 'bg-indigo-50 text-indigo-700 animate-pulse'
-                                                }`}>
-                                                    {calculateDuration(log.check_in_time, log.check_out_time)}
-                                                </span>
-                                            </td>
-
-                                            {/* Verification Snapshot */}
-                                            <td className="px-4 py-2.5 text-center">
-                                                {log.snapshot_url ? (
-                                                    <div 
-                                                        onClick={() => setSelectedSnapshot(log.snapshot_url)}
-                                                        className="group relative w-12 h-12 mx-auto rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-500 transition"
+                                                    {/* Verification Snapshot */}
+                                                    <td className="px-4 py-2.5 text-center">
+                                                        {log.snapshot_url ? (
+                                                            <div 
+                                                                onClick={() => setSelectedSnapshot(log.snapshot_url)}
+                                                                className="group relative w-12 h-12 mx-auto rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-500 transition"
+                                                            >
+                                                                <img
+                                                                    src={`${API_BASE_URL}/${log.snapshot_url}`}
+                                                                    alt="Audit match"
+                                                                    className="w-full h-full object-cover transform group-hover:scale-110 transition duration-300"
+                                                                />
+                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition duration-200">
+                                                                    <LuEye size={14} />
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs text-slate-400 italic">No snapshot</span>
+                                                        )}
+                                                    </td>
+                                                    {canManage && (
+                                                        <td className="px-4 py-2.5">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <button
+                                                                    onClick={() => handleEditClick(log)}
+                                                                    className="p-2 bg-slate-50 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl transition shadow-sm font-semibold"
+                                                                    title="Edit Log"
+                                                                >
+                                                                    <LuPencil size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteClick(log.id)}
+                                                                    className="p-2 bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition shadow-sm font-semibold"
+                                                                    title="Delete Log"
+                                                                >
+                                                                    <LuTrash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        } else {
+                                            return (
+                                                <React.Fragment key={group.userId}>
+                                                    {/* Parent Row */}
+                                                    <tr 
+                                                        onClick={() => toggleUserExpand(group.userId)}
+                                                        className="bg-indigo-50/20 hover:bg-indigo-50/40 transition cursor-pointer font-medium"
                                                     >
-                                                        <img
-                                                            src={`${API_BASE_URL}/${log.snapshot_url}`}
-                                                            alt="Audit match"
-                                                            className="w-full h-full object-cover transform group-hover:scale-110 transition duration-300"
-                                                        />
-                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition duration-200">
-                                                            <LuEye size={14} />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-slate-400 italic">No snapshot</span>
-                                                )}
-                                            </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="text-indigo-600 p-0.5 hover:bg-indigo-100/50 rounded transition">
+                                                                    {isExpanded ? <LuChevronDown size={16} /> : <LuChevronRight size={16} />}
+                                                                </div>
+                                                                {profile.image_path ? (
+                                                                    <img
+                                                                        src={`${API_BASE_URL}/${profile.image_path}`}
+                                                                        alt=""
+                                                                        className="w-8 h-8 rounded-full object-cover border border-slate-100"
+                                                                        onError={(e) => { e.target.src = ''; e.target.className = 'w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold border border-slate-100'; }}
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs border border-slate-100">
+                                                                        {initials}
+                                                                    </div>
+                                                                )}
+                                                                <div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <p className="font-bold text-slate-800 leading-tight">
+                                                                            {emp.firstname} {emp.lastname}
+                                                                        </p>
+                                                                        <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider animate-pulse">
+                                                                            {group.logs.length} entries
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-xs text-slate-400 mt-0.5">{emp.email}</p>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-xs text-slate-400 font-semibold italic">
+                                                            Multiple Dates
+                                                        </td>
+                                                        <td className="px-4 py-3 text-slate-350">—</td>
+                                                        <td className="px-4 py-3 text-slate-350">—</td>
+                                                        <td className="px-4 py-3">
+                                                            <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-100/60 text-indigo-800">
+                                                                {calculateTotalDuration(group.logs)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center text-slate-350">—</td>
+                                                    </tr>
 
-                                            {/* Actions cell */}
-                                            {canManage && (
-                                                <td className="px-4 py-2.5">
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => handleEditClick(log)}
-                                                            className="p-2 bg-slate-50 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl transition shadow-sm"
-                                                            title="Edit Log"
-                                                        >
-                                                            <LuPencil size={14} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteClick(log.id)}
-                                                            className="p-2 bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition shadow-sm"
-                                                            title="Delete Log"
-                                                        >
-                                                            <LuTrash2 size={14} />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            )}
-                                        </tr>
-                                    );
-                                })}
+                                                    {/* Child Rows */}
+                                                    {isExpanded && group.logs.map((log, index) => {
+                                                        const isLast = index === group.logs.length - 1;
+                                                        return (
+                                                            <tr key={log.id} className="bg-slate-50/20 hover:bg-slate-50/50 border-l-2 border-indigo-500/30 transition">
+                                                                <td className="px-4 py-2.5 pl-10">
+                                                                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+                                                                        <span className="font-mono text-slate-300">{isLast ? '└─' : '├─'}</span>
+                                                                        <span>Log #{index + 1}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-2.5 text-sm font-semibold text-slate-600">
+                                                                    {formatDateOnly(log.date)}
+                                                                </td>
+                                                                <td className="px-4 py-2.5">
+                                                                    <p className="text-sm font-semibold text-slate-700">
+                                                                        {log.check_in_time ? formatTimeOnly(log.check_in_time) : '-'}
+                                                                    </p>
+                                                                </td>
+                                                                <td className="px-4 py-2.5">
+                                                                    <p className="text-sm font-semibold text-slate-700">
+                                                                        {log.check_out_time ? formatTimeOnly(log.check_out_time) : '-'}
+                                                                    </p>
+                                                                </td>
+                                                                <td className="px-4 py-2.5">
+                                                                    <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-black ${
+                                                                        log.check_out_time 
+                                                                            ? 'bg-slate-100 text-slate-700' 
+                                                                            : 'bg-indigo-50 text-indigo-700 animate-pulse'
+                                                                    }`}>
+                                                                        {calculateDuration(log.check_in_time, log.check_out_time)}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 py-2.5 text-center">
+                                                                    {log.snapshot_url ? (
+                                                                        <div 
+                                                                            onClick={() => setSelectedSnapshot(log.snapshot_url)}
+                                                                            className="group relative w-10 h-10 mx-auto rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-500 transition"
+                                                                        >
+                                                                            <img
+                                                                                src={`${API_BASE_URL}/${log.snapshot_url}`}
+                                                                                alt="Audit match"
+                                                                                className="w-full h-full object-cover transform group-hover:scale-110 transition duration-300"
+                                                                            />
+                                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition duration-200">
+                                                                                <LuEye size={12} />
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-xs text-slate-400 italic">No snapshot</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-4 py-2.5">
+                                                                    {canManage ? (
+                                                                        <div className="flex items-center gap-2">
+                                                                            <button
+                                                                                onClick={() => handleEditClick(log)}
+                                                                                className="p-2 bg-slate-50 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl transition shadow-sm"
+                                                                                title="Edit Log"
+                                                                            >
+                                                                                <LuPencil size={13} />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleDeleteClick(log.id)}
+                                                                                className="p-2 bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition shadow-sm"
+                                                                                title="Delete Log"
+                                                                            >
+                                                                                <LuTrash2 size={13} />
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-slate-350">—</span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </React.Fragment>
+                                            );
+                                        }
+                                    });
+                                })()}
                             </tbody>
                         </table>
                     </div>
@@ -646,6 +843,8 @@ const AttendanceReport = () => {
                     </div>
                 </div>
             )}
+
+
 
             {/* Delete Confirmation Modal */}
             {deletingLogId && (

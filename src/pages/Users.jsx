@@ -27,11 +27,49 @@ import {
 } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
 import { formatInTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer } from 'recharts';
 
 const Users = () => {
     // Permission check state
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
+
+    const getDurationHours = (checkInStr, checkOutStr) => {
+        if (!checkInStr || !checkOutStr) return 0;
+        try {
+            const checkIn = new Date(checkInStr);
+            const checkOut = new Date(checkOutStr);
+            const diffMs = checkOut.getTime() - checkIn.getTime();
+            if (diffMs <= 0) return 0;
+            return parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2));
+        } catch {
+            return 0;
+        }
+    };
+
+    const getChartData = (presentLogs) => {
+        const dailyRawHours = {};
+        (presentLogs || []).forEach(log => {
+            if (!log.check_in_time) return;
+            const rawDate = log.date;
+            const hrs = getDurationHours(log.check_in_time, log.check_out_time);
+            dailyRawHours[rawDate] = (dailyRawHours[rawDate] || 0) + hrs;
+        });
+
+        const sortedRaw = Object.entries(dailyRawHours).sort((a, b) => a[0].localeCompare(b[0]));
+        return sortedRaw.map(([rawDate, hours]) => {
+            let displayDate = rawDate;
+            try {
+                const [y, m, d] = rawDate.split('-');
+                const dateObj = new Date(y, m - 1, d);
+                displayDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            } catch {}
+            return {
+                date: displayDate,
+                hours: parseFloat(hours.toFixed(2))
+            };
+        });
+    };
 
     // Leave Types Modal State
     const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -200,6 +238,7 @@ const Users = () => {
     const [loadingHistory, setLoadingHistory] = useState({});
     const [attendanceHistory, setAttendanceHistory] = useState({});
     const [loadingAttendance, setLoadingAttendance] = useState({});
+    const [chartFilters, setChartFilters] = useState({}); // staffid -> '30d' | '60d' | '90d' | 'year'
     const [historyTooltip, setHistoryTooltip] = useState({ show: false, events: [], anchor: null, date: null });
     const tooltipRef = useRef(null);
     const [tooltipCoords, setTooltipCoords] = useState({ left: 0, top: 0, ready: false });
@@ -2255,6 +2294,119 @@ const Users = () => {
                                                                                         );
                                                                                     })}
                                                                                 </div>
+
+                                                                                {data.present && data.present.length > 0 && (() => {
+                                                                                    const userId = u.staffid;
+                                                                                    const activeFilter = chartFilters[userId] || '30d';
+                                                                                    const FILTERS = [
+                                                                                        { key: '7d',         label: '7 Days'      },
+                                                                                        { key: '14d',        label: '14 Days'     },
+                                                                                        { key: '30d',        label: '30 Days'     },
+                                                                                        { key: '60d',        label: '60 Days'     },
+                                                                                        { key: '90d',        label: '90 Days'     },
+                                                                                        { key: 'this_week',  label: 'This Week'   },
+                                                                                        { key: 'this_month', label: 'This Month'  },
+                                                                                        { key: 'last_month', label: 'Last Month'  },
+                                                                                        { key: 'year',       label: 'This Year'   },
+                                                                                    ];
+                                                                                    const now = new Date();
+                                                                                    const filteredLogs = data.present.filter(log => {
+                                                                                        if (!log.date) return false;
+                                                                                        const logDate = new Date(log.date);
+                                                                                        if (activeFilter === 'year') {
+                                                                                            return logDate.getFullYear() === now.getFullYear();
+                                                                                        }
+                                                                                        if (activeFilter === 'this_week') {
+                                                                                            const startOfWeek = new Date(now);
+                                                                                            startOfWeek.setDate(now.getDate() - now.getDay());
+                                                                                            startOfWeek.setHours(0, 0, 0, 0);
+                                                                                            return logDate >= startOfWeek;
+                                                                                        }
+                                                                                        if (activeFilter === 'this_month') {
+                                                                                            return logDate.getFullYear() === now.getFullYear() && logDate.getMonth() === now.getMonth();
+                                                                                        }
+                                                                                        if (activeFilter === 'last_month') {
+                                                                                            const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                                                                                            return logDate.getFullYear() === lm.getFullYear() && logDate.getMonth() === lm.getMonth();
+                                                                                        }
+                                                                                        const daysMap = { '7d': 7, '14d': 14, '30d': 30, '60d': 60, '90d': 90 };
+                                                                                        const days = daysMap[activeFilter] || 30;
+                                                                                        const cutoff = new Date(now);
+                                                                                        cutoff.setDate(cutoff.getDate() - days);
+                                                                                        return logDate >= cutoff;
+                                                                                    });
+                                                                                    const chartData = getChartData(filteredLogs);
+                                                                                    return (
+                                                                                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mt-6 shadow-sm">
+                                                                                            {/* Header row: title + filter pills */}
+                                                                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                                                                                                <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                                                                                    <span className="w-2 h-2 bg-indigo-600 rounded-full" />
+                                                                                                    Work Duration Trend (Hours per Day)
+                                                                                                </h5>
+                                                                                                <div className="flex items-center gap-1">
+                                                                                                    {FILTERS.map(f => (
+                                                                                                        <button
+                                                                                                            key={f.key}
+                                                                                                            onClick={() => setChartFilters(prev => ({ ...prev, [userId]: f.key }))}
+                                                                                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                                                                                                                activeFilter === f.key
+                                                                                                                    ? 'bg-indigo-600 text-white shadow-sm'
+                                                                                                                    : 'bg-white border border-slate-200 text-slate-500 hover:border-indigo-400 hover:text-indigo-600'
+                                                                                                            }`}
+                                                                                                        >
+                                                                                                            {f.label}
+                                                                                                        </button>
+                                                                                                    ))}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            {chartData.length === 0 ? (
+                                                                                                <div className="h-48 flex items-center justify-center text-slate-400 text-xs font-semibold italic">
+                                                                                                    No attendance data for this period
+                                                                                                </div>
+                                                                                            ) : (
+                                                                                                <div className="h-48 w-full pr-4">
+                                                                                                    <ResponsiveContainer width="100%" height="100%">
+                                                                                                        <LineChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                                                                                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                                                                                            <XAxis 
+                                                                                                                dataKey="date" 
+                                                                                                                stroke="#94a3b8" 
+                                                                                                                fontSize={9} 
+                                                                                                                tickLine={false}
+                                                                                                            />
+                                                                                                            <YAxis 
+                                                                                                                stroke="#94a3b8" 
+                                                                                                                fontSize={9} 
+                                                                                                                tickLine={false}
+                                                                                                                unit="h"
+                                                                                                            />
+                                                                                                            <ChartTooltip 
+                                                                                                                contentStyle={{ 
+                                                                                                                    backgroundColor: '#ffffff', 
+                                                                                                                    border: '1px solid #e2e8f0', 
+                                                                                                                    borderRadius: '8px',
+                                                                                                                    fontSize: '11px',
+                                                                                                                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                                                                                                                }}
+                                                                                                                labelClassName="font-bold text-slate-700"
+                                                                                                            />
+                                                                                                            <Line 
+                                                                                                                type="monotone" 
+                                                                                                                dataKey="hours" 
+                                                                                                                name="Hours Worked"
+                                                                                                                stroke="#4f46e5" 
+                                                                                                                strokeWidth={2} 
+                                                                                                                activeDot={{ r: 6 }}
+                                                                                                                dot={{ stroke: '#4f46e5', strokeWidth: 1.5, r: 3, fill: '#ffffff' }}
+                                                                                                            />
+                                                                                                        </LineChart>
+                                                                                                    </ResponsiveContainer>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    );
+                                                                                })()}
                                                                             </div>
                                                                         );
                                                                     })()}
