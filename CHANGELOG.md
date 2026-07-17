@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.10](https://github.com/roonaatech/wp_webapp/compare/v2.9.9...v2.9.10) (2026-07-17)
+
+
+### Features
+
+* add attendance confirmation modal with real-time duration and dynamic facial recognition radius scaling ([242c7cf](https://github.com/roonaatech/wp_webapp/commit/242c7cf4c883dbc630c79a52e6ad250ac8ed400b))
+
 ### [2.9.9](https://github.com/roonaatech/wp_webapp/compare/v2.9.8...v2.9.9) (2026-07-17)
 
 
