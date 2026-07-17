@@ -24,6 +24,17 @@ const FirstTimeLoginFlow = () => {
     const faceStreamRef = useRef(null);
     const faceDetectIntervalRef = useRef(null);
 
+    // Guided multi-profile face registration states
+    const [registrationStep, setRegistrationStep] = useState('FRONT'); // 'FRONT' | 'LEFT' | 'RIGHT' | 'CONFIRM'
+    const registrationStepRef = useRef('FRONT');
+    const [frontProfileSnap, setFrontProfileSnap] = useState(null);
+    const [leftProfileSnap, setLeftProfileSnap] = useState(null);
+    const [rightProfileSnap, setRightProfileSnap] = useState(null);
+
+    const frontDescriptorRef = useRef(null);
+    const leftDescriptorRef = useRef(null);
+    const rightDescriptorRef = useRef(null);
+
     const handleResolveDob = () => {
         setShowDobModal(false);
         setIsEditing(true);
@@ -597,10 +608,58 @@ const FirstTimeLoginFlow = () => {
         }
     };
 
+    const calculateYawRatio = (landmarks) => {
+        if (!landmarks) return 1.0;
+        try {
+            const jaw = landmarks.getJawOutline();
+            const nose = landmarks.getNose();
+            if (!jaw || jaw.length < 15 || !nose || nose.length < 4) return 1.0;
+            const noseTip = nose[3];
+            const leftCheek = jaw[2];
+            const rightCheek = jaw[14];
+            const dist = (pt1, pt2) => Math.hypot(pt1.x - pt2.x, pt1.y - pt2.y);
+            const distLeft = dist(noseTip, leftCheek);
+            const distRight = dist(noseTip, rightCheek);
+            if (distRight === 0) return 1.0;
+            return distLeft / distRight;
+        } catch {
+            return 1.0;
+        }
+    };
+
+    const captureRegistrationSnapshot = () => {
+        const video = faceVideoRef.current;
+        if (!video) return null;
+        const vW = video.videoWidth || 640;
+        const vH = video.videoHeight || 480;
+        const dW = video.clientWidth || vW;
+        const dH = video.clientHeight || vH;
+        const scale = Math.max(dW / vW, dH / vH);
+        const vD = Math.min(160 / scale, vW, vH);
+        const sx = Math.max(0, (vW - vD) / 2);
+        const sy = Math.max(0, (vH - vD) / 2);
+        const canvas = document.createElement('canvas');
+        canvas.width = 300;
+        canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, sx, sy, vD, vD, 0, 0, 300, 300);
+        return canvas.toDataURL('image/jpeg', 0.85);
+    };
+
     const startFaceCamera = async () => {
         try {
             const hasModels = await loadFaceModels();
             if (!hasModels) return;
+
+            // Reset registration steps on camera start
+            setRegistrationStep('FRONT');
+            registrationStepRef.current = 'FRONT';
+            setFrontProfileSnap(null);
+            setLeftProfileSnap(null);
+            setRightProfileSnap(null);
+            frontDescriptorRef.current = null;
+            leftDescriptorRef.current = null;
+            rightDescriptorRef.current = null;
 
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { width: 640, height: 480, facingMode: "user" } 
@@ -612,13 +671,56 @@ const FirstTimeLoginFlow = () => {
 
             faceDetectIntervalRef.current = setInterval(async () => {
                 if (faceVideoRef.current && faceapi.nets.ssdMobilenetv1.params) {
-                    const detection = await faceapi.detectSingleFace(
-                        faceVideoRef.current, 
-                        new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
-                    );
-                    setFaceDetected(!!detection);
+                    try {
+                        const detection = await faceapi.detectSingleFace(
+                            faceVideoRef.current, 
+                            new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
+                        ).withFaceLandmarks().withFaceDescriptor();
+
+                        if (!detection) {
+                            setFaceDetected(false);
+                            return;
+                        }
+                        setFaceDetected(true);
+
+                        if (registrationStepRef.current === 'CONFIRM') return;
+
+                        const yawRatio = calculateYawRatio(detection.landmarks);
+
+                        if (registrationStepRef.current === 'FRONT') {
+                            if (yawRatio >= 0.85 && yawRatio <= 1.15) {
+                                const snap = captureRegistrationSnapshot();
+                                frontDescriptorRef.current = Array.from(detection.descriptor);
+                                setFrontProfileSnap(snap);
+                                registrationStepRef.current = 'LEFT';
+                                setRegistrationStep('LEFT');
+                                toast.success("Front profile captured! Now turn your head LEFT.", { id: 'reg-front-toast' });
+                            }
+                        } else if (registrationStepRef.current === 'LEFT') {
+                            if (yawRatio < 0.65) {
+                                const snap = captureRegistrationSnapshot();
+                                leftDescriptorRef.current = Array.from(detection.descriptor);
+                                setLeftProfileSnap(snap);
+                                registrationStepRef.current = 'RIGHT';
+                                setRegistrationStep('RIGHT');
+                                toast.success("Left profile captured! Now turn your head RIGHT.", { id: 'reg-left-toast' });
+                            }
+                        } else if (registrationStepRef.current === 'RIGHT') {
+                            if (yawRatio > 1.50) {
+                                const snap = captureRegistrationSnapshot();
+                                rightDescriptorRef.current = Array.from(detection.descriptor);
+                                setRightProfileSnap(snap);
+                                registrationStepRef.current = 'CONFIRM';
+                                setRegistrationStep('CONFIRM');
+                                stopFaceCamera(); // stop camera feed, user is in confirm screen
+                                toast.success("Right profile captured! Review profiles and submit.", { id: 'reg-right-toast' });
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error in registration loop:", err);
+                    }
                 }
-            }, 1000);
+            }, 250);
         } catch (err) {
             console.error("Error accessing webcam:", err);
             toast.error("Webcam access denied or unavailable.");
@@ -641,46 +743,19 @@ const FirstTimeLoginFlow = () => {
     };
 
     const handleRegisterFace = async () => {
-        if (!faceVideoRef.current) return;
+        if (!frontDescriptorRef.current || !leftDescriptorRef.current || !rightDescriptorRef.current) {
+            toast.error("Multi-angle facial registration is incomplete. Please repeat the steps.");
+            return;
+        }
         setRegisteringFace(true);
 
         try {
-            const detection = await faceapi.detectSingleFace(faceVideoRef.current)
-                .withFaceLandmarks()
-                .withFaceDescriptor();
-
-            if (!detection) {
-                toast.error("No face detected. Please align yourself in front of the camera.");
-                setRegisteringFace(false);
-                return;
-            }
-
-            // Capture cropped frame matching the green circle (w-40 h-40 = 160px diameter)
-            const video = faceVideoRef.current;
-            const vW = video.videoWidth || 640;
-            const vH = video.videoHeight || 480;
-            const dW = video.clientWidth || vW;
-            const dH = video.clientHeight || vH;
-
-            const scale = Math.max(dW / vW, dH / vH);
-            
-            // Green circle is 160px diameter in CSS pixels (w-40 h-40)
-            const vD = Math.min(160 / scale, vW, vH);
-            
-            const sx = Math.max(0, (vW - vD) / 2);
-            const sy = Math.max(0, (vH - vD) / 2);
-
-            const canvas = document.createElement('canvas');
-            canvas.width = 300;
-            canvas.height = 300;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, sx, sy, vD, vD, 0, 0, 300, 300);
-            const snapshotImage = canvas.toDataURL('image/jpeg', 0.85);
-
             const token = localStorage.getItem('token');
             const response = await axios.post(`${API_BASE_URL}/api/attendance/register-face`, {
-                faceDescriptor: Array.from(detection.descriptor),
-                profileImage: snapshotImage
+                faceDescriptor: frontDescriptorRef.current,
+                faceDescriptorLeft: leftDescriptorRef.current,
+                faceDescriptorRight: rightDescriptorRef.current,
+                profileImage: frontProfileSnap
             }, {
                 headers: { 'x-access-token': token }
             });
@@ -1532,28 +1607,90 @@ const FirstTimeLoginFlow = () => {
                             </p>
                         </div>
 
-                        {/* Camera Window */}
-                        <div className="relative aspect-video max-w-md mx-auto bg-[#0f172a] rounded-2xl overflow-hidden border border-slate-700/50 flex items-center justify-center shadow-inner">
-                            <video 
-                                ref={faceVideoRef}
-                                autoPlay 
-                                muted 
-                                playsInline 
-                                className="w-full h-full object-cover transform -scale-x-100"
-                            />
-                            
-                            <div className="absolute inset-0 border-2 border-dashed border-sky-400/20 rounded-2xl pointer-events-none flex items-center justify-center">
-                                <div className={`w-40 h-40 border-2 rounded-full pointer-events-none transition-all duration-300 ${
-                                    faceDetected ? 'border-emerald-500/80 bg-emerald-500/5 scale-105 animate-pulse' : 'border-sky-400/30 scale-100'
-                                }`}>
-                                    <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-sky-400 to-transparent animate-pulse absolute top-1/2 left-0" />
+                        {/* Guided UI Checklist Bar */}
+                        <div className="flex justify-center gap-6 mb-6">
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className={`w-14 h-14 rounded-full border-2 overflow-hidden flex items-center justify-center transition-all ${frontProfileSnap ? 'border-emerald-500 bg-white' : 'border-dashed border-gray-300 bg-gray-50'}`}>
+                                    {frontProfileSnap ? (
+                                        <img src={frontProfileSnap} alt="Front Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-gray-400 text-[10px]">Front</span>
+                                    )}
                                 </div>
+                                <span className={`text-[10px] font-bold ${registrationStep === 'FRONT' ? 'text-indigo-600' : 'text-gray-400'}`}>1. Look Straight</span>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className={`w-14 h-14 rounded-full border-2 overflow-hidden flex items-center justify-center transition-all ${leftProfileSnap ? 'border-emerald-500 bg-white' : 'border-dashed border-gray-300 bg-gray-50'}`}>
+                                    {leftProfileSnap ? (
+                                        <img src={leftProfileSnap} alt="Left Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-gray-400 text-[10px]">Left</span>
+                                    )}
+                                </div>
+                                <span className={`text-[10px] font-bold ${registrationStep === 'LEFT' ? 'text-indigo-600' : 'text-gray-400'}`}>2. Turn Left</span>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className={`w-14 h-14 rounded-full border-2 overflow-hidden flex items-center justify-center transition-all ${rightProfileSnap ? 'border-emerald-500 bg-white' : 'border-dashed border-gray-300 bg-gray-50'}`}>
+                                    {rightProfileSnap ? (
+                                        <img src={rightProfileSnap} alt="Right Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-gray-400 text-[10px]">Right</span>
+                                    )}
+                                </div>
+                                <span className={`text-[10px] font-bold ${registrationStep === 'RIGHT' ? 'text-indigo-600' : 'text-gray-400'}`}>3. Turn Right</span>
                             </div>
                         </div>
 
+                        {/* Camera Window */}
+                        {registrationStep !== 'CONFIRM' ? (
+                            <div className="relative aspect-video max-w-md mx-auto bg-[#0f172a] rounded-2xl overflow-hidden border border-slate-700/50 flex items-center justify-center shadow-inner">
+                                <video 
+                                    ref={faceVideoRef}
+                                    autoPlay 
+                                    muted 
+                                    playsInline 
+                                    className="w-full h-full object-cover transform -scale-x-100"
+                                />
+                                
+                                <div className="absolute inset-0 border-2 border-dashed border-sky-400/20 rounded-2xl pointer-events-none flex items-center justify-center">
+                                    <div className={`w-40 h-40 border-2 rounded-full pointer-events-none transition-all duration-300 ${
+                                        faceDetected ? 'border-emerald-500/80 bg-emerald-500/5 scale-105 animate-pulse' : 'border-sky-400/30 scale-100'
+                                    }`}>
+                                        <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-sky-400 to-transparent animate-pulse absolute top-1/2 left-0" />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-6 max-w-md mx-auto text-center space-y-4 animate-fade-in">
+                                <div className="flex justify-center items-center gap-1.5 text-emerald-700 font-bold text-sm">
+                                    <LuCheck className="w-5 h-5 bg-emerald-500 text-white rounded-full p-0.5" />
+                                    <span>All 3 Profiles Captured Successfully!</span>
+                                </div>
+                                <div className="flex justify-center gap-4 pt-2">
+                                    <div className="text-center">
+                                        <img src={frontProfileSnap} className="w-20 h-20 rounded-xl border border-gray-200 object-cover mx-auto" alt="Front Profile" />
+                                        <span className="text-[10px] text-gray-400 font-medium mt-1 block">Front</span>
+                                    </div>
+                                    <div className="text-center">
+                                        <img src={leftProfileSnap} className="w-20 h-20 rounded-xl border border-gray-200 object-cover mx-auto" alt="Left Profile" />
+                                        <span className="text-[10px] text-gray-400 font-medium mt-1 block">Left</span>
+                                    </div>
+                                    <div className="text-center">
+                                        <img src={rightProfileSnap} className="w-20 h-20 rounded-xl border border-gray-200 object-cover mx-auto" alt="Right Profile" />
+                                        <span className="text-[10px] text-gray-400 font-medium mt-1 block">Right</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="p-3 bg-slate-50 rounded-xl max-w-md mx-auto">
                             <p className="text-xs font-semibold text-slate-600">
-                                {faceDetected ? '✅ Face detected. Ready to register.' : '🔍 Center your face in the circle.'}
+                                {registrationStep === 'FRONT' && (faceDetected ? '✅ Looking straight detected. Capturing...' : '🔍 Look straight at the camera.')}
+                                {registrationStep === 'LEFT' && '⬅️ Turn your head LEFT.'}
+                                {registrationStep === 'RIGHT' && '➡️ Turn your head RIGHT.'}
+                                {registrationStep === 'CONFIRM' && '✅ Press Register below to submit.'}
                             </p>
                         </div>
 
@@ -1569,21 +1706,25 @@ const FirstTimeLoginFlow = () => {
                             >
                                 Skip Setup
                             </button>
-                            <button
-                                type="button"
-                                onClick={handleRegisterFace}
-                                className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-sm transition shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                                disabled={registeringFace || !modelsLoaded}
-                            >
-                                {registeringFace ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        <span>Saving...</span>
-                                    </>
-                                ) : (
-                                    <span>Capture & Register</span>
-                                )}
-                            </button>
+                            
+                            {registrationStep === 'CONFIRM' ? (
+                                <button
+                                    type="button"
+                                    onClick={handleRegisterFace}
+                                    className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-sm transition shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 cursor-pointer"
+                                    disabled={registeringFace}
+                                >
+                                    {registeringFace ? 'Registering...' : 'Register Face'}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => startFaceCamera()}
+                                    className="flex-1 py-4 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-sm transition cursor-pointer"
+                                >
+                                    Restart Scan
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}

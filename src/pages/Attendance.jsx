@@ -15,7 +15,14 @@ const Attendance = () => {
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
 
-    const [email, setEmail] = useState('');
+    const [emailState, setEmailState] = useState('');
+    const emailRef = useRef('');
+    const setEmail = (val) => {
+        setEmailState(val);
+        emailRef.current = typeof val === 'function' ? val(emailRef.current) : val;
+    };
+    const email = emailState;
+
     const [password, setPassword] = useState('');
     const [modelsLoaded, setModelsLoaded] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -23,15 +30,74 @@ const Attendance = () => {
     const [faceDetected, setFaceDetected] = useState(false);
     
     // Attendance status: 'unknown' | 'NOT_CHECKED_IN' | 'CHECKED_IN' | 'COMPLETED' | 'loading'
-    const [attendanceStatus, setAttendanceStatus] = useState('unknown');
+    const [attendanceStatusState, setAttendanceStatusState] = useState('unknown');
+    const attendanceStatusRef = useRef('unknown');
+    const setAttendanceStatus = (val) => {
+        setAttendanceStatusState(val);
+        attendanceStatusRef.current = typeof val === 'function' ? val(attendanceStatusRef.current) : val;
+    };
+    const attendanceStatus = attendanceStatusState;
+
     const [statusEmployeeName, setStatusEmployeeName] = useState('');
 
     // Auto-identification state
-    const [identifiedEmployee, setIdentifiedEmployee] = useState(null); // { email, employeeName }
+    const [identifiedEmployeeState, setIdentifiedEmployeeState] = useState(null); // { email, employeeName }
+    const identifiedEmployeeRef = useRef(null);
+    const setIdentifiedEmployee = (val) => {
+        setIdentifiedEmployeeState(val);
+        identifiedEmployeeRef.current = typeof val === 'function' ? val(identifiedEmployeeRef.current) : val;
+    };
+    const identifiedEmployee = identifiedEmployeeState;
+
     const identifyingRef = useRef(false); // prevent overlapping API calls
 
     // Result states
     const [verificationResult, setVerificationResult] = useState(null);
+
+    // Liveness and head-turn detection state
+    const [turnedLeft, setTurnedLeft] = useState(false);
+    const [turnedRight, setTurnedRight] = useState(false);
+    const [failedAttempts, setFailedAttempts] = useState(0);
+
+    const [showPasswordFieldState, setShowPasswordFieldState] = useState(false);
+    const showPasswordFieldRef = useRef(false);
+    const setShowPasswordField = (val) => {
+        setShowPasswordFieldState(val);
+        showPasswordFieldRef.current = typeof val === 'function' ? val(showPasswordFieldRef.current) : val;
+    };
+    const showPasswordField = showPasswordFieldState;
+
+    const [livenessVerified, setLivenessVerifiedState] = useState(false);
+    const livenessVerifiedRef = useRef(false);
+    const setLivenessVerified = (val) => {
+        setLivenessVerifiedState(val);
+        livenessVerifiedRef.current = typeof val === 'function' ? val(livenessVerifiedRef.current) : val;
+    };
+    const livenessDetectionRef = useRef(null);
+
+    const [leftProfile, setLeftProfileState] = useState(null);
+    const leftProfileRef = useRef(null);
+    const setLeftProfile = (val) => {
+        setLeftProfileState(val);
+        leftProfileRef.current = typeof val === 'function' ? val(leftProfileRef.current) : val;
+    };
+
+    const [rightProfile, setRightProfileState] = useState(null);
+    const rightProfileRef = useRef(null);
+    const setRightProfile = (val) => {
+        setRightProfileState(val);
+        rightProfileRef.current = typeof val === 'function' ? val(rightProfileRef.current) : val;
+    };
+
+    const leftDescriptorRef = useRef(null);
+    const rightDescriptorRef = useRef(null);
+
+    // Refs for tracking head turns
+    const turnedLeftRef = useRef(false);
+    const turnedRightRef = useRef(false);
+    const lookingCenterRef = useRef(true);
+    const checkingLivenessRef = useRef(false);
+    const lastFaceSeenTimeRef = useRef(0);
 
     const videoRef = useRef(null);
     const streamRef = useRef(null);
@@ -106,6 +172,57 @@ const Attendance = () => {
         };
     }, []);
 
+    // Head-Turn Detection Thresholds
+    // Yaw Ratio = dist(NoseTip, LeftCheek) / dist(NoseTip, RightCheek)
+    // Turned Left: Ratio < 0.65
+    // Turned Right: Ratio > 1.50
+    const YAW_TURN_LEFT_THRESHOLD = 0.65;
+    const YAW_TURN_RIGHT_THRESHOLD = 1.50;
+
+    const captureSnapshot = () => {
+        const video = videoRef.current;
+        if (!video) return null;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        // Mirror the snapshot image so it matches what they see on screen
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/jpeg', 0.6);
+    };
+
+    const calculateYawRatio = (landmarks) => {
+        if (!landmarks) return 1.0;
+        try {
+            const jaw = landmarks.getJawOutline();
+            const nose = landmarks.getNose();
+            
+            if (!jaw || jaw.length < 15 || !nose || nose.length < 4) {
+                return 1.0;
+            }
+
+            // Nose tip is nose[3] (point 30)
+            const noseTip = nose[3];
+            // Left cheek contour is jaw[2] (point 2)
+            const leftCheek = jaw[2];
+            // Right cheek contour is jaw[14] (point 14)
+            const rightCheek = jaw[14];
+
+            const dist = (pt1, pt2) => Math.hypot(pt1.x - pt2.x, pt1.y - pt2.y);
+
+            const distLeft = dist(noseTip, leftCheek);
+            const distRight = dist(noseTip, rightCheek);
+
+            if (distRight === 0) return 1.0;
+            return distLeft / distRight;
+        } catch (e) {
+            console.error("Error in Yaw calculation:", e);
+            return 1.0;
+        }
+    };
+
     // Radius (in displayed CSS pixels) of the on-screen target ring — matches the
     // w-64 (256px) circle overlay, so recognition only triggers inside that ring.
     const CIRCLE_RADIUS_PX = 128;
@@ -136,22 +253,170 @@ const Attendance = () => {
         return Math.hypot(dx, dy) <= CIRCLE_RADIUS_PX;
     };
 
-    // Detect all faces, keep only those centred inside the target circle, and return
-    // the largest such face (closest to the camera). Returns null if none are inside.
     const detectFaceInsideCircle = async () => {
-        if (!videoRef.current) return null;
-        const detections = await faceapi.detectAllFaces(
-            videoRef.current,
-            new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
-        ).withFaceLandmarks().withFaceDescriptors();
+        if (!videoRef.current) return { face: null, debug: "No video element ref" };
+        
+        try {
+            const detections = await faceapi.detectAllFaces(
+                videoRef.current,
+                new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
+            ).withFaceLandmarks().withFaceDescriptors();
 
-        const inside = detections.filter(d => isFaceInsideCircle(d.detection.box));
-        if (inside.length === 0) return null;
-        inside.sort((a, b) => b.detection.box.area - a.detection.box.area);
-        return inside[0];
+            if (!detections || detections.length === 0) {
+                return { face: null, debug: "Searching..." };
+            }
+
+            const inside = detections.filter(d => isFaceInsideCircle(d.detection.box));
+            if (inside.length === 0) {
+                return { face: null, debug: "Move closer to center" };
+            }
+
+            // Enforce minimum face width to prevent small mobile phone screens or far away spoof attempts
+            const largeEnough = inside.filter(d => d.detection.box.width >= 130);
+            if (largeEnough.length === 0) {
+                return { face: null, debug: "Please stand closer to camera" };
+            }
+
+            largeEnough.sort((a, b) => b.detection.box.area - a.detection.box.area);
+            return { face: largeEnough[0], debug: "Face inside circle" };
+        } catch (err) {
+            return { face: null, debug: `Err: ${err.message}` };
+        }
+    };
+
+    const handleLivenessConfirm = async () => {
+        if (!livenessDetectionRef.current) {
+            toast.error("Scanner snapshot missing. Please re-scan.");
+            return;
+        }
+        await handlePasswordlessAttendance(livenessDetectionRef.current);
+        setLivenessVerified(false);
+        livenessDetectionRef.current = null;
+    };
+
+    const handleNotMe = () => {
+        setEmail('');
+        setIdentifiedEmployee(null);
+        setAttendanceStatus('unknown');
+        setTurnedLeft(false);
+        setTurnedRight(false);
+        turnedLeftRef.current = false;
+        turnedRightRef.current = false;
+        lookingCenterRef.current = true;
+        setLivenessVerified(false);
+        livenessDetectionRef.current = null;
+        setLeftProfile(null);
+        setRightProfile(null);
+        leftDescriptorRef.current = null;
+        rightDescriptorRef.current = null;
+        setStatusMessage("System Ready. Stand in front of camera.");
     };
 
     // 2. Start Webcam Stream
+    const handlePasswordlessAttendance = async (detection) => {
+        const currentEmail = emailRef.current;
+        if (checkingLivenessRef.current || loading || !!verificationResult || !currentEmail) return;
+        checkingLivenessRef.current = true;
+        setLoading(true);
+        setStatusMessage("Liveness verified. Logging attendance...");
+
+        try {
+            const token = localStorage.getItem('token');
+            const employeeEmail = currentEmail;
+            const employeeName = identifiedEmployeeRef.current ? identifiedEmployeeRef.current.employeeName : currentEmail;
+
+            // Fetch check status if unknown
+            let status = attendanceStatusRef.current;
+            if (status === 'unknown') {
+                const statusRes = await axios.get(`${API_BASE_URL}/api/attendance/status/${encodeURIComponent(employeeEmail)}`, {
+                    headers: { 'x-access-token': token }
+                });
+                status = statusRes.data.status;
+                setAttendanceStatus(status);
+            }
+
+            if (status === 'COMPLETED') {
+                setStatusMessage(`${employeeName} has already completed attendance for today.`);
+                toast.error("Attendance completed for today.");
+                setLoading(false);
+                checkingLivenessRef.current = false;
+                return;
+            }
+
+            const action = status === 'CHECKED_IN' ? 'CHECK_OUT' : 'CHECK_IN';
+            setStatusMessage(`Logging ${action === 'CHECK_IN' ? 'Check-In' : 'Check-Out'}...`);
+
+            // 3. Capture base64 snapshot
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth || 640;
+            canvas.height = videoRef.current.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+            const snapshotImage = canvas.toDataURL('image/jpeg', 0.8);
+
+            // 4. Record attendance on backend without password
+            const response = await axios.post(`${API_BASE_URL}/api/attendance/check-in-out-with-face`, {
+                email: employeeEmail,
+                faceDescriptor: Array.from(detection.descriptor),
+                faceDescriptorLeft: leftDescriptorRef.current,
+                faceDescriptorRight: rightDescriptorRef.current,
+                snapshotImage,
+                action,
+                livenessVerified: true
+            }, {
+                headers: { 'x-access-token': token }
+            });
+
+            const { type, time, message } = response.data;
+
+            setVerificationResult({
+                success: true,
+                message,
+                employeeName,
+                time,
+                type
+            });
+            setStatusMessage(`${type === 'CHECK_IN' ? 'Check-In' : 'Check-Out'} logged!`);
+            toast.success(`${employeeName} ${type === 'CHECK_IN' ? 'checked in' : 'checked out'} successfully!`);
+
+            // Clear inputs and reset status
+            setEmail('');
+            setPassword('');
+            setAttendanceStatus('unknown');
+            setStatusEmployeeName('');
+            setIdentifiedEmployee(null);
+            setLeftProfile(null);
+            setRightProfile(null);
+            leftDescriptorRef.current = null;
+            rightDescriptorRef.current = null;
+            setActiveInput(null);
+            setFailedAttempts(0); // Reset attempts on successful logging
+
+            setTimeout(() => {
+                setVerificationResult(null);
+                setStatusMessage("System Ready. Stand in front of camera.");
+            }, 5000);
+
+        } catch (err) {
+            console.error("Liveness check-in error:", err);
+            const serverMsg = err.response?.data?.message || "Verification failed.";
+            setVerificationResult({
+                success: false,
+                message: serverMsg
+            });
+            setStatusMessage("Verification failed. Try again.");
+            toast.error(serverMsg);
+
+            setTimeout(() => {
+                setVerificationResult(null);
+                setStatusMessage("System Ready. Stand in front of camera.");
+            }, 5000);
+        } finally {
+            setLoading(false);
+            checkingLivenessRef.current = false;
+        }
+    };
+
     const startCamera = async () => {
         try {
             if (streamRef.current) return;
@@ -165,48 +430,209 @@ const Attendance = () => {
             videoRef.current.srcObject = stream;
             streamRef.current = stream;
 
-            // Start running background face detection + identification
-            detectIntervalRef.current = setInterval(async () => {
-                if (videoRef.current && modelsLoaded) {
-                    // Only consider a face that is centred inside the target circle;
-                    // faces outside the ring are ignored entirely.
-                    const detection = await detectFaceInsideCircle();
+            // Start running background face detection + liveness/identification with dynamic recursive setTimeout loop
+            const detectFrame = async () => {
+                if (!streamRef.current) return; // Stop permanently if stream is closed
 
+                if (livenessVerifiedRef.current) {
+                    // Pause active scanning while waiting for user confirm action
+                    detectIntervalRef.current = setTimeout(detectFrame, 1000);
+                    return;
+                }
+                
+                if (!videoRef.current || !modelsLoaded) {
+                    // Not ready yet, check again in 500ms
+                    detectIntervalRef.current = setTimeout(detectFrame, 500);
+                    return;
+                }
+                
+                try {
+                    const needsDesc = !emailRef.current;
+                    const result = await detectFaceInsideCircle(needsDesc);
+                    const detection = result ? result.face : null;
                     setFaceDetected(!!detection);
 
-                    // No face inside the circle: clear any auto-populated identity so stale data isn't shown
+                    // No face inside the circle: clear states with grace period
                     if (!detection) {
-                        setIdentifiedEmployee(null);
-                        setEmail('');
-                        setStatusMessage(prev => prev.startsWith('Recognized:') ? 'System Ready. Stand in front of camera.' : prev);
-                    }
+                        const debugMsg = result ? result.debug : "No face inside circle";
+                        setStatusMessage(`Scanning... (${debugMsg})`);
 
-                    // Auto-identify: only if a face is inside the circle and not already identifying
-                    if (detection && !identifyingRef.current) {
-                        identifyingRef.current = true;
-                        try {
-                            const token = localStorage.getItem('token');
-                            const res = await axios.post(`${API_BASE_URL}/api/attendance/identify-face`, {
-                                faceDescriptor: Array.from(detection.descriptor)
-                            }, {
-                                headers: { 'x-access-token': token }
-                            });
+                        const now = Date.now();
+                        if (now - lastFaceSeenTimeRef.current > 1500) {
+                            // Reset head-turn detection states
+                            turnedLeftRef.current = false;
+                            turnedRightRef.current = false;
+                            lookingCenterRef.current = true;
+                            setTurnedLeft(false);
+                            setTurnedRight(false);
+                            setLeftProfile(null);
+                            setRightProfile(null);
+                            leftDescriptorRef.current = null;
+                            rightDescriptorRef.current = null;
 
-                            if (res.data.matched) {
-                                setIdentifiedEmployee({ email: res.data.email, employeeName: res.data.employeeName });
-                                setEmail(res.data.email);
-                                setStatusMessage(`Recognized: ${res.data.employeeName}`);
-                            } else {
+                            // If not in password-fallback mode, clear identified info
+                            if (!showPasswordFieldRef.current) {
                                 setIdentifiedEmployee(null);
+                                setEmail('');
+                                setAttendanceStatus('unknown');
                             }
-                        } catch {
-                            // Silently ignore identification errors
-                        } finally {
-                            identifyingRef.current = false;
+                        }
+                    } else {
+                        // Face detected! Keep track of when we last saw it
+                        lastFaceSeenTimeRef.current = Date.now();
+
+                        if (showPasswordFieldRef.current) {
+                            // If password fallback is enabled, just do simple face identification auto-fill
+                            if (!identifyingRef.current && !identifiedEmployeeRef.current) {
+                                identifyingRef.current = true;
+                                try {
+                                    const token = localStorage.getItem('token');
+                                    const res = await axios.post(`${API_BASE_URL}/api/attendance/identify-face`, {
+                                        faceDescriptor: Array.from(detection.descriptor)
+                                    }, {
+                                        headers: { 'x-access-token': token }
+                                    });
+
+                                    if (res.data.matched) {
+                                        setIdentifiedEmployee({ email: res.data.email, employeeName: res.data.employeeName });
+                                        setEmail(res.data.email);
+                                        setStatusMessage(`Recognized: ${res.data.employeeName}. Enter password.`);
+                                    } else {
+                                        setIdentifiedEmployee(null);
+                                    }
+                                } catch {
+                                    // ignore
+                                } finally {
+                                    identifyingRef.current = false;
+                                }
+                            }
+                        } else {
+                            // Run head-turn detection & identification flow
+                            // Step 1: Auto-identify if we don't have an email yet
+                            const currentEmail = emailRef.current;
+                            if (!currentEmail && !identifyingRef.current) {
+                                identifyingRef.current = true;
+                                try {
+                                    const token = localStorage.getItem('token');
+                                    const res = await axios.post(`${API_BASE_URL}/api/attendance/identify-face`, {
+                                        faceDescriptor: Array.from(detection.descriptor)
+                                    }, {
+                                        headers: { 'x-access-token': token }
+                                    });
+
+                                    if (res.data.matched) {
+                                        setIdentifiedEmployee({ email: res.data.email, employeeName: res.data.employeeName });
+                                        setEmail(res.data.email);
+                                        setFailedAttempts(0);
+                                        
+                                        // Fetch status for UI status cards
+                                        const statusRes = await axios.get(`${API_BASE_URL}/api/attendance/status/${encodeURIComponent(res.data.email)}`, {
+                                            headers: { 'x-access-token': token }
+                                        });
+                                        setAttendanceStatus(statusRes.data.status);
+                                    } else {
+                                        setIdentifiedEmployee(null);
+                                        // Count as a failed attempt to log in
+                                        setFailedAttempts(prev => {
+                                            const newCount = prev + 1;
+                                            if (newCount >= 3) {
+                                                setShowPasswordField(true);
+                                                setStatusMessage("Identification failed 3 times. Please log in manually.");
+                                                toast.error("Failed to identify after 3 retries. Please enter credentials.");
+                                            } else {
+                                                setStatusMessage(`Face not recognized (Attempt ${newCount}/3).`);
+                                            }
+                                            return newCount;
+                                        });
+                                    }
+                                } catch (err) {
+                                    console.error("Auto-identify error:", err);
+                                } finally {
+                                    identifyingRef.current = false;
+                                }
+                            }
+
+                            // Step 2: Run head-turn detection once identified
+                            if (emailRef.current) {
+                                const landmarks = detection.landmarks;
+                                if (landmarks) {
+                                    const yawRatio = calculateYawRatio(landmarks);
+                                    const empName = identifiedEmployeeRef.current ? identifiedEmployeeRef.current.employeeName : emailRef.current;
+
+                                    // Update center state
+                                    if (yawRatio >= 0.85 && yawRatio <= 1.15) {
+                                        lookingCenterRef.current = true;
+                                    }
+
+                                    // Detect Left Turn (must start from looking straight)
+                                    if (yawRatio < YAW_TURN_LEFT_THRESHOLD) {
+                                        if (!turnedLeftRef.current && lookingCenterRef.current) {
+                                            turnedLeftRef.current = true;
+                                            setTurnedLeft(true);
+                                            lookingCenterRef.current = false;
+                                            const snap = captureSnapshot();
+                                            leftProfileRef.current = snap;
+                                            setLeftProfile(snap);
+                                            
+                                            // Extract Left Profile descriptor asynchronously
+                                            faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                                                .withFaceLandmarks().withFaceDescriptor()
+                                                .then(d => {
+                                                    if (d) leftDescriptorRef.current = Array.from(d.descriptor);
+                                                }).catch(() => {});
+
+                                            toast.success("Left turn detected!", { id: 'turn-left-toast' });
+                                        }
+                                    }
+                                    // Detect Right Turn (must start from looking straight)
+                                    if (yawRatio > YAW_TURN_RIGHT_THRESHOLD) {
+                                        if (!turnedRightRef.current && lookingCenterRef.current) {
+                                            turnedRightRef.current = true;
+                                            setTurnedRight(true);
+                                            lookingCenterRef.current = false;
+                                            const snap = captureSnapshot();
+                                            rightProfileRef.current = snap;
+                                            setRightProfile(snap);
+                                            
+                                            // Extract Right Profile descriptor asynchronously
+                                            faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                                                .withFaceLandmarks().withFaceDescriptor()
+                                                .then(d => {
+                                                    if (d) rightDescriptorRef.current = Array.from(d.descriptor);
+                                                }).catch(() => {});
+
+                                            toast.success("Right turn detected!", { id: 'turn-right-toast' });
+                                        }
+                                    }
+
+                                    setStatusMessage(`Recognized: ${empName}. Turn left & right to confirm. (Yaw: ${yawRatio.toFixed(2)})`);
+
+                                    if (turnedLeftRef.current && turnedRightRef.current) {
+                                        livenessDetectionRef.current = detection;
+                                        turnedLeftRef.current = false;
+                                        turnedRightRef.current = false;
+                                        setTurnedLeft(false);
+                                        setTurnedRight(false);
+                                        setLivenessVerified(true);
+                                        setStatusMessage("Liveness verified. Tap Confirm Check-In/Out on the right panel.");
+                                    }
+                                }
+                            }
                         }
                     }
+                } catch (err) {
+                    console.error("Error in detection frame:", err);
                 }
-            }, 2000);
+
+                // Schedule next frame only if the stream is still active
+                if (streamRef.current) {
+                    const delay = emailRef.current ? 150 : 500;
+                    detectIntervalRef.current = setTimeout(detectFrame, delay);
+                }
+            };
+
+            // Start the loop
+            detectIntervalRef.current = setTimeout(detectFrame, 500);
 
         } catch (err) {
             console.error("Error accessing webcam:", err);
@@ -216,7 +642,7 @@ const Attendance = () => {
 
     const stopCamera = () => {
         if (detectIntervalRef.current) {
-            clearInterval(detectIntervalRef.current);
+            clearTimeout(detectIntervalRef.current);
             detectIntervalRef.current = null;
         }
         if (streamRef.current) {
@@ -625,43 +1051,178 @@ const Attendance = () => {
 
                         <div className="space-y-6">
                             <div className="space-y-4">
-                                <div className="flex flex-col text-left gap-1">
-                                    <label htmlFor="email" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Employee Email <span className="text-gray-400 font-normal">(auto-detected)</span></label>
-                                    <input
-                                        id="email"
-                                        type="email"
-                                        value={email}
-                                        readOnly
-                                        placeholder="Face the camera to auto-detect..."
-                                        required
-                                        disabled={loading || !!verificationResult}
-                                        className={`px-4 py-3 border rounded-xl transition-all text-sm text-gray-800 placeholder-gray-400 cursor-default ${identifiedEmployee ? 'border-emerald-400 bg-emerald-50/50' : 'bg-gray-50 border-gray-100'}`}
-                                    />
-                                    {identifiedEmployee && (
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                            <LuUserCheck size={12} className="text-emerald-600" />
-                                            <span className="text-[11px] font-semibold text-emerald-600">
-                                                Auto-identified: {identifiedEmployee.employeeName}
-                                            </span>
+                                <div className="flex flex-col text-left gap-2">
+                                    <label htmlFor="email" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        Employee Identity {showPasswordField ? '' : <span className="text-gray-400 font-normal">(auto-detected)</span>}
+                                    </label>
+                                    
+                                    {showPasswordField || !identifiedEmployee ? (
+                                        <input
+                                            id="email"
+                                            type="email"
+                                            value={email}
+                                            onChange={showPasswordField ? (e) => setEmail(e.target.value) : undefined}
+                                            readOnly={!showPasswordField}
+                                            placeholder={showPasswordField ? "Enter your email address" : "Face the camera to auto-detect..."}
+                                            required
+                                            disabled={loading || !!verificationResult}
+                                            className="px-4 py-3 border rounded-xl transition-all text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 bg-white border-gray-200"
+                                        />
+                                    ) : (
+                                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 animate-fade-in text-left">
+                                            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                                                <LuUserCheck size={20} />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-extrabold text-gray-900 text-sm leading-tight">{identifiedEmployee.employeeName}</h4>
+                                                <p className="text-xs text-gray-500 font-medium mt-0.5">{identifiedEmployee.email}</p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="flex flex-col text-left gap-1">
-                                    <label htmlFor="password" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Password</label>
-                                    <input
-                                        id="password"
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        onFocus={() => setActiveInput('password')}
-                                        onClick={() => setActiveInput('password')}
-                                        placeholder="••••••••"
-                                        required
-                                        disabled={loading || !!verificationResult}
-                                        className="px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 transition-all text-sm text-gray-800 placeholder-gray-400"
-                                    />
-                                </div>
+                                {!showPasswordField ? (
+                                    <div className="space-y-4">
+                                        {attendanceStatus === 'COMPLETED' ? (
+                                            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center space-y-4 animate-fade-in">
+                                                <div className="flex justify-center items-center gap-1.5 text-amber-700 font-bold text-sm">
+                                                    <LuInfo className="w-5 h-5" />
+                                                    <span>Attendance Completed Today</span>
+                                                </div>
+                                                <p className="text-gray-500 text-xs leading-relaxed">
+                                                    You have already completed both Check-In and Check-Out for today. No further action is required.
+                                                </p>
+                                                <div className="pt-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleNotMe}
+                                                        className="w-full py-3 border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-black uppercase tracking-widest rounded-xl transition cursor-pointer"
+                                                    >
+                                                        Done / Reset Scanner
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : livenessVerified ? (
+                                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center space-y-4 animate-fade-in">
+                                                <div className="flex justify-center items-center gap-1.5 text-emerald-700 font-bold text-sm">
+                                                    <LuCheck className="w-5 h-5 bg-emerald-500 text-white rounded-full p-0.5" />
+                                                    <span>Liveness Verification Successful</span>
+                                                </div>
+                                                <p className="text-gray-500 text-xs leading-relaxed">
+                                                    Your identity has been fully verified. Please confirm your action below to complete your attendance log.
+                                                </p>
+                                                
+                                                <div className="pt-2 space-y-3">
+                                                    {attendanceStatus === 'CHECKED_IN' ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleLivenessConfirm}
+                                                            disabled={loading || !!verificationResult}
+                                                            className="w-full py-4 bg-[#1e1b4b] hover:bg-[#312e81] text-white font-black rounded-xl shadow-xl hover:shadow-indigo-950/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs uppercase tracking-widest cursor-pointer"
+                                                        >
+                                                            {loading ? (
+                                                                <div className="w-4 h-4 border-2 border-slate-400 border-t-white rounded-full animate-spin"></div>
+                                                            ) : (
+                                                                <>
+                                                                    <LuLogOut className="w-4 h-4 text-[#0ea5e9]" />
+                                                                    <span>Confirm Check Out</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleLivenessConfirm}
+                                                            disabled={loading || !!verificationResult}
+                                                            className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 text-white font-black rounded-xl shadow-xl hover:shadow-emerald-950/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs uppercase tracking-widest cursor-pointer"
+                                                        >
+                                                            {loading ? (
+                                                                <div className="w-4 h-4 border-2 border-emerald-300 border-t-white rounded-full animate-spin"></div>
+                                                            ) : (
+                                                                <>
+                                                                    <LuUserCheck className="w-4 h-4" />
+                                                                    <span>Confirm Check In</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                    
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleNotMe}
+                                                        className="w-full py-3 border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-black uppercase tracking-widest rounded-xl transition"
+                                                    >
+                                                        Not Me? Re-Scan
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-5 text-center space-y-4">
+                                                <div className="flex justify-center gap-1.5 text-indigo-600 font-bold text-sm">
+                                                    <span>Face Liveness Scan (Turn Head)</span>
+                                                </div>
+                                                <p className="text-gray-500 text-xs leading-relaxed">
+                                                    Position your face inside the circle, then **turn your head left**, and then **turn your head right** to log attendance.
+                                                </p>
+                                                <div className="flex justify-center gap-6 text-xs">
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <div className={`w-16 h-16 rounded-full border-2 overflow-hidden flex items-center justify-center transition-all ${leftProfile ? 'border-emerald-500 bg-white' : 'border-dashed border-gray-300 bg-gray-50'}`}>
+                                                            {leftProfile ? (
+                                                                <img src={leftProfile} alt="Left Profile" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <LuCamera className="w-5 h-5 text-gray-300" />
+                                                            )}
+                                                        </div>
+                                                        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] transition-all ${turnedLeft ? 'bg-emerald-500 text-white border-emerald-500 font-bold' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                                                            {turnedLeft && <LuCheck size={10} />}
+                                                            <span>1. Turn Left</span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <div className={`w-16 h-16 rounded-full border-2 overflow-hidden flex items-center justify-center transition-all ${rightProfile ? 'border-emerald-500 bg-white' : 'border-dashed border-gray-300 bg-gray-50'}`}>
+                                                            {rightProfile ? (
+                                                                <img src={rightProfile} alt="Right Profile" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <LuCamera className="w-5 h-5 text-gray-300" />
+                                                            )}
+                                                        </div>
+                                                        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] transition-all ${turnedRight ? 'bg-emerald-500 text-white border-emerald-500 font-bold' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                                                            {turnedRight && <LuCheck size={10} />}
+                                                            <span>2. Turn Right</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                {email && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleNotMe}
+                                                        className="w-full mt-2 py-2 text-xs text-red-600 hover:text-red-800 font-semibold uppercase tracking-wider transition underline"
+                                                    >
+                                                        Not Me? Re-Scan
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col text-left gap-1">
+                                        <label htmlFor="password" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Password</label>
+                                        <input
+                                            id="password"
+                                            type="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            onFocus={() => setActiveInput('password')}
+                                            onClick={() => setActiveInput('password')}
+                                            placeholder="••••••••"
+                                            required
+                                            disabled={loading || !!verificationResult}
+                                            className="px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 transition-all text-sm text-gray-800 placeholder-gray-400"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Status indicator */}
@@ -685,45 +1246,67 @@ const Attendance = () => {
                             )}
 
                             {/* Conditional buttons based on attendance status */}
-                            <div className="grid grid-cols-1 gap-3">
-                                {/* Show Check In when NOT checked in yet (or status unknown / not looked up) */}
-                                {(attendanceStatus === 'NOT_CHECKED_IN' || attendanceStatus === 'unknown') && (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleVerify('CHECK_IN')}
-                                        disabled={loading || !modelsLoaded || !!verificationResult || attendanceStatus === 'unknown'}
-                                        className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 text-white font-black rounded-xl shadow-xl hover:shadow-emerald-950/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs uppercase tracking-widest cursor-pointer"
-                                    >
-                                        {loading ? (
-                                            <div className="w-4 h-4 border-2 border-emerald-300 border-t-white rounded-full animate-spin"></div>
-                                        ) : (
-                                            <>
-                                                <LuUserCheck className="w-4 h-4" />
-                                                <span>Check In</span>
-                                            </>
+                            {showPasswordField && (
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {/* Show Check In when NOT checked in yet (or status unknown / not looked up) */}
+                                        {(attendanceStatus === 'NOT_CHECKED_IN' || attendanceStatus === 'unknown') && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleVerify('CHECK_IN')}
+                                                disabled={loading || !modelsLoaded || !!verificationResult}
+                                                className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 text-white font-black rounded-xl shadow-xl hover:shadow-emerald-950/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs uppercase tracking-widest cursor-pointer"
+                                            >
+                                                {loading ? (
+                                                    <div className="w-4 h-4 border-2 border-emerald-300 border-t-white rounded-full animate-spin"></div>
+                                                ) : (
+                                                    <>
+                                                        <LuUserCheck className="w-4 h-4" />
+                                                        <span>Check In</span>
+                                                    </>
+                                                )}
+                                            </button>
                                         )}
-                                    </button>
-                                )}
 
-                                {/* Show Check Out when already checked in */}
-                                {attendanceStatus === 'CHECKED_IN' && (
+                                        {/* Show Check Out when already checked in */}
+                                        {attendanceStatus === 'CHECKED_IN' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleVerify('CHECK_OUT')}
+                                                disabled={loading || !modelsLoaded || !!verificationResult}
+                                                className="w-full py-4 bg-[#1e1b4b] hover:bg-[#312e81] text-white font-black rounded-xl shadow-xl hover:shadow-indigo-950/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs uppercase tracking-widest cursor-pointer"
+                                            >
+                                                {loading ? (
+                                                    <div className="w-4 h-4 border-2 border-slate-400 border-t-white rounded-full animate-spin"></div>
+                                                ) : (
+                                                    <>
+                                                        <LuLogOut className="w-4 h-4 text-[#0ea5e9]" />
+                                                        <span>Check Out</span>
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+
                                     <button
                                         type="button"
-                                        onClick={() => handleVerify('CHECK_OUT')}
-                                        disabled={loading || !modelsLoaded || !!verificationResult}
-                                        className="w-full py-4 bg-[#1e1b4b] hover:bg-[#312e81] text-white font-black rounded-xl shadow-xl hover:shadow-indigo-950/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs uppercase tracking-widest cursor-pointer"
+                                        onClick={() => {
+                                            setShowPasswordField(false);
+                                            setFailedAttempts(0);
+                                            setTurnedLeft(false);
+                                            setTurnedRight(false);
+                                            setEmail('');
+                                            setPassword('');
+                                            setIdentifiedEmployee(null);
+                                            setAttendanceStatus('unknown');
+                                            setStatusMessage("System Ready. Stand in front of camera.");
+                                        }}
+                                        className="w-full py-3 border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-black uppercase tracking-widest rounded-xl transition"
                                     >
-                                        {loading ? (
-                                            <div className="w-4 h-4 border-2 border-slate-400 border-t-white rounded-full animate-spin"></div>
-                                        ) : (
-                                            <>
-                                                <LuLogOut className="w-4 h-4 text-[#0ea5e9]" />
-                                                <span>Check Out</span>
-                                            </>
-                                        )}
+                                        Try Blink Scanner Again
                                     </button>
-                                )}
-                            </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
