@@ -1692,7 +1692,13 @@ const OnboardEmployee = () => {
                                     <div className="flex gap-3">
                                         <button
                                             type="button"
-                                            onClick={() => navigate('/users')}
+                                            onClick={() => {
+                                                if (id) {
+                                                    navigate(`/staff-profile/${id}`);
+                                                } else {
+                                                    navigate('/users');
+                                                }
+                                            }}
                                             className="px-6 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition"
                                         >
                                             Cancel

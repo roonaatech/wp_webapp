@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 import { LuSmartphone } from "react-icons/lu";
-import { fetchRoles, canAccessWebApp, isSelfServiceOnly, getRoleDisplayName } from '../utils/roleUtils';
+import { fetchRoles, canAccessWebApp, isSelfServiceOnly, getRoleDisplayName, canAccessAttendancePortal } from '../utils/roleUtils';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -55,6 +55,21 @@ const Login = () => {
             // Also refresh application settings (timezone, etc)
             if (window.refreshAppSettings) {
                 await window.refreshAppSettings();
+            }
+
+            // Service accounts handling
+            if (user.isServiceAccount) {
+                localStorage.setItem('user', JSON.stringify(user));
+                toast.success(`Welcome, ${user.firstname}!`, {
+                    style: { background: '#059669', color: '#fff' },
+                    icon: '👋'
+                });
+                if (canAccessAttendancePortal(user.role)) {
+                    navigate('/attendance');
+                } else {
+                    navigate('/unauthorized');
+                }
+                return;
             }
 
             // Force all mobile users to my-requests

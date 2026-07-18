@@ -423,7 +423,6 @@ export const isSelfServiceOnly = (roleId) => {
         role.can_manage_roles == true ||
         role.can_manage_email_settings == true ||
         role.can_manage_system_settings === 'all' ||
-        role.can_access_attendance_portal == true ||
         role.can_view_attendance_report === 'subordinates' || role.can_view_attendance_report === 'all' ||
         role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
 

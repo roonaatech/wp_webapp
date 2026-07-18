@@ -27,7 +27,7 @@ import Settings from './pages/Settings';
 import MyRequests from './pages/MyRequests';
 import Arch from './pages/Arch';
 import ShowQRCode from './pages/ShowQRCode';
-import { fetchRoles } from './utils/roleUtils';
+import { fetchRoles, canAccessWebApp } from './utils/roleUtils';
 import OnboardEmployee from './pages/OnboardEmployee';
 import ViewEmployeeProfile from './pages/ViewEmployeeProfile';
 import FirstTimeLoginFlow from './pages/FirstTimeLoginFlow';
@@ -153,6 +153,22 @@ const PublicOrProtectedLayout = ({ children }) => {
   return children;
 };
 
+const SelfServiceLayout = ({ children }) => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (canAccessWebApp(user.role) && !isMobile) {
+    return <ProtectedLayout>{children}</ProtectedLayout>;
+  }
+  
+  return (
+    <ProtectedRoute skipWebAppCheck>
+      <InactivityGuard />
+      {children}
+    </ProtectedRoute>
+  );
+};
+
 function App() {
   return (
     <Router>
@@ -222,7 +238,7 @@ function App() {
 
 
             {/* Self-Service Routes (all authenticated users, no sidebar/header) */}
-            <Route path="/my-requests" element={<ProtectedRoute skipWebAppCheck><MyRequests /></ProtectedRoute>} />
+            <Route path="/my-requests" element={<SelfServiceLayout><MyRequests /></SelfServiceLayout>} />
             <Route path="/show-qrcode" element={<ProtectedRoute><ShowQRCode /></ProtectedRoute>} />
             <Route path="/verify-profile" element={<ProtectedRoute skipProfileCheck skipWebAppCheck><FirstTimeLoginFlow /></ProtectedRoute>} />
 

@@ -24,13 +24,14 @@ import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport, canManageServiceAccounts } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport, canManageServiceAccounts, isSelfServiceOnly } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     // Use permission-based checks instead of hardcoded role IDs
     const isAdmin = hasAdminPermission(user.role);
+    const isSelfService = isSelfServiceOnly(user.role);
     const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
     const canManageUsersPermission = canManageUsersUtil(user.role); // Users page edit visibility
     const canAccessUsersPermission = canAccessUsersPage(user.role); // Users page visibility (view or manage)
@@ -240,7 +241,7 @@ const Sidebar = () => {
             {/* Header with collapse button */}
             <div className="p-4 pb-6 flex items-center justify-between">
                 {!isCollapsed && (
-                    <Link to="/" className="hover:opacity-90 transition-opacity block flex-1">
+                    <Link to={isSelfService ? "/my-requests" : "/"} className="hover:opacity-90 transition-opacity block flex-1">
                         <BrandLogo />
                     </Link>
                 )}
@@ -259,14 +260,22 @@ const Sidebar = () => {
 
             {/* Navigation */}
             <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
-                {!isCollapsed && (
+                {!isCollapsed && !user.isServiceAccount && (
                     <div>
                         <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2">Overview</p>
-                        <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                        {isSelfService ? (
+                            <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
+                        ) : (
+                            <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                        )}
                     </div>
                 )}
-                {isCollapsed && (
-                    <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                {isCollapsed && !user.isServiceAccount && (
+                    isSelfService ? (
+                        <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
+                    ) : (
+                        <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                    )
                 )}
 
                 {!isCollapsed && hasAnyManagementPermission && (

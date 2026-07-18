@@ -1490,57 +1490,57 @@ const Attendance = () => {
             {/* Action Confirmation Modal */}
             {showConfirmModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-modal-in">
-                    <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 text-center space-y-6">
+                    <div className="bg-white rounded-[2rem] max-w-2xl w-full p-10 shadow-2xl border border-gray-100 text-center space-y-10">
                         <div className="flex flex-col items-center">
                             {confirmModalType === 'CHECK_IN' ? (
-                                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
-                                    <LuUserCheck size={32} />
+                                <div className="w-24 h-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-6">
+                                    <LuUserCheck size={52} />
                                 </div>
                             ) : (
-                                <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-4">
-                                    <LuLogOut size={32} />
+                                <div className="w-24 h-24 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-6">
+                                    <LuLogOut size={52} />
                                 </div>
                             )}
-                            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight animate-pulse">
+                            <h3 className="text-3xl sm:text-4xl font-extrabold text-gray-900 uppercase tracking-tight animate-pulse">
                                 {confirmModalType === 'CHECK_IN' ? 'Confirm Check In' : 'Confirm Check Out'}
                             </h3>
-                            <p className="text-gray-500 text-xs mt-1">
+                            <p className="text-gray-500 text-base mt-2">
                                 Please verify the details below before logging.
                             </p>
                         </div>
 
-                        <div className="bg-slate-50 rounded-2xl p-4 space-y-3.5 text-left border border-slate-100">
-                            <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-400 font-semibold uppercase tracking-wider">Employee</span>
-                                <span className="text-gray-800 font-bold">{identifiedEmployee?.employeeName || email}</span>
+                        <div className="bg-slate-50 rounded-2xl p-8 space-y-5 text-left border border-slate-100">
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-400 font-bold uppercase tracking-wider text-xs sm:text-sm">Employee</span>
+                                <span className="text-gray-800 font-black text-lg sm:text-xl">{identifiedEmployee?.employeeName || email}</span>
                             </div>
 
                             {confirmModalType === 'CHECK_IN' ? (
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="text-gray-400 font-semibold uppercase tracking-wider">Check In Time</span>
-                                    <span className="text-emerald-600 font-black">{confirmModalTimestamp}</span>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-400 font-bold uppercase tracking-wider text-xs sm:text-sm">Check In Time</span>
+                                    <span className="text-emerald-600 font-black text-xl sm:text-2xl">{confirmModalTimestamp}</span>
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex justify-between items-center text-xs border-b border-slate-200/60 pb-2.5">
-                                        <span className="text-gray-400 font-semibold uppercase tracking-wider">Checked In At</span>
-                                        <span className="text-gray-700 font-bold">{checkInRaw ? formatTimeOnly(checkInRaw) : 'N/A'}</span>
+                                    <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
+                                        <span className="text-gray-400 font-bold uppercase tracking-wider text-xs sm:text-sm">Checked In At</span>
+                                        <span className="text-gray-700 font-bold text-lg">{checkInRaw ? formatTimeOnly(checkInRaw) : 'N/A'}</span>
                                     </div>
-                                    <div className="flex justify-between items-center text-xs pt-0.5">
-                                        <span className="text-gray-400 font-semibold uppercase tracking-wider">Total Duration</span>
-                                        <span className="text-rose-600 font-black text-sm">{confirmModalDuration}</span>
+                                    <div className="flex justify-between items-center pt-2.5">
+                                        <span className="text-gray-400 font-bold uppercase tracking-wider text-xs sm:text-sm">Total Duration</span>
+                                        <span className="text-rose-600 font-black text-xl sm:text-2xl">{confirmModalDuration}</span>
                                     </div>
                                 </>
                             )}
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex gap-5">
                             <button
                                 type="button"
                                 onClick={() => {
                                     setShowConfirmModal(false);
                                 }}
-                                className="flex-1 py-3 border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-widest transition"
+                                className="flex-1 py-5 border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-[1.25rem] text-sm sm:text-base font-black uppercase tracking-widest transition"
                                 disabled={loading}
                             >
                                 Cancel
@@ -1549,10 +1549,10 @@ const Attendance = () => {
                                 type="button"
                                 onClick={executeLivenessAttendance}
                                 disabled={loading}
-                                className={`flex-1 py-3 text-white rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center justify-center gap-1.5 shadow-lg ${confirmModalType === 'CHECK_IN' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/10' : 'bg-[#1e1b4b] hover:bg-[#312e81] shadow-indigo-650/10'}`}
+                                className={`flex-1 py-5 text-white rounded-[1.25rem] text-sm sm:text-base font-black uppercase tracking-widest transition flex items-center justify-center gap-1.5 shadow-lg ${confirmModalType === 'CHECK_IN' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/10' : 'bg-[#1e1b4b] hover:bg-[#312e81] shadow-indigo-650/10'}`}
                             >
                                 {loading ? (
-                                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                    <div className="w-6 h-6 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                                 ) : (
                                     confirmModalType === 'CHECK_IN' ? 'Confirm In' : 'Confirm Out'
                                 )}
