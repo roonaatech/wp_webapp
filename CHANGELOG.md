@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.11](https://github.com/roonaatech/wp_webapp/compare/v2.9.10...v2.9.11) (2026-07-18)
+
+
+### Styles
+
+* enhance attendance confirmation modal UI and add service account access control ([9d13579](https://github.com/roonaatech/wp_webapp/commit/9d135790e2b3ea8b0ef0689c1f7a24c44229ae51))
+
 ### [2.9.10](https://github.com/roonaatech/wp_webapp/compare/v2.9.9...v2.9.10) (2026-07-17)
 
 
