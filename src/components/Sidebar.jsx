@@ -16,22 +16,26 @@ import {
     LuChevronLeft,
     LuChevronRight,
     LuClipboardPen,
-    LuSettings
+    LuSettings,
+    LuCamera,
+    LuUserCog
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport, canManageServiceAccounts, isSelfServiceOnly } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     // Use permission-based checks instead of hardcoded role IDs
     const isAdmin = hasAdminPermission(user.role);
+    const isSelfService = isSelfServiceOnly(user.role);
     const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
     const canManageUsersPermission = canManageUsersUtil(user.role); // Users page edit visibility
     const canAccessUsersPermission = canAccessUsersPage(user.role); // Users page visibility (view or manage)
+    const canManageOnboardingPermission = canManageOnboarding(user.role); // Onboarding permission
     const canManageRolesPermission = canManageRoles(user.role);
     const canManageEmailPermission = canManageEmailSettings(user.role);
     const canManageSystemPermission = canManageSystemSettings(user.role);
@@ -39,8 +43,15 @@ const Sidebar = () => {
     const canManageSchedulePermission = canManageSchedule(user.role);
     const canViewReportsPermission = canViewReports(user.role);
     const canViewActivitiesPermission = canViewActivities(user.role);
+    const canAccessAttendance = canAccessAttendancePortal(user.role);
+    const canViewAttendanceReportPermission = canViewAttendanceReport(user.role);
+    const canManageServiceAccountsPermission = canManageServiceAccounts(user.role);
+    // Show Management section only if the user has at least one item in it
+    const hasAnyManagementPermission = canApprove || canManageActiveOnDutyPermission || canManageSchedulePermission || canAccessAttendance;
+    // Show Staff section if user has staff management permission or service accounts permission
+    const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission || canManageServiceAccountsPermission;
     // Show Configurations section if user has any configuration permission
-    const hasAnyConfigPermission = canAccessUsersPermission || canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission;
+    const hasAnyConfigPermission = canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -230,7 +241,7 @@ const Sidebar = () => {
             {/* Header with collapse button */}
             <div className="p-4 pb-6 flex items-center justify-between">
                 {!isCollapsed && (
-                    <Link to="/" className="hover:opacity-90 transition-opacity block flex-1">
+                    <Link to={isSelfService ? "/my-requests" : "/"} className="hover:opacity-90 transition-opacity block flex-1">
                         <BrandLogo />
                     </Link>
                 )}
@@ -249,21 +260,31 @@ const Sidebar = () => {
 
             {/* Navigation */}
             <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
-                {!isCollapsed && (
+                {!isCollapsed && !user.isServiceAccount && (
                     <div>
                         <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2">Overview</p>
-                        <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                        {isSelfService ? (
+                            <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
+                        ) : (
+                            <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                        )}
                     </div>
                 )}
-                {isCollapsed && (
-                    <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                {isCollapsed && !user.isServiceAccount && (
+                    isSelfService ? (
+                        <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
+                    ) : (
+                        <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                    )
                 )}
 
-                {!isCollapsed && (
+                {!isCollapsed && hasAnyManagementPermission && (
                     <div>
                         <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Management</p>
-                        {/* Approvals - Both Admin and Manager */}
-                        <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
+                        {/* Approvals - Only for users who can approve leave or on-duty requests */}
+                        {canApprove && (
+                            <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
+                        )}
                         {/* Active On-Duty - For users with can_manage_active_onduty permission */}
                         {canManageActiveOnDutyPermission && (
                             <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
@@ -272,16 +293,41 @@ const Sidebar = () => {
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                         )}
+                        {canAccessAttendance && (
+                            <NavLink to="/attendance" icon={<LuCamera />} label="Face Attendance" />
+                        )}
                     </div>
                 )}
-                {isCollapsed && (
+                {isCollapsed && hasAnyManagementPermission && (
                     <div className="space-y-2">
-                        <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
+                        {canApprove && (
+                            <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
+                        )}
                         {canManageActiveOnDutyPermission && (
                             <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
                         )}
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
+                        )}
+                        {canAccessAttendance && (
+                            <NavLink to="/attendance" icon={<LuCamera />} label="Face Attendance" />
+                        )}
+                    </div>
+                )}
+
+                {/* Staff Directory - Show if user has staff management permissions */}
+                {!isCollapsed && hasAnyStaffPermission && (
+                    <div>
+                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">People</p>
+                        {/* Users - Admin & those who can manage or view users */}
+                        {canAccessUsersPermission && (
+                            <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
+                        )}
+                        {canManageServiceAccountsPermission && (
+                            <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" />
+                        )}
+                        {canManageOnboardingPermission && (
+                            <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
                         )}
                     </div>
                 )}
@@ -290,10 +336,6 @@ const Sidebar = () => {
                 {!isCollapsed && hasAnyConfigPermission && (
                     <div>
                         <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Configurations</p>
-                        {/* Users - Admin & those who can manage or view users */}
-                        {canAccessUsersPermission && (
-                            <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
-                        )}
                         {/* Leave Types */}
                         {canManageLeaveTypes(user.role) && (
                             <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
@@ -335,11 +377,17 @@ const Sidebar = () => {
                     </div>
                 )}
 
-                {/* Collapsed Mode - Configurations */}
-                {isCollapsed && hasAnyConfigPermission && (
+                {/* Collapsed Mode - Staff Members & Configurations */}
+                {isCollapsed && (hasAnyStaffPermission || hasAnyConfigPermission) && (
                     <div className="space-y-2">
                         {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
+                        )}
+                        {canManageServiceAccountsPermission && (
+                            <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" />
+                        )}
+                        {canManageOnboardingPermission && (
+                            <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
                         )}
                         {canManageLeaveTypes(user.role) && (
                             <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
@@ -357,11 +405,14 @@ const Sidebar = () => {
                     </div>
                 )}
 
-                {!isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
+                {!isCollapsed && (canViewReportsPermission || canViewActivitiesPermission || canViewAttendanceReportPermission) && (
                     <div>
                         <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Analysis</p>
                         {canViewReportsPermission && (
                             <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        )}
+                        {canViewAttendanceReportPermission && (
+                            <NavLink to="/attendance-report" icon={<LuCalendarDays />} label="Attendance Review" />
                         )}
                         {/* Activities - Based on can_view_activities permission */}
                         {canViewActivitiesPermission && (
@@ -374,10 +425,13 @@ const Sidebar = () => {
                         </div>
                     </div>
                 )}
-                {isCollapsed && (canViewReportsPermission || canViewActivitiesPermission) && (
+                {isCollapsed && (canViewReportsPermission || canViewActivitiesPermission || canViewAttendanceReportPermission) && (
                     <div className="space-y-2">
                         {canViewReportsPermission && (
                             <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        )}
+                        {canViewAttendanceReportPermission && (
+                            <NavLink to="/attendance-report" icon={<LuCalendarDays />} label="Attendance Review" />
                         )}
                         {canViewActivitiesPermission && (
                             <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />

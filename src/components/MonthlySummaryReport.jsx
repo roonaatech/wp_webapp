@@ -287,19 +287,6 @@ const MonthlySummaryReport = () => {
 
     return (
         <div>
-            {/* Export Button */}
-            <div className="mb-4 flex justify-end">
-                <button
-                    onClick={exportExcel}
-                    disabled={summary.length === 0}
-                    className="group relative overflow-hidden px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center gap-2 z-10"
-                >
-                    <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
-                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
-                    📥 Export to Excel
-                </button>
-            </div>
-
             {/* Summary Stats */}
             <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="text-sm text-gray-500">
@@ -309,7 +296,7 @@ const MonthlySummaryReport = () => {
 
             {/* Filters */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto items-end">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
                         <select
@@ -329,6 +316,17 @@ const MonthlySummaryReport = () => {
                         >
                             {years.map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
+                    </div>
+                    <div>
+                        <button
+                            onClick={exportExcel}
+                            disabled={summary.length === 0}
+                            className="group relative overflow-hidden w-full px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center justify-center gap-2 z-10"
+                        >
+                            <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
+                            <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                            📥 Export
+                        </button>
                     </div>
                 </div>
                 {period && (

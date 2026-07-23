@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { canViewActivities, fetchRoles } from '../utils/roleUtils';
-import { formatInTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, getCurrentInAppTimezone, formatTimeOnly, formatDateOnly } from '../utils/timezone.util';
 import TableSortIcon from '../components/TableSortIcon';
 
 const Activities = () => {
@@ -32,6 +32,12 @@ const Activities = () => {
     const [startDate, setStartDate] = useState(getTodayDate());
     const [endDate, setEndDate] = useState(getTodayDate());
     const [adminIdFilter, setAdminIdFilter] = useState('');
+
+    // Employee filter UI
+    const [users, setUsers] = useState([]);
+    const [employeeSearch, setEmployeeSearch] = useState('');
+    const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+    const employeeDropdownRef = useRef(null);
 
     // Summary data
     const [summary, setSummary] = useState(null);
@@ -62,6 +68,22 @@ const Activities = () => {
 
     useEffect(() => {
         if (!hasPermission) return;
+
+        // Fetch users for the employee filter
+        const fetchUsers = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await axios.get(
+                    `${API_BASE_URL}/api/admin/users?limit=all&status=all`,
+                    { headers: { 'x-access-token': token } }
+                );
+                if (res.data.users) setUsers(res.data.users);
+                else if (Array.isArray(res.data)) setUsers(res.data);
+            } catch (e) {
+                console.error('Failed to fetch users for filter:', e);
+            }
+        };
+        fetchUsers();
 
         // Fetch with today's date by default
         fetchActivities(1, {
@@ -156,6 +178,7 @@ const Activities = () => {
         setStartDate('');
         setEndDate('');
         setAdminIdFilter('');
+        setEmployeeSearch('');
         setCurrentPage(1);
         fetchActivities(1, { action: '', entity: '', startDate: '', endDate: '', adminId: '' });
         fetchSummary({ startDate: '', endDate: '' });
@@ -203,9 +226,88 @@ const Activities = () => {
             'APPROVE': 'bg-green-100 text-green-800',
             'REJECT': 'bg-orange-100 text-orange-800',
             'LOGIN': 'bg-purple-100 text-purple-800',
-            'LOGOUT': 'bg-gray-100 text-gray-800'
+            'LOGOUT': 'bg-gray-100 text-gray-800',
+            'CHECK_IN': 'bg-emerald-100 text-emerald-800',
+            'CHECK_OUT': 'bg-sky-100 text-sky-800',
+            'REGISTER_FACE': 'bg-teal-100 text-teal-800'
         };
         return colors[action] || 'bg-gray-100 text-gray-800';
+    };
+
+    const formatDescription = (activity) => {
+        if (!activity.description) return '—';
+        if (activity.action === 'APPROVE' && activity.affected_user) {
+            const name = `${activity.affected_user.firstname} ${activity.affected_user.lastname}`.trim();
+            if (name && !activity.description.toLowerCase().includes('requested by')) {
+                return `${activity.description} requested by ${name}`;
+            }
+        }
+        return activity.description;
+    };
+
+    // Human-readable labels for audited fields
+    const CHANGE_FIELD_LABELS = {
+        date: 'Date',
+        check_in_time: 'Check-In',
+        check_out_time: 'Check-Out'
+    };
+
+    const formatChangeValue = (key, value) => {
+        if (value === null || value === undefined || value === '') return '—';
+        if (key === 'date') return formatDateOnly(value);
+        if (key === 'check_in_time' || key === 'check_out_time') return formatTimeOnly(value);
+        return String(value);
+    };
+
+    // JSON columns may arrive parsed or as a raw string depending on the driver
+    const parseValues = (val) => {
+        if (!val) return null;
+        if (typeof val === 'string') {
+            try { return JSON.parse(val); } catch { return null; }
+        }
+        return val;
+    };
+
+    // Render "field: old → new" lines for entries that captured before/after values
+    const renderChanges = (activity) => {
+        const oldValues = parseValues(activity.old_values);
+        const newValues = parseValues(activity.new_values);
+        if (!newValues || typeof newValues !== 'object') return null;
+
+        const changes = Object.keys(newValues)
+            .map((key) => {
+                const before = formatChangeValue(key, oldValues ? oldValues[key] : undefined);
+                const after = formatChangeValue(key, newValues[key]);
+                if (before === after) return null; // skip unchanged fields
+                return { key, label: CHANGE_FIELD_LABELS[key] || key, before, after };
+            })
+            .filter(Boolean);
+
+        if (changes.length === 0) return null;
+
+        return (
+            <div className="mt-1.5 space-y-0.5">
+                {changes.map((c) => (
+                    <div key={c.key} className="text-xs text-gray-500 flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold text-gray-600">{c.label}:</span>
+                        <span className="line-through text-rose-500">{c.before}</span>
+                        <span className="text-gray-400">→</span>
+                        <span className="font-medium text-emerald-600">{c.after}</span>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const extractIPv4 = (ip) => {
+        if (!ip) return null;
+        // IPv4-mapped IPv6: ::ffff:1.2.3.4
+        const mapped = ip.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
+        if (mapped) return mapped[1];
+        // Pure IPv4
+        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return ip;
+        // Pure IPv6 — hide it
+        return null;
     };
 
     const getEntityBadgeColor = (entity) => {
@@ -216,7 +318,8 @@ const Activities = () => {
             'TimeOffRequest': 'bg-orange-100 text-orange-800',
             'LeaveType': 'bg-blue-100 text-blue-800',
             'Approval': 'bg-green-100 text-green-800',
-            'Setting': 'bg-yellow-100 text-yellow-800'
+            'Setting': 'bg-yellow-100 text-yellow-800',
+            'AttendanceLog': 'bg-teal-100 text-teal-800'
         };
         return colors[entity] || 'bg-gray-100 text-gray-800';
     };
@@ -227,6 +330,19 @@ const Activities = () => {
             direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
         }));
     };
+
+    // Close employee dropdown on outside click
+    useEffect(() => {
+        if (!showEmployeeDropdown) return;
+        const handleOutside = (e) => {
+            if (employeeDropdownRef.current && !employeeDropdownRef.current.contains(e.target)) {
+                setShowEmployeeDropdown(false);
+                setEmployeeSearch('');
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        return () => document.removeEventListener('mousedown', handleOutside);
+    }, [showEmployeeDropdown]);
 
 
 
@@ -336,7 +452,7 @@ const Activities = () => {
             {/* Filters */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
                 <h3 className="font-bold text-gray-900 mb-4">Filters</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
                         <select
@@ -364,6 +480,9 @@ const Activities = () => {
                             <option value="REJECT">REJECT</option>
                             <option value="LOGIN">LOGIN</option>
                             <option value="LOGOUT">LOGOUT</option>
+                            <option value="CHECK_IN">CHECK IN</option>
+                            <option value="CHECK_OUT">CHECK OUT</option>
+                            <option value="REGISTER_FACE">REGISTER FACE</option>
                         </select>
                     </div>
 
@@ -394,6 +513,7 @@ const Activities = () => {
                             <option value="LeaveType">Leave Type</option>
                             <option value="Approval">Approval</option>
                             <option value="Setting">System Setting</option>
+                            <option value="AttendanceLog">Attendance Log</option>
                         </select>
                     </div>
 
@@ -441,6 +561,105 @@ const Activities = () => {
                         />
                     </div>
 
+                    {/* Employee Filter */}
+                    <div ref={employeeDropdownRef} className="relative">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Employee</label>
+                        <div
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 cursor-pointer bg-white flex items-center gap-2"
+                            onClick={() => setShowEmployeeDropdown(v => !v)}
+                        >
+                            {adminIdFilter ? (
+                                (() => {
+                                    const sel = users.find(u => String(u.staffid) === String(adminIdFilter));
+                                    return sel ? (
+                                        <>
+                                            <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                                                {sel.firstname?.[0]}{sel.lastname?.[0]}
+                                            </span>
+                                            <span className="text-sm text-gray-900 truncate flex-1">{sel.firstname} {sel.lastname}</span>
+                                        </>
+                                    ) : <span className="text-sm text-gray-400 flex-1">All Employees</span>;
+                                })()
+                            ) : (
+                                <span className="text-sm text-gray-400 flex-1">All Employees</span>
+                            )}
+                            <svg className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${showEmployeeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+
+                        {showEmployeeDropdown && (
+                            <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                                {/* Search input */}
+                                <div className="p-2 border-b border-gray-100">
+                                    <input
+                                        type="text"
+                                        placeholder="Search employees..."
+                                        value={employeeSearch}
+                                        onChange={e => setEmployeeSearch(e.target.value)}
+                                        onClick={e => e.stopPropagation()}
+                                        autoFocus
+                                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    />
+                                </div>
+                                <div className="max-h-52 overflow-y-auto py-1">
+                                    {/* All option */}
+                                    <button
+                                        onClick={() => {
+                                            const newId = '';
+                                            setAdminIdFilter(newId);
+                                            setEmployeeSearch('');
+                                            setShowEmployeeDropdown(false);
+                                            setCurrentPage(1);
+                                            fetchActivities(1, { action: actionFilter, entity: entityFilter, startDate, endDate, adminId: newId });
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${!adminIdFilter ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}
+                                    >
+                                        <span className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">All</span>
+                                        All Employees
+                                    </button>
+                                    {/* Filtered list */}
+                                    {users
+                                        .filter(u => {
+                                            if (!employeeSearch) return true;
+                                            const name = `${u.firstname} ${u.lastname}`.toLowerCase();
+                                            return name.includes(employeeSearch.toLowerCase());
+                                        })
+                                        .map(u => (
+                                            <button
+                                                key={u.staffid}
+                                                onClick={() => {
+                                                    const newId = String(u.staffid);
+                                                    setAdminIdFilter(newId);
+                                                    setEmployeeSearch('');
+                                                    setShowEmployeeDropdown(false);
+                                                    setCurrentPage(1);
+                                                    fetchActivities(1, { action: actionFilter, entity: entityFilter, startDate, endDate, adminId: newId });
+                                                }}
+                                                className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-blue-50 hover:text-blue-700 transition-colors ${
+                                                    String(adminIdFilter) === String(u.staffid) ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                                                }`}
+                                            >
+                                                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                                                    {u.firstname?.[0]}{u.lastname?.[0]}
+                                                </span>
+                                                <span className="truncate">{u.firstname} {u.lastname}</span>
+                                            </button>
+                                        ))
+                                    }
+                                    {users.filter(u => {
+                                        if (!employeeSearch) return false;
+                                        const name = `${u.firstname} ${u.lastname}`.toLowerCase();
+                                        return !name.includes(employeeSearch.toLowerCase());
+                                    }).length === users.length && (
+                                        <div className="px-3 py-4 text-center text-sm text-gray-400">No employees found</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Page Size */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Page Size</label>
                         <select
@@ -553,11 +772,14 @@ const Activities = () => {
                                                         <span className="text-gray-400">Unknown</span>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-gray-700 max-w-md truncate">
-                                                    {activity.description || '—'}
+                                                <td className="px-4 py-3 text-sm text-gray-700 max-w-sm">
+                                                    <div className="whitespace-normal break-words leading-relaxed">
+                                                        {formatDescription(activity)}
+                                                    </div>
+                                                    {renderChanges(activity)}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap text-xs">
-                                                    {activity.ip_address || '—'}
+                                                    {extractIPv4(activity.ip_address) || <span className="text-gray-400">—</span>}
                                                 </td>
                                             </tr>
                                         ))}

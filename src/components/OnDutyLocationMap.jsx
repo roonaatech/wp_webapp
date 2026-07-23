@@ -1,11 +1,19 @@
 import React from 'react';
 import { FiMapPin } from 'react-icons/fi';
 
-const OnDutyLocationMap = ({ startLat, startLong, endLat, endLong, clientName, location }) => {
+const OnDutyLocationMap = ({ startLat, startLong, endLat, endLong, clientName, location, endLocation }) => {
     // Debug logging
-    console.log('OnDutyLocationMap props:', { startLat, startLong, endLat, endLong, clientName, location });
+    console.log('OnDutyLocationMap props:', { startLat, startLong, endLat, endLong, clientName, location, endLocation });
 
-    const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    // Try loading key from database-backed settings stored in localStorage, otherwise fallback to compile-time env
+    const settings = (() => {
+        try {
+            return JSON.parse(localStorage.getItem('settings') || '{}');
+        } catch (e) {
+            return {};
+        }
+    })();
+    const GOOGLE_MAPS_API_KEY = settings.google_maps_api_key || import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
     const hasStartLocation = startLat && startLong && startLat !== '0.0' && startLong !== '0.0';
     const hasEndLocation = endLat && endLong && endLat !== '0.0' && endLong !== '0.0';
@@ -73,7 +81,7 @@ const OnDutyLocationMap = ({ startLat, startLong, endLat, endLong, clientName, l
                                     <FiMapPin className="w-4 h-4 mr-2" />
                                     End Location
                                 </h4>
-                                <p className="text-sm text-red-700 mt-1">{location || clientName}</p>
+                                <p className="text-sm text-red-700 mt-1">{endLocation || clientName}</p>
                             </div>
                             <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full">End</span>
                         </div>

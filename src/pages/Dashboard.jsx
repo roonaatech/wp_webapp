@@ -12,8 +12,8 @@ import { Doughnut } from 'react-chartjs-2';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
-import { calculateLeaveDays } from '../utils/dateUtils';
-import { formatInTimezone, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
+import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
@@ -129,6 +129,9 @@ const Dashboard = () => {
     const [pendingApprovals, setPendingApprovals] = useState([]);
     const [pendingApprovalsLoading, setPendingApprovalsLoading] = useState(false);
     const [incompleteProfiles, setIncompleteProfiles] = useState([]);
+    const [onLeaveData, setOnLeaveData] = useState({ today: [], tomorrow: [], today_date: '', tomorrow_date: '' });
+    const [onLeaveLoading, setOnLeaveLoading] = useState(false);
+    const [onLeaveDetailModal, setOnLeaveDetailModal] = useState({ show: false, emp: null, dayLabel: '' });
     const scrollContainerRef = useRef(null);
 
     const scrollLeft = () => {
@@ -157,6 +160,11 @@ const Dashboard = () => {
         if (canManageUsers(user.role)) {
             fetchIncompleteProfiles();
         }
+
+        // Fetch on-leave status for managers/approvers
+        if (canApproveLeave(user.role)) {
+            fetchOnLeaveData();
+        }
     }, []);
 
     useEffect(() => {
@@ -174,6 +182,22 @@ const Dashboard = () => {
             setIncompleteProfiles(response.data);
         } catch (error) {
             console.error('Error fetching incomplete profiles:', error);
+        }
+    };
+
+    const fetchOnLeaveData = async () => {
+        try {
+            setOnLeaveLoading(true);
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await axios.get(`${API_BASE_URL}/api/leave/on-leave`, {
+                headers: { 'x-access-token': token }
+            });
+            setOnLeaveData(response.data);
+        } catch (error) {
+            console.error('Error fetching on-leave status:', error);
+        } finally {
+            setOnLeaveLoading(false);
         }
     };
 
@@ -302,7 +326,8 @@ const Dashboard = () => {
                     start_lat: item.start_lat,
                     start_long: item.start_long,
                     end_lat: item.end_lat,
-                    end_long: item.end_long
+                    end_long: item.end_long,
+                    date: item.date
                 };
             });
 
@@ -314,14 +339,42 @@ const Dashboard = () => {
         }
     };
 
-    const formatDateForModal = (startDateString, endDateString = null, isLeave = false, isHalfDay = false) => {
-        if (!startDateString) return 'N/A';
-        const startFormatted = isLeave ? formatDateOnly(startDateString) : formatInTimezone(startDateString);
+    const calculateTimeOffDuration = (startTime, endTime) => {
+        if (!startTime || !endTime) return '-';
+        const [startH, startM] = startTime.split(':').map(Number);
+        const [endH, endM] = endTime.split(':').map(Number);
+        const start = startH * 60 + startM;
+        const end = endH * 60 + endM;
+        const diff = end - start;
+        const hours = Math.floor(diff / 60);
+        const mins = diff % 60;
+        if (hours > 0) return `${hours}h ${mins}m`;
+        return `${mins}m`;
+    };
 
-        if (isLeave && endDateString) {
-            const endFormatted = formatDateOnly(endDateString);
-            const daysCount = calculateLeaveDays(startDateString, endDateString) - (isHalfDay ? 0.5 : 0);
-            const daysText = `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`;
+    const formatDateForModal = (item) => {
+        if (!item) return 'N/A';
+
+        // Time-Off: Show time range and duration in hours
+        if (item.type === 'time_off') {
+            const date = item.date ? formatDateOnly(item.date) : '';
+            const startTime = item.start_time ? formatTimeOnly(item.start_time) : '';
+            const endTime = item.end_time ? formatTimeOnly(item.end_time) : '';
+            const duration = calculateTimeOffDuration(item.start_time, item.end_time);
+
+            return (
+                <span>
+                    {startTime} - {endTime} (On {date}) <span className="text-red-600 font-bold ml-1">( {duration} )</span>
+                </span>
+            );
+        }
+
+        // Leave: Show date range with days
+        if (item.type === 'leave') {
+            const startFormatted = formatDateOnly(item.start_date);
+            const endFormatted = formatDateOnly(item.end_date);
+            const daysCount = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
+            const daysText = formatLeaveDuration(daysCount, { lowercase: true });
 
             if (startFormatted !== endFormatted) {
                 return (
@@ -338,6 +391,8 @@ const Dashboard = () => {
             }
         }
 
+        // On-Duty: Show date-time range
+        const startFormatted = formatInTimezone(item.start_time);
         return startFormatted;
     };
 
@@ -591,6 +646,110 @@ const Dashboard = () => {
                     )}
                     <div className={`transition-all duration-300 ${(approveModal.show || rejectModal.show) ? 'blur-sm' : ''}`}>
                         <>
+                            {/* On Leave Today / Tomorrow Section */}
+                            {!onLeaveLoading && (onLeaveData.today.length > 0 || onLeaveData.tomorrow.length > 0) && (
+                                <div className="mb-8">
+                                    <div className="relative bg-white rounded-2xl p-5 shadow-sm border border-gray-100 overflow-hidden">
+                                        {/* Decorative background element */}
+                                        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-full blur-2xl opacity-60 -translate-y-1/2 translate-x-1/3"></div>
+                                        
+                                        <div className="flex items-center justify-between mb-5 relative z-10">
+                                            <div>
+                                                <h2 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2.5">
+                                                    <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-base shadow-sm">
+                                                        🌴
+                                                    </span>
+                                                    Who's Out
+                                                </h2>
+                                                <p className="text-gray-500 text-xs font-medium mt-0.5">See who is away today and tomorrow.</p>
+                                            </div>
+                                            <div className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg font-bold text-xs">
+                                                {onLeaveData.today.length + onLeaveData.tomorrow.length} Absent Total
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 relative z-10">
+                                            {/* Today Column */}
+                                            <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="relative flex h-2.5 w-2.5">
+                                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                                                        </span>
+                                                        <h3 className="text-base font-black text-gray-900 tracking-tight">Today</h3>
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100">
+                                                        {onLeaveData.today.length} Out
+                                                    </span>
+                                                </div>
+
+                                                <div className="space-y-2.5">
+                                                    {onLeaveData.today.length === 0 ? (
+                                                        <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
+                                                            <span className="text-xl mb-1.5">✨</span>
+                                                            <p className="text-xs font-bold text-gray-400">Everyone is in today</p>
+                                                        </div>
+                                                    ) : (
+                                                        onLeaveData.today.map((emp) => (
+                                                            <div key={emp.id} onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Today' })} className="group bg-white p-3 rounded-lg shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer flex items-center gap-3">
+                                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black text-white shadow-inner flex-shrink-0 ${emp.is_time_off ? 'bg-gradient-to-br from-teal-400 to-emerald-500' : 'bg-gradient-to-br from-red-400 to-rose-500'}`}>
+                                                                    {emp.name.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="text-xs font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{emp.name}</h4>
+                                                                    <p className="text-[10px] text-gray-500 truncate mt-0.5 font-medium">{emp.leave_type}</p>
+                                                                </div>
+                                                                <div className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider whitespace-nowrap shadow-sm ${emp.is_time_off ? 'bg-teal-50 text-teal-700' : (emp.is_half_day ? 'bg-orange-50 text-orange-700' : 'bg-red-50 text-red-700')}`}>
+                                                                    {emp.is_time_off ? 'Time Off' : (emp.is_half_day ? 'Half Day' : 'Full Day')}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Tomorrow Column */}
+                                            <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                                                        <h3 className="text-base font-black text-gray-900 tracking-tight">Tomorrow</h3>
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100">
+                                                        {onLeaveData.tomorrow.length} Out
+                                                    </span>
+                                                </div>
+
+                                                <div className="space-y-2.5">
+                                                    {onLeaveData.tomorrow.length === 0 ? (
+                                                        <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
+                                                            <span className="text-xl mb-1.5">🌟</span>
+                                                            <p className="text-xs font-bold text-gray-400">Everyone is in tomorrow</p>
+                                                        </div>
+                                                    ) : (
+                                                        onLeaveData.tomorrow.map((emp) => (
+                                                            <div key={emp.id} onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Tomorrow' })} className="group bg-white p-3 rounded-lg shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer flex items-center gap-3">
+                                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black text-white shadow-inner flex-shrink-0 ${emp.is_time_off ? 'bg-gradient-to-br from-teal-400 to-emerald-500' : 'bg-gradient-to-br from-amber-400 to-orange-500'}`}>
+                                                                    {emp.name.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="text-xs font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{emp.name}</h4>
+                                                                    <p className="text-[10px] text-gray-500 truncate mt-0.5 font-medium">{emp.leave_type}</p>
+                                                                </div>
+                                                                <div className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider whitespace-nowrap shadow-sm ${emp.is_time_off ? 'bg-teal-50 text-teal-700' : (emp.is_half_day ? 'bg-orange-50 text-orange-700' : 'bg-amber-50 text-amber-700')}`}>
+                                                                    {emp.is_time_off ? 'Time Off' : (emp.is_half_day ? 'Half Day' : 'Full Day')}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Pending Approvals Section - Redesigned */}
                             {!pendingApprovalsLoading && pendingApprovals.length > 0 && (
                                 <div className="mb-12 animate-fadeInUp">
@@ -647,7 +806,7 @@ const Dashboard = () => {
                                                                 <span className="text-red-500">
                                                                     {(() => {
                                                                         const count = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
-                                                                        return `${count} Day${count === 1 ? '' : 's'}`;
+                                                                        return formatLeaveDuration(count);
                                                                     })()}
                                                                 </span>
                                                             ) : (
@@ -990,14 +1149,14 @@ const Dashboard = () => {
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
                             <div className="bg-green-50 border-b border-green-200 px-6 py-4">
-                                <h2 className="text-lg font-bold text-green-900">Approve {approveModal.isLeave ? 'Leave' : 'On-Duty'} Request</h2>
+                                <h2 className="text-lg font-bold text-green-900">Approve {approveModal.item?.type === 'leave' ? 'Leave' : (approveModal.item?.type === 'time_off' ? 'Time-Off' : 'On-Duty')} Request</h2>
                                 <p className="text-sm text-green-700 mt-1">Are you sure you want to approve this request?</p>
                             </div>
                             <div className="p-6">
                                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {approveModal.item?.name}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {approveModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item?.start_date, approveModal.item?.end_date, approveModal.isLeave, approveModal.item?.is_half_day)}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item)}</p>
                                 </div>
                                 {modalError && (
                                     <div className="mb-3 flex items-center gap-3 rounded-lg border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-4 py-3 shadow-sm">
@@ -1039,14 +1198,14 @@ const Dashboard = () => {
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
                             <div className="bg-red-50 border-b border-red-200 px-6 py-4">
-                                <h2 className="text-lg font-bold text-red-900">Reject {rejectModal.isLeave ? 'Leave' : 'On-Duty'} Request</h2>
+                                <h2 className="text-lg font-bold text-red-900">Reject {rejectModal.item?.type === 'leave' ? 'Leave' : (rejectModal.item?.type === 'time_off' ? 'Time-Off' : 'On-Duty')} Request</h2>
                                 <p className="text-sm text-red-700 mt-1">Please provide a reason for rejection</p>
                             </div>
                             <div className="p-6">
                                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                                     <p className="text-sm text-gray-600"><strong>Name:</strong> {rejectModal.item?.name}</p>
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {rejectModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item?.start_date, rejectModal.item?.end_date, rejectModal.isLeave, rejectModal.item?.is_half_day)}</p>
+                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item)}</p>
                                 </div>
                                 <textarea
                                     value={rejectModal.reason}
@@ -1114,12 +1273,12 @@ const Dashboard = () => {
 
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl font-bold shadow-inner border border-white/20">
-                                        {detailsModal.isLeave ? '📄' : '📍'}
+                                        {detailsModal.isLeave ? '📄' : (detailsModal.item.type === 'time_off' ? '⏱️' : '📍')}
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-bold">{detailsModal.isLeave ? 'Leave Request Details' : 'On-Duty Details'}</h2>
+                                        <h2 className="text-xl font-bold">{detailsModal.isLeave ? 'Leave Request Details' : (detailsModal.item.type === 'time_off' ? 'Time-Off Details' : 'On-Duty Details')}</h2>
                                         <p className="text-white/80 text-xs font-semibold tracking-wide">
-                                            {detailsModal.isLeave ? 'Leave Application Details' : 'On-Duty Transaction Details'}
+                                            {detailsModal.isLeave ? 'Leave Application Details' : (detailsModal.item.type === 'time_off' ? 'Hourly Permission Details' : 'On-Duty Transaction Details')}
                                         </p>
                                     </div>
                                 </div>
@@ -1152,9 +1311,9 @@ const Dashboard = () => {
                                     <div className="space-y-1">
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Category Type</p>
                                         <p className="text-base font-semibold text-gray-900">
-                                            {detailsModal.item.title}
+                                            {detailsModal.isLeave ? detailsModal.item.title : (detailsModal.item.type === 'time_off' ? 'Time-Off' : detailsModal.item.title)}
                                         </p>
-                                        {!detailsModal.isLeave && detailsModal.item.location && (
+                                        {!detailsModal.isLeave && detailsModal.item.type !== 'time_off' && detailsModal.item.location && (
                                             <p className="text-sm text-[#2E5090] font-medium flex items-center gap-1">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                                     <path fillRule="evenodd" d="m9.69 18.94.027.013a2.358 2.358 0 0 0 2.566-.013l.027-.013c.12-.058.214-.144.3-.23.111-.11.23-.235.343-.352l.006-.006c.928-.971 1.636-1.742 2.146-2.583.506-.833.76-1.614.76-2.345 0-2.433-2.029-4.409-4.528-4.409-2.5 0-4.528 1.976-4.528 4.409 0 .731.254 1.512.759 2.345.51.841 1.218 1.612 2.147 2.583l.006.006c.113.117.232.243.343.352.086.086.18.172.3.23ZM10 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
@@ -1167,8 +1326,10 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                         <p className="text-base font-semibold text-gray-900">
                                             {detailsModal.isLeave
-                                                ? `${calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0)} Day(s)`
-                                                : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time)
+                                                ? formatLeaveDuration(calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0))
+                                                : (detailsModal.item.type === 'time_off'
+                                                    ? calculateTimeOffDuration(detailsModal.item.start_time, detailsModal.item.end_time)
+                                                    : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time))
                                             }
                                         </p>
                                     </div>
@@ -1176,7 +1337,11 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective Start</p>
                                         <div className="flex items-center gap-2">
                                             <p className="text-base font-semibold text-gray-900">
-                                                {detailsModal.isLeave ? formatDateOnly(detailsModal.item.start_date) : formatInTimezone(detailsModal.item.start_time)}
+                                                {detailsModal.isLeave 
+                                                    ? formatDateOnly(detailsModal.item.start_date) 
+                                                    : (detailsModal.item.type === 'time_off' 
+                                                        ? `${formatTimeOnly(detailsModal.item.start_time)} (On ${formatDateOnly(detailsModal.item.date)})` 
+                                                        : formatInTimezone(detailsModal.item.start_time))}
                                             </p>
                                         </div>
                                     </div>
@@ -1184,7 +1349,11 @@ const Dashboard = () => {
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective End</p>
                                         <div className="flex items-center gap-2">
                                             <p className="text-base font-semibold text-gray-900">
-                                                {detailsModal.isLeave ? formatDateOnly(detailsModal.item.end_date) : (detailsModal.item.end_time ? formatInTimezone(detailsModal.item.end_time) : '—')}
+                                                {detailsModal.isLeave 
+                                                    ? formatDateOnly(detailsModal.item.end_date) 
+                                                    : (detailsModal.item.type === 'time_off' 
+                                                        ? formatTimeOnly(detailsModal.item.end_time) 
+                                                        : (detailsModal.item.end_time ? formatInTimezone(detailsModal.item.end_time) : '—'))}
                                             </p>
                                         </div>
                                     </div>
@@ -1194,12 +1363,16 @@ const Dashboard = () => {
                                 <div className="space-y-3">
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Applied Reason / Purpose</p>
                                     <div className="p-5 bg-gray-50 rounded-xl border border-gray-100 text-gray-700 leading-relaxed font-medium">
-                                        {detailsModal.isLeave ? detailsModal.item.reason : detailsModal.item.purpose || 'Task documentation provided.'}
+                                        {detailsModal.isLeave 
+                                            ? detailsModal.item.reason 
+                                            : (detailsModal.item.type === 'time_off' 
+                                                ? detailsModal.item.reason 
+                                                : detailsModal.item.purpose || 'Task documentation provided.')}
                                     </div>
                                 </div>
 
                                 {/* Location Map for On-Duty */}
-                                {!detailsModal.isLeave && (
+                                {!detailsModal.isLeave && detailsModal.item.type !== 'time_off' && (
                                     <div className="space-y-3">
                                         <p className="text-xs font-bold text-[#2E5090] tracking-wide">Location Tracking</p>
                                         <OnDutyLocationMap
@@ -1251,6 +1424,129 @@ const Dashboard = () => {
                     </div>
                 )}
             </div>
+
+            {/* On Leave Detail Modal */}
+            {onLeaveDetailModal.show && onLeaveDetailModal.emp && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80]"
+                    onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="bg-[#1e1b4b] p-6 relative">
+                            <button
+                                onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
+                                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-white">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                            <div className="flex items-center gap-4">
+                                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-black text-white flex-shrink-0 ${onLeaveDetailModal.dayLabel === 'Today' ? 'bg-red-500' : 'bg-amber-400'}`}>
+                                    {onLeaveDetailModal.emp.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black text-white">{onLeaveDetailModal.emp.name}</h2>
+                                    <p className="text-white/50 text-xs font-semibold mt-0.5">
+                                        {onLeaveDetailModal.emp.email || `Staff ID: ${onLeaveDetailModal.emp.staff_id}`}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="mt-4 flex items-center gap-2">
+                                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${onLeaveDetailModal.dayLabel === 'Today' ? 'bg-red-500/20 text-red-200 border-red-400/30' : 'bg-amber-400/20 text-amber-200 border-amber-400/30'}`}>
+                                    On Leave {onLeaveDetailModal.dayLabel}
+                                </span>
+                                <span className="text-[10px] font-semibold text-white/40 tracking-wide">
+                                    #{onLeaveDetailModal.emp.id}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-4">
+                            {/* Leave Type */}
+                            <div className="flex items-center justify-between p-4 bg-[#eef2ff] rounded-xl border border-[#1e1b4b]/10">
+                                <div>
+                                    <p className="text-[10px] font-black text-[#1e1b4b]/50 uppercase tracking-widest mb-1">Leave Type</p>
+                                    <p className="text-base font-black text-[#1e1b4b]">{onLeaveDetailModal.emp.leave_type}</p>
+                                </div>
+                                {onLeaveDetailModal.emp.is_half_day && (
+                                    <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-[10px] font-black rounded-full uppercase tracking-wider">
+                                        Half Day
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Dates */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">From</p>
+                                    <p className="text-sm font-bold text-gray-800">{formatDateOnly(onLeaveDetailModal.emp.start_date)}</p>
+                                </div>
+                                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">To</p>
+                                    <p className="text-sm font-bold text-gray-800">{formatDateOnly(onLeaveDetailModal.emp.end_date)}</p>
+                                </div>
+                            </div>
+
+                            {/* Duration */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Duration</p>
+                                <p className="text-sm font-black text-[#1e1b4b]">
+                                    {(() => {
+                                        if (onLeaveDetailModal.emp.is_time_off) {
+                                            return 'Partial Day';
+                                        }
+                                        const days = calculateLeaveDays(onLeaveDetailModal.emp.start_date, onLeaveDetailModal.emp.end_date) - (onLeaveDetailModal.emp.is_half_day ? 0.5 : 0);
+                                        return formatLeaveDuration(days);
+                                    })()}
+                                </p>
+                            </div>
+
+                            {/* Approved By */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-green-50 rounded-xl border border-green-100">
+                                <p className="text-xs font-black text-green-700/60 uppercase tracking-widest">Approved By</p>
+                                <div className="flex items-center gap-2">
+                                    {onLeaveDetailModal.emp.approved_by ? (
+                                        <>
+                                            <div className="w-5 h-5 rounded-full bg-green-600 flex items-center justify-center text-[9px] font-black text-white flex-shrink-0">
+                                                {onLeaveDetailModal.emp.approved_by.charAt(0).toUpperCase()}
+                                            </div>
+                                            <p className="text-sm font-bold text-green-800">{onLeaveDetailModal.emp.approved_by}</p>
+                                        </>
+                                    ) : (
+                                        <p className="text-sm font-bold text-gray-400">—</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Reason */}
+                            {onLeaveDetailModal.emp.reason && (
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-black text-[#1e1b4b]/50 uppercase tracking-widest">Reason</p>
+                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-gray-700 text-sm font-medium leading-relaxed">
+                                        {onLeaveDetailModal.emp.reason}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 pb-6">
+                            <button
+                                onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
+                                className="w-full py-3 bg-[#1e1b4b] text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#2d2a6e] transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

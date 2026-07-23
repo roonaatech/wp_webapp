@@ -45,10 +45,15 @@ const Roles = () => {
         can_view_activities: 'none',
         // Global permissions - boolean
         can_manage_leave_types: false,
+        can_manage_onboarding: false,
         can_access_webapp: false,
         can_manage_roles: false,
+        can_manage_service_accounts: false,
         can_manage_email_settings: false,
         can_manage_system_settings: 'none',
+        can_access_attendance_portal: false,
+        can_view_attendance_report: 'none',
+        can_manage_attendance: 'none',
         active: true
     });
 
@@ -132,10 +137,15 @@ const Roles = () => {
                 can_view_activities: role.can_view_activities || 'none',
                 // Global permissions
                 can_manage_leave_types: role.can_manage_leave_types,
+                can_manage_onboarding: role.can_manage_onboarding,
                 can_access_webapp: role.can_access_webapp,
                 can_manage_roles: role.can_manage_roles,
+                can_manage_service_accounts: role.can_manage_service_accounts || false,
                 can_manage_email_settings: role.can_manage_email_settings,
                 can_manage_system_settings: role.can_manage_system_settings,
+                can_access_attendance_portal: role.can_access_attendance_portal || false,
+                can_view_attendance_report: role.can_view_attendance_report || 'none',
+                can_manage_attendance: role.can_manage_attendance || 'none',
                 active: role.active
             });
         } else {
@@ -157,10 +167,15 @@ const Roles = () => {
                 can_view_activities: 'none',
                 // Global permissions
                 can_manage_leave_types: false,
+                can_manage_onboarding: false,
                 can_access_webapp: false,
                 can_manage_roles: false,
+                can_manage_service_accounts: false,
                 can_manage_email_settings: false,
                 can_manage_system_settings: 'none',
+                can_access_attendance_portal: false,
+                can_view_attendance_report: 'none',
+                can_manage_attendance: 'none',
                 active: true
             });
         }
@@ -186,12 +201,16 @@ const Roles = () => {
 
         try {
             const token = localStorage.getItem('token');
+            const submissionData = { ...formData };
+            if (submissionData.name === 'manager' || submissionData.name === 'employee') {
+                submissionData.can_manage_onboarding = false;
+            }
 
             if (editingRole) {
                 // Update existing role
                 await axios.put(
                     `${API_BASE_URL}/api/roles/${editingRole.id}`,
-                    formData,
+                    submissionData,
                     { headers: { 'x-access-token': token } }
                 );
                 toast.success('Role updated successfully');
@@ -199,7 +218,7 @@ const Roles = () => {
                 // Create new role
                 await axios.post(
                     `${API_BASE_URL}/api/roles`,
-                    formData,
+                    submissionData,
                     { headers: { 'x-access-token': token } }
                 );
                 toast.success('Role created successfully');
@@ -368,7 +387,7 @@ const Roles = () => {
 
 
     return (
-        <div className="p-6 max-w-7xl mx-auto relative min-h-[600px]">
+        <div className="p-6 relative min-h-[600px]">
             {loading && (
                 <ModernLoader size="container" message="Fetching roles..." fullScreen={false} />
             )/* Localization: Overlay instead of full-page blur */}
@@ -428,8 +447,8 @@ const Roles = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            {hierarchyMode && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drag</th>}
-                            <th className="px-6 py-3 text-left">
+                            {hierarchyMode && <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drag</th>}
+                            <th className="px-3 py-3 text-left">
                                 {!hierarchyMode ? (
                                     <button
                                         onClick={() => handleSort('display_name')}
@@ -441,7 +460,7 @@ const Roles = () => {
                                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Display Name</span>
                                 )}
                             </th>
-                            <th className="px-6 py-3 text-left">
+                            <th className="px-3 py-3 text-left">
                                 {!hierarchyMode ? (
                                     <button
                                         onClick={() => handleSort('name')}
@@ -453,7 +472,7 @@ const Roles = () => {
                                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name</span>
                                 )}
                             </th>
-                            <th className="px-6 py-3 text-left">
+                            <th className="px-3 py-3 text-left">
                                 {!hierarchyMode ? (
                                     <button
                                         onClick={() => handleSort('hierarchy_level')}
@@ -465,9 +484,9 @@ const Roles = () => {
                                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Hierarchy</span>
                                 )}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissions</th>
-                            <th className="px-6 py-3 text-left">
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissions</th>
+                            <th className="px-3 py-3 text-left">
                                 {!hierarchyMode ? (
                                     <button
                                         onClick={() => handleSort('active')}
@@ -479,7 +498,7 @@ const Roles = () => {
                                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</span>
                                 )}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">Actions</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -500,88 +519,111 @@ const Roles = () => {
                                 `}
                             >
                                 {hierarchyMode && (
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    <td className="px-3 py-4 whitespace-nowrap">
                                         <MdDragIndicator className="w-5 h-5 text-gray-400" />
                                     </td>
                                 )}
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <div className="text-sm font-medium text-gray-900">{role.display_name}</div>
                                     {role.description && (
                                         <div className="text-sm text-gray-500">{role.description}</div>
                                     )}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <span className="text-sm font-mono text-gray-700">{role.name}</span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                                         Level {role.hierarchy_level}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
                                         {getUserCount(role.id)} users
                                     </span>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-wrap gap-1">
-                                        {role.can_approve_leave && role.can_approve_leave !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_approve_leave === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
-                                                Leave {role.can_approve_leave === 'subordinates' ? '(Sub)' : '(All)'}
+                                <td className="px-3 py-4 align-top">
+                                    <div className="grid gap-1.5" style={{ width: '300px', gridTemplateColumns: '1fr 1fr' }}>
+                                        {role.can_access_attendance_portal && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-amber-100 text-amber-800">
+                                                Attendance Portal
                                             </span>
                                         )}
-                                        {role.can_approve_onduty && role.can_approve_onduty !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_approve_onduty === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
-                                                OnDuty {role.can_approve_onduty === 'subordinates' ? '(Sub)' : '(All)'}
-                                            </span>
-                                        )}
-                                        {role.can_approve_timeoff && role.can_approve_timeoff !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_approve_timeoff === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
-                                                TimeOff {role.can_approve_timeoff === 'subordinates' ? '(Sub)' : '(All)'}
-                                            </span>
-                                        )}
-                                        {role.can_manage_users && role.can_manage_users !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_manage_users === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
-                                                Users {role.can_manage_users === 'subordinates' ? '(Sub)' : '(All)'}
-                                            </span>
-                                        )}
-                                        {role.can_view_users && role.can_view_users !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_view_users === 'all' ? 'bg-indigo-100 text-indigo-800' : 'bg-indigo-50 text-indigo-700'}`}>
-                                                View Users {role.can_view_users === 'subordinates' ? '(Sub)' : '(All)'}
-                                            </span>
-                                        )}
-                                        {role.can_manage_leave_types && (
-                                            <span className="px-2 py-1 text-xs rounded bg-purple-100 text-purple-800">LeaveTypes</span>
-                                        )}
-                                        {role.can_view_reports && role.can_view_reports !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_view_reports === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-blue-50 text-blue-700'}`}>
-                                                Reports {role.can_view_reports === 'subordinates' ? '(Sub)' : '(All)'}
+                                        {role.can_access_webapp && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-teal-100 text-teal-800">
+                                                Web App
                                             </span>
                                         )}
                                         {role.can_manage_active_onduty && role.can_manage_active_onduty !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_manage_active_onduty === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_manage_active_onduty === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
                                                 Active OnDuty {role.can_manage_active_onduty === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
-                                        {role.can_manage_schedule && role.can_manage_schedule !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_manage_schedule === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
-                                                Schedule {role.can_manage_schedule === 'subordinates' ? '(Sub)' : '(All)'}
-                                            </span>
-                                        )}
                                         {role.can_view_activities && role.can_view_activities !== 'none' && (
-                                            <span className={`px-2 py-1 text-xs rounded ${role.can_view_activities === 'all' ? 'bg-cyan-100 text-cyan-800' : 'bg-cyan-50 text-cyan-700'}`}>
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_view_activities === 'all' ? 'bg-cyan-100 text-cyan-800' : 'bg-cyan-50 text-cyan-700'}`}>
                                                 Activities {role.can_view_activities === 'subordinates' ? '(Sub)' : '(All)'}
                                             </span>
                                         )}
                                         {role.can_manage_email_settings && (
-                                            <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">Email Config</span>
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-gray-100 text-gray-800">Email Config</span>
+                                        )}
+                                        {role.can_approve_leave && role.can_approve_leave !== 'none' && (
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_approve_leave === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
+                                                Leave {role.can_approve_leave === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
+                                        )}
+                                        {role.can_manage_leave_types && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-purple-100 text-purple-800">LeaveTypes</span>
+                                        )}
+                                        {role.can_manage_onboarding && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-indigo-100 text-indigo-800">Onboarding</span>
+                                        )}
+                                        {role.can_manage_roles && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-rose-100 text-rose-800">
+                                                Manage Roles
+                                            </span>
+                                        )}
+                                        {role.can_manage_service_accounts && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-teal-100 text-teal-800">
+                                                Manage Service Accounts
+                                            </span>
+                                        )}
+                                        {role.can_approve_onduty && role.can_approve_onduty !== 'none' && (
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_approve_onduty === 'all' ? 'bg-green-100 text-green-800' : 'bg-green-50 text-green-700'}`}>
+                                                OnDuty {role.can_approve_onduty === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
+                                        )}
+                                        {role.can_view_reports && role.can_view_reports !== 'none' && (
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_view_reports === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-blue-50 text-blue-700'}`}>
+                                                Reports {role.can_view_reports === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
+                                        )}
+                                        {role.can_manage_schedule && role.can_manage_schedule !== 'none' && (
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_manage_schedule === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
+                                                Schedule {role.can_manage_schedule === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
                                         )}
                                         {role.can_manage_system_settings === 'all' && (
-                                            <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">System Settings</span>
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-blue-100 text-blue-800">System Settings</span>
+                                        )}
+                                        {role.can_approve_timeoff && role.can_approve_timeoff !== 'none' && (
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_approve_timeoff === 'all' ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-700'}`}>
+                                                TimeOff {role.can_approve_timeoff === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
+                                        )}
+                                        {role.can_manage_users && role.can_manage_users !== 'none' && (
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_manage_users === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-purple-50 text-purple-700'}`}>
+                                                Users {role.can_manage_users === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
+                                        )}
+                                        {role.can_view_users && role.can_view_users !== 'none' && (
+                                            <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight ${role.can_view_users === 'all' ? 'bg-indigo-100 text-indigo-800' : 'bg-indigo-50 text-indigo-700'}`}>
+                                                View Users {role.can_view_users === 'subordinates' ? '(Sub)' : '(All)'}
+                                            </span>
                                         )}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${role.active
                                         ? 'bg-green-100 text-green-800'
                                         : 'bg-red-100 text-red-800'
@@ -589,7 +631,7 @@ const Roles = () => {
                                         {role.active ? 'Active' : 'Inactive'}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium sticky right-0 bg-white z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
                                     {!hierarchyMode && (
                                         <div className="flex space-x-2">
                                             <button
@@ -860,7 +902,7 @@ const Roles = () => {
                                             </tr>
 
                                             {/* View Reports */}
-                                            <tr className="hover:bg-gray-50">
+                                            <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Reports</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <input
@@ -889,7 +931,7 @@ const Roles = () => {
                                             </tr>
 
                                             {/* View Active On-Duty */}
-                                            <tr className="hover:bg-gray-50">
+                                            <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Active On-Duty</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <input
@@ -947,7 +989,7 @@ const Roles = () => {
                                             </tr>
 
                                             {/* View Activities */}
-                                            <tr className="hover:bg-gray-50">
+                                            <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">View Activities</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <input
@@ -969,6 +1011,64 @@ const Roles = () => {
                                                         checked={formData.can_view_activities === 'all'}
                                                         onChange={(e) => {
                                                             setFormData(prev => ({ ...prev, can_view_activities: e.target.checked ? 'all' : (prev.can_view_activities === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+
+                                            {/* View Attendance Report */}
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">View Attendance Report</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_view_attendance_report === 'subordinates' || formData.can_view_attendance_report === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_view_attendance_report: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_view_attendance_report: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_view_attendance_report === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_view_attendance_report: e.target.checked ? 'all' : (prev.can_view_attendance_report === 'all' ? 'subordinates' : 'none') }));
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+
+                                            {/* Edit/Delete Attendance */}
+                                            <tr className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Edit/Delete Attendance</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_manage_attendance === 'subordinates' || formData.can_manage_attendance === 'all'}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData(prev => ({ ...prev, can_manage_attendance: 'subordinates' }));
+                                                            } else {
+                                                                setFormData(prev => ({ ...prev, can_manage_attendance: 'none' }));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.can_manage_attendance === 'all'}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, can_manage_attendance: e.target.checked ? 'all' : (prev.can_manage_attendance === 'all' ? 'subordinates' : 'none') }));
                                                         }}
                                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                                     />
@@ -1029,7 +1129,19 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
-                                            <tr className="hover:bg-gray-50">
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Manage Service Accounts</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_manage_service_accounts"
+                                                        checked={formData.can_manage_service_accounts}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            <tr className="border-b hover:bg-gray-50">
                                                 <td className="px-4 py-3 text-sm text-gray-700">Manage Email Settings</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <input
@@ -1038,6 +1150,19 @@ const Roles = () => {
                                                         checked={formData.can_manage_email_settings}
                                                         onChange={handleInputChange}
                                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Manage Onboarding</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_manage_onboarding"
+                                                        checked={formData.can_manage_onboarding && formData.name !== 'manager' && formData.name !== 'employee'}
+                                                        disabled={formData.name === 'manager' || formData.name === 'employee'}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
                                                     />
                                                 </td>
                                             </tr>
@@ -1060,6 +1185,18 @@ const Roles = () => {
                                                     </td>
                                                 </tr>
                                             )}
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Access Face Attendance Portal</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_access_attendance_portal"
+                                                        checked={formData.can_access_attendance_portal}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>

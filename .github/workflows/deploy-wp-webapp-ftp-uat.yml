@@ -1,0 +1,36 @@
+name: Deploy WebApp to Hostinger FTP (UAT)
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build webapp
+        run: npm run build:prod
+
+      - name: Sync files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST || vars.FTP_HOST }}
+          username: ${{ secrets.FTP_USER_UAT || vars.FTP_USER_UAT }}
+          password: ${{ secrets.FTP_PASS_UAT }}
+          port: 21
+          local-dir: ./dist/
+          server-dir: ./
+          dangerous-clean-slate: true

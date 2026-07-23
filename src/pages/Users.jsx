@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -22,14 +22,54 @@ import {
     fetchRoles,
     needsApprover,
     getApproverLabel,
-    getRoleById
+    getRoleById,
+    canManageOnboarding
 } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
+import { formatInTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer } from 'recharts';
 
 const Users = () => {
     // Permission check state
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
+
+    const getDurationHours = (checkInStr, checkOutStr) => {
+        if (!checkInStr || !checkOutStr) return 0;
+        try {
+            const checkIn = new Date(checkInStr);
+            const checkOut = new Date(checkOutStr);
+            const diffMs = checkOut.getTime() - checkIn.getTime();
+            if (diffMs <= 0) return 0;
+            return parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2));
+        } catch {
+            return 0;
+        }
+    };
+
+    const getChartData = (presentLogs) => {
+        const dailyRawHours = {};
+        (presentLogs || []).forEach(log => {
+            if (!log.check_in_time) return;
+            const rawDate = log.date;
+            const hrs = getDurationHours(log.check_in_time, log.check_out_time);
+            dailyRawHours[rawDate] = (dailyRawHours[rawDate] || 0) + hrs;
+        });
+
+        const sortedRaw = Object.entries(dailyRawHours).sort((a, b) => a[0].localeCompare(b[0]));
+        return sortedRaw.map(([rawDate, hours]) => {
+            let displayDate = rawDate;
+            try {
+                const [y, m, d] = rawDate.split('-');
+                const dateObj = new Date(y, m - 1, d);
+                displayDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            } catch {}
+            return {
+                date: displayDate,
+                hours: parseFloat(hours.toFixed(2))
+            };
+        });
+    };
 
     // Leave Types Modal State
     const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -171,11 +211,14 @@ const Users = () => {
     const [showRoleDropdown, setShowRoleDropdown] = useState(false); // Toggle role dropdown
     const [userTypeFilter, setUserTypeFilter] = useState(''); // '' = all, 'workpulse' = WorkPulse-only, 'external' = PHP app users
     const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false); // Toggle user type dropdown
+    const [managerFilter, setManagerFilter] = useState([]); // Array of selected manager ids
+    const [showManagerDropdown, setShowManagerDropdown] = useState(false); // Toggle manager dropdown
 
     // Refs for click-outside detection
     const statusDropdownRef = useRef(null);
     const roleDropdownRef = useRef(null);
     const userTypeDropdownRef = useRef(null);
+    const managerDropdownRef = useRef(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
@@ -188,12 +231,50 @@ const Users = () => {
     const [editingUserId, setEditingUserId] = useState(null);
     const [editingUserFromPhp, setEditingUserFromPhp] = useState(false); // Track if user is from PHP app
     const [expandedUserId, setExpandedUserId] = useState(null);
+    const [activeTab, setActiveTab] = useState('leave');
     const [leaveBalances, setLeaveBalances] = useState({});
     const [loadingBalance, setLoadingBalance] = useState({});
+    const [yearlyHistory, setYearlyHistory] = useState({});
+    const [loadingHistory, setLoadingHistory] = useState({});
+    const [attendanceHistory, setAttendanceHistory] = useState({});
+    const [loadingAttendance, setLoadingAttendance] = useState({});
+    const [chartFilters, setChartFilters] = useState({}); // staffid -> '30d' | '60d' | '90d' | 'year'
+    const [historyTooltip, setHistoryTooltip] = useState({ show: false, events: [], anchor: null, date: null });
+    const tooltipRef = useRef(null);
+    const [tooltipCoords, setTooltipCoords] = useState({ left: 0, top: 0, ready: false });
+
+    // Keep the Yearly History tooltip inside the viewport: flip to the left of the
+    // hovered cell when it would overflow on the right, and clamp it vertically.
+    useLayoutEffect(() => {
+        if (!historyTooltip.show || !historyTooltip.anchor || !tooltipRef.current) {
+            return;
+        }
+        const MARGIN = 8;
+        const GAP = 10;
+        const a = historyTooltip.anchor;
+        const tw = tooltipRef.current.offsetWidth;
+        const th = tooltipRef.current.offsetHeight;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
+        // Horizontal: prefer right side, flip to left if it would overflow
+        let left = a.right + GAP;
+        if (left + tw + MARGIN > vw) {
+            left = a.left - GAP - tw;
+        }
+        left = Math.max(MARGIN, Math.min(left, vw - tw - MARGIN));
+
+        // Vertical: align with the cell top, clamp within the viewport
+        let top = a.top;
+        top = Math.max(MARGIN, Math.min(top, vh - th - MARGIN));
+
+        setTooltipCoords({ left, top, ready: true });
+    }, [historyTooltip.show, historyTooltip.anchor, historyTooltip.events]);
     const [formData, setFormData] = useState({
         firstname: '',
         lastname: '',
         email: '',
+        secondary_email: '',
         password: '',
         confirmPassword: '',
         role: '4',
@@ -220,6 +301,8 @@ const Users = () => {
     const [sortField, setSortField] = useState('staffid');
     const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
     const [letterFilter, setLetterFilter] = useState(''); // '' means no filter, or single letter A-Z
+    const [openActionMenu, setOpenActionMenu] = useState(null); // staffid of the open action dropdown, or null
+
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -308,7 +391,7 @@ const Users = () => {
     // Reset page on filter change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter]);
+    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter, managerFilter]);
 
     // Fetch Users when params change
     useEffect(() => {
@@ -318,7 +401,7 @@ const Users = () => {
             }, 300); // Debounce
             return () => clearTimeout(timeoutId);
         }
-    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter]);
+    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter, managerFilter]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -332,10 +415,13 @@ const Users = () => {
             if (userTypeDropdownRef.current && !userTypeDropdownRef.current.contains(event.target)) {
                 setShowUserTypeDropdown(false);
             }
+            if (managerDropdownRef.current && !managerDropdownRef.current.contains(event.target)) {
+                setShowManagerDropdown(false);
+            }
         };
 
         // Add event listener when any dropdown is open
-        if (showStatusDropdown || showRoleDropdown || showUserTypeDropdown) {
+        if (showStatusDropdown || showRoleDropdown || showUserTypeDropdown || showManagerDropdown) {
             document.addEventListener('mousedown', handleClickOutside);
         }
 
@@ -343,7 +429,17 @@ const Users = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [showStatusDropdown, showRoleDropdown, showUserTypeDropdown]);
+    }, [showStatusDropdown, showRoleDropdown, showUserTypeDropdown, showManagerDropdown]);
+
+    // Close action dropdown when clicking outside
+    useEffect(() => {
+        if (!openActionMenu) return;
+        const handleOutside = () => {
+            setOpenActionMenu(null);
+        };
+        document.addEventListener('click', handleOutside);
+        return () => document.removeEventListener('click', handleOutside);
+    }, [openActionMenu]);
 
     const fetchUsers = async (page) => {
         try {
@@ -375,6 +471,11 @@ const Users = () => {
             // Add user type filter
             if (userTypeFilter) {
                 queryParams.append('userType', userTypeFilter);
+            }
+
+            // Add manager filter
+            if (managerFilter.length > 0) {
+                queryParams.append('manager', managerFilter.join(','));
             }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/users?${queryParams.toString()}`, {
@@ -439,6 +540,7 @@ const Users = () => {
         }
     };
 
+
     const fetchLeaveBalance = async (userId) => {
         try {
             setLoadingBalance(prev => ({ ...prev, [userId]: true }));
@@ -465,14 +567,75 @@ const Users = () => {
         }
     };
 
+    const fetchYearlyHistory = async (userId) => {
+        try {
+            setLoadingHistory(prev => ({ ...prev, [userId]: true }));
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const currentYear = new Date().getFullYear();
+
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users/${userId}/yearly-history?year=${currentYear}`, {
+                headers: { 'x-access-token': token }
+            });
+
+            setYearlyHistory(prev => ({
+                ...prev,
+                [userId]: response.data
+            }));
+        } catch (error) {
+            console.error(`Error fetching yearly history for user ${userId}:`, error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to load history';
+            setYearlyHistory(prev => ({
+                ...prev,
+                [userId]: { error: errorMessage }
+            }));
+        } finally {
+            setLoadingHistory(prev => ({ ...prev, [userId]: false }));
+        }
+    };
+
+    const fetchAttendanceHistory = async (userId) => {
+        try {
+            setLoadingAttendance(prev => ({ ...prev, [userId]: true }));
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const currentYear = new Date().getFullYear();
+
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users/${userId}/attendance-history?year=${currentYear}`, {
+                headers: { 'x-access-token': token }
+            });
+
+            setAttendanceHistory(prev => ({
+                ...prev,
+                [userId]: response.data
+            }));
+        } catch (error) {
+            console.error(`Error fetching attendance history for user ${userId}:`, error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to load attendance';
+            setAttendanceHistory(prev => ({
+                ...prev,
+                [userId]: { error: errorMessage }
+            }));
+        } finally {
+            setLoadingAttendance(prev => ({ ...prev, [userId]: false }));
+        }
+    };
+
     const handleExpandUser = (userId) => {
         if (expandedUserId === userId) {
             setExpandedUserId(null);
         } else {
             setExpandedUserId(userId);
+            setActiveTab('leave');
             // Fetch leave balance if not already loaded
             if (!leaveBalances[userId]) {
                 fetchLeaveBalance(userId);
+            }
+            if (!yearlyHistory[userId]) {
+                fetchYearlyHistory(userId);
+            }
+            if (!attendanceHistory[userId]) {
+                fetchAttendanceHistory(userId);
             }
             // Fetch all users for org chart if not already loaded
             if (allUsersRef.length === 0) {
@@ -494,6 +657,7 @@ const Users = () => {
             firstname: '',
             lastname: '',
             email: '',
+            secondary_email: '',
             password: '',
             confirmPassword: '',
             role: '4',
@@ -511,6 +675,7 @@ const Users = () => {
             firstname: '',
             lastname: '',
             email: '',
+            secondary_email: '',
             password: '',
             confirmPassword: '',
             role: '4',
@@ -531,6 +696,7 @@ const Users = () => {
             firstname: editUser.firstname,
             lastname: editUser.lastname,
             email: editUser.email,
+            secondary_email: editUser.secondary_email || '',
             password: '',
             confirmPassword: '',
             role: editUser.role ? String(editUser.role) : '4', // Default to Employee (4) if role is missing/null
@@ -646,8 +812,8 @@ const Users = () => {
             }
         }
 
-        if (formData.role === '2' && !formData.approving_manager_id) {
-            setFormError('Manager role requires selecting an approving admin.');
+        if (!formData.approving_manager_id) {
+            setFormError('Reporting Manager is required.');
             return;
         }
         if (!formData.gender) {
@@ -664,6 +830,7 @@ const Users = () => {
                 firstname: formData.firstname.trim(),
                 lastname: formData.lastname.trim(),
                 email: formData.email.trim(),
+                secondary_email: formData.secondary_email?.trim() || null,
                 role: roleNum, // Must be an integer
                 gender: formData.gender
             };
@@ -673,12 +840,8 @@ const Users = () => {
                 payload.password = formData.password;
             }
 
-            if (formData.approving_manager_id && formData.approving_manager_id !== '') {
-                payload.approving_manager_id = parseInt(formData.approving_manager_id);
-            } else if (editingUserId) {
-                // For edit mode, always include the field (can be null)
-                payload.approving_manager_id = formData.approving_manager_id ? parseInt(formData.approving_manager_id) : null;
-            }
+            // Reporting manager is mandatory - always include
+            payload.approving_manager_id = parseInt(formData.approving_manager_id);
 
             let response;
             if (editingUserId) {
@@ -764,6 +927,7 @@ const Users = () => {
                     firstname: user.firstname,
                     lastname: user.lastname,
                     email: user.email,
+                    secondary_email: user.secondary_email || null,
                     role: user.role,
                     gender: user.gender,
                     approving_manager_id: user.approving_manager_id,
@@ -807,10 +971,32 @@ const Users = () => {
             userId: user.staffid || user.id,
             userName: `${user.firstname} ${user.lastname}`,
             newPassword: '',
-            confirmPassword: ''
+            confirmPassword: '',
+            firstname: user.firstname
         });
         setResetPasswordError(null);
         setShowPasswordResetModal(true);
+    };
+
+    const generateAndSetPassword = () => {
+        const cleanName = (resetPasswordData.firstname || '').replace(/[^a-zA-Z]/g, '') || 'User';
+        const firstLetter = cleanName.charAt(0);
+        const lastLetter = cleanName.length > 1 ? cleanName.charAt(cleanName.length - 1) : cleanName.charAt(0);
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const currentMonthStr = months[new Date().getMonth()];
+        const todayDay = new Date().getDate();
+        const dayClamped = todayDay > 30 ? 30 : todayDay;
+        const dayStr = String(dayClamped).padStart(2, '0');
+        const alphabets = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        const randomAlphabet = alphabets.charAt(Math.floor(Math.random() * alphabets.length));
+
+        const generatedPassword = `${firstLetter}${lastLetter}${currentMonthStr}${dayStr}${randomAlphabet}`;
+
+        setResetPasswordData(prev => ({
+            ...prev,
+            newPassword: generatedPassword,
+            confirmPassword: generatedPassword
+        }));
     };
 
     const handleResetPasswordSubmit = async (e) => {
@@ -886,6 +1072,24 @@ const Users = () => {
                 aValue = a.active ? 1 : 0;
                 bValue = b.active ? 1 : 0;
                 break;
+            case 'reporting': {
+                const resolveName = (managerId) => {
+                    if (!managerId) return '-';
+                    const mgr = managersAndAdmins.find(m => (m.staffid || m.id) === managerId) ||
+                        users.find(m => (m.staffid || m.id) === managerId) ||
+                        allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
+                        ((user.staffid || user.id) === managerId ? user : null);
+                    return mgr ? `${mgr.firstname} ${mgr.lastname}` : 'Unknown';
+                };
+                aValue = resolveName(a.approving_manager_id).toLowerCase();
+                bValue = resolveName(b.approving_manager_id).toLowerCase();
+                break;
+            }
+            case 'last_login':
+                // nulls sort to end regardless of direction
+                aValue = a.last_login ? new Date(a.last_login).getTime() : (sortDirection === 'asc' ? Infinity : -Infinity);
+                bValue = b.last_login ? new Date(b.last_login).getTime() : (sortDirection === 'asc' ? Infinity : -Infinity);
+                break;
             default:
                 return 0;
         }
@@ -915,6 +1119,15 @@ const Users = () => {
 
     const getRoleName = (roleId) => {
         return getRoleDisplayName(roleId);
+    };
+
+    const getManagerName = (managerId) => {
+        if (!managerId) return '-';
+        const mgr = managersAndAdmins.find(m => (m.staffid || m.id) === managerId) ||
+            users.find(m => (m.staffid || m.id) === managerId) ||
+            allUsersRef.find(m => (m.staffid || m.id) === managerId) ||
+            ((user.staffid || user.id) === managerId ? user : null);
+        return mgr ? `${mgr.firstname} ${mgr.lastname}` : 'Unknown';
     };
 
     const generateOrgChart = (currentUser) => {
@@ -1068,13 +1281,16 @@ const Users = () => {
                                     : 'Manage your team members and their leave balances'}
                         </p>
                     </div>
-                    {isAdmin && canManageUsers && (
-                        <button
-                            onClick={handleAddUserClick}
-                            className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium flex items-center gap-2">
-                            <span className="text-green-300 text-lg">+</span> Add New User
-                        </button>
+                    {canManageOnboarding(user.role) && (
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => navigate('/onboard')}
+                                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors font-semibold flex items-center gap-2 shadow-sm text-sm">
+                                <span className="text-indigo-200 text-lg">+</span> Onboard Employee
+                            </button>
+                        </div>
                     )}
+
                 </div>
             </div>
 
@@ -1186,6 +1402,38 @@ const Users = () => {
                                         <div className="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></div>
                                         <span className="text-sm font-medium text-gray-900 flex-1">Setup Required</span>
                                     </label>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-amber-50 rounded-lg transition-colors ${statusFilter.includes('unapproved') ? 'bg-amber-50' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.includes('unapproved')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setStatusFilter([...statusFilter, 'unapproved']);
+                                                } else {
+                                                    setStatusFilter(statusFilter.filter(s => s !== 'unapproved'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-2 focus:ring-amber-500"
+                                        />
+                                        <div className="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></div>
+                                        <span className="text-sm font-medium text-gray-900 flex-1">Unapproved Profiles</span>
+                                    </label>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-indigo-50 rounded-lg transition-colors ${statusFilter.includes('update_required') ? 'bg-indigo-50' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.includes('update_required')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setStatusFilter([...statusFilter, 'update_required']);
+                                                } else {
+                                                    setStatusFilter(statusFilter.filter(s => s !== 'update_required'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                        <div className="w-3 h-3 rounded-full bg-indigo-500 shadow-sm"></div>
+                                        <span className="text-sm font-medium text-gray-900 flex-1">Update Required</span>
+                                    </label>
                                 </div>
                             </div>
                         )}
@@ -1251,6 +1499,75 @@ const Users = () => {
                                                 </div>
                                             </label>
                                         ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Manager Filter Dropdown */}
+                    <div className="relative" ref={managerDropdownRef}>
+                        <button
+                            onClick={() => setShowManagerDropdown(!showManagerDropdown)}
+                            className="px-4 py-2.5 rounded-lg font-medium transition-all bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-400 hover:shadow-md flex items-center gap-2.5"
+                        >
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            <span className="text-sm">Manager</span>
+                            {managerFilter.length > 0 && (
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                                    {managerFilter.length}
+                                </span>
+                            )}
+                            <svg className={`w-4 h-4 ml-1 transition-transform ${showManagerDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {showManagerDropdown && (
+                            <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-10 w-64 max-h-96 overflow-hidden flex flex-col">
+                                <div className="p-2">
+                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        Filter by Manager
+                                    </div>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-gray-50 rounded-lg transition-colors ${managerFilter.length === 0 ? 'bg-blue-50' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={managerFilter.length === 0}
+                                            onChange={() => setManagerFilter([])}
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm font-medium text-gray-900">All Managers</span>
+                                    </label>
+                                    <div className="my-2 border-t border-gray-100"></div>
+                                </div>
+                                <div className="overflow-y-auto flex-1 px-2 pb-2">
+                                    {managersAndAdmins.filter(manager => manager.has_reportees).map(manager => (
+                                        <label
+                                            key={manager.staffid || manager.id}
+                                            className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-blue-50 rounded-lg transition-colors ${managerFilter.includes(String(manager.staffid || manager.id)) ? 'bg-blue-50 border-l-2 border-blue-500' : ''}`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={managerFilter.includes(String(manager.staffid || manager.id))}
+                                                onChange={(e) => {
+                                                    const idStr = String(manager.staffid || manager.id);
+                                                    if (e.target.checked) {
+                                                        setManagerFilter([...managerFilter, idStr]);
+                                                    } else {
+                                                        setManagerFilter(managerFilter.filter(m => m !== idStr));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                            />
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                                {manager.firstname.charAt(0)}{manager.lastname.charAt(0)}
+                                            </div>
+                                            <div className="flex-1 truncate">
+                                                <div className="text-sm font-medium text-gray-900 truncate">{manager.firstname} {manager.lastname}</div>
+                                            </div>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
                         )}
@@ -1372,7 +1689,7 @@ const Users = () => {
                 {loading && (
                     <ModernLoader size="container" message="Updating user data..." fullScreen={false} />
                 )}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto md:overflow-x-visible min-h-[340px] pb-44">
                     <table className="w-full">
                         <thead className="bg-[#1e1b4b] text-white border-b border-[#1e1b4b]">
                             <tr>
@@ -1415,11 +1732,29 @@ const Users = () => {
                                 </th>
                                 <th
                                     className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
+                                    onClick={() => handleSort('reporting')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Reporting to
+                                        <TableSortIcon column="reporting" sortConfig={{ key: sortField, direction: sortDirection }} />
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
                                     onClick={() => handleSort('status')}
                                 >
                                     <div className="flex items-center gap-1">
                                         Status
                                         <TableSortIcon column="status" sortConfig={{ key: sortField, direction: sortDirection }} />
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
+                                    onClick={() => handleSort('last_login')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Last Login
+                                        <TableSortIcon column="last_login" sortConfig={{ key: sortField, direction: sortDirection }} />
                                     </div>
                                 </th>
                                 {canManageUsers && (
@@ -1446,13 +1781,32 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold">
-                                                        {u.firstname.charAt(0)}{u.lastname.charAt(0)}
-                                                    </div>
+                                                    {u.profile_info?.image_path ? (
+                                                        <img
+                                                            src={`${API_BASE_URL}/${u.profile_info.image_path.replace(/\\/g, '/')}`}
+                                                            alt={`${u.firstname} ${u.lastname}`}
+                                                            className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold">
+                                                            {u.firstname.charAt(0)}{u.lastname.charAt(0)}
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <p className="font-medium text-gray-900">
                                                             {u.firstname} {u.lastname}
                                                         </p>
+                                                        {u.profile_info?.onboarding_status === 'Pending_HR_Approval' && (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold rounded-md">
+                                                                Pending HR Approval
+                                                            </span>
+                                                        )}
+                                                        {/* Update Required: missing gender, reporting manager, email, date of birth, or declaration */}
+                                                        {((!u.gender || !u.approving_manager_id || !u.email || !u.profile_info?.date_of_birth || !u.profile_info?.consent_given || u.profile_info?.onboarding_status === 'Pending_Candidate') && u.profile_info?.onboarding_status !== 'Pending_HR_Approval') && (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-orange-50 border border-orange-200 text-orange-700 text-[10px] font-bold rounded-md">
+                                                                Update Required
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </td>
@@ -1461,6 +1815,9 @@ const Users = () => {
                                                 <span className={'px-3 py-1 rounded-full text-xs font-medium ' + getRoleColor(u.role)}>
                                                     {getRoleName(u.role)}
                                                 </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-700 font-medium">
+                                                {getManagerName(u.approving_manager_id)}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
@@ -1484,52 +1841,96 @@ const Users = () => {
                                                     </span>
                                                 </div>
                                             </td>
+                                            <td className="px-6 py-4">
+                                                {u.last_login ? (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-xs font-medium text-gray-700">
+                                                            {(() => {
+                                                                const loginDate = parseAppTimezone(u.last_login);
+                                                                if (!loginDate) return '—';
+                                                                const diff = Date.now() - loginDate.getTime();
+                                                                const mins = Math.floor(diff / 60000);
+                                                                const hrs = Math.floor(mins / 60);
+                                                                const days = Math.floor(hrs / 24);
+                                                                if (mins < 1) return 'Just now';
+                                                                if (mins < 60) return `${mins}m ago`;
+                                                                if (hrs < 24) return `${hrs}h ago`;
+                                                                if (days < 7) return `${days}d ago`;
+                                                                return formatInTimezone(u.last_login);
+                                                            })()}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400">
+                                                            {formatInTimezone(u.last_login)}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400 italic">Never</span>
+                                                )}
+                                            </td>
                                             {canManageUsers && (
                                                 <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2">
-                                                        {canManageSpecificUser(u) && (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => handleEditUserClick(u)}
-                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow"
-                                                                    title="Edit user details"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                                    </svg>
-                                                                    <span>Edit</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleEditLeaveTypes(u)}
-                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow ml-2"
-                                                                    title="Edit leave types"
-                                                                >
-                                                                    <FiEdit2 className="w-4 h-4" />
-                                                                    <span>Leave Types</span>
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                        {canManageSpecificUser(u) && (
+                                                    {canManageSpecificUser(u) ? (
+                                                        <div className="relative">
                                                             <button
-                                                                onClick={() => handleResetPasswordClick(u)}
-                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow"
-                                                                title="Reset user password"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setOpenActionMenu(openActionMenu === u.staffid ? null : u.staffid);
+                                                                }}
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm"
+                                                                title="Actions"
                                                             >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                                                Actions
+                                                                <svg className={`w-3.5 h-3.5 transition-transform duration-150 ${openActionMenu === u.staffid ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                                                 </svg>
-                                                                <span>Reset</span>
                                                             </button>
-                                                        )}
-                                                    </div>
+
+                                                            {openActionMenu === u.staffid && (
+                                                                <div className="absolute right-0 top-full mt-1.5 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
+                                                                    <div className="py-1">
+                                                                        <button
+                                                                            onClick={() => { navigate(`/staff-profile/${u.staffid}`); setOpenActionMenu(null); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors font-semibold"
+                                                                        >
+                                                                            <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                            </svg>
+                                                                            View Profile
+                                                                        </button>
+
+                                                                        <button
+                                                                            onClick={() => { handleEditLeaveTypes(u); setOpenActionMenu(null); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors font-semibold"
+                                                                        >
+                                                                            <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                                                            </svg>
+                                                                            Leave Types
+                                                                        </button>
+                                                                        <div className="my-1 border-t border-gray-100" />
+                                                                        <button
+                                                                            onClick={() => { handleResetPasswordClick(u); setOpenActionMenu(null); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors font-semibold"
+                                                                        >
+                                                                            <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                                                            </svg>
+                                                                            Reset Password
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">—</span>
+                                                    )}
                                                 </td>
                                             )}
                                         </tr>
 
-                                        {/* Leave Balance Child Row */}
                                         {expandedUserId === u.staffid && (
                                             <tr className="bg-slate-50 border-t border-slate-200 shadow-inner">
-                                                <td colSpan={canManageUsers ? 7 : 6} className="px-6 py-6">
+                                                <td colSpan={canManageUsers ? 9 : 8} className="px-6 py-6">
                                                     {loadingBalance[u.staffid] ? (
                                                         <div className="flex flex-col items-center justify-center py-8">
                                                             <ModernLoader size="md" message="Loading leave balance..." />
@@ -1542,68 +1943,133 @@ const Users = () => {
                                                             <span className="font-medium">{leaveBalances[u.staffid].error}</span>
                                                         </div>
                                                     ) : (
-                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                                            {/* Column 1: Leave Balance List */}
-                                                            <div>
-                                                                <div className="flex items-center justify-between mb-4">
-                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
-                                                                        <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
+                                                        <div className="flex flex-col gap-5">
+                                                            <div className="flex flex-col md:flex-row gap-5">
+                                                            {/* Modern Vertical Nav */}
+                                                            <div className="w-full md:w-48 flex-shrink-0">
+                                                                <nav className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-gray-100 p-1.5 flex flex-col gap-0.5">
+                                                                    <button
+                                                                        onClick={() => setActiveTab('leave')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'leave'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                        }`}
+                                                                    >
+                                                                        {activeTab === 'leave' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'leave' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                                                        </svg>
                                                                         Leave Balances
-                                                                    </h4>
-                                                                    {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 && (
-                                                                        <div className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded shadow-sm border border-gray-100">
-                                                                            Total Available: <span className="font-extrabold text-blue-600 ml-1">{
-                                                                                leaveBalances[u.staffid].leaveTypes.reduce((sum, lt) => sum + (lt.balance || 0), 0)
-                                                                            }</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setActiveTab('org')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'org'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                        }`}
+                                                                    >
+                                                                        {activeTab === 'org' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'org' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                                                                        </svg>
+                                                                        Org Structure
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setActiveTab('history')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'history'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                        }`}
+                                                                    >
+                                                                        {activeTab === 'history' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                        </svg>
+                                                                        Leave History
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setActiveTab('attendance')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'attendance'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                        }`}
+                                                                    >
+                                                                        {activeTab === 'attendance' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'attendance' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                        </svg>
+                                                                        Attendance History
+                                                                    </button>
+                                                                </nav>
+                                                            </div>
+
+                                                            {/* Tab Content Panel */}
+                                                            <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm min-w-0">
+                                                            {activeTab === 'leave' && (
+                                                                <div>
+                                                                    <div className="flex items-center justify-between mb-4">
+                                                                        <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                                                                            <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
+                                                                            Leave Balances
+                                                                        </h4>
+                                                                        {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 && (
+                                                                            <div className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded shadow-sm border border-gray-100">
+                                                                                Total Available: <span className="font-extrabold text-blue-600 ml-1">{
+                                                                                    leaveBalances[u.staffid].leaveTypes.reduce((sum, lt) => sum + (lt.balance || 0), 0)
+                                                                                }</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* Use user_leave_types for leave balances */}
+                                                                    {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 ? (
+                                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                                            {leaveBalances[u.staffid].leaveTypes.map((lt) => {
+                                                                                const pct = ((lt.used / lt.total_days) * 100) || 0;
+                                                                                let colors = { bar: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-100', muted: 'text-green-400' };
+
+                                                                                if (pct >= 90) colors = { bar: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100', muted: 'text-red-400' };
+                                                                                else if (pct >= 75) colors = { bar: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', muted: 'text-amber-400' };
+                                                                                else if (pct >= 50) colors = { bar: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-100', muted: 'text-blue-400' };
+
+                                                                                return (
+                                                                                    <div key={lt.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                                                                                        {/* Left: Info & Progress */}
+                                                                                        <div className="flex-1 mr-4">
+                                                                                            <div className="flex justify-between items-end mb-1.5">
+                                                                                                <span className="font-bold text-gray-800 text-sm">{lt.name}</span>
+                                                                                                <span className="text-xs text-gray-500">{lt.used} / {lt.total_days}</span>
+                                                                                            </div>
+                                                                                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                                                                                <div
+                                                                                                    className={`h-1.5 rounded-full ${colors.bar} transition-all duration-500`}
+                                                                                                    style={{ width: `${pct}%` }}
+                                                                                                ></div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        {/* Right: Balance Circle */}
+                                                                                        <div className={`flex flex-col items-center justify-center ${colors.bg} ${colors.text} w-12 h-12 rounded-lg border ${colors.border}`}>
+                                                                                            <span className="text-base font-bold leading-none">{lt.balance}</span>
+                                                                                            <span className={`text-[9px] uppercase font-bold ${colors.muted} mt-0.5`}>Left</span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="text-center py-8 bg-white rounded-xl border border-dashed border-gray-300">
+                                                                            <p className="text-gray-500 text-sm">No leave types assigned.</p>
                                                                         </div>
                                                                     )}
                                                                 </div>
+                                                            )}
 
-                                                                {/* Use user_leave_types for leave balances */}
-                                                                {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 ? (
-                                                                    <div className="space-y-3">
-                                                                        {leaveBalances[u.staffid].leaveTypes.map((lt) => {
-                                                                            const pct = ((lt.used / lt.total_days) * 100) || 0;
-                                                                            let colors = { bar: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-100', muted: 'text-green-400' };
-
-                                                                            if (pct >= 90) colors = { bar: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100', muted: 'text-red-400' };
-                                                                            else if (pct >= 75) colors = { bar: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', muted: 'text-amber-400' };
-                                                                            else if (pct >= 50) colors = { bar: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-100', muted: 'text-blue-400' };
-
-                                                                            return (
-                                                                                <div key={lt.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
-                                                                                    {/* Left: Info & Progress */}
-                                                                                    <div className="flex-1 mr-4">
-                                                                                        <div className="flex justify-between items-end mb-1.5">
-                                                                                            <span className="font-bold text-gray-800 text-sm">{lt.name}</span>
-                                                                                            <span className="text-xs text-gray-500">{lt.used} / {lt.total_days}</span>
-                                                                                        </div>
-                                                                                        <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                                                                            <div
-                                                                                                className={`h-1.5 rounded-full ${colors.bar} transition-all duration-500`}
-                                                                                                style={{ width: `${pct}%` }}
-                                                                                            ></div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    {/* Right: Balance Circle */}
-                                                                                    <div className={`flex flex-col items-center justify-center ${colors.bg} ${colors.text} w-10 h-10 rounded-lg border ${colors.border}`}>
-                                                                                        <span className="text-sm font-bold leading-none">{lt.balance}</span>
-                                                                                        <span className={`text-[9px] uppercase font-bold ${colors.muted} mt-0.5`}>Left</span>
-                                                                                    </div>
-                                                                                </div>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="text-center py-6 bg-white rounded-xl border border-dashed border-gray-300">
-                                                                        <p className="text-gray-500 text-xs">No leave types assigned.</p>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Column 2: Org Structure */}
-                                                            <div className="hidden lg:block border-l border-gray-200 pl-8">
-                                                                <div className="h-full flex flex-col">
+                                                            {activeTab === 'org' && (
+                                                                <div className="h-full flex flex-col min-h-[400px]">
                                                                     <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center justify-between">
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="w-1 h-4 bg-purple-600 rounded-full"></span>
@@ -1622,11 +2088,332 @@ const Users = () => {
                                                                             </svg>
                                                                         </button>
                                                                     </h4>
-                                                                    <div className="flex-1 flex items-center justify-center bg-gray-50/50 rounded-xl overflow-hidden min-h-[200px] border border-gray-100">
+                                                                    <div className="flex-1 flex items-center justify-center bg-gray-50/50 rounded-xl overflow-hidden border border-gray-100">
                                                                         <MermaidChart chart={generateOrgChart(u)} uniqueId={u.staffid} />
                                                                     </div>
                                                                 </div>
+                                                            )}
+
+                                                            {activeTab === 'history' && (
+                                                                <div className="animate-fadeIn">
+                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
+                                                                        <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
+                                                                        {new Date().getFullYear()} Leave &amp; On-Duty History
+                                                                    </h4>
+
+                                                                    {loadingHistory[u.staffid] ? (
+                                                                        <div className="flex items-center justify-center p-8">
+                                                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                                                                        </div>
+                                                                    ) : yearlyHistory[u.staffid]?.error ? (
+                                                                        <div className="p-4 bg-red-50 text-red-600 rounded-lg">
+                                                                            {yearlyHistory[u.staffid].error}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div>
+                                                                            <div className="flex flex-wrap items-center gap-4 mb-6 text-xs font-medium text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">
+                                                                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 shadow-sm"></span> Leave</div>
+                                                                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500 shadow-sm"></span> On-Duty</div>
+                                                                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500 shadow-sm"></span> Time-Off</div>
+                                                                            </div>
+                                                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                                                                                {Array.from({ length: 12 }).map((_, monthIndex) => {
+                                                                                    const year = new Date().getFullYear();
+                                                                                    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+                                                                                    const firstDayOfWeek = new Date(year, monthIndex, 1).getDay();
+                                                                                    const monthName = new Date(year, monthIndex, 1).toLocaleString('default', { month: 'short' });
+
+                                                                                    return (
+                                                                                        <div key={monthIndex} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow">
+                                                                                            <div className="text-xs font-extrabold text-gray-800 mb-2 text-center uppercase tracking-wide">{monthName}</div>
+                                                                                            <div className="grid grid-cols-7 gap-1 text-[9px] font-semibold text-center text-gray-400 mb-1.5">
+                                                                                                <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+                                                                                            </div>
+                                                                                            <div className="grid grid-cols-7 gap-1">
+                                                                                                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                                                                                                    <div key={`empty-${i}`} className="aspect-square"></div>
+                                                                                                ))}
+                                                                                                {Array.from({ length: daysInMonth }).map((_, i) => {
+                                                                                                    const day = i + 1;
+                                                                                                    const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+                                                                                                    const dayEvents = (yearlyHistory[u.staffid] || []).filter(e => e.date === dateStr);
+                                                                                                    let bgClass = "bg-gray-50 border border-gray-100 hover:border-gray-300 text-gray-400";
+                                                                                                    let bgStyle = undefined;
+
+                                                                                                    if (dayEvents.length > 0) {
+                                                                                                        const TYPE_ORDER = ['leave', 'on_duty', 'time_off'];
+                                                                                                        const TYPE_COLORS = { leave: '#3b82f6', on_duty: '#a855f7', time_off: '#f59e0b' };
+                                                                                                        const types = dayEvents.map(e => e.type);
+                                                                                                        // Keep a stable, deduplicated order of the event types present that day
+                                                                                                        const presentTypes = TYPE_ORDER.filter(t => types.includes(t));
+
+                                                                                                        bgClass = "border border-black/10 shadow-sm text-white";
+                                                                                                        if (presentTypes.length === 1) {
+                                                                                                            bgStyle = { backgroundColor: TYPE_COLORS[presentTypes[0]] };
+                                                                                                        } else {
+                                                                                                            // Multiple event types: split the cell into equal diagonal stripes,
+                                                                                                            // one solid color per type, so it's clear there's more than one event
+                                                                                                            const n = presentTypes.length;
+                                                                                                            const stops = presentTypes.map((t, idx) => {
+                                                                                                                const start = ((idx / n) * 100).toFixed(2);
+                                                                                                                const end = (((idx + 1) / n) * 100).toFixed(2);
+                                                                                                                return `${TYPE_COLORS[t]} ${start}%, ${TYPE_COLORS[t]} ${end}%`;
+                                                                                                            }).join(', ');
+                                                                                                            bgStyle = { backgroundImage: `linear-gradient(135deg, ${stops})` };
+                                                                                                        }
+                                                                                                    }
+
+                                                                                                    const handleMouseEnter = (e) => {
+                                                                                                        if (dayEvents.length > 0) {
+                                                                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                                                                            setTooltipCoords(prev => ({ ...prev, ready: false }));
+                                                                                                            setHistoryTooltip({
+                                                                                                                show: true,
+                                                                                                                events: dayEvents,
+                                                                                                                anchor: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
+                                                                                                                date: dateStr
+                                                                                                            });
+                                                                                                        }
+                                                                                                    };
+
+                                                                                                    const handleMouseLeave = () => {
+                                                                                                        setHistoryTooltip(prev => ({ ...prev, show: false }));
+                                                                                                    };
+
+                                                                                                    return (
+                                                                                                        <div
+                                                                                                            key={day}
+                                                                                                            onMouseEnter={handleMouseEnter}
+                                                                                                            onMouseLeave={handleMouseLeave}
+                                                                                                            style={bgStyle ? { ...bgStyle, textShadow: '0 1px 1px rgba(0,0,0,0.35)' } : undefined}
+                                                                                                            className={`aspect-square rounded flex items-center justify-center text-[10px] transition-all ${dayEvents.length > 0 ? 'cursor-pointer font-bold transform hover:scale-110 z-10' : 'cursor-default'} ${bgClass}`}
+                                                                                                        >
+                                                                                                            {day}
+                                                                                                        </div>
+                                                                                                    );
+                                                                                                })}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            {activeTab === 'attendance' && (
+                                                                <div className="animate-fadeIn">
+                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
+                                                                        <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
+                                                                        {new Date().getFullYear()} Attendance History
+                                                                    </h4>
+
+                                                                    {loadingAttendance[u.staffid] ? (
+                                                                        <div className="flex items-center justify-center p-8">
+                                                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                                                                        </div>
+                                                                    ) : attendanceHistory[u.staffid]?.error ? (
+                                                                        <div className="p-4 bg-red-50 text-red-600 rounded-lg">
+                                                                            {attendanceHistory[u.staffid].error}
+                                                                        </div>
+                                                                    ) : (() => {
+                                                                        const data = attendanceHistory[u.staffid] || {};
+                                                                        const presentMap = {};
+                                                                        (data.present || []).forEach(p => { presentMap[p.date] = p; });
+                                                                        const excusedSet = new Set(data.excused || []);
+                                                                        const todayStr = data.today || new Date().toISOString().split('T')[0];
+                                                                        const fmtTime = (t) => t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
+                                                                        return (
+                                                                            <div>
+                                                                                <div className="flex flex-wrap items-center gap-4 mb-6 text-xs font-medium text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 shadow-sm"></span> Present</div>
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500 shadow-sm"></span> Absent</div>
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 shadow-sm"></span> Leave / On-Duty / Time-Off</div>
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-200 border border-slate-300"></span> Week-off</div>
+                                                                                </div>
+                                                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                                                                                    {Array.from({ length: 12 }).map((_, monthIndex) => {
+                                                                                        const year = new Date().getFullYear();
+                                                                                        const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+                                                                                        const firstDayOfWeek = new Date(year, monthIndex, 1).getDay();
+                                                                                        const monthName = new Date(year, monthIndex, 1).toLocaleString('default', { month: 'short' });
+
+                                                                                        return (
+                                                                                            <div key={monthIndex} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow">
+                                                                                                <div className="text-xs font-extrabold text-gray-800 mb-2 text-center uppercase tracking-wide">{monthName}</div>
+                                                                                                <div className="grid grid-cols-7 gap-1 text-[9px] font-semibold text-center text-gray-400 mb-1.5">
+                                                                                                    <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+                                                                                                </div>
+                                                                                                <div className="grid grid-cols-7 gap-1">
+                                                                                                    {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                                                                                                        <div key={`empty-${i}`} className="aspect-square"></div>
+                                                                                                    ))}
+                                                                                                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                                                                                                        const day = i + 1;
+                                                                                                        const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                                                                                        const isSunday = new Date(year, monthIndex, day).getDay() === 0;
+                                                                                                        const isFuture = dateStr > todayStr;
+                                                                                                        const p = presentMap[dateStr];
+
+                                                                                                        let cellClass;
+                                                                                                        let title;
+                                                                                                        // Colored (solid) cells get a subtle text shadow for legibility
+                                                                                                        const isColored = !!p || (!isSunday && !isFuture);
+                                                                                                        if (p) {
+                                                                                                            cellClass = "bg-emerald-500 border border-black/10 text-white shadow-sm font-bold";
+                                                                                                            title = `Present — In ${fmtTime(p.check_in_time)}${p.check_out_time ? `, Out ${fmtTime(p.check_out_time)}` : ''}`;
+                                                                                                        } else if (isSunday) {
+                                                                                                            cellClass = "bg-slate-100 border border-slate-200 text-slate-400";
+                                                                                                            title = 'Week-off (Sunday)';
+                                                                                                        } else if (isFuture) {
+                                                                                                            cellClass = "bg-gray-50 border border-gray-100 text-gray-300";
+                                                                                                            title = '';
+                                                                                                        } else if (excusedSet.has(dateStr)) {
+                                                                                                            cellClass = "bg-blue-500 border border-black/10 text-white shadow-sm font-bold";
+                                                                                                            title = 'Leave / On-Duty / Time-Off';
+                                                                                                        } else {
+                                                                                                            cellClass = "bg-red-500 border border-black/10 text-white shadow-sm font-bold";
+                                                                                                            title = 'Absent';
+                                                                                                        }
+
+                                                                                                        return (
+                                                                                                            <div
+                                                                                                                key={day}
+                                                                                                                title={title}
+                                                                                                                className={`aspect-square rounded flex items-center justify-center text-[10px] cursor-default transition-all ${cellClass}`}
+                                                                                                                style={isColored ? { textShadow: '0 1px 1px rgba(0,0,0,0.25)' } : undefined}
+                                                                                                            >
+                                                                                                                {day}
+                                                                                                            </div>
+                                                                                                        );
+                                                                                                    })}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+
+                                                                                {data.present && data.present.length > 0 && (() => {
+                                                                                    const userId = u.staffid;
+                                                                                    const activeFilter = chartFilters[userId] || '30d';
+                                                                                    const FILTERS = [
+                                                                                        { key: '7d',         label: '7 Days'      },
+                                                                                        { key: '14d',        label: '14 Days'     },
+                                                                                        { key: '30d',        label: '30 Days'     },
+                                                                                        { key: '60d',        label: '60 Days'     },
+                                                                                        { key: '90d',        label: '90 Days'     },
+                                                                                        { key: 'this_week',  label: 'This Week'   },
+                                                                                        { key: 'this_month', label: 'This Month'  },
+                                                                                        { key: 'last_month', label: 'Last Month'  },
+                                                                                        { key: 'year',       label: 'This Year'   },
+                                                                                    ];
+                                                                                    const now = new Date();
+                                                                                    const filteredLogs = data.present.filter(log => {
+                                                                                        if (!log.date) return false;
+                                                                                        const logDate = new Date(log.date);
+                                                                                        if (activeFilter === 'year') {
+                                                                                            return logDate.getFullYear() === now.getFullYear();
+                                                                                        }
+                                                                                        if (activeFilter === 'this_week') {
+                                                                                            const startOfWeek = new Date(now);
+                                                                                            startOfWeek.setDate(now.getDate() - now.getDay());
+                                                                                            startOfWeek.setHours(0, 0, 0, 0);
+                                                                                            return logDate >= startOfWeek;
+                                                                                        }
+                                                                                        if (activeFilter === 'this_month') {
+                                                                                            return logDate.getFullYear() === now.getFullYear() && logDate.getMonth() === now.getMonth();
+                                                                                        }
+                                                                                        if (activeFilter === 'last_month') {
+                                                                                            const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                                                                                            return logDate.getFullYear() === lm.getFullYear() && logDate.getMonth() === lm.getMonth();
+                                                                                        }
+                                                                                        const daysMap = { '7d': 7, '14d': 14, '30d': 30, '60d': 60, '90d': 90 };
+                                                                                        const days = daysMap[activeFilter] || 30;
+                                                                                        const cutoff = new Date(now);
+                                                                                        cutoff.setDate(cutoff.getDate() - days);
+                                                                                        return logDate >= cutoff;
+                                                                                    });
+                                                                                    const chartData = getChartData(filteredLogs);
+                                                                                    return (
+                                                                                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mt-6 shadow-sm">
+                                                                                            {/* Header row: title + filter pills */}
+                                                                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                                                                                                <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                                                                                    <span className="w-2 h-2 bg-indigo-600 rounded-full" />
+                                                                                                    Work Duration Trend (Hours per Day)
+                                                                                                </h5>
+                                                                                                <div className="flex items-center gap-1">
+                                                                                                    {FILTERS.map(f => (
+                                                                                                        <button
+                                                                                                            key={f.key}
+                                                                                                            onClick={() => setChartFilters(prev => ({ ...prev, [userId]: f.key }))}
+                                                                                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                                                                                                                activeFilter === f.key
+                                                                                                                    ? 'bg-indigo-600 text-white shadow-sm'
+                                                                                                                    : 'bg-white border border-slate-200 text-slate-500 hover:border-indigo-400 hover:text-indigo-600'
+                                                                                                            }`}
+                                                                                                        >
+                                                                                                            {f.label}
+                                                                                                        </button>
+                                                                                                    ))}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            {chartData.length === 0 ? (
+                                                                                                <div className="h-48 flex items-center justify-center text-slate-400 text-xs font-semibold italic">
+                                                                                                    No attendance data for this period
+                                                                                                </div>
+                                                                                            ) : (
+                                                                                                <div className="h-48 w-full pr-4">
+                                                                                                    <ResponsiveContainer width="100%" height="100%">
+                                                                                                        <LineChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                                                                                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                                                                                            <XAxis 
+                                                                                                                dataKey="date" 
+                                                                                                                stroke="#94a3b8" 
+                                                                                                                fontSize={9} 
+                                                                                                                tickLine={false}
+                                                                                                            />
+                                                                                                            <YAxis 
+                                                                                                                stroke="#94a3b8" 
+                                                                                                                fontSize={9} 
+                                                                                                                tickLine={false}
+                                                                                                                unit="h"
+                                                                                                            />
+                                                                                                            <ChartTooltip 
+                                                                                                                contentStyle={{ 
+                                                                                                                    backgroundColor: '#ffffff', 
+                                                                                                                    border: '1px solid #e2e8f0', 
+                                                                                                                    borderRadius: '8px',
+                                                                                                                    fontSize: '11px',
+                                                                                                                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                                                                                                                }}
+                                                                                                                labelClassName="font-bold text-slate-700"
+                                                                                                            />
+                                                                                                            <Line 
+                                                                                                                type="monotone" 
+                                                                                                                dataKey="hours" 
+                                                                                                                name="Hours Worked"
+                                                                                                                stroke="#4f46e5" 
+                                                                                                                strokeWidth={2} 
+                                                                                                                activeDot={{ r: 6 }}
+                                                                                                                dot={{ stroke: '#4f46e5', strokeWidth: 1.5, r: 3, fill: '#ffffff' }}
+                                                                                                            />
+                                                                                                        </LineChart>
+                                                                                                    </ResponsiveContainer>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    );
+                                                                                })()}
+                                                                            </div>
+                                                                        );
+                                                                    })()}
+                                                                </div>
+                                                            )}
                                                             </div>
+                                                        </div>
                                                         </div>
                                                     )}
                                                 </td>
@@ -1694,6 +2481,48 @@ const Users = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Yearly History Hover Tooltip */}
+            {historyTooltip.show && historyTooltip.events.length > 0 && (
+                <div
+                    ref={tooltipRef}
+                    className="fixed z-[60] pointer-events-none bg-gray-900 text-white rounded-lg shadow-xl px-3 py-2 text-xs w-max max-w-[min(18rem,calc(100vw-1rem))] overflow-y-auto"
+                    style={{
+                        left: tooltipCoords.left,
+                        top: tooltipCoords.top,
+                        maxHeight: 'calc(100vh - 1rem)',
+                        visibility: tooltipCoords.ready ? 'visible' : 'hidden'
+                    }}
+                >
+                    <div className="font-semibold text-gray-200 mb-1.5 pb-1 border-b border-gray-700 whitespace-nowrap">
+                        {historyTooltip.date && new Date(historyTooltip.date).toLocaleDateString('default', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                    <div className="space-y-2">
+                        {historyTooltip.events.map((ev, idx) => {
+                            const typeMeta = {
+                                leave: { label: 'Leave', dot: 'bg-blue-400' },
+                                on_duty: { label: 'On-Duty', dot: 'bg-purple-400' },
+                                time_off: { label: 'Time-Off', dot: 'bg-amber-400' }
+                            }[ev.type] || { label: ev.type, dot: 'bg-gray-400' };
+                            return (
+                                <div key={idx}>
+                                    <div className="flex items-start gap-1.5 font-semibold">
+                                        <span className={`w-2 h-2 mt-1 shrink-0 rounded-full ${typeMeta.dot}`}></span>
+                                        <span className="whitespace-nowrap">{typeMeta.label}</span>
+                                        {ev.type === 'leave' && (ev.is_half_day === true || ev.is_half_day === 1) && (
+                                            <span className="shrink-0 px-1 py-0.5 rounded bg-orange-400/20 text-orange-300 text-[10px] font-bold uppercase tracking-wide leading-none">Half Day</span>
+                                        )}
+                                        {ev.title && <span className="text-gray-300 font-normal break-words">· {ev.title}</span>}
+                                    </div>
+                                    <div className="text-gray-300 mt-0.5 pl-3.5 leading-snug break-words">
+                                        {ev.reason ? ev.reason : <span className="italic text-gray-500">No reason provided</span>}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Edit Leave Types Modal */}
             {showLeaveModal && (
@@ -1896,7 +2725,7 @@ const Users = () => {
 
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                        First Name
+                                        First Name {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
                                         {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
                                     </label>
                                     <input
@@ -1913,7 +2742,7 @@ const Users = () => {
 
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                        Last Name
+                                        Last Name {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
                                         {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
                                     </label>
                                     <input
@@ -1930,7 +2759,7 @@ const Users = () => {
 
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                        Email
+                                        Email {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
                                         {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
                                     </label>
                                     <input
@@ -1946,7 +2775,22 @@ const Users = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">Role</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
+                                        Secondary / Personal Email
+                                        <span className="text-xs text-gray-400 font-normal ml-1">(Optional, for notifications)</span>
+                                    </label>
+                                    <input
+                                        type="email"
+                                        name="secondary_email"
+                                        value={formData.secondary_email || ''}
+                                        onChange={handleFormChange}
+                                        placeholder="personal@example.com"
+                                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">Role <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                     <select
                                         name="role"
                                         value={formData.role}
@@ -1972,7 +2816,7 @@ const Users = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-base font-medium text-gray-700 mb-1">Gender</label>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">Gender <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                     <select
                                         name="gender"
                                         value={formData.gender}
@@ -1986,16 +2830,16 @@ const Users = () => {
                                     </select>
                                 </div>
 
-                                {/* Reporting Manager Selection - Show for all roles */}
-                                {formData.role && (
-                                    <div>
-                                        <label className="block text-base font-medium text-gray-700 mb-1">
-                                            {getApproverLabel()}
-                                        </label>
-                                        <select
-                                            name="approving_manager_id"
-                                            value={formData.approving_manager_id}
-                                            onChange={handleFormChange}
+                                {/* Reporting Manager Selection - Always shown, mandatory */}
+                                <div>
+                                    <label className="block text-base font-medium text-gray-700 mb-1">
+                                        {getApproverLabel()} <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        name="approving_manager_id"
+                                        value={formData.approving_manager_id}
+                                        onChange={handleFormChange}
+                                        required
                                             className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
                                         >
                                             <option value="">Select Reporting Manager</option>
@@ -2050,17 +2894,16 @@ const Users = () => {
                                                     ));
                                             })()}
                                         </select>
-                                        {formError && formError.includes('Manager role requires') && (
+                                        {formError && formError.includes('Reporting Manager') && (
                                             <p className="text-xs text-red-600 mt-1">⚠️ This field is required</p>
                                         )}
                                     </div>
-                                )}
 
                                 {/* Only show password fields for new users */}
                                 {!editingUserId && (
                                     <>
                                         <div>
-                                            <label className="block text-base font-medium text-gray-700 mb-1">Password (required)</label>
+                                            <label className="block text-base font-medium text-gray-700 mb-1">Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                             <input
                                                 type="password"
                                                 name="password"
@@ -2073,7 +2916,7 @@ const Users = () => {
                                         </div>
 
                                         <div>
-                                            <label className="block text-base font-medium text-gray-700 mb-1">Confirm Password</label>
+                                            <label className="block text-base font-medium text-gray-700 mb-1">Confirm Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                             <input
                                                 type="password"
                                                 name="confirmPassword"
@@ -2169,7 +3012,16 @@ const Users = () => {
                             )}
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="block text-sm font-medium text-gray-700">New Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
+                                    <button
+                                        type="button"
+                                        onClick={generateAndSetPassword}
+                                        className="text-xs font-bold text-amber-600 hover:text-amber-700 transition flex items-center gap-1 bg-amber-50 hover:bg-amber-100/80 px-2 py-1 rounded-md"
+                                    >
+                                        ✨ Auto-Generate
+                                    </button>
+                                </div>
                                 <input
                                     type="password"
                                     value={resetPasswordData.newPassword}
@@ -2177,11 +3029,26 @@ const Users = () => {
                                     placeholder="Enter new password"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-600"
                                 />
+                                {resetPasswordData.newPassword && (
+                                    <div className="mt-2 p-2.5 bg-amber-50/50 border border-amber-200/60 rounded-lg flex items-center justify-between animate-fade-in">
+                                        <span className="text-xs font-semibold text-amber-800">Generated: <code className="text-xs font-mono font-black select-all bg-white px-1.5 py-0.5 border border-amber-200 rounded">{resetPasswordData.newPassword}</code></span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(resetPasswordData.newPassword);
+                                                toast.success('Password copied to clipboard!');
+                                            }}
+                                            className="text-[10px] font-bold text-amber-600 bg-white border border-amber-200 hover:bg-amber-50 px-2 py-1 rounded transition-colors"
+                                        >
+                                            Copy
+                                        </button>
+                                    </div>
+                                )}
                                 <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span></label>
                                 <input
                                     type="password"
                                     value={resetPasswordData.confirmPassword}
@@ -2371,8 +3238,16 @@ const Users = () => {
                     </div>
                 </div>
             )}
+            <style>{`
+                @keyframes dropdown-in {
+                    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+                    to   { opacity: 1; transform: translateY(0)   scale(1); }
+                }
+                .animate-dropdown {
+                    animation: dropdown-in 0.15s ease-out forwards;
+                }
+            `}</style>
         </div>
-
     );
 }
 

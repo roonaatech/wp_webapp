@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar } from 'react-icons/fi';
+import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { fetchRoles, getRoleById, canManageSystemSettings } from '../utils/roleUtils';
@@ -20,7 +20,11 @@ export default function Settings() {
     const [settings, setSettings] = useState({
         max_time_off_hours: '',
         application_timezone: 'America/Chicago',
-        leave_past_days_allowed: '0'
+        leave_past_days_allowed: '0',
+        enable_pending_request_reminders: 'true',
+        pending_request_reminder_days: '3',
+        pending_request_reminder_schedule: '0 8 * * *',
+        google_maps_api_key: ''
     });
 
     // Define settings configuration for easy expansion
@@ -61,6 +65,13 @@ export default function Settings() {
                         { value: '24h', label: '24-Hour (e.g. 14:30)' }
                     ],
                     placeholder: 'Select time format'
+                },
+                {
+                    key: 'google_maps_api_key',
+                    label: 'Google Maps API Key',
+                    description: 'API key used to display Google Maps on-duty routes and location details',
+                    type: 'text',
+                    placeholder: 'Enter Google Maps API Key'
                 }
             ]
         },
@@ -97,6 +108,41 @@ export default function Settings() {
                     step: 1,
                     unit: 'days',
                     placeholder: '0'
+                }
+            ]
+        },
+        {
+            category: 'Notifications Configuration',
+            description: 'Manage automated email reminders and alerts',
+            icon: <FiBell className="text-yellow-600" />,
+            settings: [
+                {
+                    key: 'enable_pending_request_reminders',
+                    label: 'Enable Pending Request Reminders',
+                    description: 'Send daily automated email reminders to managers for pending requests',
+                    type: 'select',
+                    options: [
+                        { value: 'true', label: 'Enabled' },
+                        { value: 'false', label: 'Disabled' }
+                    ]
+                },
+                {
+                    key: 'pending_request_reminder_days',
+                    label: 'Reminder Delay (Days)',
+                    description: 'Number of days a request must be pending before a reminder is sent',
+                    type: 'number',
+                    min: 1,
+                    max: 30,
+                    step: 1,
+                    unit: 'days',
+                    placeholder: '3'
+                },
+                {
+                    key: 'pending_request_reminder_schedule',
+                    label: 'Reminder Cron Schedule',
+                    description: 'Cron expression for when the reminder job should run (e.g. 0 8 * * * for 8:00 AM daily)',
+                    type: 'text',
+                    placeholder: '0 8 * * *'
                 }
             ]
         }
@@ -172,7 +218,7 @@ export default function Settings() {
             });
 
             // Update local storage if critical settings were changed
-            if (['application_timezone', 'application_date_format', 'application_time_format'].includes(key)) {
+            if (['application_timezone', 'application_date_format', 'application_time_format', 'google_maps_api_key'].includes(key)) {
                 const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
                 existingSettings[key] = value;
                 localStorage.setItem('settings', JSON.stringify(existingSettings));

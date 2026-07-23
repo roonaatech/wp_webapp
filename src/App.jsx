@@ -13,6 +13,7 @@ import SessionExpired from './pages/SessionExpired';
 import Unauthorized from './pages/Unauthorized';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
+import ServiceAccounts from './pages/ServiceAccounts';
 import Approvals from './pages/Approvals';
 import Reports from './pages/Reports';
 import Activities from './pages/Activities';
@@ -26,7 +27,14 @@ import Settings from './pages/Settings';
 import MyRequests from './pages/MyRequests';
 import Arch from './pages/Arch';
 import ShowQRCode from './pages/ShowQRCode';
-import { fetchRoles } from './utils/roleUtils';
+import { fetchRoles, canAccessWebApp } from './utils/roleUtils';
+import OnboardEmployee from './pages/OnboardEmployee';
+import ViewEmployeeProfile from './pages/ViewEmployeeProfile';
+import FirstTimeLoginFlow from './pages/FirstTimeLoginFlow';
+import CandidateOnboardingFlow from './pages/CandidateOnboardingFlow';
+import Attendance from './pages/Attendance';
+import AttendanceReport from './pages/AttendanceReport';
+
 
 
 const GlobalInit = ({ children }) => {
@@ -145,6 +153,22 @@ const PublicOrProtectedLayout = ({ children }) => {
   return children;
 };
 
+const SelfServiceLayout = ({ children }) => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (canAccessWebApp(user.role) && !isMobile) {
+    return <ProtectedLayout>{children}</ProtectedLayout>;
+  }
+  
+  return (
+    <ProtectedRoute skipWebAppCheck>
+      <InactivityGuard />
+      {children}
+    </ProtectedRoute>
+  );
+};
+
 function App() {
   return (
     <Router>
@@ -189,25 +213,34 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/session-expired" element={<SessionExpired />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
+            <Route path="/candidate-onboarding" element={<CandidateOnboardingFlow />} />
 
             {/* Protected Routes */}
             <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
             <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
+            <Route path="/service-accounts" element={<ProtectedLayout><ServiceAccounts /></ProtectedLayout>} />
+            <Route path="/attendance" element={<ProtectedLayout><Attendance /></ProtectedLayout>} />
             <Route path="/approvals" element={<ProtectedLayout><Approvals /></ProtectedLayout>} />
             <Route path="/calendar" element={<ProtectedLayout><Calendar /></ProtectedLayout>} />
             <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
+            <Route path="/attendance-report" element={<ProtectedLayout><AttendanceReport /></ProtectedLayout>} />
             <Route path="/activities" element={<ProtectedLayout><Activities /></ProtectedLayout>} />
             <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
             <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
             <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
             <Route path="/email-settings" element={<ProtectedLayout><EmailSettings /></ProtectedLayout>} />
             <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
+            <Route path="/onboard" element={<ProtectedLayout><OnboardEmployee /></ProtectedLayout>} />
+            <Route path="/onboard/:id" element={<ProtectedLayout><OnboardEmployee /></ProtectedLayout>} />
+            <Route path="/staff-profile/:id" element={<ProtectedLayout><ViewEmployeeProfile /></ProtectedLayout>} />
             <Route path="/arch" element={<ProtectedLayout><Arch /></ProtectedLayout>} />
             <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
 
+
             {/* Self-Service Routes (all authenticated users, no sidebar/header) */}
-            <Route path="/my-requests" element={<ProtectedRoute skipWebAppCheck><MyRequests /></ProtectedRoute>} />
+            <Route path="/my-requests" element={<SelfServiceLayout><MyRequests /></SelfServiceLayout>} />
             <Route path="/show-qrcode" element={<ProtectedRoute><ShowQRCode /></ProtectedRoute>} />
+            <Route path="/verify-profile" element={<ProtectedRoute skipProfileCheck skipWebAppCheck><FirstTimeLoginFlow /></ProtectedRoute>} />
 
 
             {/* Catch all */}

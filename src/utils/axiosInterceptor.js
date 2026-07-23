@@ -47,15 +47,22 @@ export const setupAxiosInterceptors = (navigate) => {
             const status = error.response?.status;
             const message = error.response?.data?.message?.toLowerCase() || '';
 
-            // DON'T redirect if this is a login or password change request
             const isLoginRequest = error.config?.url?.includes('auth/signin');
             const isPasswordChangeRequest = error.config?.url?.includes('auth/change-password');
-            if (isLoginRequest || isPasswordChangeRequest) {
+            const isYearlyHistoryRequest = error.config?.url?.includes('yearly-history');
+            const isAttendanceVerifyRequest = error.config?.url?.includes('attendance/check-in-out-with-face');
+            
+            if (isLoginRequest || isPasswordChangeRequest || isAttendanceVerifyRequest) {
                 return Promise.reject(error);
             }
 
             // Handle 403 Forbidden (permission denied)
             if (status === 403) {
+                // Do not redirect for inline row expansion requests like yearly-history
+                if (isYearlyHistoryRequest) {
+                    return Promise.reject(error);
+                }
+
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;
@@ -130,9 +137,10 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
             const message = error.response?.data?.message?.toLowerCase() || '';
             const requestUrl = error.config?.url || '';
 
-            // DON'T redirect if this is a login or password change request
             const isLoginRequest = requestUrl.includes('auth/signin');
             const isPasswordChangeRequest = requestUrl.includes('auth/change-password');
+            const isYearlyHistoryRequest = requestUrl.includes('yearly-history');
+            const isAttendanceVerifyRequest = requestUrl.includes('attendance/check-in-out-with-face');
 
             // Debug logging
             if (status === 401) {
@@ -140,17 +148,28 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
                     url: requestUrl,
                     isPasswordChangeRequest,
                     isLoginRequest,
+                    isAttendanceVerifyRequest,
                     message: error.response?.data?.message
                 });
             }
 
-            if (isLoginRequest || isPasswordChangeRequest) {
+            if (isLoginRequest || isPasswordChangeRequest || isAttendanceVerifyRequest) {
                 console.log('✅ Skipping redirect for:', requestUrl);
                 return Promise.reject(error);
             }
 
             // Handle 403 Forbidden (permission denied)
             if (status === 403) {
+                console.error('🔍 Axios Interceptor - 403 Error:', {
+                    url: requestUrl,
+                    message: message
+                });
+                
+                // Do not redirect for inline row expansion requests like yearly-history
+                if (isYearlyHistoryRequest) {
+                    return Promise.reject(error);
+                }
+
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;

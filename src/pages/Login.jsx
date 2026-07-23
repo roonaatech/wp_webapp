@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 import { LuSmartphone } from "react-icons/lu";
-import { fetchRoles, canAccessWebApp, isSelfServiceOnly, getRoleDisplayName } from '../utils/roleUtils';
+import { fetchRoles, canAccessWebApp, isSelfServiceOnly, getRoleDisplayName, canAccessAttendancePortal } from '../utils/roleUtils';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -28,12 +28,14 @@ const Login = () => {
             lastname: data.lastname,
             email: data.email,
             role: data.role,
-            gender: data.gender // Include gender for validation
+            gender: data.gender, // Include gender for validation
+            isServiceAccount: data.isServiceAccount === true // Service accounts have no human profile
         };
 
         // --- Role & Gender Validation (First Time / Setup Required) ---
-        // If role is missing (0/null) OR gender is missing (null/empty string)
-        if (!user.role || !user.gender) {
+        // If role is missing (0/null) OR gender is missing (null/empty string).
+        // Service accounts are exempt: they are non-human credentials with no gender/profile.
+        if (!user.role || (!user.gender && !user.isServiceAccount)) {
             setShowWelcomeModal(true);
             setLoading(false);
             // DO NOT SAVE TOKEN - prevent login
@@ -44,6 +46,8 @@ const Login = () => {
         // Fetch roles from API and cache them for permission checks
         // Store token temporarily to make the API call
         localStorage.setItem('token', data.accessToken);
+        localStorage.setItem('mustChangePassword', data.mustChangePassword ? 'true' : 'false');
+        localStorage.setItem('mustCompleteDeclaration', data.mustCompleteDeclaration ? 'true' : 'false');
 
         try {
             const roles = await fetchRoles(true); // Force refresh roles cache
@@ -51,6 +55,21 @@ const Login = () => {
             // Also refresh application settings (timezone, etc)
             if (window.refreshAppSettings) {
                 await window.refreshAppSettings();
+            }
+
+            // Service accounts handling
+            if (user.isServiceAccount) {
+                localStorage.setItem('user', JSON.stringify(user));
+                toast.success(`Welcome, ${user.firstname}!`, {
+                    style: { background: '#059669', color: '#fff' },
+                    icon: '👋'
+                });
+                if (canAccessAttendancePortal(user.role)) {
+                    navigate('/attendance');
+                } else {
+                    navigate('/unauthorized');
+                }
+                return;
             }
 
             // Force all mobile users to my-requests
@@ -189,15 +208,15 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-8 lg:p-16">
+        <div className="min-h-screen bg-white flex items-center justify-center px-4 py-8 sm:px-8 lg:p-16">
             <div className="max-w-md w-full flex flex-col items-center text-center">
                 {/* Logo */}
-                <div className="mb-20">
-                    <BrandLogo iconSize="w-24 h-24" />
+                <div className="mb-8 sm:mb-14">
+                    <BrandLogo iconSize="w-16 h-16 sm:w-24 sm:h-24" />
                 </div>
 
-                <div className="mb-10 text-center">
-                    <h1 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+                <div className="mb-8 sm:mb-10 text-center">
+                    <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">
                         Sign in to WorkPulse
                     </h1>
                     <p className="text-gray-500 text-sm">Welcome back! Please enter your details.</p>
@@ -213,11 +232,11 @@ const Login = () => {
                         </div>
                     )}
 
-                    <div className="border border-gray-200 rounded-2xl p-8 space-y-6 shadow-sm">
-                        <div className="space-y-5">
+                    <div className="border border-gray-200 rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm">
+                        <div className="space-y-4 sm:space-y-5">
                             {/* Email Field */}
-                            <div className="flex items-center gap-4 text-left">
-                                <label htmlFor="email" className="text-sm font-semibold text-gray-700 w-16 flex-shrink-0">Email</label>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-left">
+                                <label htmlFor="email" className="text-sm font-semibold text-gray-700 sm:w-16 flex-shrink-0">Email</label>
                                 <input
                                     id="email"
                                     type="email"
@@ -225,13 +244,13 @@ const Login = () => {
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Enter your email"
                                     required
-                                    className="flex-1 px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400"
+                                    className="flex-1 w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400 text-sm"
                                 />
                             </div>
 
                             {/* Password Field */}
-                            <div className="flex items-center gap-4 text-left">
-                                <label htmlFor="password" className="text-sm font-semibold text-gray-700 w-16 flex-shrink-0">Password</label>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-left">
+                                <label htmlFor="password" className="text-sm font-semibold text-gray-700 sm:w-16 flex-shrink-0">Password</label>
                                 <input
                                     id="password"
                                     type="password"
@@ -239,7 +258,7 @@ const Login = () => {
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Password"
                                     required
-                                    className="flex-1 px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400"
+                                    className="flex-1 w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400 text-sm"
                                 />
                             </div>
                         </div>
@@ -263,14 +282,6 @@ const Login = () => {
                     </div>
                 </form>
 
-                {/* ABiS Credentials Instruction */}
-                <div className="mt-10 max-w-md w-full bg-gray-50 border border-gray-100 rounded-2xl p-6">
-                    <div className="text-center">
-                        <p className="text-xs font-black text-[#1e1b4b] mb-1 uppercase tracking-tighter opacity-70">Login Credentials</p>
-                        <p className="text-[11px] text-gray-500">Use your <span className="font-bold text-[#1e1b4b]">ABiS Application</span> account credentials to access WorkPulse</p>
-                    </div>
-                </div>
-
                 {/* Mobile App Download Link */}
                 <div className="mt-8 text-center w-full">
                     <Link
@@ -283,7 +294,7 @@ const Login = () => {
                 </div>
 
                 {/* Copyright Info */}
-                <div className="mt-16 opacity-40 hover:opacity-100 transition-opacity">
+                <div className="mt-8 sm:mt-16 opacity-40 hover:opacity-100 transition-opacity">
                     <p className="text-gray-500 text-[10px] font-medium text-center">
                         &copy; {new Date().getFullYear()} Roonaa Technologies India Private Limited
                     </p>
