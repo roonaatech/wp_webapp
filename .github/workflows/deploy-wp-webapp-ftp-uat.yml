@@ -1,9 +1,9 @@
-name: Deploy WebApp to Hostinger FTP (Production)
+name: Deploy WebApp to Hostinger FTP (UAT)
 
 on:
   push:
     branches:
-      - main
+      - develop
   workflow_dispatch:
 
 jobs:
@@ -27,9 +27,9 @@ jobs:
       - name: Sync files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ vars.FTP_HOST || secrets.FTP_HOST }}
-          username: ${{ vars.FTP_USER || secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASS }}
+          server: ${{ secrets.FTP_HOST || vars.FTP_HOST }}
+          username: ${{ secrets.FTP_USER_UAT || vars.FTP_USER_UAT }}
+          password: ${{ secrets.FTP_PASS_UAT }}
           port: 21
           local-dir: ./dist/
           server-dir: ./
