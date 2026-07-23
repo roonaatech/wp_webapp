@@ -22,7 +22,7 @@ jobs:
         run: npm install
 
       - name: Build webapp
-        run: npm run build:prod
+        run: npm run build:uat
 
       - name: Sync files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
