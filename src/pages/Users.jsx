@@ -1988,21 +1988,7 @@ const Users = () => {
                                                                         <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                                         </svg>
-                                                                        Leave History
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => setActiveTab('attendance')}
-                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
-                                                                            activeTab === 'attendance'
-                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
-                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
-                                                                        }`}
-                                                                    >
-                                                                        {activeTab === 'attendance' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
-                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'attendance' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                        </svg>
-                                                                        Attendance History
+                                                                        Leave & Attendance
                                                                     </button>
                                                                 </nav>
                                                             </div>
@@ -2098,139 +2084,32 @@ const Users = () => {
                                                                 <div className="animate-fadeIn">
                                                                     <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
                                                                         <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
-                                                                        {new Date().getFullYear()} Leave &amp; On-Duty History
+                                                                        {new Date().getFullYear()} Leave &amp; Attendance History
                                                                     </h4>
 
-                                                                    {loadingHistory[u.staffid] ? (
+                                                                    {(loadingHistory[u.staffid] || loadingAttendance[u.staffid]) ? (
                                                                         <div className="flex items-center justify-center p-8">
                                                                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
                                                                         </div>
-                                                                    ) : yearlyHistory[u.staffid]?.error ? (
+                                                                    ) : (yearlyHistory[u.staffid]?.error || attendanceHistory[u.staffid]?.error) ? (
                                                                         <div className="p-4 bg-red-50 text-red-600 rounded-lg">
-                                                                            {yearlyHistory[u.staffid].error}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div>
-                                                                            <div className="flex flex-wrap items-center gap-4 mb-6 text-xs font-medium text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">
-                                                                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 shadow-sm"></span> Leave</div>
-                                                                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500 shadow-sm"></span> On-Duty</div>
-                                                                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500 shadow-sm"></span> Time-Off</div>
-                                                                            </div>
-                                                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                                                                                {Array.from({ length: 12 }).map((_, monthIndex) => {
-                                                                                    const year = new Date().getFullYear();
-                                                                                    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-                                                                                    const firstDayOfWeek = new Date(year, monthIndex, 1).getDay();
-                                                                                    const monthName = new Date(year, monthIndex, 1).toLocaleString('default', { month: 'short' });
-
-                                                                                    return (
-                                                                                        <div key={monthIndex} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow">
-                                                                                            <div className="text-xs font-extrabold text-gray-800 mb-2 text-center uppercase tracking-wide">{monthName}</div>
-                                                                                            <div className="grid grid-cols-7 gap-1 text-[9px] font-semibold text-center text-gray-400 mb-1.5">
-                                                                                                <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
-                                                                                            </div>
-                                                                                            <div className="grid grid-cols-7 gap-1">
-                                                                                                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                                                                                                    <div key={`empty-${i}`} className="aspect-square"></div>
-                                                                                                ))}
-                                                                                                {Array.from({ length: daysInMonth }).map((_, i) => {
-                                                                                                    const day = i + 1;
-                                                                                                    const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-                                                                                                    const dayEvents = (yearlyHistory[u.staffid] || []).filter(e => e.date === dateStr);
-                                                                                                    let bgClass = "bg-gray-50 border border-gray-100 hover:border-gray-300 text-gray-400";
-                                                                                                    let bgStyle = undefined;
-
-                                                                                                    if (dayEvents.length > 0) {
-                                                                                                        const TYPE_ORDER = ['leave', 'on_duty', 'time_off'];
-                                                                                                        const TYPE_COLORS = { leave: '#3b82f6', on_duty: '#a855f7', time_off: '#f59e0b' };
-                                                                                                        const types = dayEvents.map(e => e.type);
-                                                                                                        // Keep a stable, deduplicated order of the event types present that day
-                                                                                                        const presentTypes = TYPE_ORDER.filter(t => types.includes(t));
-
-                                                                                                        bgClass = "border border-black/10 shadow-sm text-white";
-                                                                                                        if (presentTypes.length === 1) {
-                                                                                                            bgStyle = { backgroundColor: TYPE_COLORS[presentTypes[0]] };
-                                                                                                        } else {
-                                                                                                            // Multiple event types: split the cell into equal diagonal stripes,
-                                                                                                            // one solid color per type, so it's clear there's more than one event
-                                                                                                            const n = presentTypes.length;
-                                                                                                            const stops = presentTypes.map((t, idx) => {
-                                                                                                                const start = ((idx / n) * 100).toFixed(2);
-                                                                                                                const end = (((idx + 1) / n) * 100).toFixed(2);
-                                                                                                                return `${TYPE_COLORS[t]} ${start}%, ${TYPE_COLORS[t]} ${end}%`;
-                                                                                                            }).join(', ');
-                                                                                                            bgStyle = { backgroundImage: `linear-gradient(135deg, ${stops})` };
-                                                                                                        }
-                                                                                                    }
-
-                                                                                                    const handleMouseEnter = (e) => {
-                                                                                                        if (dayEvents.length > 0) {
-                                                                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                                                                            setTooltipCoords(prev => ({ ...prev, ready: false }));
-                                                                                                            setHistoryTooltip({
-                                                                                                                show: true,
-                                                                                                                events: dayEvents,
-                                                                                                                anchor: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
-                                                                                                                date: dateStr
-                                                                                                            });
-                                                                                                        }
-                                                                                                    };
-
-                                                                                                    const handleMouseLeave = () => {
-                                                                                                        setHistoryTooltip(prev => ({ ...prev, show: false }));
-                                                                                                    };
-
-                                                                                                    return (
-                                                                                                        <div
-                                                                                                            key={day}
-                                                                                                            onMouseEnter={handleMouseEnter}
-                                                                                                            onMouseLeave={handleMouseLeave}
-                                                                                                            style={bgStyle ? { ...bgStyle, textShadow: '0 1px 1px rgba(0,0,0,0.35)' } : undefined}
-                                                                                                            className={`aspect-square rounded flex items-center justify-center text-[10px] transition-all ${dayEvents.length > 0 ? 'cursor-pointer font-bold transform hover:scale-110 z-10' : 'cursor-default'} ${bgClass}`}
-                                                                                                        >
-                                                                                                            {day}
-                                                                                                        </div>
-                                                                                                    );
-                                                                                                })}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-
-                                                            {activeTab === 'attendance' && (
-                                                                <div className="animate-fadeIn">
-                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
-                                                                        <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
-                                                                        {new Date().getFullYear()} Attendance History
-                                                                    </h4>
-
-                                                                    {loadingAttendance[u.staffid] ? (
-                                                                        <div className="flex items-center justify-center p-8">
-                                                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                                                                        </div>
-                                                                    ) : attendanceHistory[u.staffid]?.error ? (
-                                                                        <div className="p-4 bg-red-50 text-red-600 rounded-lg">
-                                                                            {attendanceHistory[u.staffid].error}
+                                                                            {yearlyHistory[u.staffid]?.error || attendanceHistory[u.staffid]?.error}
                                                                         </div>
                                                                     ) : (() => {
-                                                                        const data = attendanceHistory[u.staffid] || {};
+                                                                        const attData = attendanceHistory[u.staffid] || {};
                                                                         const presentMap = {};
-                                                                        (data.present || []).forEach(p => { presentMap[p.date] = p; });
-                                                                        const excusedSet = new Set(data.excused || []);
-                                                                        const todayStr = data.today || new Date().toISOString().split('T')[0];
+                                                                        (attData.present || []).forEach(p => { presentMap[p.date] = p; });
+                                                                        const excusedSet = new Set(attData.excused || []);
+                                                                        const todayStr = attData.today || new Date().toISOString().split('T')[0];
                                                                         const fmtTime = (t) => t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
                                                                         return (
                                                                             <div>
                                                                                 <div className="flex flex-wrap items-center gap-4 mb-6 text-xs font-medium text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">
                                                                                     <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 shadow-sm"></span> Present</div>
                                                                                     <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500 shadow-sm"></span> Absent</div>
-                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 shadow-sm"></span> Leave / On-Duty / Time-Off</div>
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 shadow-sm"></span> Leave</div>
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500 shadow-sm"></span> On-Duty</div>
+                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500 shadow-sm"></span> Time-Off</div>
                                                                                     <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-200 border border-slate-300"></span> Week-off</div>
                                                                                 </div>
                                                                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
@@ -2257,33 +2136,76 @@ const Users = () => {
                                                                                                         const isFuture = dateStr > todayStr;
                                                                                                         const p = presentMap[dateStr];
 
-                                                                                                        let cellClass;
-                                                                                                        let title;
-                                                                                                        // Colored (solid) cells get a subtle text shadow for legibility
-                                                                                                        const isColored = !!p || (!isSunday && !isFuture);
+                                                                                                        const dayEvents = (yearlyHistory[u.staffid] || []).filter(e => e.date === dateStr);
+                                                                                                        const hoverEvents = [...dayEvents];
                                                                                                         if (p) {
-                                                                                                            cellClass = "bg-emerald-500 border border-black/10 text-white shadow-sm font-bold";
-                                                                                                            title = `Present — In ${fmtTime(p.check_in_time)}${p.check_out_time ? `, Out ${fmtTime(p.check_out_time)}` : ''}`;
-                                                                                                        } else if (isSunday) {
-                                                                                                            cellClass = "bg-slate-100 border border-slate-200 text-slate-400";
-                                                                                                            title = 'Week-off (Sunday)';
-                                                                                                        } else if (isFuture) {
-                                                                                                            cellClass = "bg-gray-50 border border-gray-100 text-gray-300";
-                                                                                                            title = '';
-                                                                                                        } else if (excusedSet.has(dateStr)) {
-                                                                                                            cellClass = "bg-blue-500 border border-black/10 text-white shadow-sm font-bold";
-                                                                                                            title = 'Leave / On-Duty / Time-Off';
-                                                                                                        } else {
-                                                                                                            cellClass = "bg-red-500 border border-black/10 text-white shadow-sm font-bold";
-                                                                                                            title = 'Absent';
+                                                                                                            hoverEvents.push({
+                                                                                                                type: 'present',
+                                                                                                                reason: `In ${fmtTime(p.check_in_time)}${p.check_out_time ? `, Out ${fmtTime(p.check_out_time)}` : ''}`
+                                                                                                            });
                                                                                                         }
+
+                                                                                                        let bgClass = "bg-gray-50 border border-gray-100 hover:border-gray-300 text-gray-400";
+                                                                                                        let bgStyle = undefined;
+
+                                                                                                        if (dayEvents.length > 0) {
+                                                                                                            // Leave/On-Duty/Time-off takes priority over plain attendance status
+                                                                                                            const TYPE_ORDER = ['leave', 'on_duty', 'time_off'];
+                                                                                                            const TYPE_COLORS = { leave: '#3b82f6', on_duty: '#a855f7', time_off: '#f59e0b' };
+                                                                                                            const types = dayEvents.map(e => e.type);
+                                                                                                            // Keep a stable, deduplicated order of the event types present that day
+                                                                                                            const presentTypes = TYPE_ORDER.filter(t => types.includes(t));
+
+                                                                                                            bgClass = "border border-black/10 shadow-sm text-white";
+                                                                                                            if (presentTypes.length === 1) {
+                                                                                                                bgStyle = { backgroundColor: TYPE_COLORS[presentTypes[0]] };
+                                                                                                            } else {
+                                                                                                                // Multiple event types: split the cell into equal diagonal stripes,
+                                                                                                                // one solid color per type, so it's clear there's more than one event
+                                                                                                                const n = presentTypes.length;
+                                                                                                                const stops = presentTypes.map((t, idx) => {
+                                                                                                                    const start = ((idx / n) * 100).toFixed(2);
+                                                                                                                    const end = (((idx + 1) / n) * 100).toFixed(2);
+                                                                                                                    return `${TYPE_COLORS[t]} ${start}%, ${TYPE_COLORS[t]} ${end}%`;
+                                                                                                                }).join(', ');
+                                                                                                                bgStyle = { backgroundImage: `linear-gradient(135deg, ${stops})` };
+                                                                                                            }
+                                                                                                        } else if (p) {
+                                                                                                            bgClass = "bg-emerald-500 border border-black/10 text-white shadow-sm";
+                                                                                                        } else if (isSunday) {
+                                                                                                            bgClass = "bg-slate-100 border border-slate-200 text-slate-400";
+                                                                                                        } else if (isFuture) {
+                                                                                                            bgClass = "bg-gray-50 border border-gray-100 text-gray-300";
+                                                                                                        } else if (excusedSet.has(dateStr)) {
+                                                                                                            bgClass = "bg-blue-500 border border-black/10 text-white shadow-sm";
+                                                                                                        } else {
+                                                                                                            bgClass = "bg-red-500 border border-black/10 text-white shadow-sm";
+                                                                                                        }
+
+                                                                                                        const handleMouseEnter = (e) => {
+                                                                                                            if (hoverEvents.length > 0) {
+                                                                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                                                                setTooltipCoords(prev => ({ ...prev, ready: false }));
+                                                                                                                setHistoryTooltip({
+                                                                                                                    show: true,
+                                                                                                                    events: hoverEvents,
+                                                                                                                    anchor: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
+                                                                                                                    date: dateStr
+                                                                                                                });
+                                                                                                            }
+                                                                                                        };
+
+                                                                                                        const handleMouseLeave = () => {
+                                                                                                            setHistoryTooltip(prev => ({ ...prev, show: false }));
+                                                                                                        };
 
                                                                                                         return (
                                                                                                             <div
                                                                                                                 key={day}
-                                                                                                                title={title}
-                                                                                                                className={`aspect-square rounded flex items-center justify-center text-[10px] cursor-default transition-all ${cellClass}`}
-                                                                                                                style={isColored ? { textShadow: '0 1px 1px rgba(0,0,0,0.25)' } : undefined}
+                                                                                                                onMouseEnter={handleMouseEnter}
+                                                                                                                onMouseLeave={handleMouseLeave}
+                                                                                                                style={bgStyle ? { ...bgStyle, textShadow: '0 1px 1px rgba(0,0,0,0.35)' } : undefined}
+                                                                                                                className={`aspect-square rounded flex items-center justify-center text-[10px] font-bold transition-all ${hoverEvents.length > 0 ? 'cursor-pointer transform hover:scale-110 z-10' : 'cursor-default'} ${bgClass}`}
                                                                                                             >
                                                                                                                 {day}
                                                                                                             </div>
@@ -2295,7 +2217,7 @@ const Users = () => {
                                                                                     })}
                                                                                 </div>
 
-                                                                                {data.present && data.present.length > 0 && (() => {
+                                                                                {attData.present && attData.present.length > 0 && (() => {
                                                                                     const userId = u.staffid;
                                                                                     const activeFilter = chartFilters[userId] || '30d';
                                                                                     const FILTERS = [
@@ -2310,7 +2232,7 @@ const Users = () => {
                                                                                         { key: 'year',       label: 'This Year'   },
                                                                                     ];
                                                                                     const now = new Date();
-                                                                                    const filteredLogs = data.present.filter(log => {
+                                                                                    const filteredLogs = attData.present.filter(log => {
                                                                                         if (!log.date) return false;
                                                                                         const logDate = new Date(log.date);
                                                                                         if (activeFilter === 'year') {
@@ -2369,34 +2291,34 @@ const Users = () => {
                                                                                                     <ResponsiveContainer width="100%" height="100%">
                                                                                                         <LineChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                                                                                                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                                                                                            <XAxis 
-                                                                                                                dataKey="date" 
-                                                                                                                stroke="#94a3b8" 
-                                                                                                                fontSize={9} 
+                                                                                                            <XAxis
+                                                                                                                dataKey="date"
+                                                                                                                stroke="#94a3b8"
+                                                                                                                fontSize={9}
                                                                                                                 tickLine={false}
                                                                                                             />
-                                                                                                            <YAxis 
-                                                                                                                stroke="#94a3b8" 
-                                                                                                                fontSize={9} 
+                                                                                                            <YAxis
+                                                                                                                stroke="#94a3b8"
+                                                                                                                fontSize={9}
                                                                                                                 tickLine={false}
                                                                                                                 unit="h"
                                                                                                             />
-                                                                                                            <ChartTooltip 
-                                                                                                                contentStyle={{ 
-                                                                                                                    backgroundColor: '#ffffff', 
-                                                                                                                    border: '1px solid #e2e8f0', 
+                                                                                                            <ChartTooltip
+                                                                                                                contentStyle={{
+                                                                                                                    backgroundColor: '#ffffff',
+                                                                                                                    border: '1px solid #e2e8f0',
                                                                                                                     borderRadius: '8px',
                                                                                                                     fontSize: '11px',
                                                                                                                     boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
                                                                                                                 }}
                                                                                                                 labelClassName="font-bold text-slate-700"
                                                                                                             />
-                                                                                                            <Line 
-                                                                                                                type="monotone" 
-                                                                                                                dataKey="hours" 
+                                                                                                            <Line
+                                                                                                                type="monotone"
+                                                                                                                dataKey="hours"
                                                                                                                 name="Hours Worked"
-                                                                                                                stroke="#4f46e5" 
-                                                                                                                strokeWidth={2} 
+                                                                                                                stroke="#4f46e5"
+                                                                                                                strokeWidth={2}
                                                                                                                 activeDot={{ r: 6 }}
                                                                                                                 dot={{ stroke: '#4f46e5', strokeWidth: 1.5, r: 3, fill: '#ffffff' }}
                                                                                                             />
@@ -2502,7 +2424,8 @@ const Users = () => {
                             const typeMeta = {
                                 leave: { label: 'Leave', dot: 'bg-blue-400' },
                                 on_duty: { label: 'On-Duty', dot: 'bg-purple-400' },
-                                time_off: { label: 'Time-Off', dot: 'bg-amber-400' }
+                                time_off: { label: 'Time-Off', dot: 'bg-amber-400' },
+                                present: { label: 'Present', dot: 'bg-emerald-400' }
                             }[ev.type] || { label: ev.type, dot: 'bg-gray-400' };
                             return (
                                 <div key={idx}>
