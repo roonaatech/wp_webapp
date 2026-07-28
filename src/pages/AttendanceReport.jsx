@@ -7,7 +7,7 @@ import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
 import { fetchRoles, canViewAttendanceReport, canManageAttendance } from '../utils/roleUtils';
 import { formatDateOnly, formatTimeOnly, getCurrentInAppTimezone } from '../utils/timezone.util';
-import { LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2 } from 'react-icons/lu';
+import { LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock } from 'react-icons/lu';
 
 const AttendanceReport = () => {
     const navigate = useNavigate();
@@ -246,13 +246,24 @@ const AttendanceReport = () => {
         e.preventDefault();
         if (!editingLog) return;
 
+        // Date and check-in time are captured via facial recognition and are locked;
+        // only the check-out time can be edited (e.g. to close out a forgotten checkout).
+        const nowInApp = getCurrentInAppTimezone().full;
+        const [y, mo, d] = editDate.split('-').map(Number);
+
+        if (editCheckOutTime) {
+            const [h, m] = editCheckOutTime.split(':').map(Number);
+            if (new Date(y, mo - 1, d, h, m, 0).getTime() > nowInApp.getTime()) {
+                toast.error("Check-out time cannot be in the future.");
+                return;
+            }
+        }
+
         try {
             setIsSaving(true);
             const token = localStorage.getItem('token');
 
             const payload = {
-                date: editDate,
-                check_in_time: editCheckInTime ? `${editDate} ${editCheckInTime}:00` : null,
                 check_out_time: editCheckOutTime ? `${editDate} ${editCheckOutTime}:00` : null
             };
 
@@ -302,6 +313,10 @@ const AttendanceReport = () => {
     if (!permissionChecked || (loading && logs.length === 0 && users.length === 0)) {
         return <ModernLoader message="Loading attendance reports..." fullScreen={true} />;
     }
+
+    // Current date/time in the app's configured timezone, used to block future entries in the edit modal
+    const nowInApp = getCurrentInAppTimezone();
+    const isEditDateToday = editDate === nowInApp.date;
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-4">
@@ -768,28 +783,31 @@ const AttendanceReport = () => {
                         </div>
 
                         <form onSubmit={handleSaveEdit} className="space-y-4 pt-2">
-                            {/* Date */}
+                            {/* Date (locked - tied to the facial recognition check-in) */}
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                    <LuLock size={11} /> Date
+                                </label>
                                 <input
                                     type="date"
-                                    required
+                                    disabled
                                     value={editDate}
-                                    onChange={(e) => setEditDate(e.target.value)}
-                                    className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition w-full"
+                                    className="bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-500 w-full cursor-not-allowed"
                                 />
                             </div>
 
-                            {/* Check-In */}
+                            {/* Check-In (locked - captured via facial recognition) */}
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Check-In Time</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                    <LuLock size={11} /> Check-In Time
+                                </label>
                                 <input
                                     type="time"
-                                    required
+                                    disabled
                                     value={editCheckInTime}
-                                    onChange={(e) => setEditCheckInTime(e.target.value)}
-                                    className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition w-full"
+                                    className="bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-500 w-full cursor-not-allowed"
                                 />
+                                <p className="text-[10px] text-slate-400">Verified via facial recognition and cannot be edited.</p>
                             </div>
 
                             {/* Check-Out */}
@@ -805,6 +823,7 @@ const AttendanceReport = () => {
                                 <div className="flex gap-2">
                                     <input
                                         type="time"
+                                        max={isEditDateToday ? nowInApp.time : undefined}
                                         value={editCheckOutTime}
                                         onChange={(e) => setEditCheckOutTime(e.target.value)}
                                         className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition w-full"
