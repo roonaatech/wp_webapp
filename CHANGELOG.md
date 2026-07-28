@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.12](https://github.com/roonaatech/wp_webapp/compare/v2.9.11...v2.9.12) (2026-07-28)
+
+
+### Features
+
+* add UAT deployment workflow and update production FTP configuration to support secret fallbacks ([0f222e7](https://github.com/roonaatech/wp_webapp/commit/0f222e7abf1649e896727a6fe7029c0158c42719))
+* enhance attendance editing with facial recognition locks and future date validation ([af8d443](https://github.com/roonaatech/wp_webapp/commit/af8d4436dac5ca12bc925a5628f35c122659988a))
+* update leave and attendance history UI for better clarity and user experience ([13a129b](https://github.com/roonaatech/wp_webapp/commit/13a129b7e55556fa95e267b95069a5cfb56911d8))
+
+
+### Chores
+
+* update build script to use uat configuration in deployment workflow ([281aab4](https://github.com/roonaatech/wp_webapp/commit/281aab41748621b18f6f592e56b09eebaaeb13c3))
+
 ### [2.9.11](https://github.com/roonaatech/wp_webapp/compare/v2.9.10...v2.9.11) (2026-07-18)
 
 
