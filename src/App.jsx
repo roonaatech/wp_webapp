@@ -34,6 +34,7 @@ import FirstTimeLoginFlow from './pages/FirstTimeLoginFlow';
 import CandidateOnboardingFlow from './pages/CandidateOnboardingFlow';
 import Attendance from './pages/Attendance';
 import AttendanceReport from './pages/AttendanceReport';
+import OpenHours from './pages/OpenHours';
 
 
 
@@ -234,6 +235,7 @@ function App() {
             <Route path="/onboard/:id" element={<ProtectedLayout><OnboardEmployee /></ProtectedLayout>} />
             <Route path="/staff-profile/:id" element={<ProtectedLayout><ViewEmployeeProfile /></ProtectedLayout>} />
             <Route path="/arch" element={<ProtectedLayout><Arch /></ProtectedLayout>} />
+            <Route path="/open-hours" element={<ProtectedLayout><OpenHours /></ProtectedLayout>} />
             <Route path="/apk" element={<PublicOrProtectedLayout><ApkDistribution /></PublicOrProtectedLayout>} />
 
 

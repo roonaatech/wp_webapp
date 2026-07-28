@@ -18,7 +18,8 @@ import {
     LuClipboardPen,
     LuSettings,
     LuCamera,
-    LuUserCog
+    LuUserCog,
+    LuClock
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
@@ -268,14 +269,18 @@ const Sidebar = () => {
                         ) : (
                             <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
                         )}
+                        <NavLink to="/open-hours" icon={<LuClock />} label="Open Hours" />
                     </div>
                 )}
                 {isCollapsed && !user.isServiceAccount && (
-                    isSelfService ? (
-                        <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
-                    ) : (
-                        <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
-                    )
+                    <>
+                        {isSelfService ? (
+                            <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
+                        ) : (
+                            <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                        )}
+                        <NavLink to="/open-hours" icon={<LuClock />} label="Open Hours" />
+                    </>
                 )}
 
                 {!isCollapsed && hasAnyManagementPermission && (
