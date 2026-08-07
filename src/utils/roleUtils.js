@@ -438,6 +438,15 @@ export const getHierarchyLevel = (roleId) => {
 };
 
 /**
+ * Check if user can view staff birthdays (global permission - boolean)
+ */
+export const canViewBirthdays = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_birthdays == true;
+};
+
+/**
  * Check if roleA is higher in hierarchy than roleB
  * (i.e., roleA can approve/manage roleB)
  */
@@ -557,6 +566,7 @@ export default {
     canManageAttendance,
     canManageAttendanceAll,
     getHierarchyLevel,
+    canViewBirthdays,
     isHigherRole,
     getApproverRoles,
     canBeApproverFor,
