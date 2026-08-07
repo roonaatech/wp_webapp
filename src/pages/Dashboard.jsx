@@ -14,7 +14,7 @@ import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
-import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
+import { canApproveLeave, canApproveOnDuty, canManageUsers, canViewBirthdays } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
@@ -132,6 +132,9 @@ const Dashboard = () => {
     const [onLeaveData, setOnLeaveData] = useState({ today: [], tomorrow: [], today_date: '', tomorrow_date: '' });
     const [onLeaveLoading, setOnLeaveLoading] = useState(false);
     const [onLeaveDetailModal, setOnLeaveDetailModal] = useState({ show: false, emp: null, dayLabel: '' });
+    const [birthdays, setBirthdays] = useState([]);
+    const [birthdaysLoading, setBirthdaysLoading] = useState(false);
+    const [sendingWish, setSendingWish] = useState(null); // staff_id, 'all', or null
     const scrollContainerRef = useRef(null);
 
     const scrollLeft = () => {
@@ -164,6 +167,11 @@ const Dashboard = () => {
         // Fetch on-leave status for managers/approvers
         if (canApproveLeave(user.role)) {
             fetchOnLeaveData();
+        }
+
+        // Today's birthdays require the can_view_birthdays permission
+        if (canViewBirthdays(user.role)) {
+            fetchBirthdays();
         }
     }, []);
 
@@ -198,6 +206,22 @@ const Dashboard = () => {
             console.error('Error fetching on-leave status:', error);
         } finally {
             setOnLeaveLoading(false);
+        }
+    };
+
+    const fetchBirthdays = async () => {
+        try {
+            setBirthdaysLoading(true);
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard/birthdays`, {
+                headers: { 'x-access-token': token }
+            });
+            setBirthdays(response.data.birthdays || []);
+        } catch (error) {
+            console.error('Error fetching birthdays:', error);
+        } finally {
+            setBirthdaysLoading(false);
         }
     };
 
@@ -465,6 +489,99 @@ const Dashboard = () => {
         return trends;
     };
 
+    // Profile photo when available, initial-based fallback otherwise
+    const BirthdayAvatar = ({ person, className }) => (
+        person.image_path ? (
+            <img
+                src={`${API_BASE_URL}/${person.image_path.replace(/\\/g, '/')}`}
+                alt={person.name}
+                className={`object-cover ${className}`}
+            />
+        ) : (
+            <div className={`flex items-center justify-center bg-gradient-to-br from-pink-400 to-rose-500 font-black text-white ${className}`}>
+                {person.name.charAt(0).toUpperCase()}
+            </div>
+        )
+    );
+
+    const BirthdayWishStatus = ({ person }) => {
+        if (person.wish_sent) {
+            return (
+                <span
+                    title={`Sent ${person.wish_sent_at ? formatInTimezone(person.wish_sent_at) : ''} to ${person.wish_sent_to || ''}${person.wish_source === 'cron' ? ' (scheduled)' : ''}`}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-green-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-green-700"
+                >
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+                    Email Sent
+                </span>
+            );
+        }
+
+        if (person.wish_status === 'Failed') {
+            return (
+                <span
+                    title={person.wish_error || 'Sending failed'}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-700"
+                >
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                    Failed
+                </span>
+            );
+        }
+
+        if ((person.wish_recipients || []).length === 0) {
+            return (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                    No Email
+                </span>
+            );
+        }
+
+        return (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                Pending
+            </span>
+        );
+    };
+
+    // Celebrants who still need a wish and have somewhere to send it
+    const pendingWishCount = birthdays.filter(
+        b => !b.wish_sent && (b.wish_recipients || []).length > 0
+    ).length;
+
+    // staffIds === null sends to everyone still pending today
+    const sendBirthdayWishes = async (staffIds, key) => {
+        try {
+            setSendingWish(key);
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const response = await axios.post(
+                `${API_BASE_URL}/api/admin/dashboard/birthdays/send-wishes`,
+                staffIds ? { staff_ids: staffIds } : {},
+                { headers: { 'x-access-token': token } }
+            );
+
+            const { sent = 0, failed = 0 } = response.data;
+            if (sent > 0) {
+                toast.success(`${sent} birthday wish${sent > 1 ? 'es' : ''} sent`, {
+                    style: { background: '#059669', color: '#fff' }
+                });
+            }
+            if (failed > 0) {
+                toast.error(`${failed} birthday wish${failed > 1 ? 'es' : ''} failed to send`);
+            }
+
+            await fetchBirthdays();
+        } catch (error) {
+            console.error('Error sending birthday wishes:', error);
+            toast.error(error.response?.data?.message || 'Failed to send birthday wishes');
+        } finally {
+            setSendingWish(null);
+        }
+    };
+
     const StatCard = ({ title, value, icon, color, footer, gradient }) => (
         <div className={`relative overflow-hidden bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group`}>
             {/* Background Decorative Gradient Circle */}
@@ -646,6 +763,117 @@ const Dashboard = () => {
                     )}
                     <div className={`transition-all duration-300 ${(approveModal.show || rejectModal.show) ? 'blur-sm' : ''}`}>
                         <>
+                            {/* Birthdays Today - HR and higher hierarchy only */}
+                            {!birthdaysLoading && birthdays.length > 0 && (
+                                <div className="mb-8">
+                                    <div className="overflow-hidden rounded-2xl border border-pink-100 bg-white shadow-sm">
+                                        {/* Festive header */}
+                                        <div className="relative overflow-hidden bg-gradient-to-r from-pink-50 via-rose-50 to-amber-50 px-5 py-4">
+                                            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+                                                <div className="absolute -right-12 -top-24 h-52 w-52 rounded-full bg-gradient-to-br from-amber-200/50 to-pink-200/50 blur-3xl"></div>
+                                                <span className="absolute left-[22%] top-[24%] h-1.5 w-1.5 rounded-full bg-rose-300/70"></span>
+                                                <span className="absolute left-[40%] top-[68%] h-2 w-1 -rotate-45 rounded-full bg-amber-300/70"></span>
+                                                <span className="absolute left-[57%] top-[20%] h-1.5 w-1.5 rounded-full bg-pink-300/60"></span>
+                                                <span className="absolute left-[70%] top-[70%] h-2 w-1 rotate-45 rounded-full bg-rose-300/60"></span>
+                                            </div>
+
+                                            <div className="relative z-10 flex items-center justify-between gap-4">
+                                                <div className="min-w-0">
+                                                    <h2 className="flex items-center gap-2 text-base font-black tracking-tight text-gray-900">
+                                                        <span className="text-lg">🎂</span>
+                                                        {birthdays.length} birthday{birthdays.length > 1 ? 's' : ''} today
+                                                    </h2>
+                                                    <p className="mt-0.5 text-xs font-medium text-gray-500">
+                                                        {pendingWishCount > 0
+                                                            ? `${pendingWishCount} wish${pendingWishCount > 1 ? 'es' : ''} still to send.`
+                                                            : 'All wishes have been sent.'}
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => sendBirthdayWishes(null, 'all')}
+                                                    disabled={pendingWishCount === 0 || sendingWish !== null}
+                                                    className="group flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1e1b4b] px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-pink-950/10 transition-all hover:-translate-y-0.5 hover:bg-pink-600 hover:shadow-pink-500/20 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0"
+                                                >
+                                                    {sendingWish === 'all' ? 'Sending…' : '🎉 Send All Wishes'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Celebrants table */}
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full min-w-[680px] text-left">
+                                                <thead>
+                                                    <tr className="border-y border-gray-100 bg-gray-50/70">
+                                                        <th className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500">Employee</th>
+                                                        <th className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500">Role</th>
+                                                        <th className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500">Birthday</th>
+                                                        <th className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500">Status</th>
+                                                        <th className="px-5 py-2.5 text-right text-[10px] font-black uppercase tracking-widest text-gray-500">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {birthdays.map((person) => {
+                                                        const hasEmail = (person.wish_recipients || []).length > 0;
+                                                        const isSending = sendingWish === person.staff_id || sendingWish === 'all';
+
+                                                        return (
+                                                            <tr
+                                                                key={person.staff_id}
+                                                                className="border-b border-gray-50 transition-colors last:border-0 hover:bg-pink-50/30"
+                                                            >
+                                                                <td className="px-5 py-3">
+                                                                    <Link to={`/staff-profile/${person.staff_id}`} className="group flex items-center gap-3">
+                                                                        <BirthdayAvatar
+                                                                            person={person}
+                                                                            className="h-9 w-9 flex-shrink-0 rounded-full text-xs shadow-sm ring-2 ring-white"
+                                                                        />
+                                                                        <div className="min-w-0">
+                                                                            <p className="truncate text-xs font-black text-gray-900 transition-colors group-hover:text-pink-600">
+                                                                                {person.name}
+                                                                            </p>
+                                                                            <p className="truncate text-[10px] font-medium text-gray-500">
+                                                                                {(person.wish_recipients || []).join(', ') || 'No email on record'}
+                                                                            </p>
+                                                                        </div>
+                                                                    </Link>
+                                                                </td>
+                                                                <td className="px-5 py-3 text-xs font-semibold text-gray-600">
+                                                                    {person.role_name || 'Staff'}
+                                                                </td>
+                                                                <td className="px-5 py-3 text-xs font-semibold text-gray-600">
+                                                                    {person.day_month}
+                                                                    {person.turning_age && (
+                                                                        <span className="ml-1.5 text-gray-400">· Turns {person.turning_age}</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-5 py-3">
+                                                                    <BirthdayWishStatus person={person} />
+                                                                </td>
+                                                                <td className="px-5 py-3 text-right">
+                                                                    <button
+                                                                        onClick={() => sendBirthdayWishes([person.staff_id], person.staff_id)}
+                                                                        disabled={person.wish_sent || !hasEmail || sendingWish !== null}
+                                                                        title={
+                                                                            person.wish_sent
+                                                                                ? 'Birthday wish already sent today'
+                                                                                : (!hasEmail ? 'No email address on record' : 'Send the birthday wish now')
+                                                                        }
+                                                                        className="rounded-lg bg-[#1e1b4b] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition-all hover:bg-pink-600 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+                                                                    >
+                                                                        {isSending && !person.wish_sent ? 'Sending…' : 'Send Wish'}
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* On Leave Today / Tomorrow Section */}
                             {!onLeaveLoading && (onLeaveData.today.length > 0 || onLeaveData.tomorrow.length > 0) && (
                                 <div className="mb-8">

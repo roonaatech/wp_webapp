@@ -46,6 +46,7 @@ const Roles = () => {
         // Global permissions - boolean
         can_manage_leave_types: false,
         can_manage_onboarding: false,
+        can_view_birthdays: false,
         can_access_webapp: false,
         can_manage_roles: false,
         can_manage_service_accounts: false,
@@ -138,6 +139,7 @@ const Roles = () => {
                 // Global permissions
                 can_manage_leave_types: role.can_manage_leave_types,
                 can_manage_onboarding: role.can_manage_onboarding,
+                can_view_birthdays: role.can_view_birthdays,
                 can_access_webapp: role.can_access_webapp,
                 can_manage_roles: role.can_manage_roles,
                 can_manage_service_accounts: role.can_manage_service_accounts || false,
@@ -168,6 +170,7 @@ const Roles = () => {
                 // Global permissions
                 can_manage_leave_types: false,
                 can_manage_onboarding: false,
+                can_view_birthdays: false,
                 can_access_webapp: false,
                 can_manage_roles: false,
                 can_manage_service_accounts: false,
@@ -577,6 +580,9 @@ const Roles = () => {
                                         )}
                                         {role.can_manage_onboarding && (
                                             <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-indigo-100 text-indigo-800">Onboarding</span>
+                                        )}
+                                        {role.can_view_birthdays && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-pink-100 text-pink-800">Birthdays</span>
                                         )}
                                         {role.can_manage_roles && (
                                             <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-rose-100 text-rose-800">
@@ -1163,6 +1169,21 @@ const Roles = () => {
                                                         disabled={formData.name === 'manager' || formData.name === 'employee'}
                                                         onChange={handleInputChange}
                                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">
+                                                    View Staff Birthdays
+                                                    <span className="block text-xs text-gray-400">Shows today's birthdays on the dashboard and allows sending wishes</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_view_birthdays"
+                                                        checked={!!formData.can_view_birthdays}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                                     />
                                                 </td>
                                             </tr>

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { fetchRoles, getRoleById, canManageSystemSettings } from '../utils/roleUtils';
 import { TIMEZONE_OPTIONS } from '../utils/timezone.util';
 
@@ -14,6 +15,7 @@ export default function Settings() {
     const [hasPermission, setHasPermission] = useState(false);
     const [loading, setLoading] = useState(false);
     const [savingKey, setSavingKey] = useState(null);
+    const [roles, setRoles] = useState([]);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     // Settings State - organized by category
@@ -24,6 +26,7 @@ export default function Settings() {
         enable_pending_request_reminders: 'true',
         pending_request_reminder_days: '3',
         pending_request_reminder_schedule: '0 8 * * *',
+        birthday_digest_recipient_roles: '',
         google_maps_api_key: ''
     });
 
@@ -143,6 +146,39 @@ export default function Settings() {
                     description: 'Cron expression for when the reminder job should run (e.g. 0 8 * * * for 8:00 AM daily)',
                     type: 'text',
                     placeholder: '0 8 * * *'
+                },
+                {
+                    key: 'enable_birthday_notifications',
+                    label: 'Enable Birthday Notifications',
+                    description: 'Master switch for the daily birthday job — wish emails to celebrants and the digest to HR and higher hierarchy users',
+                    type: 'select',
+                    options: [
+                        { value: 'true', label: 'Enabled' },
+                        { value: 'false', label: 'Disabled' }
+                    ]
+                },
+                {
+                    key: 'enable_birthday_wish_emails',
+                    label: 'Send Birthday Wishes to Staff',
+                    description: 'Email the staff member a birthday wish on their birthday, using the "Birthday Wish" template. Disable to send only the HR digest',
+                    type: 'select',
+                    options: [
+                        { value: 'true', label: 'Enabled' },
+                        { value: 'false', label: 'Disabled' }
+                    ]
+                },
+                {
+                    key: 'birthday_notification_schedule',
+                    label: 'Birthday Digest Cron Schedule',
+                    description: 'Cron expression for the birthday digest email, evaluated in the application timezone (e.g. 0 8 * * * for 8:00 AM daily)',
+                    type: 'text',
+                    placeholder: '0 8 * * *'
+                },
+                {
+                    key: 'birthday_digest_recipient_roles',
+                    label: 'Birthday Digest Recipient Roles',
+                    description: 'Every active user in the selected roles receives the daily birthday digest. Leave all unchecked to fall back to Human Resource and higher hierarchy roles',
+                    type: 'multiselect'
                 }
             ]
         }
@@ -153,7 +189,8 @@ export default function Settings() {
     useEffect(() => {
         const checkPermission = async () => {
             try {
-                await fetchRoles(true);
+                const allRoles = await fetchRoles(true);
+                setRoles(Array.isArray(allRoles) ? allRoles : []);
                 const role = getRoleById(user.role);
                 const canManage = canManageSystemSettings(user.role);
 
@@ -205,6 +242,25 @@ export default function Settings() {
             [key]: value
         }));
     };
+
+    // Comma separated id list helper for 'multiselect' settings
+    const getSelectedIds = (key) =>
+        (settings[key] || '')
+            .split(',')
+            .map(v => v.trim())
+            .filter(Boolean);
+
+    // Roles as dropdown options, ordered by authority
+    const roleOptions = [...roles]
+        .sort((a, b) =>
+            (a.hierarchy_level ?? 999) - (b.hierarchy_level ?? 999) ||
+            String(a.display_name || a.name).localeCompare(String(b.display_name || b.name))
+        )
+        .map(role => ({
+            value: String(role.id),
+            label: role.display_name || role.name,
+            meta: `Level ${role.hierarchy_level}`
+        }));
 
     const saveSetting = async (key, value) => {
         setSavingKey(key);
@@ -339,8 +395,23 @@ export default function Settings() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2 max-w-xs">
-                                                        {setting.type === 'select' ? (
+                                                    <div className={`flex items-center gap-2 ${setting.type === 'multiselect' ? 'max-w-md' : 'max-w-xs'}`}>
+                                                        {setting.type === 'multiselect' ? (
+                                                            <div className="flex-1">
+                                                                <MultiSelectDropdown
+                                                                    options={roleOptions}
+                                                                    selected={getSelectedIds(setting.key)}
+                                                                    onChange={(next) =>
+                                                                        handleSettingChange(
+                                                                            setting.key,
+                                                                            [...next].sort((a, b) => Number(a) - Number(b)).join(',')
+                                                                        )
+                                                                    }
+                                                                    placeholder="No roles selected"
+                                                                    emptyHint="None selected — falls back to roles with the birthday permission."
+                                                                />
+                                                            </div>
+                                                        ) : setting.type === 'select' ? (
                                                             <div className="flex-1 space-y-2">
                                                                 <select
                                                                     value={settings[setting.key] || ''}
