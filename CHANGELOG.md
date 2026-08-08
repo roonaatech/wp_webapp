@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.13](https://github.com/roonaatech/wp_webapp/compare/v2.9.12...v2.9.13) (2026-08-08)
+
+
+### Features
+
+* add birthday management features including fetching and sending wishes ([c3a99d0](https://github.com/roonaatech/wp_webapp/commit/c3a99d038882f783fe74611529025f814cad1fd5))
+* add toggle for showing absent days in leave and attendance history ([6a28096](https://github.com/roonaatech/wp_webapp/commit/6a280962b8eb7f5b7520c5d53fc057df6f7805c5))
+
 ### [2.9.12](https://github.com/roonaatech/wp_webapp/compare/v2.9.11...v2.9.12) (2026-07-28)
 
 
