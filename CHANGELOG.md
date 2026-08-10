@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.14](https://github.com/roonaatech/wp_webapp/compare/v2.10.2...v2.9.14) (2026-08-10)
+
+
+### Features
+
+* implement vertical tabbed navigation for settings page layout ([7dd55aa](https://github.com/roonaatech/wp_webapp/commit/7dd55aaa8d7bba9749b0058505dc1bf281d6aca4))
+
+### [2.9.13](https://github.com/roonaatech/wp_webapp/compare/v2.9.12...v2.9.13) (2026-08-08)
+
+
+### Features
+
+* add toggle for showing absent days in leave and attendance history ([6a28096](https://github.com/roonaatech/wp_webapp/commit/6a280962b8eb7f5b7520c5d53fc057df6f7805c5))
+
+
+### Chores
+
+* **release:** 2.9.13 ([53b52f7](https://github.com/roonaatech/wp_webapp/commit/53b52f74d60a811c60ce8f6bc91bf4570200f6a5))
+
 ### [2.10.2](https://github.com/roonaatech/wp_webapp/compare/v2.10.1...v2.10.2) (2026-08-10)
 
 ### [2.10.1](https://github.com/roonaatech/wp_webapp/compare/v2.10.0...v2.10.1) (2026-08-10)
