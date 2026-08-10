@@ -13,6 +13,7 @@ export default function Settings() {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
+    const [activeTab, setActiveTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [savingKey, setSavingKey] = useState(null);
     const [roles, setRoles] = useState([]);
@@ -404,23 +405,42 @@ export default function Settings() {
                 </div>
             </div>
 
-            {/* Settings Categories */}
-            <div className="relative min-h-[400px]">
-                {loading && (
-                    <ModernLoader size="container" message="Fetching settings..." fullScreen={false} />
-                )}
-                <div className="space-y-6">
-                    {settingsConfig.map((category, categoryIndex) => (
-                        <div key={categoryIndex} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* Grid Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+                {/* Left Sidebar: Vertical Tabs */}
+                <div className="flex flex-col gap-1 bg-white p-2 rounded-xl border border-gray-200 shadow-sm md:col-span-1">
+                    {settingsConfig.map((category, index) => (
+                        <button
+                            key={index}
+                            onClick={() => setActiveTab(index)}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-left ${
+                                activeTab === index
+                                    ? 'bg-blue-50 text-blue-600 font-bold'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                            }`}
+                        >
+                            <span className="flex-shrink-0">{category.icon}</span>
+                            <span className="truncate">{category.category}</span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Right Area: Active Category Card */}
+                <div className="md:col-span-3 relative min-h-[400px]">
+                    {loading && (
+                        <ModernLoader size="container" message="Fetching settings..." fullScreen={false} />
+                    )}
+                    {settingsConfig[activeTab] && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             {/* Category Header */}
                             <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-white rounded-lg shadow-sm">
-                                        {category.icon}
+                                        {settingsConfig[activeTab].icon}
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-semibold text-gray-800">{category.category}</h2>
-                                        <p className="text-sm text-gray-500">{category.description}</p>
+                                        <h2 className="text-lg font-semibold text-gray-800">{settingsConfig[activeTab].category}</h2>
+                                        <p className="text-sm text-gray-500">{settingsConfig[activeTab].description}</p>
                                     </div>
                                 </div>
                             </div>
@@ -442,7 +462,7 @@ export default function Settings() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                        {category.settings.map((setting, settingIndex) => (
+                                        {settingsConfig[activeTab].settings.map((setting, settingIndex) => (
                                             <tr key={settingIndex} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div>
@@ -529,7 +549,7 @@ export default function Settings() {
                                 </table>
                             </div>
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
 
