@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell } from 'react-icons/fi';
+import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -27,6 +27,13 @@ export default function Settings() {
         pending_request_reminder_days: '3',
         pending_request_reminder_schedule: '0 8 * * *',
         birthday_digest_recipient_roles: '',
+        enable_birthday_notifications: 'true',
+        enable_birthday_wish_emails: 'true',
+        birthday_notification_schedule: '0 8 * * *',
+        anniversary_digest_recipient_roles: '',
+        enable_anniversary_notifications: 'true',
+        enable_anniversary_wish_emails: 'true',
+        anniversary_notification_schedule: '0 8 * * *',
         google_maps_api_key: ''
     });
 
@@ -115,8 +122,8 @@ export default function Settings() {
             ]
         },
         {
-            category: 'Notifications Configuration',
-            description: 'Manage automated email reminders and alerts',
+            category: 'Notifications & Reminders',
+            description: 'Manage automated email reminders for pending requests',
             icon: <FiBell className="text-yellow-600" />,
             settings: [
                 {
@@ -146,7 +153,14 @@ export default function Settings() {
                     description: 'Cron expression for when the reminder job should run (e.g. 0 8 * * * for 8:00 AM daily)',
                     type: 'text',
                     placeholder: '0 8 * * *'
-                },
+                }
+            ]
+        },
+        {
+            category: 'Birthday Configuration',
+            description: 'Manage settings for employee birthdays and wish emails',
+            icon: <FiGift className="text-pink-500" />,
+            settings: [
                 {
                     key: 'enable_birthday_notifications',
                     label: 'Enable Birthday Notifications',
@@ -178,7 +192,49 @@ export default function Settings() {
                     key: 'birthday_digest_recipient_roles',
                     label: 'Birthday Digest Recipient Roles',
                     description: 'Every active user in the selected roles receives the daily birthday digest. Leave all unchecked to fall back to Human Resource and higher hierarchy roles',
-                    type: 'multiselect'
+                    type: 'multiselect',
+                    emptyHint: 'None selected — falls back to roles with the birthday permission.'
+                }
+            ]
+        },
+        {
+            category: 'Work Anniversary Configuration',
+            description: 'Manage settings for employee work anniversaries and wish emails',
+            icon: <FiAward className="text-teal-500" />,
+            settings: [
+                {
+                    key: 'enable_anniversary_notifications',
+                    label: 'Enable Work Anniversary Notifications',
+                    description: 'Master switch for the daily work anniversary job — wish emails to celebrants and the digest to HR and higher hierarchy users',
+                    type: 'select',
+                    options: [
+                        { value: 'true', label: 'Enabled' },
+                        { value: 'false', label: 'Disabled' }
+                    ]
+                },
+                {
+                    key: 'enable_anniversary_wish_emails',
+                    label: 'Send Work Anniversary Wishes to Staff',
+                    description: 'Email the staff member a work anniversary wish on their anniversary, using the "Work Anniversary Wish" template. Disable to send only the HR digest',
+                    type: 'select',
+                    options: [
+                        { value: 'true', label: 'Enabled' },
+                        { value: 'false', label: 'Disabled' }
+                    ]
+                },
+                {
+                    key: 'anniversary_notification_schedule',
+                    label: 'Work Anniversary Digest Cron Schedule',
+                    description: 'Cron expression for the work anniversary digest email, evaluated in the application timezone (e.g. 0 8 * * * for 8:00 AM daily)',
+                    type: 'text',
+                    placeholder: '0 8 * * *'
+                },
+                {
+                    key: 'anniversary_digest_recipient_roles',
+                    label: 'Work Anniversary Digest Recipient Roles',
+                    description: 'Every active user in the selected roles receives the daily work anniversary digest. Leave all unchecked to fall back to Human Resource and higher hierarchy roles',
+                    type: 'multiselect',
+                    emptyHint: 'None selected — falls back to roles with the anniversary permission.'
                 }
             ]
         }
@@ -408,7 +464,7 @@ export default function Settings() {
                                                                         )
                                                                     }
                                                                     placeholder="No roles selected"
-                                                                    emptyHint="None selected — falls back to roles with the birthday permission."
+                                                                    emptyHint={setting.emptyHint}
                                                                 />
                                                             </div>
                                                         ) : setting.type === 'select' ? (
