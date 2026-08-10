@@ -239,6 +239,7 @@ const Users = () => {
     const [attendanceHistory, setAttendanceHistory] = useState({});
     const [loadingAttendance, setLoadingAttendance] = useState({});
     const [chartFilters, setChartFilters] = useState({}); // staffid -> '30d' | '60d' | '90d' | 'year'
+    const [showAbsent, setShowAbsent] = useState({}); // staffid -> true when absent days are shown (hidden by default)
     const [historyTooltip, setHistoryTooltip] = useState({ show: false, events: [], anchor: null, date: null });
     const tooltipRef = useRef(null);
     const [tooltipCoords, setTooltipCoords] = useState({ left: 0, top: 0, ready: false });
@@ -2082,9 +2083,29 @@ const Users = () => {
 
                                                             {activeTab === 'history' && (
                                                                 <div className="animate-fadeIn">
-                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
-                                                                        <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
-                                                                        {new Date().getFullYear()} Leave &amp; Attendance History
+                                                                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center justify-between gap-3">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
+                                                                            {new Date().getFullYear()} Leave &amp; Attendance History
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2 normal-case tracking-normal">
+                                                                            <span className={`text-xs font-semibold ${showAbsent[u.staffid] ? 'text-red-600' : 'text-gray-400'}`}>
+                                                                                Show Absent
+                                                                            </span>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setShowAbsent(prev => ({ ...prev, [u.staffid]: !prev[u.staffid] }))}
+                                                                                role="switch"
+                                                                                aria-checked={!!showAbsent[u.staffid]}
+                                                                                title={showAbsent[u.staffid] ? 'Hide days marked absent' : 'Show days marked absent'}
+                                                                                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${showAbsent[u.staffid] ? 'bg-red-500' : 'bg-gray-300'}`}
+                                                                            >
+                                                                                <span
+                                                                                    aria-hidden="true"
+                                                                                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${showAbsent[u.staffid] ? 'translate-x-4' : 'translate-x-0'}`}
+                                                                                />
+                                                                            </button>
+                                                                        </div>
                                                                     </h4>
 
                                                                     {(loadingHistory[u.staffid] || loadingAttendance[u.staffid]) ? (
@@ -2106,7 +2127,9 @@ const Users = () => {
                                                                             <div>
                                                                                 <div className="flex flex-wrap items-center gap-4 mb-6 text-xs font-medium text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">
                                                                                     <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 shadow-sm"></span> Present</div>
-                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500 shadow-sm"></span> Absent</div>
+                                                                                    <div className={`flex items-center gap-1.5 ${showAbsent[u.staffid] ? '' : 'opacity-40 line-through'}`}>
+                                                                                        <span className={`w-3 h-3 rounded shadow-sm ${showAbsent[u.staffid] ? 'bg-red-500' : 'bg-gray-300'}`}></span> Absent
+                                                                                    </div>
                                                                                     <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 shadow-sm"></span> Leave</div>
                                                                                     <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500 shadow-sm"></span> On-Duty</div>
                                                                                     <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500 shadow-sm"></span> Time-Off</div>
@@ -2178,9 +2201,10 @@ const Users = () => {
                                                                                                             bgClass = "bg-gray-50 border border-gray-100 text-gray-300";
                                                                                                         } else if (excusedSet.has(dateStr)) {
                                                                                                             bgClass = "bg-blue-500 border border-black/10 text-white shadow-sm";
-                                                                                                        } else {
+                                                                                                        } else if (showAbsent[u.staffid]) {
                                                                                                             bgClass = "bg-red-500 border border-black/10 text-white shadow-sm";
                                                                                                         }
+                                                                                                        // Absent hidden by default: the day keeps the neutral unmarked styling above
 
                                                                                                         const handleMouseEnter = (e) => {
                                                                                                             if (hoverEvents.length > 0) {
