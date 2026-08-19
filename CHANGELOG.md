@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.16](https://github.com/roonaatech/wp_webapp/compare/v2.9.15...v2.9.16) (2026-08-19)
+
+
+### Features
+
+* make inactivity timeout and warning duration configurable via settings and redesign the warning overlay with a glassmorphism aesthetic ([553070c](https://github.com/roonaatech/wp_webapp/commit/553070cd5502758c7ebbcda0a95cac2f457daa8b))
+* replace raw cron strings with user-friendly time pickers for schedule settings ([48c8042](https://github.com/roonaatech/wp_webapp/commit/48c8042e0ae7af1c71e984a89c0a983dfc5da34e))
+
 ### [2.9.15](https://github.com/roonaatech/wp_webapp/compare/v2.10.2...v2.9.15) (2026-08-10)
 
 
