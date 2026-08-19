@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.17](https://github.com/roonaatech/wp_webapp/compare/v2.9.16...v2.9.17) (2026-08-19)
+
+
+### Features
+
+* enhance inactivity timer UI with expanded dimensions, updated animations, and new visual effects ([61172ba](https://github.com/roonaatech/wp_webapp/commit/61172bac1b09c89c2bf47a27f901ae93ff9701ce))
+
 ### [2.9.16](https://github.com/roonaatech/wp_webapp/compare/v2.9.15...v2.9.16) (2026-08-19)
 
 
