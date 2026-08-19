@@ -9,6 +9,38 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { fetchRoles, getRoleById, canManageSystemSettings } from '../utils/roleUtils';
 import { TIMEZONE_OPTIONS } from '../utils/timezone.util';
 
+// Helper to parse "minute hour * * *" into { hour12, minute, ampm }
+const parseCronToTime = (cronStr) => {
+    const parts = (cronStr || '').trim().split(/\s+/);
+    let minute = 0;
+    let hour24 = 8; // Default fallback to 8 AM
+    if (parts.length === 5) {
+        const m = parseInt(parts[0], 10);
+        const h = parseInt(parts[1], 10);
+        if (!isNaN(m) && m >= 0 && m <= 59) {
+            minute = m;
+        }
+        if (!isNaN(h) && h >= 0 && h <= 23) {
+            hour24 = h;
+        }
+    }
+    const ampm = hour24 >= 12 ? 'PM' : 'AM';
+    let hour12 = hour24 % 12;
+    if (hour12 === 0) hour12 = 12;
+    return { hour12, minute, ampm };
+};
+
+// Helper to format { hour12, minute, ampm } into standard daily cron "minute hour * * *"
+const formatTimeToCron = (hour12, minute, ampm) => {
+    let hour24 = parseInt(hour12, 10);
+    if (ampm === 'PM') {
+        if (hour24 !== 12) hour24 += 12;
+    } else {
+        if (hour24 === 12) hour24 = 0;
+    }
+    return `${parseInt(minute, 10)} ${hour24} * * *`;
+};
+
 export default function Settings() {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
@@ -150,9 +182,9 @@ export default function Settings() {
                 },
                 {
                     key: 'pending_request_reminder_schedule',
-                    label: 'Reminder Cron Schedule',
-                    description: 'Cron expression for when the reminder job should run (e.g. 0 8 * * * for 8:00 AM daily)',
-                    type: 'text',
+                    label: 'Reminder Schedule',
+                    description: 'Select the daily time for sending automated email reminders to managers for pending requests',
+                    type: 'cron-time',
                     placeholder: '0 8 * * *'
                 }
             ]
@@ -184,9 +216,9 @@ export default function Settings() {
                 },
                 {
                     key: 'birthday_notification_schedule',
-                    label: 'Birthday Digest Cron Schedule',
-                    description: 'Cron expression for the birthday digest email, evaluated in the application timezone (e.g. 0 8 * * * for 8:00 AM daily)',
-                    type: 'text',
+                    label: 'Birthday Digest Schedule',
+                    description: 'Select the daily time for sending the birthday digest email (evaluated in application timezone)',
+                    type: 'cron-time',
                     placeholder: '0 8 * * *'
                 },
                 {
@@ -199,7 +231,7 @@ export default function Settings() {
             ]
         },
         {
-            category: 'Work Anniversary Configuration',
+            category: 'Anniversary Configuration',
             description: 'Manage settings for employee work anniversaries and wish emails',
             icon: <FiAward className="text-teal-500" />,
             settings: [
@@ -225,9 +257,9 @@ export default function Settings() {
                 },
                 {
                     key: 'anniversary_notification_schedule',
-                    label: 'Work Anniversary Digest Cron Schedule',
-                    description: 'Cron expression for the work anniversary digest email, evaluated in the application timezone (e.g. 0 8 * * * for 8:00 AM daily)',
-                    type: 'text',
+                    label: 'Work Anniversary Digest Schedule',
+                    description: 'Select the daily time for sending the work anniversary digest email (evaluated in application timezone)',
+                    type: 'cron-time',
                     placeholder: '0 8 * * *'
                 },
                 {
@@ -413,11 +445,10 @@ export default function Settings() {
                         <button
                             key={index}
                             onClick={() => setActiveTab(index)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-left ${
-                                activeTab === index
-                                    ? 'bg-blue-50 text-blue-600 font-bold'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-left ${activeTab === index
+                                ? 'bg-blue-50 text-blue-600 font-bold'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                }`}
                         >
                             <span className="flex-shrink-0">{category.icon}</span>
                             <span className="truncate">{category.category}</span>
@@ -506,6 +537,60 @@ export default function Settings() {
                                                                         Current Time: {currentTimePreview}
                                                                     </p>
                                                                 )}
+                                                            </div>
+                                                        ) : setting.type === 'cron-time' ? (
+                                                            <div className="flex-1">
+                                                                {(() => {
+                                                                    const cronVal = settings[setting.key] || '0 8 * * *';
+                                                                    const { hour12, minute, ampm } = parseCronToTime(cronVal);
+                                                                    return (
+                                                                        <div className="flex items-center justify-between gap-2 border border-gray-300 rounded-lg p-1.5 px-3 bg-white hover:border-gray-400 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all shadow-sm">
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <FiClock className="text-gray-400 flex-shrink-0" size={14} />
+                                                                                <select
+                                                                                    value={hour12}
+                                                                                    onChange={(e) => {
+                                                                                        const nextHour = parseInt(e.target.value, 10);
+                                                                                        const nextCron = formatTimeToCron(nextHour, minute, ampm);
+                                                                                        handleSettingChange(setting.key, nextCron);
+                                                                                    }}
+                                                                                    className="bg-transparent text-sm font-medium text-gray-800 outline-none cursor-pointer focus:text-blue-600 transition-colors pr-1"
+                                                                                >
+                                                                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                                                                                        <option key={h} value={h}>{h}</option>
+                                                                                    ))}
+                                                                                </select>
+                                                                                <span className="text-gray-400 font-bold select-none">:</span>
+                                                                                <select
+                                                                                    value={minute}
+                                                                                    onChange={(e) => {
+                                                                                        const nextMinute = parseInt(e.target.value, 10);
+                                                                                        const nextCron = formatTimeToCron(hour12, nextMinute, ampm);
+                                                                                        handleSettingChange(setting.key, nextCron);
+                                                                                    }}
+                                                                                    className="bg-transparent text-sm font-medium text-gray-800 outline-none cursor-pointer focus:text-blue-600 transition-colors pr-1"
+                                                                                >
+                                                                                    {Array.from({ length: 60 }, (_, i) => i).map(m => {
+                                                                                        const displayM = String(m).padStart(2, '0');
+                                                                                        return <option key={m} value={m}>{displayM}</option>;
+                                                                                    })}
+                                                                                </select>
+                                                                            </div>
+                                                                            <select
+                                                                                value={ampm}
+                                                                                onChange={(e) => {
+                                                                                    const nextAmpm = e.target.value;
+                                                                                    const nextCron = formatTimeToCron(hour12, minute, nextAmpm);
+                                                                                    handleSettingChange(setting.key, nextCron);
+                                                                                }}
+                                                                                className="bg-blue-50 text-blue-700 text-xs font-bold outline-none cursor-pointer hover:bg-blue-100 transition-colors rounded px-2 py-1"
+                                                                            >
+                                                                                <option value="AM">AM</option>
+                                                                                <option value="PM">PM</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         ) : (
                                                             <input
