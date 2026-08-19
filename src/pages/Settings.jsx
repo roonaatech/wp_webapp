@@ -67,7 +67,9 @@ export default function Settings() {
         enable_anniversary_notifications: 'true',
         enable_anniversary_wish_emails: 'true',
         anniversary_notification_schedule: '0 8 * * *',
-        google_maps_api_key: ''
+        google_maps_api_key: '',
+        session_timeout: '168',
+        inactivity_timeout: '5'
     });
 
     // Define settings configuration for easy expansion
@@ -115,6 +117,39 @@ export default function Settings() {
                     description: 'API key used to display Google Maps on-duty routes and location details',
                     type: 'text',
                     placeholder: 'Enter Google Maps API Key'
+                },
+                {
+                    key: 'session_timeout',
+                    label: 'Session Timeout',
+                    description: 'The duration (in hours) before a user session expires and requires logging in again',
+                    type: 'number',
+                    min: 24,
+                    max: 8760,
+                    step: 1,
+                    unit: 'hours',
+                    placeholder: '168'
+                },
+                {
+                    key: 'inactivity_timeout',
+                    label: 'Inactivity Logout Warning Timeout',
+                    description: 'Idle time (in minutes) before showing the session logout warning popup',
+                    type: 'number',
+                    min: 3,
+                    max: 1440,
+                    step: 1,
+                    unit: 'minutes',
+                    placeholder: '5'
+                },
+                {
+                    key: 'inactivity_warning_duration',
+                    label: 'Inactivity Warning Duration',
+                    description: 'Countdown duration (in seconds) to show the logout warning popup before signing out',
+                    type: 'number',
+                    min: 10,
+                    max: 300,
+                    step: 1,
+                    unit: 'seconds',
+                    placeholder: '60'
                 }
             ]
         },
@@ -352,6 +387,25 @@ export default function Settings() {
         }));
 
     const saveSetting = async (key, value) => {
+        // Validate client-side bounds for number types
+        const configItem = settingsConfig
+            .flatMap(c => c.settings)
+            .find(s => s.key === key);
+            
+        if (configItem && configItem.type === 'number') {
+            const num = parseFloat(value);
+            if (!isNaN(num)) {
+                if (configItem.min !== undefined && num < configItem.min) {
+                    toast.error(`${configItem.label} must be at least ${configItem.min} ${configItem.unit || ''}`);
+                    return;
+                }
+                if (configItem.max !== undefined && num > configItem.max) {
+                    toast.error(`${configItem.label} must be at most ${configItem.max} ${configItem.unit || ''}`);
+                    return;
+                }
+            }
+        }
+
         setSavingKey(key);
         try {
             const token = localStorage.getItem('token');
@@ -362,8 +416,9 @@ export default function Settings() {
                 headers: { 'x-access-token': token }
             });
 
-            // Update local storage if critical settings were changed
-            if (['application_timezone', 'application_date_format', 'application_time_format', 'google_maps_api_key'].includes(key)) {
+            // Instantly update localStorage for critical settings that the frontend hook monitors
+            const criticalKeys = ['application_timezone', 'application_date_format', 'application_time_format', 'google_maps_api_key', 'inactivity_timeout', 'inactivity_warning_duration'];
+            if (criticalKeys.includes(key)) {
                 const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
                 existingSettings[key] = value;
                 localStorage.setItem('settings', JSON.stringify(existingSettings));
