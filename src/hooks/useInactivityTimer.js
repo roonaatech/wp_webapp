@@ -112,8 +112,8 @@ const useInactivityTimer = () => {
             right: 0;
             bottom: 0;
             background: rgba(15, 23, 42, 0.45);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             z-index: 99999;
             display: flex;
             align-items: center;
@@ -140,70 +140,95 @@ const useInactivityTimer = () => {
             -webkit-backdrop-filter: blur(25px);
             border: 1px solid rgba(255, 255, 255, 0.5);
             border-top: 1px solid rgba(255, 255, 255, 0.7);
-            border-radius: 32px;
-            padding: 48px 40px;
-            max-width: 420px;
+            border-radius: 36px;
+            padding: 56px 48px;
+            max-width: 480px;
             width: 90%;
             text-align: center;
-            box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.15), 0 0 50px -10px rgba(99, 102, 241, 0.2);
+            box-shadow: 0 35px 70px -15px rgba(15, 23, 42, 0.22), 0 0 80px -10px rgba(99, 102, 241, 0.3);
             animation: wpSlideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), wpPulseGlow 2.5s infinite ease-in-out;
         `;
 
         dialog.innerHTML = `
             <style>
-                @keyframes fadeIn { from { opacity: 0; backdrop-filter: blur(0px); } to { opacity: 1; backdrop-filter: blur(10px); } }
+                @keyframes fadeIn { from { opacity: 0; backdrop-filter: blur(0px); } to { opacity: 1; backdrop-filter: blur(15px); } }
                 @keyframes wpSlideUp { 
                     from { opacity: 0; transform: perspective(1000px) translateY(30px) scale(0.95); } 
                     to { opacity: 1; transform: perspective(1000px) translateY(0) scale(1); } 
                 }
                 @keyframes wpPulseGlow {
-                    0%, 100% { box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.15), 0 0 50px -10px rgba(99, 102, 241, 0.2); }
-                    50% { box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.15), 0 0 70px -5px rgba(99, 102, 241, 0.4); }
+                    0%, 100% { box-shadow: 0 35px 70px -15px rgba(15, 23, 42, 0.22), 0 0 50px -10px rgba(99, 102, 241, 0.2); }
+                    50% { box-shadow: 0 35px 70px -15px rgba(15, 23, 42, 0.22), 0 0 70px -5px rgba(99, 102, 241, 0.4); }
                 }
                 @keyframes wpPulseGlowWarning {
-                    0%, 100% { box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.15), 0 0 50px -10px rgba(239, 68, 68, 0.3); }
-                    50% { box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.15), 0 0 70px -5px rgba(239, 68, 68, 0.55); }
+                    0%, 100% { box-shadow: 0 35px 70px -15px rgba(15, 23, 42, 0.22), 0 0 50px -10px rgba(239, 68, 68, 0.3); }
+                    50% { box-shadow: 0 35px 70px -15px rgba(15, 23, 42, 0.22), 0 0 70px -5px rgba(239, 68, 68, 0.55); }
                 }
                 @keyframes floatOrb1 {
                     0%, 100% { transform: translate(0, 0) scale(1); }
-                    50% { transform: translate(40px, 30px) scale(1.25); }
+                    50% { transform: translate(50px, 40px) scale(1.3); }
                 }
                 @keyframes floatOrb2 {
-                    0%, 100% { transform: translate(0, 0) scale(1.15); }
-                    50% { transform: translate(-40px, -30px) scale(0.9); }
+                    0%, 100% { transform: translate(0, 0) scale(1.2); }
+                    50% { transform: translate(-50px, -40px) scale(0.95); }
                 }
                 @keyframes tickPulse {
                     0%, 100% { transform: scale(1); }
                     50% { transform: scale(1.08); }
                 }
+                @keyframes screenVignettePulse {
+                    0%, 100% { box-shadow: inset 0 0 40px rgba(239, 68, 68, 0); }
+                    50% { box-shadow: inset 0 0 50px rgba(239, 68, 68, 0.45); }
+                }
+                @keyframes subtleShake {
+                    0%, 100% { transform: perspective(1000px) scale(1) translateX(0); }
+                    10%, 30%, 50%, 70%, 90% { transform: perspective(1000px) scale(1) translateX(-4px); }
+                    20%, 40%, 60%, 80% { transform: perspective(1000px) scale(1) translateX(4px); }
+                }
+                @keyframes ringBell {
+                    0%, 100% { transform: rotate(0deg); }
+                    15%, 45%, 75% { transform: rotate(12deg); }
+                    30%, 60%, 90% { transform: rotate(-12deg); }
+                }
+                @keyframes textFlash {
+                    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0px rgba(239, 68, 68, 0)); }
+                    50% { transform: scale(1.12); filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.7)); color: #EF4444; }
+                }
+                @keyframes floatOrb1Urgent {
+                    0%, 100% { transform: translate(0, 0) scale(1.1); }
+                    50% { transform: translate(60px, -45px) scale(1.4); }
+                }
+                @keyframes floatOrb2Urgent {
+                    0%, 100% { transform: translate(0, 0) scale(1.3); }
+                    50% { transform: translate(-60px, 45px) scale(1.0); }
+                }
+                .anim-stagger-1 { animation: wpSlideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+                .anim-stagger-2 { animation: wpSlideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: 0.08s; }
+                .anim-stagger-3 { animation: wpSlideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: 0.16s; }
+                .anim-stagger-4 { animation: wpSlideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: 0.24s; }
+                
                 .inactivity-orb {
                     position: absolute;
-                    width: 260px;
-                    height: 260px;
+                    width: 300px;
+                    height: 300px;
                     border-radius: 9999px;
-                    filter: blur(75px);
-                    opacity: 0.22;
+                    filter: blur(85px);
+                    opacity: 0.25;
                     z-index: 1;
                     pointer-events: none;
-                    transition: background 0.8s ease, transform 0.5s ease;
+                    transition: background 0.8s ease, transform 0.5s ease, opacity 0.5s ease;
                 }
                 .inactivity-orb-1 {
                     background: #6366F1;
-                    top: calc(50% - 180px);
-                    left: calc(50% - 220px);
+                    top: calc(50% - 200px);
+                    left: calc(50% - 250px);
                     animation: floatOrb1 9s infinite ease-in-out;
                 }
                 .inactivity-orb-2 {
                     background: #EC4899;
-                    bottom: calc(50% - 180px);
-                    right: calc(50% - 220px);
+                    bottom: calc(50% - 200px);
+                    right: calc(50% - 250px);
                     animation: floatOrb2 9s infinite ease-in-out;
-                }
-                #inactivity-countdown-number {
-                    transition: color 0.3s ease;
-                }
-                #inactivity-progress-ring {
-                    transition: stroke-dashoffset 1s linear, stroke 0.3s ease, filter 0.3s ease;
                 }
                 #inactivity-warning-dialog {
                     transition: transform 0.1s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease;
@@ -211,10 +236,10 @@ const useInactivityTimer = () => {
                 }
             </style>
 
-            <div id="inactivity-timer-container" style="position: relative; width: 110px; height: 110px; margin: 0 auto 28px; display: flex; align-items: center; justify-content: center; transform-origin: center; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
-                <svg style="position: absolute; transform: rotate(-90deg); width: 110px; height: 110px;">
-                    <circle cx="55" cy="55" r="48" stroke="rgba(243, 244, 246, 0.8)" stroke-width="6" fill="transparent" />
-                    <circle id="inactivity-progress-ring" cx="55" cy="55" r="48" stroke="url(#timer-gradient)" stroke-width="6" stroke-linecap="round" fill="transparent" stroke-dasharray="301.6" stroke-dashoffset="0" />
+            <div id="inactivity-timer-container" class="anim-stagger-1" style="position: relative; width: 140px; height: 140px; margin: 0 auto 32px; display: flex; align-items: center; justify-content: center; transform-origin: center; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                <svg style="position: absolute; transform: rotate(-90deg); width: 140px; height: 140px;">
+                    <circle cx="70" cy="70" r="60" stroke="rgba(243, 244, 246, 0.8)" stroke-width="8" fill="transparent" />
+                    <circle id="inactivity-progress-ring" cx="70" cy="70" r="60" stroke="url(#timer-gradient)" stroke-width="8" stroke-linecap="round" fill="transparent" stroke-dasharray="377" stroke-dashoffset="0" />
                     <defs>
                         <linearGradient id="timer-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                             <stop offset="0%" stop-color="#6366F1" />
@@ -223,44 +248,66 @@ const useInactivityTimer = () => {
                     </defs>
                 </svg>
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; user-select: none;">
-                    <span id="inactivity-countdown-number" style="font-size: 34px; font-weight: 850; color: #1F2937; font-feature-settings: 'tnum'; font-family: system-ui, -apple-system, sans-serif; line-height: 1;">60</span>
-                    <span style="font-size: 9px; font-weight: 700; color: #9CA3AF; letter-spacing: 0.12em; margin-top: 5px;">SEC</span>
+                    <span id="inactivity-countdown-number" style="font-size: 38px; font-weight: 900; color: #1F2937; font-feature-settings: 'tnum'; font-family: system-ui, -apple-system, sans-serif; line-height: 1;">60</span>
+                    <span style="font-size: 10px; font-weight: 750; color: #9CA3AF; letter-spacing: 0.15em; margin-top: 6px;">SECONDS</span>
                 </div>
             </div>
 
-            <h2 style="margin: 0 0 10px; font-size: 24px; font-weight: 850; background: linear-gradient(135deg, #111827 0%, #374151 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: system-ui, -apple-system, sans-serif;">Are you still there?</h2>
-            <p style="margin: 0 0 36px; font-size: 15px; color: #6B7280; line-height: 1.5; font-family: system-ui, -apple-system, sans-serif;">
+            <div id="inactivity-bell-container" class="anim-stagger-2" style="text-align: center; margin-bottom: 12px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                <svg id="inactivity-warning-bell" style="width: 32px; height: 32px; fill: none; stroke: #9CA3AF; stroke-width: 2; transition: stroke 0.3s ease, transform 0.2s, filter 0.3s ease;" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+            </div>
+
+            <h2 class="anim-stagger-2" style="margin: 0 0 12px; font-size: 26px; font-weight: 900; background: linear-gradient(135deg, #111827 0%, #374151 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: system-ui, -apple-system, sans-serif;">Are you still there?</h2>
+            <p class="anim-stagger-3" style="margin: 0 0 40px; font-size: 15.5px; color: #4B5563; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
                 Your session is about to expire due to inactivity. Click below to continue working.
             </p>
 
-            <div style="display: flex; gap: 14px;">
+            <div class="anim-stagger-4" style="display: flex; gap: 16px;">
                 <button id="inactivity-logout-btn" style="
                     flex: 1;
                     background: rgba(254, 226, 226, 0.45);
                     color: #EF4444;
                     border: 1.5px solid rgba(239, 68, 68, 0.25);
-                    padding: 14px 20px;
-                    border-radius: 14px;
-                    font-size: 15px;
+                    padding: 16px 24px;
+                    border-radius: 16px;
+                    font-size: 15.5px;
                     font-weight: 600;
                     cursor: pointer;
                     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
                     font-family: system-ui, -apple-system, sans-serif;
-                ">Log out</button>
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <svg style="width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.5; margin-right: 8px; transition: transform 0.25s;" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Log out
+                </button>
                 <button id="inactivity-stay-btn" style="
                     flex: 1;
                     background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
                     color: white;
                     border: none;
-                    padding: 14px 20px;
-                    border-radius: 14px;
-                    font-size: 15px;
+                    padding: 16px 24px;
+                    border-radius: 16px;
+                    font-size: 15.5px;
                     font-weight: 700;
                     cursor: pointer;
                     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
                     box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
                     font-family: system-ui, -apple-system, sans-serif;
-                ">Stay signed in</button>
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <svg style="width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.5; margin-right: 8px; transition: transform 0.25s;" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    Stay signed in
+                </button>
             </div>
         `;
 
@@ -282,21 +329,63 @@ const useInactivityTimer = () => {
         const updateRingOffset = (timeRemaining) => {
             if (progressRing) {
                 const fraction = Math.max(0, timeRemaining / totalSeconds);
-                const offset = 301.6 * (1 - fraction);
+                const offset = 377 * (1 - fraction);
                 progressRing.style.strokeDashoffset = offset;
 
-                // Adjust color, shadow, and pulse scale as time runs low
+                // Adjust color, shadow, pulse scale, alarm bell, and flashing text as time runs low
+                const bell = document.getElementById('inactivity-warning-bell');
+
                 if (timeRemaining <= 15) {
                     progressRing.style.stroke = '#EF4444';
-                    progressRing.style.filter = 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.7))';
-                    if (countText) countText.style.color = '#EF4444';
-                    if (dialogCard) dialogCard.style.animation = 'wpPulseGlowWarning 2s infinite ease-in-out';
+                    progressRing.style.filter = 'drop-shadow(0 0 10px rgba(239, 68, 68, 0.8))';
                     
-                    // Trigger dynamic warm/urgent coloring of drift-orbs
+                    // Ring the alarm bell
+                    if (bell) {
+                        bell.style.stroke = '#EF4444';
+                        bell.style.animation = 'ringBell 0.8s infinite ease-in-out';
+                        bell.style.filter = 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.5))';
+                    }
+
+                    // Flashing text alarm
+                    if (countText) {
+                        countText.style.animation = 'textFlash 1s infinite ease-in-out';
+                    }
+                    
+                    // Shake modal on entering warning threshold (15s), then pulse
+                    if (timeRemaining === 15) {
+                        if (dialogCard) {
+                            dialogCard.style.animation = 'subtleShake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both';
+                            setTimeout(() => {
+                                if (isWarningShownRef.current) {
+                                    const currSeconds = parseInt(countText ? countText.innerText : '0', 10);
+                                    if (currSeconds <= 15 && dialogCard) {
+                                        dialogCard.style.animation = 'wpPulseGlowWarning 2s infinite ease-in-out';
+                                    }
+                                }
+                            }, 600);
+                        }
+                    } else if (dialogCard && (!dialogCard.style.animation || !dialogCard.style.animation.includes('subtleShake'))) {
+                        dialogCard.style.animation = 'wpPulseGlowWarning 2s infinite ease-in-out';
+                    }
+
+                    // Ambient screen border pulse to gain attention
+                    if (overlay) {
+                        overlay.style.animation = 'screenVignettePulse 2s infinite ease-in-out';
+                    }
+                    
+                    // Trigger dynamic warm/urgent coloring and acceleration of drift-orbs
                     const o1 = document.getElementById('inactivity-orb-1');
                     const o2 = document.getElementById('inactivity-orb-2');
-                    if (o1) o1.style.background = '#EF4444';
-                    if (o2) o2.style.background = '#F97316';
+                    if (o1) {
+                        o1.style.background = '#EF4444';
+                        o1.style.opacity = '0.35';
+                        o1.style.animation = 'floatOrb1Urgent 3s infinite ease-in-out';
+                    }
+                    if (o2) {
+                        o2.style.background = '#F97316';
+                        o2.style.opacity = '0.35';
+                        o2.style.animation = 'floatOrb2Urgent 3s infinite ease-in-out';
+                    }
 
                     // Accelerate countdown pulse under 10 seconds to create urgency
                     if (timerContainer) {
@@ -308,10 +397,33 @@ const useInactivityTimer = () => {
                     }
                 } else {
                     progressRing.style.stroke = 'url(#timer-gradient)';
-                    progressRing.style.filter = 'drop-shadow(0 0 4px rgba(99, 102, 241, 0.35))';
-                    if (countText) countText.style.color = '#1F2937';
+                    progressRing.style.filter = 'drop-shadow(0 0 5px rgba(99, 102, 241, 0.4))';
+                    if (countText) {
+                        countText.style.color = '#1F2937';
+                        countText.style.animation = 'none';
+                    }
                     if (dialogCard) dialogCard.style.animation = 'wpSlideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), wpPulseGlow 2.5s infinite ease-in-out';
                     if (timerContainer) timerContainer.style.animation = 'none';
+                    if (overlay) {
+                        overlay.style.animation = 'fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+                    }
+                    if (bell) {
+                        bell.style.stroke = '#9CA3AF';
+                        bell.style.animation = 'none';
+                        bell.style.filter = 'none';
+                    }
+                    const o1 = document.getElementById('inactivity-orb-1');
+                    const o2 = document.getElementById('inactivity-orb-2');
+                    if (o1) {
+                        o1.style.background = '#6366F1';
+                        o1.style.opacity = '0.25';
+                        o1.style.animation = 'floatOrb1 9s infinite ease-in-out';
+                    }
+                    if (o2) {
+                        o2.style.background = '#EC4899';
+                        o2.style.opacity = '0.25';
+                        o2.style.animation = 'floatOrb2 9s infinite ease-in-out';
+                    }
                 }
             }
         };
@@ -345,40 +457,44 @@ const useInactivityTimer = () => {
             const rotateY = (x / (rect.width / 2)) * 6;
             
             // Shift box shadow slightly opposite to cursor to enhance 3D depth
-            const shadowX = -(x / (rect.width / 2)) * 16;
-            const shadowY = -(y / (rect.height / 2)) * 16;
+            const shadowX = -(x / (rect.width / 2)) * 20;
+            const shadowY = -(y / (rect.height / 2)) * 20;
             
             dialog.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
-            dialog.style.boxShadow = `${shadowX}px ${shadowY}px 50px rgba(15, 23, 42, 0.15), 0 0 60px rgba(99, 102, 241, 0.25)`;
+            dialog.style.boxShadow = `${shadowX}px ${shadowY}px 60px rgba(15, 23, 42, 0.18), 0 0 70px rgba(99, 102, 241, 0.3)`;
         });
 
         dialog.addEventListener('mouseleave', () => {
             dialog.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
-            dialog.style.boxShadow = '0 20px 40px -15px rgba(0, 0, 0, 0.15), 0 0 50px -10px rgba(99, 102, 241, 0.15)';
+            dialog.style.boxShadow = '0 35px 70px -15px rgba(15, 23, 42, 0.22), 0 0 80px -10px rgba(99, 102, 241, 0.3)';
         });
 
         // Add click handler for the stay button
         const stayBtn = document.getElementById('inactivity-stay-btn');
         if (stayBtn) {
+            const stayIcon = stayBtn.querySelector('svg');
             stayBtn.addEventListener('click', () => {
                 dismissWarning();
                 resetTimer();
             });
             stayBtn.addEventListener('mouseenter', () => {
-                stayBtn.style.transform = 'translateY(-2px) scale(1.02) translateZ(10px)';
-                stayBtn.style.boxShadow = '0 6px 20px rgba(79, 70, 229, 0.45)';
-                stayBtn.style.filter = 'brightness(1.05)';
+                stayBtn.style.transform = 'translateY(-3px) scale(1.025) translateZ(12px)';
+                stayBtn.style.boxShadow = '0 8px 25px rgba(79, 70, 229, 0.5)';
+                stayBtn.style.filter = 'brightness(1.08)';
+                if (stayIcon) stayIcon.style.transform = 'scale(1.15) rotate(5deg)';
             });
             stayBtn.addEventListener('mouseleave', () => {
                 stayBtn.style.transform = 'translateY(0) scale(1) translateZ(0)';
                 stayBtn.style.boxShadow = '0 4px 15px rgba(79, 70, 229, 0.3)';
                 stayBtn.style.filter = 'none';
+                if (stayIcon) stayIcon.style.transform = 'scale(1) rotate(0deg)';
             });
         }
 
         // Add click handler for the logout button
         const logoutBtn = document.getElementById('inactivity-logout-btn');
         if (logoutBtn) {
+            const logoutIcon = logoutBtn.querySelector('svg');
             logoutBtn.addEventListener('click', () => {
                 performLogout();
             });
@@ -386,8 +502,9 @@ const useInactivityTimer = () => {
                 logoutBtn.style.background = 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)';
                 logoutBtn.style.color = '#ffffff';
                 logoutBtn.style.borderColor = 'transparent';
-                logoutBtn.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.35)';
-                logoutBtn.style.transform = 'translateY(-2px) scale(1.02) translateZ(5px)';
+                logoutBtn.style.boxShadow = '0 8px 25px rgba(239, 68, 68, 0.4)';
+                logoutBtn.style.transform = 'translateY(-3px) scale(1.025) translateZ(8px)';
+                if (logoutIcon) logoutIcon.style.transform = 'translateX(3px) scale(1.1)';
             });
             logoutBtn.addEventListener('mouseleave', () => {
                 logoutBtn.style.background = 'rgba(254, 226, 226, 0.45)';
@@ -395,6 +512,7 @@ const useInactivityTimer = () => {
                 logoutBtn.style.borderColor = 'rgba(239, 68, 68, 0.25)';
                 logoutBtn.style.boxShadow = 'none';
                 logoutBtn.style.transform = 'translateY(0) scale(1) translateZ(0)';
+                if (logoutIcon) logoutIcon.style.transform = 'translateX(0) scale(1)';
             });
         }
     }, [dismissWarning, getWarningDurationMs]);
