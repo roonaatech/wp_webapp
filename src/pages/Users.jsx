@@ -205,7 +205,14 @@ const Users = () => {
     const [managersAndAdmins, setManagersAndAdmins] = useState([]);
     const [availableRoles, setAvailableRoles] = useState([]); // All available roles for dropdown
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState([]); // Array of selected status values
+    const [statusFilter, setStatusFilter] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        const statusParam = params.get('status');
+        if (statusParam) {
+            return statusParam.split(',').filter(s => s.trim() !== '');
+        }
+        return ['active'];
+    }); // Array of selected status values
     const [showStatusDropdown, setShowStatusDropdown] = useState(false); // Toggle status dropdown
     const [roleFilter, setRoleFilter] = useState([]); // Array of selected role ids
     const [showRoleDropdown, setShowRoleDropdown] = useState(false); // Toggle role dropdown
@@ -378,6 +385,8 @@ const Users = () => {
             // Split comma-separated values into an array
             const statusArray = statusParam.split(',').filter(s => s.trim() !== '');
             setStatusFilter(statusArray);
+        } else {
+            setStatusFilter(['active']);
         }
     }, [location.search]);
 

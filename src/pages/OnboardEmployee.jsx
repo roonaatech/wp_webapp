@@ -729,8 +729,11 @@ const OnboardEmployee = () => {
             let errMsg = 'Error occurred during submission.';
             
             if (err.response) {
-                if (err.response.status === 409 && err.response.data?.existingUser) {
-                    setExistingUserDetails(err.response.data.existingUser);
+                if (err.response.status === 409 && (err.response.data?.existingUser || err.response.data?.existingUsers)) {
+                    const usersList = err.response.data.existingUsers 
+                        ? err.response.data.existingUsers 
+                        : [err.response.data.existingUser];
+                    setExistingUserDetails(usersList);
                     return;
                 }
                 if (err.response.data) {
@@ -2038,34 +2041,38 @@ const OnboardEmployee = () => {
                         </div>
                         <h2 className="text-xl font-black text-[#1e1b4b] mb-2">Email Already in Use</h2>
                         <p className="text-sm text-slate-500 mb-6">
-                            A record with this personal email already exists in the system. See details of the existing user below:
+                            A record with this personal email already exists in the system. See details of the existing user(s) below:
                         </p>
 
-                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 mb-6 text-left text-sm space-y-3.5">
-                            <div>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Full Name</p>
-                                <p className="font-bold text-slate-700 mt-0.5">{existingUserDetails.firstname} {existingUserDetails.lastname}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Official Email</p>
-                                <p className="font-bold text-slate-700 mt-0.5">{existingUserDetails.email || '—'}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Personal Email</p>
-                                <p className="font-bold text-slate-700 mt-0.5">{existingUserDetails.secondary_email || '—'}</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Role</p>
-                                    <p className="font-bold text-slate-700 mt-0.5">{existingUserDetails.role}</p>
+                        <div className="max-h-[350px] overflow-y-auto space-y-4 mb-6 pr-1">
+                            {existingUserDetails.map((user, idx) => (
+                                <div key={idx} className="bg-slate-50 border border-slate-100 rounded-2xl p-5 text-left text-sm space-y-3.5">
+                                    <div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Full Name</p>
+                                        <p className="font-bold text-slate-700 mt-0.5">{user.firstname} {user.lastname}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Official Email</p>
+                                        <p className="font-bold text-slate-700 mt-0.5">{user.email || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Personal Email</p>
+                                        <p className="font-bold text-slate-700 mt-0.5">{user.secondary_email || '—'}</p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Role</p>
+                                            <p className="font-bold text-slate-700 mt-0.5">{user.role}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Status</p>
+                                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mt-1 ${user.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
+                                                {user.active ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Status</p>
-                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mt-1 ${existingUserDetails.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
-                                        {existingUserDetails.active ? 'Active' : 'Inactive'}
-                                    </span>
-                                </div>
-                            </div>
+                            ))}
                         </div>
 
                         <button

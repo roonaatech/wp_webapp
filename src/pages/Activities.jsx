@@ -319,7 +319,8 @@ const Activities = () => {
             'LeaveType': 'bg-blue-100 text-blue-800',
             'Approval': 'bg-green-100 text-green-800',
             'Setting': 'bg-yellow-100 text-yellow-800',
-            'AttendanceLog': 'bg-teal-100 text-teal-800'
+            'AttendanceLog': 'bg-teal-100 text-teal-800',
+            'UserOnboarding': 'bg-pink-100 text-pink-800'
         };
         return colors[entity] || 'bg-gray-100 text-gray-800';
     };
@@ -514,6 +515,7 @@ const Activities = () => {
                             <option value="Approval">Approval</option>
                             <option value="Setting">System Setting</option>
                             <option value="AttendanceLog">Attendance Log</option>
+                            <option value="UserOnboarding">User Onboarding</option>
                         </select>
                     </div>
 
