@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.18](https://github.com/roonaatech/wp_webapp/compare/v2.9.17...v2.9.18) (2026-08-22)
+
+
+### Features
+
+* set default active status filter, add UserOnboarding activity type, and support multiple duplicate user records during onboarding ([bf8cee2](https://github.com/roonaatech/wp_webapp/commit/bf8cee2a66f0364f98132f9ebd48a36077076114))
+
 ### [2.9.17](https://github.com/roonaatech/wp_webapp/compare/v2.9.16...v2.9.17) (2026-08-19)
 
 
