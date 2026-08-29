@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.19](https://github.com/roonaatech/wp_webapp/compare/v2.9.18...v2.9.19) (2026-08-29)
+
+
+### Bug Fixes
+
+* conditionalize present attendance display based on absent status toggle in Users page ([5f35b19](https://github.com/roonaatech/wp_webapp/commit/5f35b190073a3cdfdb8f8598aff47ceb398bbc91))
+
 ### [2.9.18](https://github.com/roonaatech/wp_webapp/compare/v2.9.17...v2.9.18) (2026-08-22)
 
 
