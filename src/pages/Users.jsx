@@ -2250,7 +2250,7 @@ const Users = () => {
                                                                                     })}
                                                                                 </div>
 
-                                                                                {attData.present && attData.present.length > 0 && (() => {
+                                                                                {showAbsent[u.staffid] && attData.present && attData.present.length > 0 && (() => {
                                                                                     const userId = u.staffid;
                                                                                     const activeFilter = chartFilters[userId] || '30d';
                                                                                     const FILTERS = [
