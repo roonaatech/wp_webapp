@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
-import { canAccessWebApp, hasAdminPermission, isSelfServiceOnly, getCachedRoles } from '../utils/roleUtils';
+import { canAccessWebApp, hasAdminPermission, isSelfServiceOnly, getCachedRoles, canAccessAttendancePortal } from '../utils/roleUtils';
 
 const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false, skipProfileCheck = false }) => {
     const [authState, setAuthState] = useState('checking'); // 'checking' | 'valid' | 'invalid'
@@ -65,6 +65,22 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
         }
     }
 
+    // Service accounts gating checks
+    if (user.isServiceAccount) {
+        // Block access to self-service pages
+        if (window.location.pathname === '/my-requests' || window.location.pathname === '/verify-profile') {
+            return <Navigate to="/unauthorized" replace />;
+        }
+        // Redirect home page to attendance portal or unauthorized
+        if (window.location.pathname === '/') {
+            if (canAccessAttendancePortal(user.role)) {
+                return <Navigate to="/attendance" replace />;
+            } else {
+                return <Navigate to="/unauthorized" replace />;
+            }
+        }
+    }
+
     // Force all mobile users to my-requests
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (isMobileDevice && !skipWebAppCheck) {
@@ -72,7 +88,8 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
     }
 
     // Skip permission checks for self-service routes like /my-requests
-    if (!skipWebAppCheck) {
+    const isSelfServiceRoute = skipWebAppCheck || window.location.pathname === '/my-requests';
+    if (!isSelfServiceRoute) {
         // 1. Gating: If user doesn't have webapp access at all, they shouldn't see dashboard pages
         if (!canAccessWebApp(user.role)) {
             return <Navigate to="/my-requests" replace />;
@@ -80,7 +97,7 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
 
         // 2. Navigation: If they ONLY have web access (no management permissions), 
         // they belong in /my-requests, not the main Dashboard pages
-        if (isSelfServiceOnly(user.role)) {
+        if (isSelfServiceOnly(user.role) && !user.isServiceAccount) {
             return <Navigate to="/my-requests" replace />;
         }
     }

@@ -14,7 +14,7 @@ import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
-import { canApproveLeave, canApproveOnDuty, canManageUsers } from '../utils/roleUtils';
+import { canApproveLeave, canApproveOnDuty, canManageUsers, canViewBirthdays, canViewAnniversaries } from '../utils/roleUtils';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
@@ -132,6 +132,12 @@ const Dashboard = () => {
     const [onLeaveData, setOnLeaveData] = useState({ today: [], tomorrow: [], today_date: '', tomorrow_date: '' });
     const [onLeaveLoading, setOnLeaveLoading] = useState(false);
     const [onLeaveDetailModal, setOnLeaveDetailModal] = useState({ show: false, emp: null, dayLabel: '' });
+    const [birthdays, setBirthdays] = useState([]);
+    const [birthdaysLoading, setBirthdaysLoading] = useState(false);
+    const [sendingWish, setSendingWish] = useState(null); // staff_id, 'all', or null
+    const [anniversaries, setAnniversaries] = useState([]);
+    const [anniversariesLoading, setAnniversariesLoading] = useState(false);
+    const [sendingAnniversaryWish, setSendingAnniversaryWish] = useState(null); // staff_id, 'all', or null
     const scrollContainerRef = useRef(null);
 
     const scrollLeft = () => {
@@ -164,6 +170,16 @@ const Dashboard = () => {
         // Fetch on-leave status for managers/approvers
         if (canApproveLeave(user.role)) {
             fetchOnLeaveData();
+        }
+
+        // Today's birthdays require the can_view_birthdays permission
+        if (canViewBirthdays(user.role)) {
+            fetchBirthdays();
+        }
+
+        // Today's work anniversaries require the can_view_anniversaries permission
+        if (canViewAnniversaries(user.role)) {
+            fetchAnniversaries();
         }
     }, []);
 
@@ -198,6 +214,38 @@ const Dashboard = () => {
             console.error('Error fetching on-leave status:', error);
         } finally {
             setOnLeaveLoading(false);
+        }
+    };
+
+    const fetchBirthdays = async () => {
+        try {
+            setBirthdaysLoading(true);
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard/birthdays`, {
+                headers: { 'x-access-token': token }
+            });
+            setBirthdays(response.data.birthdays || []);
+        } catch (error) {
+            console.error('Error fetching birthdays:', error);
+        } finally {
+            setBirthdaysLoading(false);
+        }
+    };
+
+    const fetchAnniversaries = async () => {
+        try {
+            setAnniversariesLoading(true);
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard/anniversaries`, {
+                headers: { 'x-access-token': token }
+            });
+            setAnniversaries(response.data.anniversaries || []);
+        } catch (error) {
+            console.error('Error fetching anniversaries:', error);
+        } finally {
+            setAnniversariesLoading(false);
         }
     };
 
@@ -465,6 +513,189 @@ const Dashboard = () => {
         return trends;
     };
 
+    // Profile photo when available, initial-based fallback otherwise
+    const BirthdayAvatar = ({ person, className }) => (
+        person.image_path ? (
+            <img
+                src={`${API_BASE_URL}/${person.image_path.replace(/\\/g, '/')}`}
+                alt={person.name}
+                className={`object-cover ${className}`}
+            />
+        ) : (
+            <div className={`flex items-center justify-center bg-gradient-to-br from-pink-400 to-rose-500 font-black text-white ${className}`}>
+                {person.name.charAt(0).toUpperCase()}
+            </div>
+        )
+    );
+
+    const AnniversaryAvatar = ({ person, className }) => (
+        person.image_path ? (
+            <img
+                src={`${API_BASE_URL}/${person.image_path.replace(/\\/g, '/')}`}
+                alt={person.name}
+                className={`object-cover ${className}`}
+            />
+        ) : (
+            <div className={`flex items-center justify-center bg-gradient-to-br from-teal-400 to-emerald-500 font-black text-white ${className}`}>
+                {person.name.charAt(0).toUpperCase()}
+            </div>
+        )
+    );
+
+    const BirthdayWishStatus = ({ person }) => {
+        if (person.wish_sent) {
+            return (
+                <span
+                    title={`Sent ${person.wish_sent_at ? formatInTimezone(person.wish_sent_at) : ''} to ${person.wish_sent_to || ''}${person.wish_source === 'cron' ? ' (scheduled)' : ''}`}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-green-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-green-700"
+                >
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+                    Email Sent
+                </span>
+            );
+        }
+
+        if (person.wish_status === 'Failed') {
+            return (
+                <span
+                    title={person.wish_error || 'Sending failed'}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-700"
+                >
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                    Failed
+                </span>
+            );
+        }
+
+        if ((person.wish_recipients || []).length === 0) {
+            return (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                    No Email
+                </span>
+            );
+        }
+
+        return (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                Pending
+            </span>
+        );
+    };
+
+    const AnniversaryWishStatus = ({ person }) => {
+        if (person.wish_sent) {
+            return (
+                <span
+                    title={`Sent ${person.wish_sent_at ? formatInTimezone(person.wish_sent_at) : ''} to ${person.wish_sent_to || ''}${person.wish_source === 'cron' ? ' (scheduled)' : ''}`}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-green-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-green-700"
+                >
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+                    Email Sent
+                </span>
+            );
+        }
+
+        if (person.wish_status === 'Failed') {
+            return (
+                <span
+                    title={person.wish_error || 'Sending failed'}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-700"
+                >
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                    Failed
+                </span>
+            );
+        }
+
+        if ((person.wish_recipients || []).length === 0) {
+            return (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                    No Email
+                </span>
+            );
+        }
+
+        return (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                Pending
+            </span>
+        );
+    };
+
+    // Celebrants who still need a wish and have somewhere to send it
+    const pendingWishCount = birthdays.filter(
+        b => !b.wish_sent && (b.wish_recipients || []).length > 0
+    ).length;
+
+    const pendingAnniversaryWishCount = anniversaries.filter(
+        a => !a.wish_sent && (a.wish_recipients || []).length > 0
+    ).length;
+
+    // staffIds === null sends to everyone still pending today
+    const sendBirthdayWishes = async (staffIds, key) => {
+        try {
+            setSendingWish(key);
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const response = await axios.post(
+                `${API_BASE_URL}/api/admin/dashboard/birthdays/send-wishes`,
+                staffIds ? { staff_ids: staffIds } : {},
+                { headers: { 'x-access-token': token } }
+            );
+
+            const { sent = 0, failed = 0 } = response.data;
+            if (sent > 0) {
+                toast.success(`${sent} birthday wish${sent > 1 ? 'es' : ''} sent`, {
+                    style: { background: '#059669', color: '#fff' }
+                });
+            }
+            if (failed > 0) {
+                toast.error(`${failed} birthday wish${failed > 1 ? 'es' : ''} failed to send`);
+            }
+
+            await fetchBirthdays();
+        } catch (error) {
+            console.error('Error sending birthday wishes:', error);
+            toast.error(error.response?.data?.message || 'Failed to send birthday wishes');
+        } finally {
+            setSendingWish(null);
+        }
+    };
+
+    const sendAnniversaryWishes = async (staffIds, key) => {
+        try {
+            setSendingAnniversaryWish(key);
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const response = await axios.post(
+                `${API_BASE_URL}/api/admin/dashboard/anniversaries/send-wishes`,
+                staffIds ? { staff_ids: staffIds } : {},
+                { headers: { 'x-access-token': token } }
+            );
+
+            const { sent = 0, failed = 0 } = response.data;
+            if (sent > 0) {
+                toast.success(`${sent} work anniversary wish${sent > 1 ? 'es' : ''} sent`, {
+                    style: { background: '#059669', color: '#fff' }
+                });
+            }
+            if (failed > 0) {
+                toast.error(`${failed} work anniversary wish${failed > 1 ? 'es' : ''} failed to send`);
+            }
+
+            await fetchAnniversaries();
+        } catch (error) {
+            console.error('Error sending anniversary wishes:', error);
+            toast.error(error.response?.data?.message || 'Failed to send work anniversary wishes');
+        } finally {
+            setSendingAnniversaryWish(null);
+        }
+    };
+
     const StatCard = ({ title, value, icon, color, footer, gradient }) => (
         <div className={`relative overflow-hidden bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group`}>
             {/* Background Decorative Gradient Circle */}
@@ -646,6 +877,279 @@ const Dashboard = () => {
                     )}
                     <div className={`transition-all duration-300 ${(approveModal.show || rejectModal.show) ? 'blur-sm' : ''}`}>
                         <>
+                            {/* Birthdays Today - HR and higher hierarchy only */}
+                            {!birthdaysLoading && birthdays.length > 0 && (
+                                <div className="mb-8">
+                                    <style>{`
+                                        @keyframes float {
+                                            0%, 100% { transform: translateY(0) scale(1); }
+                                            50% { transform: translateY(-6px) scale(1.05); }
+                                        }
+                                        @keyframes shimmer {
+                                            0% { background-position: -200% 0; }
+                                            100% { background-position: 200% 0; }
+                                        }
+                                        .birthday-float {
+                                            animation: float 4s ease-in-out infinite;
+                                        }
+                                        .festive-shimmer {
+                                            background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.15), rgba(255,255,255,0));
+                                            background-size: 200% 100%;
+                                            animation: shimmer 3s infinite linear;
+                                        }
+                                    `}</style>
+                                    <div className="overflow-hidden rounded-2xl border-2 border-pink-200/60 bg-white shadow-[0_8px_30px_rgb(244,63,94,0.08)] transition-all duration-300 hover:shadow-[0_12px_40px_rgb(244,63,94,0.15)] hover:border-pink-300">
+                                        {/* Festive header */}
+                                        <div className="relative overflow-hidden bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 px-6 py-5 text-white">
+                                            {/* Shimmer effect overlay */}
+                                            <div className="absolute inset-0 festive-shimmer opacity-30 pointer-events-none"></div>
+
+                                            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+                                                <div className="absolute -right-12 -top-24 h-52 w-52 rounded-full bg-white/10 blur-2xl"></div>
+                                                <span className="absolute left-[20%] top-[25%] h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse"></span>
+                                                <span className="absolute left-[38%] top-[65%] h-2.5 w-1.5 -rotate-45 rounded-full bg-amber-200/50"></span>
+                                                <span className="absolute left-[55%] top-[18%] h-1.5 w-1.5 rounded-full bg-white/35"></span>
+                                                <span className="absolute left-[72%] top-[60%] h-2.5 w-1.5 rotate-45 rounded-full bg-rose-200/50"></span>
+                                            </div>
+
+                                            <div className="relative z-10 flex items-center justify-between gap-4">
+                                                <div className="min-w-0 flex items-center gap-4">
+                                                    <div className="birthday-float text-3xl flex-shrink-0 bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm border border-white/20 shadow-inner">
+                                                        🎂
+                                                    </div>
+                                                    <div>
+                                                        <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-white">
+                                                            {birthdays.length} Birthday{birthdays.length > 1 ? 's' : ''} Today!
+                                                        </h2>
+                                                        <p className="mt-1 text-xs font-semibold text-pink-100">
+                                                            {pendingWishCount > 0
+                                                                ? `${pendingWishCount} wish${pendingWishCount > 1 ? 'es' : ''} still to send.`
+                                                                : 'All wishes have been sent.'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => sendBirthdayWishes(null, 'all')}
+                                                    disabled={pendingWishCount === 0 || sendingWish !== null}
+                                                    className="group flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-black uppercase tracking-widest text-rose-600 shadow-md shadow-pink-900/10 hover:shadow-pink-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-rose-50 active:scale-95 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white/60 disabled:shadow-none disabled:hover:translate-y-0"
+                                                >
+                                                    {sendingWish === 'all' ? 'Sending…' : '🎉 Send All Wishes'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Celebrants table */}
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full min-w-[680px] text-left">
+                                                <thead>
+                                                    <tr className="border-b border-pink-100/50 bg-pink-50/20">
+                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-pink-800/80">Employee</th>
+                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-pink-800/80">Role</th>
+                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-pink-800/80">Birthday</th>
+                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-pink-800/80">Status</th>
+                                                        <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-widest text-pink-800/80">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {birthdays.map((person) => {
+                                                        const hasEmail = (person.wish_recipients || []).length > 0;
+                                                        const isSending = sendingWish === person.staff_id || sendingWish === 'all';
+
+                                                        return (
+                                                            <tr
+                                                                key={person.staff_id}
+                                                                className="border-b border-pink-50/30 transition-all duration-200 last:border-0 hover:bg-pink-50/20"
+                                                            >
+                                                                <td className="px-6 py-3.5">
+                                                                    <Link to={`/staff-profile/${person.staff_id}`} className="group flex items-center gap-3">
+                                                                        <BirthdayAvatar
+                                                                            person={person}
+                                                                            className="h-10 w-10 flex-shrink-0 rounded-full text-xs shadow-sm ring-2 ring-pink-100 group-hover:ring-pink-300 transition-all"
+                                                                        />
+                                                                        <div className="min-w-0">
+                                                                            <p className="truncate text-xs font-black text-gray-900 transition-colors group-hover:text-pink-600">
+                                                                                {person.name}
+                                                                            </p>
+                                                                            <p className="truncate text-[10px] font-semibold text-gray-400 group-hover:text-gray-500 transition-colors">
+                                                                                {(person.wish_recipients || []).join(', ') || 'No email on record'}
+                                                                            </p>
+                                                                        </div>
+                                                                    </Link>
+                                                                </td>
+                                                                <td className="px-6 py-3.5 text-xs font-semibold text-gray-600">
+                                                                    {person.role_name || 'Staff'}
+                                                                </td>
+                                                                <td className="px-6 py-3.5 text-xs font-bold text-gray-700">
+                                                                    <span className="flex items-center gap-2">
+                                                                        <span className="text-sm">🎈</span>
+                                                                        <span>{person.day_month}</span>
+                                                                        {person.turning_age && (
+                                                                            <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full border border-pink-100">
+                                                                                Turns {person.turning_age}
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-3.5">
+                                                                    <BirthdayWishStatus person={person} />
+                                                                </td>
+                                                                <td className="px-6 py-3.5 text-right">
+                                                                    <button
+                                                                        onClick={() => sendBirthdayWishes([person.staff_id], person.staff_id)}
+                                                                        disabled={person.wish_sent || !hasEmail || sendingWish !== null}
+                                                                        title={
+                                                                            person.wish_sent
+                                                                                ? 'Birthday wish already sent today'
+                                                                                : (!hasEmail ? 'No email address on record' : 'Send the birthday wish now')
+                                                                        }
+                                                                        className="rounded-xl bg-[#1e1b4b] px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition-all hover:bg-pink-600 hover:shadow-md hover:shadow-pink-500/10 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+                                                                    >
+                                                                        {isSending && !person.wish_sent ? 'Sending…' : 'Send Wish'}
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Work Anniversaries Today - HR and higher hierarchy only */}
+                            {!anniversariesLoading && anniversaries.length > 0 && (
+                                <div className="mb-8">
+                                    <style>{`
+                                        @keyframes floatAnniversary {
+                                            0%, 100% { transform: translateY(0) scale(1); }
+                                            50% { transform: translateY(-6px) scale(1.05); }
+                                        }
+                                        .anniversary-float {
+                                            animation: floatAnniversary 4.2s ease-in-out infinite;
+                                        }
+                                    `}</style>
+                                    <div className="overflow-hidden rounded-2xl border-2 border-emerald-200/60 bg-white shadow-[0_8px_30px_rgb(16,185,129,0.08)] transition-all duration-300 hover:shadow-[0_12px_40px_rgb(16,185,129,0.15)] hover:border-emerald-300">
+                                        {/* Festive header */}
+                                        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-6 py-5 text-white">
+                                            {/* Shimmer effect overlay */}
+                                            <div className="absolute inset-0 festive-shimmer opacity-30 pointer-events-none"></div>
+
+                                            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+                                                <div className="absolute -right-12 -top-24 h-52 w-52 rounded-full bg-white/10 blur-2xl"></div>
+                                                <span className="absolute left-[20%] top-[25%] h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse"></span>
+                                                <span className="absolute left-[38%] top-[65%] h-2.5 w-1.5 -rotate-45 rounded-full bg-yellow-200/50"></span>
+                                                <span className="absolute left-[55%] top-[18%] h-1.5 w-1.5 rounded-full bg-white/35"></span>
+                                                <span className="absolute left-[72%] top-[60%] h-2.5 w-1.5 rotate-45 rounded-full bg-teal-200/50"></span>
+                                            </div>
+
+                                            <div className="relative z-10 flex items-center justify-between gap-4">
+                                                <div className="min-w-0 flex items-center gap-4">
+                                                    <div className="anniversary-float text-3xl flex-shrink-0 bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm border border-white/20 shadow-inner">
+                                                        🏆
+                                                    </div>
+                                                    <div>
+                                                        <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-white">
+                                                            {anniversaries.length} Work Anniversary{anniversaries.length > 1 ? 'ies' : ''} Today!
+                                                        </h2>
+                                                        <p className="mt-1 text-xs font-semibold text-emerald-100">
+                                                            {pendingAnniversaryWishCount > 0
+                                                                ? `${pendingAnniversaryWishCount} wish${pendingAnniversaryWishCount > 1 ? 'es' : ''} still to send.`
+                                                                : 'All wishes have been sent.'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => sendAnniversaryWishes(null, 'all')}
+                                                    disabled={pendingAnniversaryWishCount === 0 || sendingAnniversaryWish !== null}
+                                                    className="group flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-black uppercase tracking-widest text-emerald-600 shadow-md shadow-emerald-900/10 hover:shadow-emerald-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-50 active:scale-95 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white/60 disabled:shadow-none disabled:hover:translate-y-0"
+                                                >
+                                                    {sendingAnniversaryWish === 'all' ? 'Sending…' : '🎉 Send All Wishes'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Celebrants table */}
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full min-w-[680px] text-left">
+                                                <thead>
+                                                    <tr className="border-b border-emerald-100/50 bg-emerald-50/20">
+                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-emerald-800/80">Employee</th>
+                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-emerald-800/80">Role</th>
+                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-emerald-800/80">Anniversary</th>
+                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-emerald-800/80">Status</th>
+                                                        <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-widest text-emerald-800/80">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {anniversaries.map((person) => {
+                                                        const hasEmail = (person.wish_recipients || []).length > 0;
+                                                        const isSending = sendingAnniversaryWish === person.staff_id || sendingAnniversaryWish === 'all';
+
+                                                        return (
+                                                            <tr
+                                                                key={person.staff_id}
+                                                                className="border-b border-emerald-50/30 transition-all duration-200 last:border-0 hover:bg-emerald-50/20"
+                                                            >
+                                                                <td className="px-6 py-3.5">
+                                                                    <Link to={`/staff-profile/${person.staff_id}`} className="group flex items-center gap-3">
+                                                                        <AnniversaryAvatar
+                                                                            person={person}
+                                                                            className="h-10 w-10 flex-shrink-0 rounded-full text-xs shadow-sm ring-2 ring-emerald-100 group-hover:ring-emerald-300 transition-all"
+                                                                        />
+                                                                        <div className="min-w-0">
+                                                                            <p className="truncate text-xs font-black text-gray-900 transition-colors group-hover:text-emerald-600">
+                                                                                {person.name}
+                                                                            </p>
+                                                                            <p className="truncate text-[10px] font-semibold text-gray-400 group-hover:text-gray-500 transition-colors">
+                                                                                {(person.wish_recipients || []).join(', ') || 'No email on record'}
+                                                                            </p>
+                                                                        </div>
+                                                                    </Link>
+                                                                </td>
+                                                                <td className="px-6 py-3.5 text-xs font-semibold text-gray-600">
+                                                                    {person.role_name || 'Staff'}
+                                                                </td>
+                                                                <td className="px-6 py-3.5 text-xs font-bold text-gray-700">
+                                                                    <span className="flex items-center gap-2">
+                                                                        <span className="text-sm">🌟</span>
+                                                                        <span>{person.day_month}</span>
+                                                                        {person.years_of_service && (
+                                                                            <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                                                                Celebrating {person.years_of_service} year{person.years_of_service > 1 ? 's' : ''}
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-3.5">
+                                                                    <AnniversaryWishStatus person={person} />
+                                                                </td>
+                                                                <td className="px-6 py-3.5 text-right">
+                                                                    <button
+                                                                        onClick={() => sendAnniversaryWishes([person.staff_id], person.staff_id)}
+                                                                        disabled={person.wish_sent || !hasEmail || sendingAnniversaryWish !== null}
+                                                                        title={
+                                                                            person.wish_sent
+                                                                                ? 'Work anniversary wish already sent today'
+                                                                                : (!hasEmail ? 'No email address on record' : 'Send the work anniversary wish now')
+                                                                        }
+                                                                        className="rounded-xl bg-[#1e1b4b] px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition-all hover:bg-emerald-600 hover:shadow-md hover:shadow-emerald-500/10 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+                                                                    >
+                                                                        {isSending && !person.wish_sent ? 'Sending…' : 'Send Wish'}
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* On Leave Today / Tomorrow Section */}
                             {!onLeaveLoading && (onLeaveData.today.length > 0 || onLeaveData.tomorrow.length > 0) && (
                                 <div className="mb-8">

@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar } from "react-icons/lu";
+import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding } from '../utils/roleUtils';
 import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
+import * as faceapi from '@vladmandic/face-api';
 
 
 
@@ -72,6 +73,24 @@ const ViewEmployeeProfile = () => {
     const [resendingEmail, setResendingEmail] = useState(false);
     const [dojDisplay, setDojDisplay] = useState('');
     const dojPickerRef = useRef(null);
+    const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+    const [modelsLoaded, setModelsLoaded] = useState(false);
+    const [registeringFace, setRegisteringFace] = useState(false);
+    const [faceDetected, setFaceDetected] = useState(false);
+    const faceVideoRef = useRef(null);
+    const faceStreamRef = useRef(null);
+    const faceDetectIntervalRef = useRef(null);
+
+    // Guided multi-profile face registration states
+    const [registrationStep, setRegistrationStep] = useState('FRONT'); // 'FRONT' | 'LEFT' | 'RIGHT' | 'CONFIRM'
+    const registrationStepRef = useRef('FRONT');
+    const [frontProfileSnap, setFrontProfileSnap] = useState(null);
+    const [leftProfileSnap, setLeftProfileSnap] = useState(null);
+    const [rightProfileSnap, setRightProfileSnap] = useState(null);
+
+    const frontDescriptorRef = useRef(null);
+    const leftDescriptorRef = useRef(null);
+    const rightDescriptorRef = useRef(null);
 
     useEffect(() => {
         fetchEmployeeProfile();
@@ -247,6 +266,196 @@ const ViewEmployeeProfile = () => {
         }
     };
 
+    // Load Face API Models
+    const loadFaceModels = async () => {
+        if (modelsLoaded) return true;
+        try {
+            await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+            setModelsLoaded(true);
+            return true;
+        } catch (err) {
+            console.log('Failed loading local models, trying CDN...', err);
+            try {
+                const CDN_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+                await faceapi.nets.ssdMobilenetv1.loadFromUri(CDN_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(CDN_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(CDN_URL);
+                setModelsLoaded(true);
+                return true;
+            } catch (cdnErr) {
+                console.error('All model loading attempts failed:', cdnErr);
+                toast.error('Face Identification Model Loading Failed.');
+                return false;
+            }
+        }
+    };
+
+    const calculateYawRatio = (landmarks) => {
+        if (!landmarks) return 1.0;
+        try {
+            const jaw = landmarks.getJawOutline();
+            const nose = landmarks.getNose();
+            if (!jaw || jaw.length < 15 || !nose || nose.length < 4) return 1.0;
+            const noseTip = nose[3];
+            const leftCheek = jaw[2];
+            const rightCheek = jaw[14];
+            const dist = (pt1, pt2) => Math.hypot(pt1.x - pt2.x, pt1.y - pt2.y);
+            const distLeft = dist(noseTip, leftCheek);
+            const distRight = dist(noseTip, rightCheek);
+            if (distRight === 0) return 1.0;
+            return distLeft / distRight;
+        } catch {
+            return 1.0;
+        }
+    };
+
+    const captureRegistrationSnapshot = () => {
+        const video = faceVideoRef.current;
+        if (!video) return null;
+        const vW = video.videoWidth || 640;
+        const vH = video.videoHeight || 480;
+        const dW = video.clientWidth || vW;
+        const dH = video.clientHeight || vH;
+        const scale = Math.max(dW / vW, dH / vH);
+        const vD = Math.min(160 / scale, vW, vH);
+        const sx = Math.max(0, (vW - vD) / 2);
+        const sy = Math.max(0, (vH - vD) / 2);
+        const canvas = document.createElement('canvas');
+        canvas.width = 300;
+        canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, sx, sy, vD, vD, 0, 0, 300, 300);
+        return canvas.toDataURL('image/jpeg', 0.85);
+    };
+
+    const startFaceCamera = async () => {
+        try {
+            const hasModels = await loadFaceModels();
+            if (!hasModels) return;
+
+            // Reset registration steps on camera start
+            setRegistrationStep('FRONT');
+            registrationStepRef.current = 'FRONT';
+            setFrontProfileSnap(null);
+            setLeftProfileSnap(null);
+            setRightProfileSnap(null);
+            frontDescriptorRef.current = null;
+            leftDescriptorRef.current = null;
+            rightDescriptorRef.current = null;
+
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: 640, height: 480, facingMode: "user" } 
+            });
+            if (faceVideoRef.current) {
+                faceVideoRef.current.srcObject = stream;
+            }
+            faceStreamRef.current = stream;
+
+            faceDetectIntervalRef.current = setInterval(async () => {
+                if (faceVideoRef.current && faceapi.nets.ssdMobilenetv1.params) {
+                    try {
+                        const detection = await faceapi.detectSingleFace(
+                            faceVideoRef.current, 
+                            new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
+                        ).withFaceLandmarks().withFaceDescriptor();
+
+                        if (!detection) {
+                            setFaceDetected(false);
+                            return;
+                        }
+                        setFaceDetected(true);
+
+                        if (registrationStepRef.current === 'CONFIRM') return;
+
+                        const yawRatio = calculateYawRatio(detection.landmarks);
+
+                        if (registrationStepRef.current === 'FRONT') {
+                            if (yawRatio >= 0.85 && yawRatio <= 1.15) {
+                                const snap = captureRegistrationSnapshot();
+                                frontDescriptorRef.current = Array.from(detection.descriptor);
+                                setFrontProfileSnap(snap);
+                                registrationStepRef.current = 'LEFT';
+                                setRegistrationStep('LEFT');
+                                toast.success("Front profile captured! Now turn your head LEFT.", { id: 'admin-reg-front' });
+                            }
+                        } else if (registrationStepRef.current === 'LEFT') {
+                            if (yawRatio < 0.65) {
+                                const snap = captureRegistrationSnapshot();
+                                leftDescriptorRef.current = Array.from(detection.descriptor);
+                                setLeftProfileSnap(snap);
+                                registrationStepRef.current = 'RIGHT';
+                                setRegistrationStep('RIGHT');
+                                toast.success("Left profile captured! Now turn your head RIGHT.", { id: 'admin-reg-left' });
+                            }
+                        } else if (registrationStepRef.current === 'RIGHT') {
+                            if (yawRatio > 1.50) {
+                                const snap = captureRegistrationSnapshot();
+                                rightDescriptorRef.current = Array.from(detection.descriptor);
+                                setRightProfileSnap(snap);
+                                registrationStepRef.current = 'CONFIRM';
+                                setRegistrationStep('CONFIRM');
+                                stopFaceCamera(); // stop camera feed, user is in confirm screen
+                                toast.success("Right profile captured! Review profiles and submit.", { id: 'admin-reg-right' });
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error in registration loop:", err);
+                    }
+                }
+            }, 250);
+        } catch (err) {
+            console.error("Error accessing webcam:", err);
+            toast.error("Webcam access denied or unavailable.");
+        }
+    };
+
+    const stopFaceCamera = () => {
+        if (faceDetectIntervalRef.current) {
+            clearInterval(faceDetectIntervalRef.current);
+            faceDetectIntervalRef.current = null;
+        }
+        if (faceStreamRef.current) {
+            faceStreamRef.current.getTracks().forEach(track => track.stop());
+            faceStreamRef.current = null;
+        }
+        if (faceVideoRef.current) {
+            faceVideoRef.current.srcObject = null;
+        }
+        setFaceDetected(false);
+    };
+
+    const handleRegisterFace = async () => {
+        if (!frontDescriptorRef.current || !leftDescriptorRef.current || !rightDescriptorRef.current) {
+            toast.error("Multi-angle facial registration is incomplete. Please repeat the steps.");
+            return;
+        }
+        setRegisteringFace(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.post(`${API_BASE_URL}/api/admin/users/${id}/register-face`, {
+                faceDescriptor: frontDescriptorRef.current,
+                faceDescriptorLeft: leftDescriptorRef.current,
+                faceDescriptorRight: rightDescriptorRef.current,
+                profileImage: frontProfileSnap
+            }, {
+                headers: { 'x-access-token': token }
+            });
+
+            toast.success(response.data.message || 'Face registered successfully!');
+            setIsFaceModalOpen(false);
+            stopFaceCamera();
+            fetchEmployeeProfile(); // Reload profile details
+        } catch (err) {
+            console.error('Error registering face:', err);
+            toast.error(err.response?.data?.message || 'Failed to register face.');
+        } finally {
+            setRegisteringFace(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -362,6 +571,27 @@ const ViewEmployeeProfile = () => {
                             </span>
                         )}
                     </div>
+
+                    {/* Registered Face ID image (kept separate from the profile photo) */}
+                    {employee.face_image_path && (
+                        <div className="flex flex-col items-center gap-1">
+                            <div className="relative w-16 h-16 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center shadow-sm overflow-hidden">
+                                <img
+                                    src={`${API_BASE_URL}/${employee.face_image_path.replace(/\\/g, '/')}`}
+                                    alt={`${employee.firstname} ${employee.lastname} Face ID`}
+                                    className="w-full h-full object-cover rounded-2xl cursor-zoom-in hover:brightness-95 transition duration-200"
+                                    onClick={() => {
+                                        setLightboxImage(`${API_BASE_URL}/${employee.face_image_path.replace(/\\/g, '/')}`);
+                                        setIsLightboxOpen(true);
+                                    }}
+                                />
+                            </div>
+                            <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wide flex items-center gap-1">
+                                <LuCamera size={11} /> Face ID
+                            </span>
+                        </div>
+                    )}
+
                     <div>
                         <div className="flex items-center gap-2.5 flex-wrap">
                             <h1 className="text-2xl font-black text-[#1e1b4b]">{employee.firstname} {employee.lastname}</h1>
@@ -456,6 +686,18 @@ const ViewEmployeeProfile = () => {
                                     Resend Welcome Email
                                 </>
                             )}
+                        </button>
+                    )}
+                    {canEdit && (
+                        <button
+                            onClick={() => {
+                                setIsFaceModalOpen(true);
+                                startFaceCamera();
+                            }}
+                            className="flex-1 md:flex-none px-6 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl transition text-sm shadow-sm flex items-center justify-center gap-1.5"
+                        >
+                            <LuCamera size={16} />
+                            {employee.face_image_path ? 'Update Face ID' : 'Register Face ID'}
                         </button>
                     )}
                     {canEdit && (
@@ -989,6 +1231,147 @@ const ViewEmployeeProfile = () => {
                             alt="Bigger employee profile photo"
                             className="max-w-full max-h-[85vh] rounded-3xl object-contain shadow-2xl border border-white/10 bg-black/20"
                         />
+                    </div>
+                </div>
+            )}
+
+            {/* Face Registration Modal */}
+            {isFaceModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 flex flex-col justify-between">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                <LuCamera className="text-indigo-600" />
+                                Register Face ID
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setIsFaceModalOpen(false);
+                                    stopFaceCamera();
+                                }}
+                                className="text-gray-400 hover:text-gray-600 text-sm font-semibold"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        {/* Guided UI Checklist Bar */}
+                        <div className="flex justify-center gap-6 mb-4">
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className={`w-12 h-12 rounded-full border-2 overflow-hidden flex items-center justify-center transition-all ${frontProfileSnap ? 'border-emerald-500 bg-white' : 'border-dashed border-gray-300 bg-gray-50'}`}>
+                                    {frontProfileSnap ? (
+                                        <img src={frontProfileSnap} alt="Front Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-gray-400 text-[9px]">Front</span>
+                                    )}
+                                </div>
+                                <span className={`text-[9px] font-bold ${registrationStep === 'FRONT' ? 'text-indigo-600' : 'text-gray-400'}`}>1. Look Straight</span>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className={`w-12 h-12 rounded-full border-2 overflow-hidden flex items-center justify-center transition-all ${leftProfileSnap ? 'border-emerald-500 bg-white' : 'border-dashed border-gray-300 bg-gray-50'}`}>
+                                    {leftProfileSnap ? (
+                                        <img src={leftProfileSnap} alt="Left Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-gray-400 text-[9px]">Left</span>
+                                    )}
+                                </div>
+                                <span className={`text-[9px] font-bold ${registrationStep === 'LEFT' ? 'text-indigo-600' : 'text-gray-400'}`}>2. Turn Left</span>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className={`w-12 h-12 rounded-full border-2 overflow-hidden flex items-center justify-center transition-all ${rightProfileSnap ? 'border-emerald-500 bg-white' : 'border-dashed border-gray-300 bg-gray-50'}`}>
+                                    {rightProfileSnap ? (
+                                        <img src={rightProfileSnap} alt="Right Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-gray-400 text-[9px]">Right</span>
+                                    )}
+                                </div>
+                                <span className={`text-[9px] font-bold ${registrationStep === 'RIGHT' ? 'text-indigo-600' : 'text-gray-400'}`}>3. Turn Right</span>
+                            </div>
+                        </div>
+
+                        {/* Webcam Viewport */}
+                        {registrationStep !== 'CONFIRM' ? (
+                            <div className="relative aspect-video bg-[#0f172a] rounded-2xl overflow-hidden border border-slate-700/50 flex items-center justify-center">
+                                <video 
+                                    ref={faceVideoRef}
+                                    autoPlay 
+                                    muted 
+                                    playsInline 
+                                    className="w-full h-full object-cover transform -scale-x-100"
+                                />
+                                
+                                <div className="absolute inset-0 border-2 border-dashed border-sky-400/20 rounded-2xl pointer-events-none flex items-center justify-center">
+                                    <div className={`w-40 h-40 border-2 rounded-full pointer-events-none transition-all duration-300 ${
+                                        faceDetected ? 'border-emerald-500/80 bg-emerald-500/5 scale-105 animate-pulse' : 'border-sky-400/30 scale-100'
+                                    }`}>
+                                        <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-sky-400 to-transparent animate-pulse absolute top-1/2 left-0" />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 text-center space-y-3 animate-fade-in">
+                                <div className="flex justify-center items-center gap-1.5 text-emerald-700 font-bold text-xs">
+                                    <LuCheck className="w-4 h-4 bg-emerald-500 text-white rounded-full p-0.5" />
+                                    <span>All 3 Profiles Captured!</span>
+                                </div>
+                                <div className="flex justify-center gap-3">
+                                    <div className="text-center">
+                                        <img src={frontProfileSnap} className="w-16 h-16 rounded-xl border border-gray-200 object-cover mx-auto" alt="Front Profile" />
+                                        <span className="text-[9px] text-gray-400 font-medium mt-1 block">Front</span>
+                                    </div>
+                                    <div className="text-center">
+                                        <img src={leftProfileSnap} className="w-16 h-16 rounded-xl border border-gray-200 object-cover mx-auto" alt="Left Profile" />
+                                        <span className="text-[9px] text-gray-400 font-medium mt-1 block">Left</span>
+                                    </div>
+                                    <div className="text-center">
+                                        <img src={rightProfileSnap} className="w-16 h-16 rounded-xl border border-gray-200 object-cover mx-auto" alt="Right Profile" />
+                                        <span className="text-[9px] text-gray-400 font-medium mt-1 block">Right</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="mt-4 p-2.5 bg-slate-50 rounded-xl text-center">
+                            <p className="text-xs font-semibold text-slate-600">
+                                {registrationStep === 'FRONT' && (faceDetected ? '✅ Looking straight detected. Capturing...' : '🔍 Look straight at the camera.')}
+                                {registrationStep === 'LEFT' && '⬅️ Turn your head LEFT.'}
+                                {registrationStep === 'RIGHT' && '➡️ Turn your head RIGHT.'}
+                                {registrationStep === 'CONFIRM' && '✅ Press Register below to submit.'}
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    setIsFaceModalOpen(false);
+                                    stopFaceCamera();
+                                }}
+                                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition"
+                                disabled={registeringFace}
+                            >
+                                Cancel
+                            </button>
+                            
+                            {registrationStep === 'CONFIRM' ? (
+                                <button
+                                    onClick={handleRegisterFace}
+                                    className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-sm transition shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 cursor-pointer"
+                                    disabled={registeringFace}
+                                >
+                                    {registeringFace ? 'Registering...' : 'Register Face'}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => startFaceCamera()}
+                                    className="flex-1 py-3 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-sm transition cursor-pointer"
+                                >
+                                    Restart Scan
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

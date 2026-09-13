@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 import { LuSmartphone } from "react-icons/lu";
-import { fetchRoles, canAccessWebApp, isSelfServiceOnly, getRoleDisplayName } from '../utils/roleUtils';
+import { fetchRoles, canAccessWebApp, isSelfServiceOnly, getRoleDisplayName, canAccessAttendancePortal } from '../utils/roleUtils';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -28,12 +28,14 @@ const Login = () => {
             lastname: data.lastname,
             email: data.email,
             role: data.role,
-            gender: data.gender // Include gender for validation
+            gender: data.gender, // Include gender for validation
+            isServiceAccount: data.isServiceAccount === true // Service accounts have no human profile
         };
 
         // --- Role & Gender Validation (First Time / Setup Required) ---
-        // If role is missing (0/null) OR gender is missing (null/empty string)
-        if (!user.role || !user.gender) {
+        // If role is missing (0/null) OR gender is missing (null/empty string).
+        // Service accounts are exempt: they are non-human credentials with no gender/profile.
+        if (!user.role || (!user.gender && !user.isServiceAccount)) {
             setShowWelcomeModal(true);
             setLoading(false);
             // DO NOT SAVE TOKEN - prevent login
@@ -53,6 +55,21 @@ const Login = () => {
             // Also refresh application settings (timezone, etc)
             if (window.refreshAppSettings) {
                 await window.refreshAppSettings();
+            }
+
+            // Service accounts handling
+            if (user.isServiceAccount) {
+                localStorage.setItem('user', JSON.stringify(user));
+                toast.success(`Welcome, ${user.firstname}!`, {
+                    style: { background: '#059669', color: '#fff' },
+                    icon: '👋'
+                });
+                if (canAccessAttendancePortal(user.role)) {
+                    navigate('/attendance');
+                } else {
+                    navigate('/unauthorized');
+                }
+                return;
             }
 
             // Force all mobile users to my-requests

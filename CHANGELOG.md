@@ -2,6 +2,175 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.9.18](https://github.com/roonaatech/wp_webapp/compare/v2.9.17...v2.9.18) (2026-08-22)
+
+
+### Features
+
+* set default active status filter, add UserOnboarding activity type, and support multiple duplicate user records during onboarding ([bf8cee2](https://github.com/roonaatech/wp_webapp/commit/bf8cee2a66f0364f98132f9ebd48a36077076114))
+
+### [2.9.17](https://github.com/roonaatech/wp_webapp/compare/v2.9.16...v2.9.17) (2026-08-19)
+
+
+### Features
+
+* enhance inactivity timer UI with expanded dimensions, updated animations, and new visual effects ([61172ba](https://github.com/roonaatech/wp_webapp/commit/61172bac1b09c89c2bf47a27f901ae93ff9701ce))
+
+### [2.9.16](https://github.com/roonaatech/wp_webapp/compare/v2.9.15...v2.9.16) (2026-08-19)
+
+
+### Features
+
+* make inactivity timeout and warning duration configurable via settings and redesign the warning overlay with a glassmorphism aesthetic ([553070c](https://github.com/roonaatech/wp_webapp/commit/553070cd5502758c7ebbcda0a95cac2f457daa8b))
+* replace raw cron strings with user-friendly time pickers for schedule settings ([48c8042](https://github.com/roonaatech/wp_webapp/commit/48c8042e0ae7af1c71e984a89c0a983dfc5da34e))
+
+### [2.9.15](https://github.com/roonaatech/wp_webapp/compare/v2.10.2...v2.9.15) (2026-08-10)
+
+
+### Features
+
+* implement vertical tabbed navigation for settings page layout ([7dd55aa](https://github.com/roonaatech/wp_webapp/commit/7dd55aaa8d7bba9749b0058505dc1bf281d6aca4))
+
+
+### Chores
+
+* **release:** 2.9.14 ([f3c67b1](https://github.com/roonaatech/wp_webapp/commit/f3c67b15b1ec17e7d888bc0507519009c9f35e02))
+
+### [2.9.13](https://github.com/roonaatech/wp_webapp/compare/v2.9.12...v2.9.13) (2026-08-08)
+
+
+### Features
+
+* add toggle for showing absent days in leave and attendance history ([6a28096](https://github.com/roonaatech/wp_webapp/commit/6a280962b8eb7f5b7520c5d53fc057df6f7805c5))
+
+
+### Chores
+
+* **release:** 2.9.13 ([53b52f7](https://github.com/roonaatech/wp_webapp/commit/53b52f74d60a811c60ce8f6bc91bf4570200f6a5))
+
+### [2.9.14](https://github.com/roonaatech/wp_webapp/compare/v2.10.2...v2.9.14) (2026-08-10)
+
+
+### Features
+
+* implement vertical tabbed navigation for settings page layout ([7dd55aa](https://github.com/roonaatech/wp_webapp/commit/7dd55aaa8d7bba9749b0058505dc1bf281d6aca4))
+
+### [2.9.13](https://github.com/roonaatech/wp_webapp/compare/v2.9.12...v2.9.13) (2026-08-08)
+
+
+### Features
+
+* add toggle for showing absent days in leave and attendance history ([6a28096](https://github.com/roonaatech/wp_webapp/commit/6a280962b8eb7f5b7520c5d53fc057df6f7805c5))
+
+
+### Chores
+
+* **release:** 2.9.13 ([53b52f7](https://github.com/roonaatech/wp_webapp/commit/53b52f74d60a811c60ce8f6bc91bf4570200f6a5))
+
+### [2.10.2](https://github.com/roonaatech/wp_webapp/compare/v2.10.1...v2.10.2) (2026-08-10)
+
+### [2.10.1](https://github.com/roonaatech/wp_webapp/compare/v2.10.0...v2.10.1) (2026-08-10)
+
+## [2.10.0](https://github.com/roonaatech/wp_webapp/compare/v2.9.14...v2.10.0) (2026-08-10)
+
+### [2.9.14](https://github.com/roonaatech/wp_webapp/compare/v2.9.12...v2.9.14) (2026-08-10)
+
+
+### Features
+
+* add birthday management features including fetching and sending wishes ([c3a99d0](https://github.com/roonaatech/wp_webapp/commit/c3a99d038882f783fe74611529025f814cad1fd5))
+* add work anniversary notifications and permissions configuration to roles and settings ([b2c3f56](https://github.com/roonaatech/wp_webapp/commit/b2c3f56b61b46cc82a879262965adbad82550501))
+
+
+### Chores
+
+* **release:** 2.9.13 ([4c044ac](https://github.com/roonaatech/wp_webapp/commit/4c044ac4e85122c2d627b84b6edd2668b4e2ec76))
+
+### [2.9.13](https://github.com/roonaatech/wp_webapp/compare/v2.9.12...v2.9.13) (2026-08-10)
+
+### [2.9.12](https://github.com/roonaatech/wp_webapp/compare/v2.9.11...v2.9.12) (2026-07-28)
+
+
+### Features
+
+* add UAT deployment workflow and update production FTP configuration to support secret fallbacks ([0f222e7](https://github.com/roonaatech/wp_webapp/commit/0f222e7abf1649e896727a6fe7029c0158c42719))
+* enhance attendance editing with facial recognition locks and future date validation ([af8d443](https://github.com/roonaatech/wp_webapp/commit/af8d4436dac5ca12bc925a5628f35c122659988a))
+* update leave and attendance history UI for better clarity and user experience ([13a129b](https://github.com/roonaatech/wp_webapp/commit/13a129b7e55556fa95e267b95069a5cfb56911d8))
+
+
+### Chores
+
+* update build script to use uat configuration in deployment workflow ([281aab4](https://github.com/roonaatech/wp_webapp/commit/281aab41748621b18f6f592e56b09eebaaeb13c3))
+
+### [2.9.11](https://github.com/roonaatech/wp_webapp/compare/v2.9.10...v2.9.11) (2026-07-18)
+
+
+### Styles
+
+* enhance attendance confirmation modal UI and add service account access control ([9d13579](https://github.com/roonaatech/wp_webapp/commit/9d135790e2b3ea8b0ef0689c1f7a24c44229ae51))
+
+### [2.9.10](https://github.com/roonaatech/wp_webapp/compare/v2.9.9...v2.9.10) (2026-07-17)
+
+
+### Features
+
+* add attendance confirmation modal with real-time duration and dynamic facial recognition radius scaling ([242c7cf](https://github.com/roonaatech/wp_webapp/commit/242c7cf4c883dbc630c79a52e6ad250ac8ed400b))
+
+### [2.9.9](https://github.com/roonaatech/wp_webapp/compare/v2.9.8...v2.9.9) (2026-07-17)
+
+
+### Features
+
+* implement multi-angle face registration with guided UI steps and yaw detection ([7f96a62](https://github.com/roonaatech/wp_webapp/commit/7f96a62b740b45e67ed89dfc93324f77eab4cc18))
+
+### [2.9.8](https://github.com/roonaatech/wp_webapp/compare/v2.9.7...v2.9.8) (2026-07-08)
+
+
+### Features
+
+* enhance DateFilterInput with native date picker and improve AttendanceReport layout ([5e8703b](https://github.com/roonaatech/wp_webapp/commit/5e8703b6c4d98d3ce30e581275062177715e5945))
+
+### [2.9.7](https://github.com/roonaatech/wp_webapp/compare/v2.9.6...v2.9.7) (2026-07-08)
+
+
+### Bug Fixes
+
+* update button label from 'Yearly History' to 'Leave History' for clarity ([eeee513](https://github.com/roonaatech/wp_webapp/commit/eeee513f5ca88a447ab2723f7fbb660b31945dbe))
+
+### [2.9.6](https://github.com/roonaatech/wp_webapp/compare/v2.9.5...v2.9.6) (2026-07-08)
+
+
+### Features
+
+* add Service Accounts management feature with role-based access control ([9cb6083](https://github.com/roonaatech/wp_webapp/commit/9cb6083603900e460686c3817edbb45074703e65))
+
+### [2.9.5](https://github.com/roonaatech/wp_webapp/compare/v2.9.4...v2.9.5) (2026-07-08)
+
+
+### Code Refactoring
+
+* adjust VirtualKeyboard styling, typography, and container width for improved UI consistency ([e9c3ad7](https://github.com/roonaatech/wp_webapp/commit/e9c3ad701153acc99544d8c738041b49533d024d))
+
+### [2.9.4](https://github.com/roonaatech/wp_webapp/compare/v2.9.3...v2.9.4) (2026-07-08)
+
+### [2.9.3](https://github.com/roonaatech/wp_webapp/compare/v2.9.2...v2.9.3) (2026-07-08)
+
+### [2.9.2](https://github.com/roonaatech/wp_webapp/compare/v2.9.1...v2.9.2) (2026-07-08)
+
+
+### Features
+
+* implement centered face cropping for registration snapshots to match UI preview dimensions ([a1d6e29](https://github.com/roonaatech/wp_webapp/commit/a1d6e299028204fbe8d9ddaefe65486ed937f5db))
+
+### [2.9.1](https://github.com/roonaatech/wp_webapp/compare/v2.9.0...v2.9.1) (2026-07-08)
+
+## [2.9.0](https://github.com/roonaatech/wp_webapp/compare/v2.8.21...v2.9.0) (2026-07-08)
+
+
+### Features
+
+* implement attendance tracking system with portal, report views, and role-based permissions ([f1b08a0](https://github.com/roonaatech/wp_webapp/commit/f1b08a0bd0fdbaa7e187fbf4fea0385a7c79b335))
+
 ### [2.8.21](https://github.com/roonaatech/wp_webapp/compare/v2.8.20...v2.8.21) (2026-06-27)
 
 

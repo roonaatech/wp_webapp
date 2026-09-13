@@ -2,18 +2,53 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell } from 'react-icons/fi';
+import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { fetchRoles, getRoleById, canManageSystemSettings } from '../utils/roleUtils';
 import { TIMEZONE_OPTIONS } from '../utils/timezone.util';
+
+// Helper to parse "minute hour * * *" into { hour12, minute, ampm }
+const parseCronToTime = (cronStr) => {
+    const parts = (cronStr || '').trim().split(/\s+/);
+    let minute = 0;
+    let hour24 = 8; // Default fallback to 8 AM
+    if (parts.length === 5) {
+        const m = parseInt(parts[0], 10);
+        const h = parseInt(parts[1], 10);
+        if (!isNaN(m) && m >= 0 && m <= 59) {
+            minute = m;
+        }
+        if (!isNaN(h) && h >= 0 && h <= 23) {
+            hour24 = h;
+        }
+    }
+    const ampm = hour24 >= 12 ? 'PM' : 'AM';
+    let hour12 = hour24 % 12;
+    if (hour12 === 0) hour12 = 12;
+    return { hour12, minute, ampm };
+};
+
+// Helper to format { hour12, minute, ampm } into standard daily cron "minute hour * * *"
+const formatTimeToCron = (hour12, minute, ampm) => {
+    let hour24 = parseInt(hour12, 10);
+    if (ampm === 'PM') {
+        if (hour24 !== 12) hour24 += 12;
+    } else {
+        if (hour24 === 12) hour24 = 0;
+    }
+    return `${parseInt(minute, 10)} ${hour24} * * *`;
+};
 
 export default function Settings() {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
+    const [activeTab, setActiveTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [savingKey, setSavingKey] = useState(null);
+    const [roles, setRoles] = useState([]);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     // Settings State - organized by category
@@ -24,7 +59,17 @@ export default function Settings() {
         enable_pending_request_reminders: 'true',
         pending_request_reminder_days: '3',
         pending_request_reminder_schedule: '0 8 * * *',
-        google_maps_api_key: ''
+        birthday_digest_recipient_roles: '',
+        enable_birthday_notifications: 'true',
+        enable_birthday_wish_emails: 'true',
+        birthday_notification_schedule: '0 8 * * *',
+        anniversary_digest_recipient_roles: '',
+        enable_anniversary_notifications: 'true',
+        enable_anniversary_wish_emails: 'true',
+        anniversary_notification_schedule: '0 8 * * *',
+        google_maps_api_key: '',
+        session_timeout: '168',
+        inactivity_timeout: '5'
     });
 
     // Define settings configuration for easy expansion
@@ -72,6 +117,39 @@ export default function Settings() {
                     description: 'API key used to display Google Maps on-duty routes and location details',
                     type: 'text',
                     placeholder: 'Enter Google Maps API Key'
+                },
+                {
+                    key: 'session_timeout',
+                    label: 'Session Timeout',
+                    description: 'The duration (in hours) before a user session expires and requires logging in again',
+                    type: 'number',
+                    min: 24,
+                    max: 8760,
+                    step: 1,
+                    unit: 'hours',
+                    placeholder: '168'
+                },
+                {
+                    key: 'inactivity_timeout',
+                    label: 'Inactivity Logout Warning Timeout',
+                    description: 'Idle time (in minutes) before showing the session logout warning popup',
+                    type: 'number',
+                    min: 3,
+                    max: 1440,
+                    step: 1,
+                    unit: 'minutes',
+                    placeholder: '5'
+                },
+                {
+                    key: 'inactivity_warning_duration',
+                    label: 'Inactivity Warning Duration',
+                    description: 'Countdown duration (in seconds) to show the logout warning popup before signing out',
+                    type: 'number',
+                    min: 10,
+                    max: 300,
+                    step: 1,
+                    unit: 'seconds',
+                    placeholder: '60'
                 }
             ]
         },
@@ -112,8 +190,8 @@ export default function Settings() {
             ]
         },
         {
-            category: 'Notifications Configuration',
-            description: 'Manage automated email reminders and alerts',
+            category: 'Notifications & Reminders',
+            description: 'Manage automated email reminders for pending requests',
             icon: <FiBell className="text-yellow-600" />,
             settings: [
                 {
@@ -139,10 +217,92 @@ export default function Settings() {
                 },
                 {
                     key: 'pending_request_reminder_schedule',
-                    label: 'Reminder Cron Schedule',
-                    description: 'Cron expression for when the reminder job should run (e.g. 0 8 * * * for 8:00 AM daily)',
-                    type: 'text',
+                    label: 'Reminder Schedule',
+                    description: 'Select the daily time for sending automated email reminders to managers for pending requests',
+                    type: 'cron-time',
                     placeholder: '0 8 * * *'
+                }
+            ]
+        },
+        {
+            category: 'Birthday Configuration',
+            description: 'Manage settings for employee birthdays and wish emails',
+            icon: <FiGift className="text-pink-500" />,
+            settings: [
+                {
+                    key: 'enable_birthday_notifications',
+                    label: 'Enable Birthday Notifications',
+                    description: 'Master switch for the daily birthday job — wish emails to celebrants and the digest to HR and higher hierarchy users',
+                    type: 'select',
+                    options: [
+                        { value: 'true', label: 'Enabled' },
+                        { value: 'false', label: 'Disabled' }
+                    ]
+                },
+                {
+                    key: 'enable_birthday_wish_emails',
+                    label: 'Send Birthday Wishes to Staff',
+                    description: 'Email the staff member a birthday wish on their birthday, using the "Birthday Wish" template. Disable to send only the HR digest',
+                    type: 'select',
+                    options: [
+                        { value: 'true', label: 'Enabled' },
+                        { value: 'false', label: 'Disabled' }
+                    ]
+                },
+                {
+                    key: 'birthday_notification_schedule',
+                    label: 'Birthday Digest Schedule',
+                    description: 'Select the daily time for sending the birthday digest email (evaluated in application timezone)',
+                    type: 'cron-time',
+                    placeholder: '0 8 * * *'
+                },
+                {
+                    key: 'birthday_digest_recipient_roles',
+                    label: 'Birthday Digest Recipient Roles',
+                    description: 'Every active user in the selected roles receives the daily birthday digest. Leave all unchecked to fall back to Human Resource and higher hierarchy roles',
+                    type: 'multiselect',
+                    emptyHint: 'None selected — falls back to roles with the birthday permission.'
+                }
+            ]
+        },
+        {
+            category: 'Anniversary Configuration',
+            description: 'Manage settings for employee work anniversaries and wish emails',
+            icon: <FiAward className="text-teal-500" />,
+            settings: [
+                {
+                    key: 'enable_anniversary_notifications',
+                    label: 'Enable Work Anniversary Notifications',
+                    description: 'Master switch for the daily work anniversary job — wish emails to celebrants and the digest to HR and higher hierarchy users',
+                    type: 'select',
+                    options: [
+                        { value: 'true', label: 'Enabled' },
+                        { value: 'false', label: 'Disabled' }
+                    ]
+                },
+                {
+                    key: 'enable_anniversary_wish_emails',
+                    label: 'Send Work Anniversary Wishes to Staff',
+                    description: 'Email the staff member a work anniversary wish on their anniversary, using the "Work Anniversary Wish" template. Disable to send only the HR digest',
+                    type: 'select',
+                    options: [
+                        { value: 'true', label: 'Enabled' },
+                        { value: 'false', label: 'Disabled' }
+                    ]
+                },
+                {
+                    key: 'anniversary_notification_schedule',
+                    label: 'Work Anniversary Digest Schedule',
+                    description: 'Select the daily time for sending the work anniversary digest email (evaluated in application timezone)',
+                    type: 'cron-time',
+                    placeholder: '0 8 * * *'
+                },
+                {
+                    key: 'anniversary_digest_recipient_roles',
+                    label: 'Work Anniversary Digest Recipient Roles',
+                    description: 'Every active user in the selected roles receives the daily work anniversary digest. Leave all unchecked to fall back to Human Resource and higher hierarchy roles',
+                    type: 'multiselect',
+                    emptyHint: 'None selected — falls back to roles with the anniversary permission.'
                 }
             ]
         }
@@ -153,7 +313,8 @@ export default function Settings() {
     useEffect(() => {
         const checkPermission = async () => {
             try {
-                await fetchRoles(true);
+                const allRoles = await fetchRoles(true);
+                setRoles(Array.isArray(allRoles) ? allRoles : []);
                 const role = getRoleById(user.role);
                 const canManage = canManageSystemSettings(user.role);
 
@@ -206,7 +367,45 @@ export default function Settings() {
         }));
     };
 
+    // Comma separated id list helper for 'multiselect' settings
+    const getSelectedIds = (key) =>
+        (settings[key] || '')
+            .split(',')
+            .map(v => v.trim())
+            .filter(Boolean);
+
+    // Roles as dropdown options, ordered by authority
+    const roleOptions = [...roles]
+        .sort((a, b) =>
+            (a.hierarchy_level ?? 999) - (b.hierarchy_level ?? 999) ||
+            String(a.display_name || a.name).localeCompare(String(b.display_name || b.name))
+        )
+        .map(role => ({
+            value: String(role.id),
+            label: role.display_name || role.name,
+            meta: `Level ${role.hierarchy_level}`
+        }));
+
     const saveSetting = async (key, value) => {
+        // Validate client-side bounds for number types
+        const configItem = settingsConfig
+            .flatMap(c => c.settings)
+            .find(s => s.key === key);
+            
+        if (configItem && configItem.type === 'number') {
+            const num = parseFloat(value);
+            if (!isNaN(num)) {
+                if (configItem.min !== undefined && num < configItem.min) {
+                    toast.error(`${configItem.label} must be at least ${configItem.min} ${configItem.unit || ''}`);
+                    return;
+                }
+                if (configItem.max !== undefined && num > configItem.max) {
+                    toast.error(`${configItem.label} must be at most ${configItem.max} ${configItem.unit || ''}`);
+                    return;
+                }
+            }
+        }
+
         setSavingKey(key);
         try {
             const token = localStorage.getItem('token');
@@ -217,8 +416,9 @@ export default function Settings() {
                 headers: { 'x-access-token': token }
             });
 
-            // Update local storage if critical settings were changed
-            if (['application_timezone', 'application_date_format', 'application_time_format', 'google_maps_api_key'].includes(key)) {
+            // Instantly update localStorage for critical settings that the frontend hook monitors
+            const criticalKeys = ['application_timezone', 'application_date_format', 'application_time_format', 'google_maps_api_key', 'inactivity_timeout', 'inactivity_warning_duration'];
+            if (criticalKeys.includes(key)) {
                 const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
                 existingSettings[key] = value;
                 localStorage.setItem('settings', JSON.stringify(existingSettings));
@@ -292,23 +492,41 @@ export default function Settings() {
                 </div>
             </div>
 
-            {/* Settings Categories */}
-            <div className="relative min-h-[400px]">
-                {loading && (
-                    <ModernLoader size="container" message="Fetching settings..." fullScreen={false} />
-                )}
-                <div className="space-y-6">
-                    {settingsConfig.map((category, categoryIndex) => (
-                        <div key={categoryIndex} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* Grid Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+                {/* Left Sidebar: Vertical Tabs */}
+                <div className="flex flex-col gap-1 bg-white p-2 rounded-xl border border-gray-200 shadow-sm md:col-span-1">
+                    {settingsConfig.map((category, index) => (
+                        <button
+                            key={index}
+                            onClick={() => setActiveTab(index)}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-left ${activeTab === index
+                                ? 'bg-blue-50 text-blue-600 font-bold'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                }`}
+                        >
+                            <span className="flex-shrink-0">{category.icon}</span>
+                            <span className="truncate">{category.category}</span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Right Area: Active Category Card */}
+                <div className="md:col-span-3 relative min-h-[400px]">
+                    {loading && (
+                        <ModernLoader size="container" message="Fetching settings..." fullScreen={false} />
+                    )}
+                    {settingsConfig[activeTab] && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             {/* Category Header */}
                             <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-white rounded-lg shadow-sm">
-                                        {category.icon}
+                                        {settingsConfig[activeTab].icon}
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-semibold text-gray-800">{category.category}</h2>
-                                        <p className="text-sm text-gray-500">{category.description}</p>
+                                        <h2 className="text-lg font-semibold text-gray-800">{settingsConfig[activeTab].category}</h2>
+                                        <p className="text-sm text-gray-500">{settingsConfig[activeTab].description}</p>
                                     </div>
                                 </div>
                             </div>
@@ -330,7 +548,7 @@ export default function Settings() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                        {category.settings.map((setting, settingIndex) => (
+                                        {settingsConfig[activeTab].settings.map((setting, settingIndex) => (
                                             <tr key={settingIndex} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div>
@@ -339,8 +557,23 @@ export default function Settings() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2 max-w-xs">
-                                                        {setting.type === 'select' ? (
+                                                    <div className={`flex items-center gap-2 ${setting.type === 'multiselect' ? 'max-w-md' : 'max-w-xs'}`}>
+                                                        {setting.type === 'multiselect' ? (
+                                                            <div className="flex-1">
+                                                                <MultiSelectDropdown
+                                                                    options={roleOptions}
+                                                                    selected={getSelectedIds(setting.key)}
+                                                                    onChange={(next) =>
+                                                                        handleSettingChange(
+                                                                            setting.key,
+                                                                            [...next].sort((a, b) => Number(a) - Number(b)).join(',')
+                                                                        )
+                                                                    }
+                                                                    placeholder="No roles selected"
+                                                                    emptyHint={setting.emptyHint}
+                                                                />
+                                                            </div>
+                                                        ) : setting.type === 'select' ? (
                                                             <div className="flex-1 space-y-2">
                                                                 <select
                                                                     value={settings[setting.key] || ''}
@@ -359,6 +592,60 @@ export default function Settings() {
                                                                         Current Time: {currentTimePreview}
                                                                     </p>
                                                                 )}
+                                                            </div>
+                                                        ) : setting.type === 'cron-time' ? (
+                                                            <div className="flex-1">
+                                                                {(() => {
+                                                                    const cronVal = settings[setting.key] || '0 8 * * *';
+                                                                    const { hour12, minute, ampm } = parseCronToTime(cronVal);
+                                                                    return (
+                                                                        <div className="flex items-center justify-between gap-2 border border-gray-300 rounded-lg p-1.5 px-3 bg-white hover:border-gray-400 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all shadow-sm">
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <FiClock className="text-gray-400 flex-shrink-0" size={14} />
+                                                                                <select
+                                                                                    value={hour12}
+                                                                                    onChange={(e) => {
+                                                                                        const nextHour = parseInt(e.target.value, 10);
+                                                                                        const nextCron = formatTimeToCron(nextHour, minute, ampm);
+                                                                                        handleSettingChange(setting.key, nextCron);
+                                                                                    }}
+                                                                                    className="bg-transparent text-sm font-medium text-gray-800 outline-none cursor-pointer focus:text-blue-600 transition-colors pr-1"
+                                                                                >
+                                                                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                                                                                        <option key={h} value={h}>{h}</option>
+                                                                                    ))}
+                                                                                </select>
+                                                                                <span className="text-gray-400 font-bold select-none">:</span>
+                                                                                <select
+                                                                                    value={minute}
+                                                                                    onChange={(e) => {
+                                                                                        const nextMinute = parseInt(e.target.value, 10);
+                                                                                        const nextCron = formatTimeToCron(hour12, nextMinute, ampm);
+                                                                                        handleSettingChange(setting.key, nextCron);
+                                                                                    }}
+                                                                                    className="bg-transparent text-sm font-medium text-gray-800 outline-none cursor-pointer focus:text-blue-600 transition-colors pr-1"
+                                                                                >
+                                                                                    {Array.from({ length: 60 }, (_, i) => i).map(m => {
+                                                                                        const displayM = String(m).padStart(2, '0');
+                                                                                        return <option key={m} value={m}>{displayM}</option>;
+                                                                                    })}
+                                                                                </select>
+                                                                            </div>
+                                                                            <select
+                                                                                value={ampm}
+                                                                                onChange={(e) => {
+                                                                                    const nextAmpm = e.target.value;
+                                                                                    const nextCron = formatTimeToCron(hour12, minute, nextAmpm);
+                                                                                    handleSettingChange(setting.key, nextCron);
+                                                                                }}
+                                                                                className="bg-blue-50 text-blue-700 text-xs font-bold outline-none cursor-pointer hover:bg-blue-100 transition-colors rounded px-2 py-1"
+                                                                            >
+                                                                                <option value="AM">AM</option>
+                                                                                <option value="PM">PM</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         ) : (
                                                             <input
@@ -402,7 +689,7 @@ export default function Settings() {
                                 </table>
                             </div>
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
 
