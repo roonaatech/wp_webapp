@@ -21,6 +21,8 @@ const ServiceAccounts = () => {
     const [saving, setSaving] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleting, setDeleting] = useState(false);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -155,20 +157,26 @@ const ServiceAccounts = () => {
         setShowModal(true);
     };
 
-    const handleDeleteAccount = async (id, name) => {
-        if (!window.confirm(`Are you sure you want to delete service account "${name}"? This action cannot be undone.`)) {
-            return;
-        }
+    const handleDeleteAccount = (account) => {
+        setDeleteTarget(account);
+    };
+
+    const confirmDeleteAccount = async () => {
+        if (!deleteTarget) return;
+        setDeleting(true);
 
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`${API_BASE_URL}/api/admin/service-accounts/${id}`, {
+            await axios.delete(`${API_BASE_URL}/api/admin/service-accounts/${deleteTarget.id}`, {
                 headers: { 'x-access-token': token }
             });
             toast.success('Service account deleted successfully');
             fetchServiceAccounts();
+            setDeleteTarget(null);
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to delete service account');
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -353,11 +361,11 @@ const ServiceAccounts = () => {
                                                 <FiEdit2 className="w-5 h-5" />
                                             </button>
                                             <button
-                                                onClick={() => handleDeleteAccount(account.id, account.name)}
-                                                className="text-red-600 hover:text-red-900"
-                                                title="Delete"
+                                                onClick={() => handleDeleteAccount(account)}
+                                                className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition"
+                                                title="Delete Service Account"
                                             >
-                                                <FiTrash2 className="w-5 h-5" />
+                                                <FiTrash2 className="w-4 h-4" />
                                             </button>
                                         </div>
                                     </td>
@@ -492,6 +500,47 @@ const ServiceAccounts = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteTarget && (
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100">
+                        <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mx-auto mb-5 text-rose-600 shadow-sm">
+                            <FiTrash2 size={28} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 text-center mb-2">Delete Service Account?</h3>
+                        <p className="text-sm text-slate-500 text-center leading-relaxed mb-6">
+                            Are you sure you want to delete service account <strong className="text-slate-800">"{deleteTarget.name}"</strong>?
+                            This action cannot be undone and will revoke API access for this account.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setDeleteTarget(null)}
+                                disabled={deleting}
+                                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDeleteAccount}
+                                disabled={deleting}
+                                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                {deleting ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    'Yes, Delete'
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

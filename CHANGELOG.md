@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.11.0](https://github.com/roonaatech/wp_webapp/compare/v2.9.19...v2.11.0) (2026-09-14)
+
+
+### Features
+
+* Implement Face ID removal functionality and associated UI ([7fcc081](https://github.com/roonaatech/wp_webapp/commit/7fcc081653a7259bb3e3e0c967b660932d444149))
+
+
+### Chores
+
+* **release:** 2.10.0 ([44a5bea](https://github.com/roonaatech/wp_webapp/commit/44a5bea248a7ee0b110c127781b68f40f8125cb8))
+
+## [2.10.0](https://github.com/roonaatech/wp_webapp/compare/v2.9.19...v2.10.0) (2026-09-14)
+
+
+### Features
+
+* Implement Face ID removal functionality and associated UI ([7fcc081](https://github.com/roonaatech/wp_webapp/commit/7fcc081653a7259bb3e3e0c967b660932d444149))
+
+### [2.9.19](https://github.com/roonaatech/wp_webapp/compare/v2.9.18...v2.9.19) (2026-08-29)
+
+
+### Bug Fixes
+
+* conditionalize present attendance display based on absent status toggle in Users page ([5f35b19](https://github.com/roonaatech/wp_webapp/commit/5f35b190073a3cdfdb8f8598aff47ceb398bbc91))
+
 ### [2.9.18](https://github.com/roonaatech/wp_webapp/compare/v2.9.17...v2.9.18) (2026-08-22)
 
 

@@ -17,6 +17,8 @@ const ApkDistribution = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [downloadingId, setDownloadingId] = useState(null);
     const [downloadProgress, setDownloadProgress] = useState(0);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleting, setDeleting] = useState(false);
 
     // Tab state for QR code toggle
     const [activeQrTab, setActiveQrTab] = useState('download'); // 'download' | 'web'
@@ -329,17 +331,25 @@ const ApkDistribution = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this version?")) return;
+    const handleDelete = (apk) => {
+        setDeleteTarget(apk);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleting(true);
 
         try {
-            await axios.delete(`${API_BASE_URL}/api/apk/${id}`, {
+            await axios.delete(`${API_BASE_URL}/api/apk/${deleteTarget.id}`, {
                 headers: { 'x-access-token': token }
             });
             toast.success("Deleted successfully");
             fetchData();
+            setDeleteTarget(null);
         } catch (err) {
             toast.error("Delete failed");
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -801,7 +811,7 @@ const ApkDistribution = () => {
                                                                     )}
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => handleDelete(apk.id)}
+                                                                    onClick={() => handleDelete(apk)}
                                                                     className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                                                     title="Delete"
                                                                 >
@@ -980,6 +990,47 @@ const ApkDistribution = () => {
                                 className="w-full bg-gray-900 text-white py-3 px-6 rounded-xl font-semibold hover:bg-black transition-colors"
                             >
                                 Got it
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteTarget && (
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100">
+                        <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mx-auto mb-5 text-rose-600 shadow-sm">
+                            <LuTrash2 size={28} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 text-center mb-2">Delete APK Version?</h3>
+                        <p className="text-sm text-slate-500 text-center leading-relaxed mb-6">
+                            Are you sure you want to delete APK <strong className="text-slate-800">{deleteTarget.version_name || deleteTarget.file_name}</strong>?
+                            This action cannot be undone and will remove the file from distribution.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setDeleteTarget(null)}
+                                disabled={deleting}
+                                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDelete}
+                                disabled={deleting}
+                                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                {deleting ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    'Yes, Delete'
+                                )}
                             </button>
                         </div>
                     </div>

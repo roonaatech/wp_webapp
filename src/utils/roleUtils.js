@@ -363,6 +363,15 @@ export const canAccessAttendancePortal = (roleId) => {
 };
 
 /**
+ * Check if user can register employee Face ID (global permission - boolean)
+ */
+export const canRegisterFaceId = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.hierarchy_level === 0 || role.can_register_face_id == true;
+};
+
+/**
  * Check if user can view attendance report (any level - subordinates or all)
  */
 export const canViewAttendanceReport = (roleId) => {
@@ -435,6 +444,48 @@ export const isSelfServiceOnly = (roleId) => {
 export const getHierarchyLevel = (roleId) => {
     const role = getRoleById(roleId);
     return role ? role.hierarchy_level : 999;
+};
+
+/**
+ * Check if a role is Admin or above in hierarchy (hierarchy_level <= 1: Super Admin or Admin)
+ */
+export const isAdminOrAbove = (roleId) => {
+    const level = getHierarchyLevel(roleId);
+    return level <= 1;
+};
+
+/**
+ * Check if a user's role is permitted to remove employee Face ID biometric data.
+ * Governed by the 'remove_face_roles' setting in system settings.
+ * Super Admin (level 0) always has access.
+ * If setting is empty/unconfigured, falls back to Admin and above (hierarchy_level <= 1).
+ *
+ * @param {number|string} roleId
+ * @param {object} [settings]
+ * @returns {boolean}
+ */
+export const canUserRemoveFace = (roleId, settings) => {
+    if (!roleId) return false;
+
+    try {
+        const appSettings = settings || JSON.parse(localStorage.getItem('settings') || '{}');
+        const configuredRoles = appSettings.remove_face_roles;
+
+        // If explicitly configured in system settings, strictly enforce the selected roles
+        if (configuredRoles !== undefined && configuredRoles !== null && String(configuredRoles).trim() !== '') {
+            const allowedIds = String(configuredRoles)
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean);
+            return allowedIds.includes(String(roleId));
+        }
+    } catch (e) {
+        console.error('Error checking remove_face_roles setting:', e);
+    }
+
+    // Default fallback when not configured / empty: Admin or Super Admin (level <= 1)
+    const level = getHierarchyLevel(roleId);
+    return level <= 1;
 };
 
 /**
@@ -570,11 +621,14 @@ export default {
     canViewUsers,
     canAccessUsersPage,
     canAccessAttendancePortal,
+    canRegisterFaceId,
     canViewAttendanceReport,
     canViewAttendanceReportAll,
     canManageAttendance,
     canManageAttendanceAll,
     getHierarchyLevel,
+    isAdminOrAbove,
+    canUserRemoveFace,
     canViewBirthdays,
     canViewAnniversaries,
     isHigherRole,
