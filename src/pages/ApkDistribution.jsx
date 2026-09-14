@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { readApkVersion } from '../utils/apkVersionReader';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
@@ -152,7 +153,8 @@ const ApkDistribution = () => {
                         'x-access-token': token,
                         'Content-Type': 'multipart/form-data'
                     },
-                    timeout: 60000 // 60 second timeout for large APK files
+                    // This uploads the whole APK, so allow time proportional to its size (5s per MB, min 60s)
+                    timeout: Math.max(60000, Math.ceil(fileToUpload.size / (1024 * 1024)) * 5000)
                 });
                 return response;
             } catch (err) {
@@ -184,17 +186,33 @@ const ApkDistribution = () => {
         setVersionAutoDetected(false);
         setParseError(null);
 
-        // Parse APK to extract version
+        // Read the version from the APK in the browser (no upload needed). Only fall back
+        // to uploading it to the server parser if the browser cannot read it.
         setIsParsingApk(true);
 
         try {
-            const response = await parseApkWithRetry(selectedFile);
+            let apkInfo = null;
+            try {
+                const local = await readApkVersion(selectedFile);
+                if (local.versionName) {
+                    apkInfo = { version: local.versionName, versionCode: local.versionCode };
+                }
+            } catch (localErr) {
+                console.warn("Could not read APK version in the browser, falling back to the server:", localErr);
+            }
 
-            if (response.data.success && response.data.version) {
+            if (!apkInfo) {
+                const response = await parseApkWithRetry(selectedFile);
+                if (response.data.success && response.data.version) {
+                    apkInfo = { version: response.data.version, versionCode: response.data.versionCode };
+                }
+            }
+
+            if (apkInfo) {
                 // Combine version and build number (e.g., "1.3.0+7")
-                const fullVersion = response.data.versionCode
-                    ? `${response.data.version}+${response.data.versionCode}`
-                    : response.data.version;
+                const fullVersion = apkInfo.versionCode
+                    ? `${apkInfo.version}+${apkInfo.versionCode}`
+                    : apkInfo.version;
 
                 // Check if this version already exists (check all versions, not just current page)
                 const existingVersion = allVersions.find(apk => apk.version === fullVersion);
