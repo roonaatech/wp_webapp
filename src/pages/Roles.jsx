@@ -25,6 +25,8 @@ const Roles = () => {
     const [hierarchyRoles, setHierarchyRoles] = useState([]);
     const [draggedIndex, setDraggedIndex] = useState(null);
     const [dragOverIndex, setDragOverIndex] = useState(null);
+    const [deleteRoleTarget, setDeleteRoleTarget] = useState(null);
+    const [deletingRole, setDeletingRole] = useState(false);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     // Form state
@@ -54,6 +56,7 @@ const Roles = () => {
         can_manage_email_settings: false,
         can_manage_system_settings: 'none',
         can_access_attendance_portal: false,
+        can_register_face_id: false,
         can_view_attendance_report: 'none',
         can_manage_attendance: 'none',
         active: true
@@ -148,6 +151,7 @@ const Roles = () => {
                 can_manage_email_settings: role.can_manage_email_settings,
                 can_manage_system_settings: role.can_manage_system_settings,
                 can_access_attendance_portal: role.can_access_attendance_portal || false,
+                can_register_face_id: role.can_register_face_id || false,
                 can_view_attendance_report: role.can_view_attendance_report || 'none',
                 can_manage_attendance: role.can_manage_attendance || 'none',
                 active: role.active
@@ -180,6 +184,7 @@ const Roles = () => {
                 can_manage_email_settings: false,
                 can_manage_system_settings: 'none',
                 can_access_attendance_portal: false,
+                can_register_face_id: false,
                 can_view_attendance_report: 'none',
                 can_manage_attendance: 'none',
                 active: true
@@ -244,14 +249,17 @@ const Roles = () => {
         }
     };
 
-    const handleDelete = async (role) => {
-        if (!window.confirm(`Are you sure you want to delete the role "${role.display_name}"?`)) {
-            return;
-        }
+    const handleDelete = (role) => {
+        setDeleteRoleTarget(role);
+    };
+
+    const confirmDeleteRole = async () => {
+        if (!deleteRoleTarget) return;
+        setDeletingRole(true);
 
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`${API_BASE_URL}/api/roles/${role.id}`, {
+            await axios.delete(`${API_BASE_URL}/api/roles/${deleteRoleTarget.id}`, {
                 headers: { 'x-access-token': token }
             });
             toast.success('Role deleted successfully');
@@ -261,9 +269,12 @@ const Roles = () => {
 
             fetchRoles();
             fetchStatistics();
+            setDeleteRoleTarget(null);
         } catch (err) {
             const errorMsg = err.response?.data?.message || 'Failed to delete role';
             toast.error(errorMsg);
+        } finally {
+            setDeletingRole(false);
         }
     };
 
@@ -553,6 +564,11 @@ const Roles = () => {
                                         {role.can_access_attendance_portal && (
                                             <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-amber-100 text-amber-800">
                                                 Attendance Portal
+                                            </span>
+                                        )}
+                                        {role.can_register_face_id && (
+                                            <span className="px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight bg-sky-100 text-sky-800">
+                                                Register Face ID
                                             </span>
                                         )}
                                         {role.can_access_webapp && (
@@ -1239,6 +1255,18 @@ const Roles = () => {
                                                     />
                                                 </td>
                                             </tr>
+                                            <tr className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-700">Register Face ID</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="can_register_face_id"
+                                                        checked={formData.can_register_face_id}
+                                                        onChange={handleInputChange}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                    />
+                                                </td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -1278,6 +1306,47 @@ const Roles = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Role Confirmation Modal */}
+            {deleteRoleTarget && (
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100">
+                        <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mx-auto mb-5 text-rose-600 shadow-sm">
+                            <FiTrash2 size={28} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 text-center mb-2">Delete Role?</h3>
+                        <p className="text-sm text-slate-500 text-center leading-relaxed mb-6">
+                            Are you sure you want to delete the role <strong className="text-slate-800">"{deleteRoleTarget.display_name || deleteRoleTarget.name}"</strong>?
+                            This action cannot be undone and will permanently remove this role from the system.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setDeleteRoleTarget(null)}
+                                disabled={deletingRole}
+                                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDeleteRole}
+                                disabled={deletingRole}
+                                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                {deletingRole ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    'Yes, Delete Role'
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

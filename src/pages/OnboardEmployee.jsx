@@ -274,7 +274,7 @@ const OnboardEmployee = () => {
                 signature_name: profile.signature_name || '',
                 onboarding_place: profile.onboarding_place || '',
                 signature_data: '',
-                image_path: profile.image_path || ''
+                image_path: profile.image_path || (emp.documents?.find(d => d.document_type === 'photo')?.file_path || '')
             });
 
             if (emp.educations) setEducations(emp.educations);

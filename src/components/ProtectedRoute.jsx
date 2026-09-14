@@ -5,9 +5,25 @@ import API_BASE_URL from '../config/api.config';
 import { canAccessWebApp, hasAdminPermission, isSelfServiceOnly, getCachedRoles, canAccessAttendancePortal } from '../utils/roleUtils';
 
 const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false, skipProfileCheck = false }) => {
+    // Check if token or user is passed via URL query param (e.g. launched from mobile app kiosk)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const urlUser = urlParams.get('user');
+    if (urlToken) {
+        localStorage.setItem('token', urlToken);
+        if (urlUser) {
+            try {
+                localStorage.setItem('user', decodeURIComponent(urlUser));
+            } catch (_) {}
+        }
+        // Clean URL to not expose token in browser address bar
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     const [authState, setAuthState] = useState('checking'); // 'checking' | 'valid' | 'invalid'
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isAttendanceRoute = window.location.pathname === '/attendance' || window.location.pathname.startsWith('/attendance');
 
     // Check if user is authenticated
     if (!token) {
@@ -57,7 +73,7 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
     }
 
     // Check if user must change password or sign declaration (gated flow)
-    if (!skipProfileCheck) {
+    if (!skipProfileCheck && !isAttendanceRoute) {
         const mustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
         const mustCompleteDeclaration = localStorage.getItem('mustCompleteDeclaration') === 'true';
         if (mustChangePassword || mustCompleteDeclaration) {
@@ -81,9 +97,9 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
         }
     }
 
-    // Force all mobile users to my-requests
+    // Force all mobile users to my-requests (except /attendance which is used on common mobile kiosk devices)
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobileDevice && !skipWebAppCheck) {
+    if (isMobileDevice && !skipWebAppCheck && !isAttendanceRoute) {
         return <Navigate to="/my-requests" replace />;
     }
 

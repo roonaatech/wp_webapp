@@ -23,7 +23,9 @@ import {
     needsApprover,
     getApproverLabel,
     getRoleById,
-    canManageOnboarding
+    canManageOnboarding,
+    isAdminOrAbove,
+    canUserRemoveFace
 } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
 import { formatInTimezone, parseAppTimezone } from '../utils/timezone.util';
@@ -33,6 +35,25 @@ const Users = () => {
     // Permission check state
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
+    const [systemSettings, setSystemSettings] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('settings') || '{}');
+        } catch {
+            return {};
+        }
+    });
+
+    useEffect(() => {
+        const handleSettingsLoaded = () => {
+            try {
+                setSystemSettings(JSON.parse(localStorage.getItem('settings') || '{}'));
+            } catch {
+                // ignore
+            }
+        };
+        window.addEventListener('settingsLoaded', handleSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', handleSettingsLoaded);
+    }, []);
 
     const getDurationHours = (checkInStr, checkOutStr) => {
         if (!checkInStr || !checkOutStr) return 0;
@@ -237,6 +258,8 @@ const Users = () => {
     const [showAuthInfo, setShowAuthInfo] = useState(true); // Show auth info first, then form
     const [editingUserId, setEditingUserId] = useState(null);
     const [editingUserFromPhp, setEditingUserFromPhp] = useState(false); // Track if user is from PHP app
+    const [removeFaceUser, setRemoveFaceUser] = useState(null);
+    const [removingFace, setRemovingFace] = useState(false);
     const [expandedUserId, setExpandedUserId] = useState(null);
     const [activeTab, setActiveTab] = useState('leave');
     const [leaveBalances, setLeaveBalances] = useState({});
@@ -376,6 +399,36 @@ const Users = () => {
 
         // Can only manage subordinates (users where approving_manager_id === current user's staffid)
         return isApprovingManager;
+    };
+
+    const isCallerAllowedToRemoveFace = canUserRemoveFace(user.role, systemSettings);
+    const canRemoveUserFace = (targetUser) => 
+        isCallerAllowedToRemoveFace && 
+        canManageSpecificUser(targetUser) && 
+        !!(targetUser.face_image_path || targetUser.face_registered_at);
+
+    const handleRemoveFace = async () => {
+        if (!removeFaceUser) return;
+        setRemovingFace(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.delete(`${API_BASE_URL}/api/admin/users/${removeFaceUser.staffid}/face`, {
+                headers: { 'x-access-token': token }
+            });
+
+            toast.success(response.data?.message || 'Face ID removed successfully!');
+            setUsers(prevUsers => prevUsers.map(u => 
+                u.staffid === removeFaceUser.staffid 
+                    ? { ...u, face_image_path: null, face_registered_at: null }
+                    : u
+            ));
+            setRemoveFaceUser(null);
+        } catch (err) {
+            console.error('Error removing face:', err);
+            toast.error(err.response?.data?.message || 'Failed to remove Face ID.');
+        } finally {
+            setRemovingFace(false);
+        }
     };
 
     useEffect(() => {
@@ -1791,17 +1844,20 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    {u.profile_info?.image_path ? (
-                                                        <img
-                                                            src={`${API_BASE_URL}/${u.profile_info.image_path.replace(/\\/g, '/')}`}
-                                                            alt={`${u.firstname} ${u.lastname}`}
-                                                            className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold">
-                                                            {u.firstname.charAt(0)}{u.lastname.charAt(0)}
-                                                        </div>
-                                                    )}
+                                                    {(() => {
+                                                        const profileImg = u.profile_info?.image_path || u.documents?.find(d => d.document_type === 'photo')?.file_path;
+                                                        return profileImg ? (
+                                                            <img
+                                                                src={`${API_BASE_URL}/${profileImg.replace(/\\/g, '/')}`}
+                                                                alt={`${u.firstname} ${u.lastname}`}
+                                                                className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold">
+                                                                {u.firstname.charAt(0)}{u.lastname.charAt(0)}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                     <div>
                                                         <p className="font-medium text-gray-900">
                                                             {u.firstname} {u.lastname}
@@ -1896,7 +1952,7 @@ const Users = () => {
                                                             </button>
 
                                                             {openActionMenu === u.staffid && (
-                                                                <div className="absolute right-0 top-full mt-1.5 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
+                                                                <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
                                                                     <div className="py-1">
                                                                         <button
                                                                             onClick={() => { navigate(`/staff-profile/${u.staffid}`); setOpenActionMenu(null); }}
@@ -1927,6 +1983,19 @@ const Users = () => {
                                                                             </svg>
                                                                             Reset Password
                                                                         </button>
+
+                                                                        {canRemoveUserFace(u) && (
+                                                                            <>
+                                                                                <div className="my-1 border-t border-gray-100" />
+                                                                                <button
+                                                                                    onClick={() => { setRemoveFaceUser(u); setOpenActionMenu(null); }}
+                                                                                    className="w-full flex items-center gap-3 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors font-semibold"
+                                                                                >
+                                                                                    <FiTrash2 className="w-3.5 h-3.5 text-rose-500" />
+                                                                                    Remove Face ID
+                                                                                </button>
+                                                                            </>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -3194,6 +3263,48 @@ const Users = () => {
                     </div>
                 </div>
             )}
+
+            {/* Remove Face ID Confirmation Modal */}
+            {removeFaceUser && (
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 animate-scaleUp">
+                        <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mx-auto mb-5 text-rose-600 shadow-sm">
+                            <FiTrash2 size={28} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 text-center mb-2">Remove Face ID?</h3>
+                        <p className="text-sm text-slate-500 text-center leading-relaxed mb-6">
+                            Are you sure you want to remove the registered Face ID for <strong className="text-slate-800">{removeFaceUser.firstname} {removeFaceUser.lastname}</strong>?
+                            This will delete their biometric facial templates and photo. They will not be able to use facial attendance until they re-register.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setRemoveFaceUser(null)}
+                                disabled={removingFace}
+                                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleRemoveFace}
+                                disabled={removingFace}
+                                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                {removingFace ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Removing...
+                                    </>
+                                ) : (
+                                    'Yes, Remove Face'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style>{`
                 @keyframes dropdown-in {
                     from { opacity: 0; transform: translateY(-6px) scale(0.97); }
