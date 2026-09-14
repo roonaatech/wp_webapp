@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.10.0](https://github.com/roonaatech/wp_webapp/compare/v2.9.19...v2.10.0) (2026-09-14)
+
+
+### Features
+
+* Implement Face ID removal functionality and associated UI ([7fcc081](https://github.com/roonaatech/wp_webapp/commit/7fcc081653a7259bb3e3e0c967b660932d444149))
+
 ### [2.9.19](https://github.com/roonaatech/wp_webapp/compare/v2.9.18...v2.9.19) (2026-08-29)
 
 
