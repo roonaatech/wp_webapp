@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.11.1](https://github.com/roonaatech/wp_webapp/compare/v2.11.0...v2.11.1) (2026-09-14)
+
+
+### Features
+
+* Add APK version reading functionality in the browser to avoid uploads ([b4cd3f9](https://github.com/roonaatech/wp_webapp/commit/b4cd3f98f3832a3ede8a62d6b57c45d84e299f69))
+
 ## [2.11.0](https://github.com/roonaatech/wp_webapp/compare/v2.9.19...v2.11.0) (2026-09-14)
 
 
