@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.11.2](https://github.com/roonaatech/wp_webapp/compare/v2.11.1...v2.11.2) (2026-09-15)
+
+
+### Features
+
+* Add file size column to APK distribution table ([9165040](https://github.com/roonaatech/wp_webapp/commit/9165040653028fbb49b3eaac1dec0cfceb8bcc68))
+
 ### [2.11.1](https://github.com/roonaatech/wp_webapp/compare/v2.11.0...v2.11.1) (2026-09-14)
 
 
