@@ -782,6 +782,7 @@ const ApkDistribution = () => {
                                                 <tr className="border-b border-gray-100">
                                                     <th className="pb-4 font-semibold text-gray-500 text-sm pl-4">Version</th>
                                                     <th className="pb-4 font-semibold text-gray-500 text-sm">Date</th>
+                                                    <th className="pb-4 font-semibold text-gray-500 text-sm">Size</th>
                                                     <th className="pb-4 font-semibold text-gray-500 text-sm">Status</th>
                                                     <th className="pb-4 font-semibold text-gray-500 text-sm text-right pr-4">Actions</th>
                                                 </tr>
@@ -792,6 +793,9 @@ const ApkDistribution = () => {
                                                         <td className="py-4 pl-4 font-medium text-gray-900">{apk.version}</td>
                                                         <td className="py-4 text-gray-500 text-sm">
                                                             {formatInTimezone(apk.upload_date)}
+                                                        </td>
+                                                        <td className="py-4 text-gray-500 text-sm whitespace-nowrap">
+                                                            {apk.file_size != null ? `${(apk.file_size / (1024 * 1024)).toFixed(1)} MB` : '—'}
                                                         </td>
                                                         <td className="py-4">
                                                             <span className={`text-xs font-bold px-2 py-1 rounded-full ${apk.is_visible
@@ -841,7 +845,7 @@ const ApkDistribution = () => {
                                                 ))}
                                                 {apkList.length === 0 && (
                                                     <tr>
-                                                        <td colSpan="4" className="py-8 text-center text-gray-500">
+                                                        <td colSpan="5" className="py-8 text-center text-gray-500">
                                                             No history available.
                                                         </td>
                                                     </tr>
