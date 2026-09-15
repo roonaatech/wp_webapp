@@ -1272,10 +1272,14 @@ const Users = () => {
         addNode(currentUser, true);
 
         // 2. Traverse Down (Descendants) - Recursive
+        // Guard against loops in bad data (e.g. a user set as their own approving manager).
+        const expanded = new Set();
         const processDescendants = (parent) => {
             const pid = parent.staffid || parent.id;
+            if (expanded.has(pid)) return;
+            expanded.add(pid);
             const sourceList = allUsersRef.length > 0 ? allUsersRef : users;
-            const directReports = sourceList.filter(u => u.approving_manager_id === pid);
+            const directReports = sourceList.filter(u => u.approving_manager_id === pid && (u.staffid || u.id) !== pid);
 
             directReports.forEach(child => {
                 addNode(child, false);
@@ -1301,7 +1305,8 @@ const Users = () => {
         });
 
         uniqueUsers.forEach(u => {
-            if (u.approving_manager_id) {
+            // Skip self-reporting users (e.g. the top of the hierarchy set as their own approver)
+            if (u.approving_manager_id && u.approving_manager_id !== (u.staffid || u.id)) {
                 const mgr = findUser(u.approving_manager_id);
                 if (mgr) {
                     const edgeKey = `${mgr.staffid || mgr.id}-${u.staffid || u.id}`;
