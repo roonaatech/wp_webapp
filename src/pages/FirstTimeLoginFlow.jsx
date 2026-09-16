@@ -485,9 +485,8 @@ const FirstTimeLoginFlow = () => {
             localStorage.setItem('mustChangePassword', 'false');
             localStorage.setItem('mustCompleteDeclaration', 'false');
 
-            // Move to Step 3: Face ID Registration
-            setStep(3);
-            startFaceCamera();
+            toast.success('Password updated successfully!');
+            await handleFinishFlow();
         } catch (err) {
             console.error('Error completing verification:', err);
             const errMsg = err.response?.data?.message || 'Failed to complete profile verification.';

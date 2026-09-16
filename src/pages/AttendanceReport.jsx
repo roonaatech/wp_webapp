@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
-import { fetchRoles, canViewAttendanceReport, canManageAttendance } from '../utils/roleUtils';
+import { fetchRoles, canViewAttendanceReport, canManageAttendance, canEditAttendance, canDeleteAttendance } from '../utils/roleUtils';
 import { formatDateOnly, formatTimeOnly, getCurrentInAppTimezone } from '../utils/timezone.util';
 import { LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock } from 'react-icons/lu';
 
@@ -71,7 +71,9 @@ const AttendanceReport = () => {
     };
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const canManage = canManageAttendance(user.role);
+    const canEdit = canEditAttendance(user.role);
+    const canDelete = canDeleteAttendance(user.role);
+    const canManage = canEdit || canDelete;
 
     // 1. Check Permissions on Mount
     useEffect(() => {
@@ -530,20 +532,24 @@ const AttendanceReport = () => {
                                                     {canManage && (
                                                         <td className="px-4 py-2.5">
                                                             <div className="flex items-center gap-1.5">
-                                                                <button
-                                                                    onClick={() => handleEditClick(log)}
-                                                                    className="p-2 bg-slate-50 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl transition shadow-sm font-semibold"
-                                                                    title="Edit Log"
-                                                                >
-                                                                    <LuPencil size={14} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDeleteClick(log.id)}
-                                                                    className="p-2 bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition shadow-sm font-semibold"
-                                                                    title="Delete Log"
-                                                                >
-                                                                    <LuTrash2 size={14} />
-                                                                </button>
+                                                                {canEdit && (
+                                                                    <button
+                                                                        onClick={() => handleEditClick(log)}
+                                                                        className="p-2 bg-slate-50 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl transition shadow-sm font-semibold cursor-pointer"
+                                                                        title="Edit Log"
+                                                                    >
+                                                                        <LuPencil size={14} />
+                                                                    </button>
+                                                                )}
+                                                                {canDelete && (
+                                                                    <button
+                                                                        onClick={() => handleDeleteClick(log.id)}
+                                                                        className="p-2 bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition shadow-sm font-semibold cursor-pointer"
+                                                                        title="Delete Log"
+                                                                    >
+                                                                        <LuTrash2 size={14} />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     )}
@@ -651,29 +657,32 @@ const AttendanceReport = () => {
                                                                     ) : (
                                                                         <span className="text-xs text-slate-400 italic">No snapshot</span>
                                                                     )}
-                                                                </td>
-                                                                <td className="px-4 py-2.5">
+                                                                                                                       <td className="px-4 py-2.5">
                                                                     {canManage ? (
                                                                         <div className="flex items-center gap-2">
-                                                                            <button
-                                                                                onClick={() => handleEditClick(log)}
-                                                                                className="p-2 bg-slate-50 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl transition shadow-sm"
-                                                                                title="Edit Log"
-                                                                            >
-                                                                                <LuPencil size={13} />
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() => handleDeleteClick(log.id)}
-                                                                                className="p-2 bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition shadow-sm"
-                                                                                title="Delete Log"
-                                                                            >
-                                                                                <LuTrash2 size={13} />
-                                                                            </button>
+                                                                            {canEdit && (
+                                                                                <button
+                                                                                    onClick={() => handleEditClick(log)}
+                                                                                    className="p-2 bg-slate-50 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl transition shadow-sm cursor-pointer"
+                                                                                    title="Edit Log"
+                                                                                >
+                                                                                    <LuPencil size={13} />
+                                                                                </button>
+                                                                            )}
+                                                                            {canDelete && (
+                                                                                <button
+                                                                                    onClick={() => handleDeleteClick(log.id)}
+                                                                                    className="p-2 bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition shadow-sm cursor-pointer"
+                                                                                    title="Delete Log"
+                                                                                >
+                                                                                    <LuTrash2 size={13} />
+                                                                                </button>
+                                                                            )}
                                                                         </div>
                                                                     ) : (
                                                                         <span className="text-slate-350">—</span>
                                                                     )}
-                                                                </td>
+                                                                </td>             </td>
                                                             </tr>
                                                         );
                                                     })}

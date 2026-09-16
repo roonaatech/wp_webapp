@@ -35,6 +35,7 @@ import CandidateOnboardingFlow from './pages/CandidateOnboardingFlow';
 import Attendance from './pages/Attendance';
 import RegisterFaceId from './pages/RegisterFaceId';
 import AttendanceReport from './pages/AttendanceReport';
+import ForgotPassword from './pages/ForgotPassword';
 
 
 
@@ -212,6 +213,7 @@ function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/session-expired" element={<SessionExpired />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="/candidate-onboarding" element={<CandidateOnboardingFlow />} />

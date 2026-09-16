@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.11.6](https://github.com/roonaatech/wp_webapp/compare/v2.11.5...v2.11.6) (2026-09-16)
+
+
+### Code Refactoring
+
+* redesign authentication pages with modern UI and enhanced styling ([4439a3f](https://github.com/roonaatech/wp_webapp/commit/4439a3ff2cf9fd7167074e25abfbed8b4a60fafb))
+
+### [2.11.5](https://github.com/roonaatech/wp_webapp/compare/v2.11.4...v2.11.5) (2026-09-16)
+
+
+### Features
+
+* add forgot password feature and granular attendance edit and delete permissions ([301ab3b](https://github.com/roonaatech/wp_webapp/commit/301ab3b721d93b08f43ae046a9a1e56162db09a2))
+
 ### [2.11.4](https://github.com/roonaatech/wp_webapp/compare/v2.11.3...v2.11.4) (2026-09-16)
 
 
