@@ -483,6 +483,17 @@ export const getHierarchyLevel = (roleId) => {
 };
 
 /**
+ * Check if a role is Super Admin in hierarchy (hierarchy_level === 0)
+ */
+export const isSuperAdmin = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    if (role.hierarchy_level === 0) return true;
+    const name = (role.name || role.display_name || '').toLowerCase().replace(/[\s_-]/g, '');
+    return name === 'superadmin';
+};
+
+/**
  * Check if a role is Admin or above in hierarchy (hierarchy_level <= 1: Super Admin or Admin)
  */
 export const isAdminOrAbove = (roleId) => {
