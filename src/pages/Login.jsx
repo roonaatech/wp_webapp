@@ -10,10 +10,17 @@ import {
     LuEyeOff,
     LuKeyRound,
     LuMail,
+    LuLock,
     LuCircleCheck,
     LuCircleAlert,
     LuX,
-    LuArrowLeft
+    LuArrowRight,
+    LuMapPin,
+    LuActivity,
+    LuShieldCheck,
+    LuSparkles,
+    LuCheck,
+    LuClock
 } from "react-icons/lu";
 import { fetchRoles, canAccessWebApp, isSelfServiceOnly, getRoleDisplayName, canAccessAttendancePortal } from '../utils/roleUtils';
 
@@ -61,20 +68,19 @@ const Login = () => {
     }, [location.state]);
 
     const processLoginSuccess = async (data) => {
-        // Backend returns user data at root level, not nested under 'user'
         const user = {
             id: data.id,
             staffid: data.staffid,
-            userid: data.userid, // Include userid to check if WorkPulse-only (null) or external (not null)
+            userid: data.userid,
             firstname: data.firstname,
             lastname: data.lastname,
             email: data.email,
             role: data.role,
-            gender: data.gender, // Include gender for validation
-            isServiceAccount: data.isServiceAccount === true // Service accounts have no human profile
+            gender: data.gender,
+            isServiceAccount: data.isServiceAccount === true
         };
 
-        // --- Role & Gender Validation (First Time / Setup Required) ---
+        // Role & Gender Validation (First Time / Setup Required)
         if (!user.role || (!user.gender && !user.isServiceAccount)) {
             setShowWelcomeModal(true);
             setLoading(false);
@@ -102,9 +108,8 @@ const Login = () => {
         localStorage.setItem('mustCompleteDeclaration', data.mustCompleteDeclaration ? 'true' : 'false');
 
         try {
-            const roles = await fetchRoles(true); // Force refresh roles cache
+            const roles = await fetchRoles(true);
 
-            // Also refresh application settings (timezone, etc)
             if (window.refreshAppSettings) {
                 await window.refreshAppSettings();
             }
@@ -136,7 +141,7 @@ const Login = () => {
                 return;
             }
 
-            // 1. Gating: If user doesn't have webapp access at all, they shouldn't see dashboard pages
+            // Gating: If user doesn't have webapp access at all
             if (!canAccessWebApp(user.role)) {
                 localStorage.setItem('user', JSON.stringify(user));
                 toast.success(`Welcome, ${user.firstname}!`, {
@@ -147,8 +152,7 @@ const Login = () => {
                 return;
             }
 
-            // 2. Navigation: If they ONLY have web access (no management permissions),
-            // they belong in /my-requests, not the main Dashboard pages
+            // Navigation: If self-service only
             if (isSelfServiceOnly(user.role)) {
                 localStorage.setItem('user', JSON.stringify(user));
                 toast.success(`Welcome, ${user.firstname}!`, {
@@ -287,138 +291,262 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8 sm:px-8 lg:p-16 font-sans">
-            <div className="max-w-md w-full flex flex-col items-center text-center">
-                {/* Logo */}
-                <div className="mb-8 sm:mb-12">
-                    <BrandLogo iconSize="w-16 h-16 sm:w-22 sm:h-22" />
-                </div>
+        <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-3 sm:p-6 lg:p-10 font-sans relative overflow-hidden selection:bg-indigo-600 selection:text-white">
+            {/* Ambient Background Gradient Orbs */}
+            <div className="absolute -top-32 -left-32 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-1/3 -right-32 w-96 h-96 bg-sky-400/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-violet-400/10 rounded-full blur-3xl pointer-events-none" />
 
-                <div className="mb-7 sm:mb-9 text-center">
-                    <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">
-                        Sign in to WorkPulse
-                    </h1>
-                    <p className="text-slate-500 text-xs sm:text-sm">Welcome back! Please enter your details.</p>
-                </div>
+            {/* Background Dot Texture */}
+            <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px] opacity-70 pointer-events-none" />
 
-                <form onSubmit={handleLogin} className="space-y-5 w-full">
-                    {/* Error Message */}
-                    {error && (
-                        <div className="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-xl animate-shake text-left shadow-xs">
-                            <p className="text-rose-700 text-xs sm:text-sm font-semibold flex items-center gap-2">
-                                <LuCircleAlert className="flex-shrink-0" size={16} />
-                                <span>{error}</span>
+            {/* Main Executive SaaS Container Card */}
+            <div className="max-w-6xl xl:max-w-7xl w-full bg-white/95 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-indigo-950/10 border border-slate-200/80 overflow-hidden flex flex-col lg:flex-row relative z-10 min-h-[660px]">
+
+                {/* Left Column: Expanded Live Executive Intelligence Panel (Desktop) */}
+                <div className="hidden lg:flex lg:w-1/2 xl:w-7/12 flex-col justify-between p-8 xl:p-11 bg-gradient-to-br from-[#0b0f19] via-[#111827] to-[#1e1b4b] text-white m-3.5 rounded-[2rem] relative overflow-hidden border border-slate-800/80 shadow-inner">
+                    {/* Glowing Mesh Backdrop inside left column */}
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 w-80 h-80 bg-sky-500/15 rounded-full blur-3xl pointer-events-none" />
+
+                    {/* Top Bar: Brand & Live Status */}
+                    <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-6">
+                            <BrandLogo iconSize="w-11 h-11" className="text-white" />
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-[10px] font-bold text-slate-200 uppercase tracking-wider">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                <span>Cloud v2.11.5</span>
+                            </div>
+                        </div>
+
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-500/20 border border-indigo-400/25 text-indigo-300 text-[11px] font-bold tracking-wide mb-3">
+                            <LuSparkles size={13} className="text-indigo-300" />
+                            <span>Enterprise Workforce System</span>
+                        </div>
+
+                        <h2 className="text-2xl xl:text-3xl font-black text-white tracking-tight leading-snug">
+                            Precision Attendance & Team Operations
+                        </h2>
+                        <p className="text-slate-300 text-xs sm:text-sm mt-2 max-w-lg leading-relaxed">
+                            Everything you need to automate workforce attendance, enforce geofencing, manage leaves, and maintain audit-ready compliance.
+                        </p>
+                    </div>
+
+                    {/* 4 Feature Highlight Points (2x2 Grid) */}
+                    <div className="relative z-10 my-6 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {/* Highlight 1: Geofencing */}
+                        <div className="p-4 rounded-2xl bg-white/[0.05] border border-white/[0.09] hover:bg-white/[0.09] transition-all duration-200 group text-left shadow-sm">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 mb-2.5 group-hover:scale-105 transition">
+                                <LuMapPin size={18} />
+                            </div>
+                            <h3 className="text-xs font-bold text-white mb-1">Smart GPS Geofencing</h3>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                                Accurate perimeter detection ensuring check-ins occur only within designated office or site coordinates.
                             </p>
                         </div>
-                    )}
 
-                    <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-5 shadow-xl shadow-slate-200/40 text-left">
-                        {/* Email Field */}
-                        <div>
-                            <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                                Work Email
-                            </label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                                    <LuMail size={17} />
-                                </div>
-                                <input
-                                    id="email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="name@company.com"
-                                    required
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm transition text-slate-900 placeholder-slate-400 font-medium"
-                                />
+                        {/* Highlight 2: Hierarchical Approvals */}
+                        <div className="p-4 rounded-2xl bg-white/[0.05] border border-white/[0.09] hover:bg-white/[0.09] transition-all duration-200 group text-left shadow-sm">
+                            <div className="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-300 mb-2.5 group-hover:scale-105 transition">
+                                <LuActivity size={18} />
                             </div>
+                            <h3 className="text-xs font-bold text-white mb-1">Hierarchical Approvals</h3>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                                Autonomous multi-tier routing for leave applications, overtime, and shift exception overrides.
+                            </p>
                         </div>
 
-                        {/* Password Field */}
-                        <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                                <label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                                    Password
-                                </label>
+                        {/* Highlight 3: AI Facial Biometrics */}
+                        <div className="p-4 rounded-2xl bg-white/[0.05] border border-white/[0.09] hover:bg-white/[0.09] transition-all duration-200 group text-left shadow-sm">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 mb-2.5 group-hover:scale-105 transition">
+                                <LuShieldCheck size={18} />
                             </div>
-                            <div className="relative">
-                                <input
-                                    id="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="Enter your password"
-                                    required
-                                    className="w-full pl-4 pr-11 py-3 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm transition text-slate-900 placeholder-slate-400 font-medium"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
-                                    tabIndex={-1}
-                                    title={showPassword ? 'Hide password' : 'Show password'}
-                                >
-                                    {showPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
-                                </button>
-                            </div>
+                            <h3 className="text-xs font-bold text-white mb-1">Facial Biometrics</h3>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                                Anti-spoof facial recognition technology guaranteeing proxy-free and tamper-proof clock-in logs.
+                            </p>
                         </div>
 
-                        {/* Remember Me and Forgot Password Row */}
-                        <div className="flex items-center justify-between pt-1">
-                            <label className="flex items-center gap-2 cursor-pointer select-none group">
-                                <input
-                                    type="checkbox"
-                                    checked={rememberMe}
-                                    onChange={(e) => setRememberMe(e.target.checked)}
-                                    className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500/20 cursor-pointer transition"
-                                />
-                                <span className="text-xs font-semibold text-slate-600 group-hover:text-slate-900 transition">
-                                    Remember me
-                                </span>
-                            </label>
-
-                            <button
-                                type="button"
-                                onClick={openForgotPasswordModal}
-                                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition cursor-pointer hover:underline"
-                            >
-                                Forgot password?
-                            </button>
-                        </div>
-
-                        {/* Submit Button */}
-                        <div className="pt-2">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg shadow-indigo-600/20 hover:shadow-indigo-600/30 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-70 text-xs uppercase tracking-widest cursor-pointer"
-                            >
-                                {loading ? (
-                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                ) : (
-                                    <span>Sign In</span>
-                                )}
-                            </button>
+                        {/* Highlight 4: Live Analytics & Audits */}
+                        <div className="p-4 rounded-2xl bg-white/[0.05] border border-white/[0.09] hover:bg-white/[0.09] transition-all duration-200 group text-left shadow-sm">
+                            <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 mb-2.5 group-hover:scale-105 transition">
+                                <LuClock size={18} />
+                            </div>
+                            <h3 className="text-xs font-bold text-white mb-1">Presence & Compliance</h3>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                                Real-time team visibility, automated shift tracking, and exportable audit-ready compliance reports.
+                            </p>
                         </div>
                     </div>
-                </form>
 
-                {/* Mobile App Download Link */}
-                <div className="mt-7 text-center w-full">
-                    <Link
-                        to="/apk"
-                        className="inline-flex items-center justify-center gap-2.5 w-full py-3.5 bg-white border border-slate-200/90 text-slate-800 font-bold rounded-2xl hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all text-xs tracking-tight"
-                    >
-                        <LuSmartphone size={18} className="text-indigo-600" />
-                        <span>Download WorkPulse Mobile App</span>
-                    </Link>
+                    {/* Bottom Security Guarantee */}
+                    <div className="relative z-10 flex items-center justify-between pt-4 border-t border-white/10 text-[11px] text-slate-400">
+                        <div className="flex items-center gap-1.5">
+                            <LuShieldCheck size={15} className="text-emerald-400" />
+                            <span>256-bit TLS Protected</span>
+                        </div>
+                        <span>&copy; {new Date().getFullYear()} WorkPulse</span>
+                    </div>
                 </div>
 
-                {/* Copyright Info */}
-                <div className="mt-8 text-slate-400">
-                    <p className="text-[11px] font-medium text-center">
-                        &copy; {new Date().getFullYear()} Roonaa Technologies India Private Limited
-                    </p>
+                {/* Right Column: Clean Executive Sign In Chamber */}
+                <div className="w-full lg:w-1/2 xl:w-5/12 p-6 sm:p-10 xl:p-12 flex flex-col justify-between text-left">
+                    {/* Top Mobile Brand Banner */}
+                    <div className="flex lg:hidden items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                        <BrandLogo iconSize="w-9 h-9" />
+                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                            v2.11.5
+                        </span>
+                    </div>
+
+                    <div className="my-auto max-w-md w-full mx-auto">
+                        {/* Title & Greeting */}
+                        <div className="mb-7">
+                            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1.5">
+                                Welcome back
+                            </h1>
+                            <p className="text-slate-500 text-xs sm:text-sm">
+                                Sign in to your corporate workspace to continue.
+                            </p>
+                        </div>
+
+                        {/* Error Banner */}
+                        {error && (
+                            <div className="mb-5 bg-rose-50 border-l-4 border-rose-500 p-3.5 rounded-r-2xl animate-shake shadow-xs">
+                                <p className="text-rose-700 text-xs sm:text-sm font-semibold flex items-center gap-2">
+                                    <LuCircleAlert className="flex-shrink-0" size={16} />
+                                    <span>{error}</span>
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Login Form */}
+                        <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
+                            {/* Email Field */}
+                            <div>
+                                <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                    Work Email Address
+                                </label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-600 transition">
+                                        <LuMail size={17} />
+                                    </div>
+                                    <input
+                                        id="email"
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="name@company.com"
+                                        required
+                                        className="w-full pl-10 pr-4 py-3.5 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-600 text-sm transition text-slate-900 placeholder-slate-400 font-medium"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Password Field */}
+                            <div>
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                        Password
+                                    </label>
+                                </div>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-600 transition">
+                                        <LuLock size={17} />
+                                    </div>
+                                    <input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="Enter your password"
+                                        required
+                                        className="w-full pl-10 pr-12 py-3.5 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-600 text-sm transition text-slate-900 placeholder-slate-400 font-medium"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                                        tabIndex={-1}
+                                        title={showPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Remember Me & Forgot Password Row */}
+                            <div className="flex items-center justify-between pt-1">
+                                <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                                    <input
+                                        type="checkbox"
+                                        checked={rememberMe}
+                                        onChange={(e) => setRememberMe(e.target.checked)}
+                                        className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500/30 cursor-pointer transition"
+                                    />
+                                    <span className="text-xs font-semibold text-slate-600 group-hover:text-slate-900 transition">
+                                        Remember me
+                                    </span>
+                                </label>
+
+                                <button
+                                    type="button"
+                                    onClick={openForgotPasswordModal}
+                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition cursor-pointer hover:underline"
+                                >
+                                    Forgot password?
+                                </button>
+                            </div>
+
+                            {/* Gradient Action Button */}
+                            <div className="pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full py-4 bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 hover:from-indigo-700 hover:to-indigo-900 text-white font-black rounded-2xl shadow-xl shadow-indigo-600/25 hover:shadow-indigo-600/35 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2.5 disabled:opacity-60 text-xs uppercase tracking-widest cursor-pointer"
+                                >
+                                    {loading ? (
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <>
+                                            <span>Sign In to Dashboard</span>
+                                            <LuArrowRight size={16} />
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+
+                        {/* Mobile App Download Card */}
+                        <div className="mt-7 pt-5 border-t border-slate-100">
+                            <Link
+                                to="/apk"
+                                className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-2xl transition group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 group-hover:scale-105 transition">
+                                        <LuSmartphone size={18} />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 transition">
+                                            WorkPulse Mobile App
+                                        </p>
+                                        <p className="text-[11px] text-slate-500">
+                                            Download APK for GPS punch-in
+                                        </p>
+                                    </div>
+                                </div>
+                                <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                    Get APK
+                                </span>
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Footer Info */}
+                    <div className="mt-8 text-center text-slate-400 text-[11px]">
+                        <p>&copy; {new Date().getFullYear()} Roonaa Technologies India Private Limited. All rights reserved.</p>
+                    </div>
                 </div>
             </div>
 
@@ -680,4 +808,3 @@ const Login = () => {
 };
 
 export default Login;
-
