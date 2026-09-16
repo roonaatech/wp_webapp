@@ -390,21 +390,55 @@ export const canViewAttendanceReportAll = (roleId) => {
 };
 
 /**
+ * Check if user can edit attendance records (any level - subordinates or all)
+ */
+export const canEditAttendance = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_edit_attendance === 'subordinates' || role.can_edit_attendance === 'all' ||
+           role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
+};
+
+/**
+ * Check if user can edit attendance records for all users
+ */
+export const canEditAttendanceAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_edit_attendance === 'all' || role.can_manage_attendance === 'all';
+};
+
+/**
+ * Check if user can delete attendance records (any level - subordinates or all)
+ */
+export const canDeleteAttendance = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_delete_attendance === 'subordinates' || role.can_delete_attendance === 'all' ||
+           role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
+};
+
+/**
+ * Check if user can delete attendance records for all users
+ */
+export const canDeleteAttendanceAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_delete_attendance === 'all' || role.can_manage_attendance === 'all';
+};
+
+/**
  * Check if user can edit/delete attendance records (any level - subordinates or all)
  */
 export const canManageAttendance = (roleId) => {
-    const role = getRoleById(roleId);
-    if (!role) return false;
-    return role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
+    return canEditAttendance(roleId) || canDeleteAttendance(roleId);
 };
 
 /**
  * Check if user can edit/delete attendance records for all users
  */
 export const canManageAttendanceAll = (roleId) => {
-    const role = getRoleById(roleId);
-    if (!role) return false;
-    return role.can_manage_attendance === 'all';
+    return canEditAttendanceAll(roleId) || canDeleteAttendanceAll(roleId);
 };
 
 
@@ -433,7 +467,9 @@ export const isSelfServiceOnly = (roleId) => {
         role.can_manage_email_settings == true ||
         role.can_manage_system_settings === 'all' ||
         role.can_view_attendance_report === 'subordinates' || role.can_view_attendance_report === 'all' ||
-        role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
+        role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all' ||
+        role.can_edit_attendance === 'subordinates' || role.can_edit_attendance === 'all' ||
+        role.can_delete_attendance === 'subordinates' || role.can_delete_attendance === 'all';
 
     return !hasAnyManagement;
 };
@@ -626,6 +662,10 @@ export default {
     canViewAttendanceReportAll,
     canManageAttendance,
     canManageAttendanceAll,
+    canEditAttendance,
+    canEditAttendanceAll,
+    canDeleteAttendance,
+    canDeleteAttendanceAll,
     getHierarchyLevel,
     isAdminOrAbove,
     canUserRemoveFace,

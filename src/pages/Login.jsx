@@ -1,22 +1,64 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
-import { LuSmartphone } from "react-icons/lu";
+import {
+    LuSmartphone,
+    LuEye,
+    LuEyeOff,
+    LuKeyRound,
+    LuMail,
+    LuCircleCheck,
+    LuCircleAlert,
+    LuX,
+    LuArrowLeft
+} from "react-icons/lu";
 import { fetchRoles, canAccessWebApp, isSelfServiceOnly, getRoleDisplayName, canAccessAttendancePortal } from '../utils/roleUtils';
 
 const Login = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Remember Me and Credentials State
+    const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('remember_me') === 'true');
+    const [email, setEmail] = useState(() => {
+        if (location.state?.email) return location.state.email;
+        if (localStorage.getItem('remember_me') === 'true') {
+            return localStorage.getItem('saved_email') || '';
+        }
+        return '';
+    });
+    const [password, setPassword] = useState(() => {
+        if (localStorage.getItem('remember_me') === 'true') {
+            return localStorage.getItem('saved_password') || '';
+        }
+        return '';
+    });
+    const [showPassword, setShowPassword] = useState(false);
+
+    // Login state
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showInactiveModal, setShowInactiveModal] = useState(false);
     const [showNotAuthorizedModal, setShowNotAuthorizedModal] = useState(false);
     const [showWelcomeModal, setShowWelcomeModal] = useState(false);
     const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, message: '' });
-    const navigate = useNavigate();
+
+    // Forgot Password Modal State
+    const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [forgotLoading, setForgotLoading] = useState(false);
+    const [forgotSuccess, setForgotSuccess] = useState(false);
+    const [forgotError, setForgotError] = useState(null);
+
+    // Sync email from location state if passed from another page
+    useEffect(() => {
+        if (location.state?.email) {
+            setEmail(location.state.email);
+        }
+    }, [location.state]);
 
     const processLoginSuccess = async (data) => {
         // Backend returns user data at root level, not nested under 'user'
@@ -33,18 +75,28 @@ const Login = () => {
         };
 
         // --- Role & Gender Validation (First Time / Setup Required) ---
-        // If role is missing (0/null) OR gender is missing (null/empty string).
-        // Service accounts are exempt: they are non-human credentials with no gender/profile.
         if (!user.role || (!user.gender && !user.isServiceAccount)) {
             setShowWelcomeModal(true);
             setLoading(false);
-            // DO NOT SAVE TOKEN - prevent login
             return;
         }
-        // -----------------------------------------------------------
+
+        // Persist or clear Remember Me credentials based on preference
+        try {
+            if (rememberMe) {
+                localStorage.setItem('remember_me', 'true');
+                localStorage.setItem('saved_email', email.trim());
+                localStorage.setItem('saved_password', password);
+            } else {
+                localStorage.setItem('remember_me', 'false');
+                localStorage.removeItem('saved_email');
+                localStorage.removeItem('saved_password');
+            }
+        } catch (storageErr) {
+            console.error('Error saving credentials preference:', storageErr);
+        }
 
         // Fetch roles from API and cache them for permission checks
-        // Store token temporarily to make the API call
         localStorage.setItem('token', data.accessToken);
         localStorage.setItem('mustChangePassword', data.mustChangePassword ? 'true' : 'false');
         localStorage.setItem('mustCompleteDeclaration', data.mustCompleteDeclaration ? 'true' : 'false');
@@ -91,7 +143,7 @@ const Login = () => {
                     style: { background: '#059669', color: '#fff' },
                     icon: '👋'
                 });
-                navigate('/my-requests'); // Redirect to my-requests if no webapp access
+                navigate('/my-requests');
                 return;
             }
 
@@ -127,7 +179,6 @@ const Login = () => {
         setLoading(true);
 
         try {
-            // Retry with forceLocal flag
             const retryResponse = await axios.post(`${API_BASE_URL}/api/auth/signin`, {
                 email,
                 password,
@@ -157,15 +208,12 @@ const Login = () => {
         } else if (err.response?.status === 401) {
             errorMsg = 'Invalid password.';
         } else if (err.response?.status === 403) {
-            // Check the actual error message to differentiate between inactive and not authorized
             const serverMessage = err.response?.data?.message || '';
             if (serverMessage.toLowerCase().includes('access denied') ||
                 serverMessage.toLowerCase().includes('permission')) {
-                // User is active but doesn't have webapp access permission
                 setShowNotAuthorizedModal(true);
                 errorMsg = 'You do not have permission to access the web application.';
             } else {
-                // Account is inactive
                 setShowInactiveModal(true);
                 errorMsg = 'Account is inactive.';
             }
@@ -185,12 +233,11 @@ const Login = () => {
 
         try {
             const response = await axios.post(`${API_BASE_URL}/api/auth/signin`, {
-                email,
+                email: email.trim(),
                 password
             });
 
             if (response.data.requiresConfirmation) {
-                // Show custom confirmation modal
                 setConfirmationModal({
                     isOpen: true,
                     message: response.data.message
@@ -207,75 +254,149 @@ const Login = () => {
         }
     };
 
+    const handleForgotPasswordSubmit = async (e) => {
+        e.preventDefault();
+        if (!forgotEmail.trim()) {
+            setForgotError('Please enter your work email address.');
+            return;
+        }
+
+        setForgotLoading(true);
+        setForgotError(null);
+
+        try {
+            await axios.post(`${API_BASE_URL}/api/auth/forgot-password`, {
+                email: forgotEmail.trim()
+            });
+            setForgotSuccess(true);
+            toast.success('Temporary password sent to your email!');
+        } catch (err) {
+            const message = err.response?.data?.message || 'Failed to send password reset. Please check your email and try again.';
+            setForgotError(message);
+            toast.error(message);
+        } finally {
+            setForgotLoading(false);
+        }
+    };
+
+    const openForgotPasswordModal = () => {
+        setForgotEmail(email || '');
+        setForgotSuccess(false);
+        setForgotError(null);
+        setShowForgotPasswordModal(true);
+    };
+
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center px-4 py-8 sm:px-8 lg:p-16">
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8 sm:px-8 lg:p-16 font-sans">
             <div className="max-w-md w-full flex flex-col items-center text-center">
                 {/* Logo */}
-                <div className="mb-8 sm:mb-14">
-                    <BrandLogo iconSize="w-16 h-16 sm:w-24 sm:h-24" />
+                <div className="mb-8 sm:mb-12">
+                    <BrandLogo iconSize="w-16 h-16 sm:w-22 sm:h-22" />
                 </div>
 
-                <div className="mb-8 sm:mb-10 text-center">
-                    <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">
+                <div className="mb-7 sm:mb-9 text-center">
+                    <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 tracking-tight">
                         Sign in to WorkPulse
                     </h1>
-                    <p className="text-gray-500 text-sm">Welcome back! Please enter your details.</p>
+                    <p className="text-slate-500 text-xs sm:text-sm">Welcome back! Please enter your details.</p>
                 </div>
 
-                <form onSubmit={handleLogin} className="space-y-6 w-full">
+                <form onSubmit={handleLogin} className="space-y-5 w-full">
                     {/* Error Message */}
                     {error && (
-                        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg animate-shake text-left">
-                            <p className="text-red-700 text-sm font-medium flex items-center gap-2">
-                                <span>⚠️</span> {error}
+                        <div className="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-xl animate-shake text-left shadow-xs">
+                            <p className="text-rose-700 text-xs sm:text-sm font-semibold flex items-center gap-2">
+                                <LuCircleAlert className="flex-shrink-0" size={16} />
+                                <span>{error}</span>
                             </p>
                         </div>
                     )}
 
-                    <div className="border border-gray-200 rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm">
-                        <div className="space-y-4 sm:space-y-5">
-                            {/* Email Field */}
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-left">
-                                <label htmlFor="email" className="text-sm font-semibold text-gray-700 sm:w-16 flex-shrink-0">Email</label>
+                    <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-5 shadow-xl shadow-slate-200/40 text-left">
+                        {/* Email Field */}
+                        <div>
+                            <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                Work Email
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                    <LuMail size={17} />
+                                </div>
                                 <input
                                     id="email"
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="Enter your email"
+                                    placeholder="name@company.com"
                                     required
-                                    className="flex-1 w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400 text-sm"
-                                />
-                            </div>
-
-                            {/* Password Field */}
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-left">
-                                <label htmlFor="password" className="text-sm font-semibold text-gray-700 sm:w-16 flex-shrink-0">Password</label>
-                                <input
-                                    id="password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="Password"
-                                    required
-                                    className="flex-1 w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e1b4b]/10 focus:border-[#1e1b4b] transition-all text-gray-800 placeholder-gray-400 text-sm"
+                                    className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm transition text-slate-900 placeholder-slate-400 font-medium"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex justify-center">
+                        {/* Password Field */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                    Password
+                                </label>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    id="password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Enter your password"
+                                    required
+                                    className="w-full pl-4 pr-11 py-3 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm transition text-slate-900 placeholder-slate-400 font-medium"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                                    tabIndex={-1}
+                                    title={showPassword ? 'Hide password' : 'Show password'}
+                                >
+                                    {showPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Remember Me and Forgot Password Row */}
+                        <div className="flex items-center justify-between pt-1">
+                            <label className="flex items-center gap-2 cursor-pointer select-none group">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500/20 cursor-pointer transition"
+                                />
+                                <span className="text-xs font-semibold text-slate-600 group-hover:text-slate-900 transition">
+                                    Remember me
+                                </span>
+                            </label>
+
+                            <button
+                                type="button"
+                                onClick={openForgotPasswordModal}
+                                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition cursor-pointer hover:underline"
+                            >
+                                Forgot password?
+                            </button>
+                        </div>
+
+                        {/* Submit Button */}
+                        <div className="pt-2">
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full max-w-[200px] py-4 bg-[#1e1b4b] text-white font-black rounded-xl shadow-xl shadow-indigo-950/10 hover:shadow-indigo-950/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-70 text-xs uppercase tracking-widest"
+                                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg shadow-indigo-600/20 hover:shadow-indigo-600/30 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 disabled:opacity-70 text-xs uppercase tracking-widest cursor-pointer"
                             >
                                 {loading ? (
-                                    <div className="w-5 h-5 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                 ) : (
-                                    <>
-                                        <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse mr-1" />
-                                        Sign In
-                                    </>
+                                    <span>Sign In</span>
                                 )}
                             </button>
                         </div>
@@ -283,42 +404,164 @@ const Login = () => {
                 </form>
 
                 {/* Mobile App Download Link */}
-                <div className="mt-8 text-center w-full">
+                <div className="mt-7 text-center w-full">
                     <Link
                         to="/apk"
-                        className="inline-flex items-center justify-center gap-2 w-full max-w-[260px] py-4 bg-white border border-gray-200 text-gray-900 font-bold rounded-xl hover:bg-gray-50 transition-all text-sm"
+                        className="inline-flex items-center justify-center gap-2.5 w-full py-3.5 bg-white border border-slate-200/90 text-slate-800 font-bold rounded-2xl hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all text-xs tracking-tight"
                     >
-                        <LuSmartphone size={20} />
-                        <span>Download Mobile App</span>
+                        <LuSmartphone size={18} className="text-indigo-600" />
+                        <span>Download WorkPulse Mobile App</span>
                     </Link>
                 </div>
 
                 {/* Copyright Info */}
-                <div className="mt-8 sm:mt-16 opacity-40 hover:opacity-100 transition-opacity">
-                    <p className="text-gray-500 text-[10px] font-medium text-center">
+                <div className="mt-8 text-slate-400">
+                    <p className="text-[11px] font-medium text-center">
                         &copy; {new Date().getFullYear()} Roonaa Technologies India Private Limited
                     </p>
                 </div>
             </div>
 
+            {/* Forgot Password Modal */}
+            {showForgotPasswordModal && (
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 text-center transform transition-all animate-modal-in border border-slate-100 relative">
+                        {/* Close button */}
+                        <button
+                            type="button"
+                            onClick={() => setShowForgotPasswordModal(false)}
+                            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                        >
+                            <LuX size={18} />
+                        </button>
+
+                        {!forgotSuccess ? (
+                            <>
+                                <div className="w-14 h-14 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-indigo-600 shadow-sm">
+                                    <LuKeyRound size={28} />
+                                </div>
+
+                                <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">
+                                    Reset Your Password
+                                </h3>
+                                <p className="text-slate-500 text-xs leading-relaxed mb-5 text-center">
+                                    Enter your registered work email. We'll generate a temporary password and send it to your inbox.
+                                </p>
+
+                                {forgotError && (
+                                    <div className="mb-4 bg-rose-50 border-l-4 border-rose-500 p-3 rounded-r-xl text-left animate-shake">
+                                        <p className="text-rose-700 text-xs font-semibold flex items-center gap-1.5">
+                                            <LuCircleAlert className="flex-shrink-0" size={14} />
+                                            <span>{forgotError}</span>
+                                        </p>
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 text-left">
+                                    <div>
+                                        <label htmlFor="modal-forgot-email" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                            Work Email Address
+                                        </label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                                <LuMail size={16} />
+                                            </div>
+                                            <input
+                                                id="modal-forgot-email"
+                                                type="email"
+                                                value={forgotEmail}
+                                                onChange={(e) => {
+                                                    setForgotEmail(e.target.value);
+                                                    if (forgotError) setForgotError(null);
+                                                }}
+                                                placeholder="name@company.com"
+                                                required
+                                                autoFocus
+                                                className="w-full pl-10 pr-4 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm transition text-slate-900"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2.5 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowForgotPasswordModal(false)}
+                                            className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs uppercase tracking-wider transition cursor-pointer"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={forgotLoading}
+                                            className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md shadow-indigo-600/20 text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-70"
+                                        >
+                                            {forgotLoading ? (
+                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            ) : (
+                                                <span>Send Password</span>
+                                            )}
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        ) : (
+                            <div className="animate-fadeIn py-2">
+                                <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-center mx-auto mb-4 text-emerald-600 shadow-sm">
+                                    <LuCircleCheck size={30} />
+                                </div>
+
+                                <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">
+                                    Temporary Password Sent!
+                                </h3>
+                                <p className="text-slate-600 text-xs leading-relaxed mb-4">
+                                    We sent a temporary password to <strong className="text-slate-900 font-bold">{forgotEmail}</strong>.
+                                </p>
+
+                                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-left text-xs text-slate-600 space-y-1.5 mb-5">
+                                    <p className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+                                        👉 Next Steps:
+                                    </p>
+                                    <ol className="list-decimal list-inside space-y-1 text-[11px] leading-relaxed text-slate-600 pl-1">
+                                        <li>Check your inbox (and spam folder) for the password.</li>
+                                        <li>Log in using your email and the temporary password.</li>
+                                        <li>You'll be prompted to set your new permanent password.</li>
+                                    </ol>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setEmail(forgotEmail);
+                                        setShowForgotPasswordModal(false);
+                                    }}
+                                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md shadow-indigo-600/20 text-xs uppercase tracking-wider transition cursor-pointer"
+                                >
+                                    Back to Sign In
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Welcome / Setup Required Modal */}
             {showWelcomeModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-[#1e1b4b]/5">
-                        <div className="w-20 h-20 bg-[#f0f9ff] rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-[#f0f9ff]">
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-slate-100">
+                        <div className="w-20 h-20 bg-sky-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-sky-50">
                             <span className="text-4xl">👋</span>
                         </div>
-                        <h3 className="text-2xl font-black text-[#1e1b4b] mb-2 uppercase tracking-tighter">Welcome to WorkPulse!</h3>
-                        <p className="text-gray-500 mb-8 leading-relaxed">
+                        <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">Welcome to WorkPulse!</h3>
+                        <p className="text-slate-500 mb-8 leading-relaxed text-sm">
                             We're excited to have you on board.
                             <br /><br />
                             Your profile setup is incomplete.
                             <br />
-                            <span className="text-[#0ea5e9] font-black mt-2 block uppercase text-xs tracking-widest">Please contact administrator.</span>
+                            <span className="text-sky-600 font-bold mt-2 block uppercase text-xs tracking-widest">Please contact your administrator.</span>
                         </p>
                         <button
                             onClick={() => setShowWelcomeModal(false)}
-                            className="w-full py-4 bg-[#1e1b4b] text-white rounded-xl font-black hover:bg-indigo-950 transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-xs uppercase tracking-widest shadow-xl shadow-indigo-950/20"
+                            className="w-full py-4 bg-slate-900 hover:bg-black text-white rounded-xl font-bold transition-all text-xs uppercase tracking-widest shadow-lg shadow-slate-900/20 cursor-pointer"
                         >
                             Okay, Got it
                         </button>
@@ -326,22 +569,22 @@ const Login = () => {
                 </div>
             )}
 
-            {/* Modal remains same but styled for the new theme */}
+            {/* Inactive Modal */}
             {showInactiveModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in">
-                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-slate-100">
+                        <div className="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6">
                             <span className="text-4xl">🚫</span>
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Account Inactive</h3>
-                        <p className="text-gray-500 mb-8 leading-relaxed">
+                        <h3 className="text-2xl font-bold text-slate-900 mb-2">Account Inactive</h3>
+                        <p className="text-slate-500 mb-8 leading-relaxed text-sm">
                             Your account is currently inactive. You cannot access the WorkPulse system.
                             <br />
-                            <span className="text-blue-600 font-semibold mt-2 block">Please contact your administrator.</span>
+                            <span className="text-indigo-600 font-semibold mt-2 block">Please contact your administrator.</span>
                         </p>
                         <button
                             onClick={() => setShowInactiveModal(false)}
-                            className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                            className="w-full py-3.5 bg-slate-900 hover:bg-black text-white rounded-xl font-bold transition-all cursor-pointer text-xs uppercase tracking-wider"
                         >
                             Close
                         </button>
@@ -349,22 +592,22 @@ const Login = () => {
                 </div>
             )}
 
-            {/* Not Authorized Modal - for users without webapp access permission */}
+            {/* Not Authorized Modal */}
             {showNotAuthorizedModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in">
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-slate-100">
                         <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
                             <span className="text-4xl">🔒</span>
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h3>
-                        <p className="text-gray-500 mb-8 leading-relaxed">
+                        <h3 className="text-2xl font-bold text-slate-900 mb-2">Access Restricted</h3>
+                        <p className="text-slate-500 mb-8 leading-relaxed text-sm">
                             You do not have permission to access the web application.
                             <br />
                             <span className="text-amber-600 font-semibold mt-2 block">Please contact your administrator to request access.</span>
                         </p>
                         <button
                             onClick={() => setShowNotAuthorizedModal(false)}
-                            className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                            className="w-full py-3.5 bg-slate-900 hover:bg-black text-white rounded-xl font-bold transition-all cursor-pointer text-xs uppercase tracking-wider"
                         >
                             Close
                         </button>
@@ -374,18 +617,18 @@ const Login = () => {
 
             {/* Confirmation Modal for Local Auth */}
             {confirmationModal.isOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in">
-                        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-slate-100">
+                        <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
                             <span className="text-4xl">🛡️</span>
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-4">Authentication Update</h3>
+                        <h3 className="text-2xl font-bold text-slate-900 mb-4">Authentication Update</h3>
 
-                        <div className="text-gray-600 mb-8 leading-relaxed space-y-3 text-left bg-gray-50 p-4 rounded-xl">
+                        <div className="text-slate-600 mb-8 leading-relaxed space-y-3 text-left bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-sm">
                             <p>
                                 We noticed a delay in reaching the primary directory server. This sometimes happens due to routine maintenance or network checks.
                             </p>
-                            <p className="font-medium text-gray-800">
+                            <p className="font-semibold text-slate-800">
                                 Good news: You can still log in securely!
                             </p>
                             <p>
@@ -393,19 +636,19 @@ const Login = () => {
                             </p>
                         </div>
 
-                        <div className="flex gap-4">
+                        <div className="flex gap-3">
                             <button
                                 onClick={() => {
                                     setConfirmationModal({ ...confirmationModal, isOpen: false });
                                     setLoading(false);
                                 }}
-                                className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all cursor-pointer text-xs uppercase tracking-wider"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleConfirmLogin}
-                                className="flex-1 py-3.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-purple-200 hover:shadow-xl hover:shadow-purple-300 transform hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                                className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/25 transition-all cursor-pointer text-xs uppercase tracking-wider"
                             >
                                 Yes, Log Me In
                             </button>
@@ -421,13 +664,6 @@ const Login = () => {
                 }
                 .animate-modal-in {
                     animation: modal-in 0.2s ease-out forwards;
-                }
-                @keyframes float {
-                    0%, 100% { transform: translateY(0px); }
-                    50% { transform: translateY(-20px); }
-                }
-                .animate-float {
-                    animation: float 6s ease-in-out infinite;
                 }
                 .animate-shake {
                     animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
