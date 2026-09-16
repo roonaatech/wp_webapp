@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.11.4](https://github.com/roonaatech/wp_webapp/compare/v2.11.3...v2.11.4) (2026-09-16)
+
+
+### Code Refactoring
+
+* update Face ID status indicators and badges to display Face ID Available ([8947bf2](https://github.com/roonaatech/wp_webapp/commit/8947bf253d022a7835116d019e755252650cdf8a))
+
 ### [2.11.3](https://github.com/roonaatech/wp_webapp/compare/v2.11.2...v2.11.3) (2026-09-15)
 
 
