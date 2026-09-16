@@ -4,7 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuScanFace } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
-import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, canUserRemoveFace } from '../utils/roleUtils';
+import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, canUserRemoveFace, isSuperAdmin } from '../utils/roleUtils';
 import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 
 
@@ -364,11 +364,11 @@ const ViewEmployeeProfile = () => {
 
     const currentUserRoleLevel = userRoleObj ? userRoleObj.hierarchy_level : getHierarchyLevel(currentUser.role);
     const targetUserRoleLevel = roleObj ? roleObj.hierarchy_level : getHierarchyLevel(employee.role);
+    const isUserSuperAdmin = isSuperAdmin(currentUser.role) || currentUserRoleLevel === 0;
     const hasRemoveFaceAccess = canUserRemoveFace(currentUser.role, systemSettings);
-    const canRemoveFace = hasRemoveFaceAccess && (
-        currentUserRoleLevel === 0 || 
+    const canRemoveFace = isUserSuperAdmin || (hasRemoveFaceAccess && (
         targetUserRoleLevel >= currentUserRoleLevel
-    );
+    ));
     const hasFaceRegistered = !!(employee.face_image_path || employee.face_registered_at);
 
     // Checklist documents mapping
@@ -428,7 +428,7 @@ const ViewEmployeeProfile = () => {
                                     ABIS Enabled
                                 </span>
                             )}
-                            {hasFaceRegistered && (
+                            {isUserSuperAdmin && hasFaceRegistered && (
                                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
                                     <LuScanFace size={13} className="text-emerald-600" />
                                     Face ID Available
@@ -519,7 +519,7 @@ const ViewEmployeeProfile = () => {
                             )}
                         </button>
                     )}
-                    {canRemoveFace && hasFaceRegistered && (
+                    {isUserSuperAdmin && hasFaceRegistered && (
                         <button
                             onClick={() => setIsRemoveFaceModalOpen(true)}
                             className="flex-1 md:flex-none px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl transition text-sm shadow-sm flex items-center justify-center gap-1.5"
@@ -891,6 +891,68 @@ const ViewEmployeeProfile = () => {
                             )}
                         </div>
                     </div>
+
+                    {/* Registered Face ID Biometric Card (Super Admin Only) */}
+                    {isUserSuperAdmin && hasFaceRegistered && (
+                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm text-sm">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                                <h2 className="text-base font-bold text-[#1e1b4b] flex items-center gap-2">
+                                    <span className="text-emerald-600"><LuScanFace size={18} /></span> Registered Face ID
+                                </h2>
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                                    <LuCheck size={12} strokeWidth={3} /> Enrolled
+                                </span>
+                            </div>
+
+                            <div className="space-y-4">
+                                {employee.face_image_path ? (
+                                    <div className="relative group">
+                                        <div className="w-full h-44 rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center relative">
+                                            <img
+                                                src={`${API_BASE_URL}/${employee.face_image_path.replace(/\\/g, '/')}`}
+                                                alt={`Registered Face ID for ${employee.firstname} ${employee.lastname}`}
+                                                className="w-full h-full object-cover rounded-2xl cursor-zoom-in group-hover:scale-105 transition duration-300"
+                                                onClick={() => {
+                                                    setLightboxImage(`${API_BASE_URL}/${employee.face_image_path.replace(/\\/g, '/')}`);
+                                                    setIsLightboxOpen(true);
+                                                }}
+                                            />
+                                            <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none rounded-2xl">
+                                                <span className="px-3 py-1.5 rounded-xl bg-white/90 backdrop-blur-sm text-xs font-bold text-slate-900 shadow-sm flex items-center gap-1.5">
+                                                    <LuCamera size={14} /> Click to Zoom
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center text-slate-500 text-xs">
+                                        Face ID biometric templates are registered in system.
+                                    </div>
+                                )}
+
+                                <div className="space-y-2 border-t border-slate-100 pt-3 text-xs">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-400 font-bold uppercase text-[10px]">Enrollment Date</span>
+                                        <span className="font-semibold text-slate-700">
+                                            {employee.face_registered_at ? new Date(employee.face_registered_at).toLocaleString() : 'Registered'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-400 font-bold uppercase text-[10px]">Biometric Model</span>
+                                        <span className="font-semibold text-slate-700">3-Angle 128-d Vector</span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => setIsRemoveFaceModalOpen(true)}
+                                    className="w-full mt-2 py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl transition text-xs flex items-center justify-center gap-1.5 shadow-2xs"
+                                >
+                                    <LuTrash2 size={14} />
+                                    Remove Face ID
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
