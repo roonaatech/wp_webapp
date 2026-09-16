@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.11.7](https://github.com/roonaatech/wp_webapp/compare/v2.11.6...v2.11.7) (2026-09-16)
+
+
+### Features
+
+* restrict Face ID features to super admins and add biometric card view ([866205b](https://github.com/roonaatech/wp_webapp/commit/866205bef882de67e3297f1a74c62bbc9e6a1978))
+
 ### [2.11.6](https://github.com/roonaatech/wp_webapp/compare/v2.11.5...v2.11.6) (2026-09-16)
 
 
