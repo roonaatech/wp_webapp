@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2 } from "react-icons/lu";
+import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuScanFace } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, canUserRemoveFace } from '../utils/roleUtils';
 import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
@@ -417,26 +417,6 @@ const ViewEmployeeProfile = () => {
                         )}
                     </div>
 
-                    {/* Registered Face ID image (kept separate from the profile photo) */}
-                    {employee.face_image_path && (
-                        <div className="flex flex-col items-center gap-1">
-                            <div className="relative w-16 h-16 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center shadow-sm overflow-hidden">
-                                <img
-                                    src={`${API_BASE_URL}/${employee.face_image_path.replace(/\\/g, '/')}`}
-                                    alt={`${employee.firstname} ${employee.lastname} Face ID`}
-                                    className="w-full h-full object-cover rounded-2xl cursor-zoom-in hover:brightness-95 transition duration-200"
-                                    onClick={() => {
-                                        setLightboxImage(`${API_BASE_URL}/${employee.face_image_path.replace(/\\/g, '/')}`);
-                                        setIsLightboxOpen(true);
-                                    }}
-                                />
-                            </div>
-                            <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wide flex items-center gap-1">
-                                <LuCamera size={11} /> Face ID
-                            </span>
-                        </div>
-                    )}
-
                     <div>
                         <div className="flex items-center gap-2.5 flex-wrap">
                             <h1 className="text-2xl font-black text-[#1e1b4b]">{employee.firstname} {employee.lastname}</h1>
@@ -446,6 +426,12 @@ const ViewEmployeeProfile = () => {
                             {employee.abis_access && (
                                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                                     ABIS Enabled
+                                </span>
+                            )}
+                            {hasFaceRegistered && (
+                                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+                                    <LuScanFace size={13} className="text-emerald-600" />
+                                    Face ID Available
                                 </span>
                             )}
                         </div>
