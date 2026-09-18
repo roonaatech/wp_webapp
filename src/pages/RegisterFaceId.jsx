@@ -359,7 +359,9 @@ const RegisterFaceId = () => {
                     faceDescriptor: frontDescriptorRef.current,
                     faceDescriptorLeft: leftDescriptorRef.current,
                     faceDescriptorRight: rightDescriptorRef.current,
-                    profileImage: frontProfileSnap
+                    profileImage: frontProfileSnap,
+                    imageLeft: leftProfileSnap,
+                    imageRight: rightProfileSnap
                 },
                 {
                     headers: { 'x-access-token': token }

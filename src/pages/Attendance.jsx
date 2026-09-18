@@ -425,13 +425,15 @@ const Attendance = () => {
             ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
             const snapshotImage = canvas.toDataURL('image/jpeg', 0.8);
 
-            // 4. Record attendance on backend without password
+            // 4. Record attendance on backend with server-side verification
             const response = await axios.post(`${API_BASE_URL}/api/attendance/check-in-out-with-face`, {
                 email: employeeEmail,
                 faceDescriptor: Array.from(detection.descriptor),
                 faceDescriptorLeft: leftDescriptorRef.current,
                 faceDescriptorRight: rightDescriptorRef.current,
                 snapshotImage,
+                imageLeft: leftProfile,
+                imageRight: rightProfile,
                 action,
                 livenessVerified: true
             }, {
@@ -562,7 +564,9 @@ const Attendance = () => {
                                 identifyingRef.current = true;
                                 try {
                                     const token = localStorage.getItem('token');
+                                    const snap = captureSnapshot();
                                     const res = await axios.post(`${API_BASE_URL}/api/attendance/identify-face`, {
+                                        snapshotImage: snap,
                                         faceDescriptor: Array.from(detection.descriptor)
                                     }, {
                                         headers: { 'x-access-token': token }
@@ -589,7 +593,9 @@ const Attendance = () => {
                                 identifyingRef.current = true;
                                 try {
                                     const token = localStorage.getItem('token');
+                                    const snap = captureSnapshot();
                                     const res = await axios.post(`${API_BASE_URL}/api/attendance/identify-face`, {
+                                        snapshotImage: snap,
                                         faceDescriptor: Array.from(detection.descriptor)
                                     }, {
                                         headers: { 'x-access-token': token }
