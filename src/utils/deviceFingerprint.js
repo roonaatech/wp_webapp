@@ -1,9 +1,62 @@
 /**
  * WorkPulse Device Fingerprinting & Single Device Identity Utility
  * Generates and persists a stable client-side device identifier for attendance security.
+ * Uses dual-layer persistence (LocalStorage + Long-Lived Cookie + Hardware Hash Seed)
+ * to ensure device ID is never lost upon logout or storage clears.
  */
 
 const STORAGE_KEY = 'wp_device_id';
+const COOKIE_NAME = 'wp_dev_id';
+
+/**
+ * Read cookie by name
+ */
+function getCookie(name) {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+
+/**
+ * Set long-lived cookie (10 years)
+ */
+function setCookie(name, value) {
+    if (typeof document === 'undefined') return;
+    try {
+        const maxAge = 10 * 365 * 24 * 60 * 60; // 10 years in seconds
+        document.cookie = `${name}=${value}; max-age=${maxAge}; path=/; SameSite=Lax`;
+    } catch (_) {}
+}
+
+/**
+ * Generate a simple hash string from hardware attributes for stable seed
+ */
+function generateHardwareHash() {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return '';
+    const screen = window.screen || {};
+    const nav = navigator || {};
+    const raw = [
+        nav.userAgent || '',
+        nav.platform || '',
+        nav.language || '',
+        screen.width || '',
+        screen.height || '',
+        screen.colorDepth || '',
+        screen.pixelDepth || '',
+        window.devicePixelRatio || '',
+        nav.hardwareConcurrency || ''
+    ].join('###');
+
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+        const char = raw.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16).padStart(8, '0');
+}
 
 /**
  * Generate a cryptographically strong UUID
@@ -21,23 +74,41 @@ function generateUUID() {
 }
 
 /**
- * Get or create persistent device ID
+ * Get or create persistent device ID (dual-layer persistence)
  * @returns {string} Unique persistent device ID (e.g. "wp-dev-xxxx-xxxx")
  */
 export function getOrCreateDeviceId() {
     try {
+        // 1. Check LocalStorage
         let deviceId = localStorage.getItem(STORAGE_KEY);
         if (deviceId && deviceId.length >= 16) {
+            // Self-heal cookie if missing
+            if (!getCookie(COOKIE_NAME)) {
+                setCookie(COOKIE_NAME, deviceId);
+            }
             return deviceId;
         }
 
-        // Generate a new hardware-keyed device UUID
+        // 2. Check Persistent Cookie (recovers ID if localStorage was cleared on logout)
+        const cookieId = getCookie(COOKIE_NAME);
+        if (cookieId && cookieId.length >= 16) {
+            localStorage.setItem(STORAGE_KEY, cookieId);
+            return cookieId;
+        }
+
+        // 3. Generate a new hardware-seeded device UUID
+        const hwHash = generateHardwareHash();
         const newUuid = generateUUID();
-        deviceId = `wp-dev-${newUuid}`;
+        deviceId = `wp-dev-${hwHash}-${newUuid}`;
+
         localStorage.setItem(STORAGE_KEY, deviceId);
+        setCookie(COOKIE_NAME, deviceId);
+
         return deviceId;
     } catch (e) {
-        console.warn('LocalStorage not available for device ID generation:', e);
+        console.warn('Storage not available for device ID generation:', e);
+        const cookieId = getCookie(COOKIE_NAME);
+        if (cookieId) return cookieId;
         return 'wp-dev-fallback-' + Date.now();
     }
 }

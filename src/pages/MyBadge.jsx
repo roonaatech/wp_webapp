@@ -131,7 +131,11 @@ const MyBadge = () => {
             }
         } catch (_) {
         } finally {
-            localStorage.clear();
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('mustChangePassword');
+            localStorage.removeItem('mustCompleteDeclaration');
+            localStorage.removeItem('settings');
             navigate('/login');
         }
     };

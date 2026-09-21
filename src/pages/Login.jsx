@@ -217,8 +217,13 @@ const Login = () => {
             errorMsg = 'Invalid password.';
         } else if (err.response?.status === 403) {
             const serverMessage = err.response?.data?.message || '';
-            if (serverMessage.toLowerCase().includes('access denied') ||
-                serverMessage.toLowerCase().includes('permission')) {
+            const isDeviceConflict = err.response?.data?.deviceViolation === true || 
+                                     serverMessage.toLowerCase().includes('device') ||
+                                     serverMessage.toLowerCase().includes('security violation');
+            if (isDeviceConflict) {
+                errorMsg = serverMessage;
+            } else if (serverMessage.toLowerCase().includes('access denied') ||
+                       serverMessage.toLowerCase().includes('permission')) {
                 setShowNotAuthorizedModal(true);
                 errorMsg = 'You do not have permission to access the web application.';
             } else {
@@ -231,7 +236,7 @@ const Login = () => {
             errorMsg = err.response?.data?.message || 'Login failed. Please try again.';
         }
         setError(errorMsg);
-        toast.error(errorMsg);
+        toast.error(errorMsg, { duration: 6000 });
     };
 
     const handleLogin = async (e) => {
