@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.9](https://github.com/roonaatech/wp_webapp/compare/v2.12.8...v2.12.9) (2026-09-21)
+
+
+### Code Refactoring
+
+* remove recent scan history and activity feed from Attendance page ([27abe1a](https://github.com/roonaatech/wp_webapp/commit/27abe1a7e62d7d1f614817378eecefa0ba1857fa))
+
 ### [2.12.8](https://github.com/roonaatech/wp_webapp/compare/v2.12.7...v2.12.8) (2026-09-21)
 
 
