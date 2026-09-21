@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2 } from "react-icons/lu";
+import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuSmartphone, LuRefreshCw } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, isSuperAdmin } from '../utils/roleUtils';
 import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
@@ -69,6 +69,7 @@ const ViewEmployeeProfile = () => {
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [lightboxImage, setLightboxImage] = useState('');
     const [resendingEmail, setResendingEmail] = useState(false);
+    const [resettingDevice, setResettingDevice] = useState(false);
     const [dojDisplay, setDojDisplay] = useState('');
     const dojPickerRef = useRef(null);
 
@@ -141,6 +142,30 @@ const ViewEmployeeProfile = () => {
         } else {
             setApprovalForm(prev => ({ ...prev, date_of_joining: '' }));
             setApprovalErrors(prev => { const u = { ...prev }; delete u.date_of_joining; return u; });
+        }
+    };
+
+    const handleResetDevice = async () => {
+        if (!window.confirm(`Are you sure you want to reset the mobile device binding for ${employee.firstname} ${employee.lastname}? This will allow them to bind a new mobile device on their next attendance.`)) {
+            return;
+        }
+
+        setResettingDevice(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.post(`${API_BASE_URL}/api/admin/reset-employee-device/${employee.staffid}`, {
+                reason: 'Reset by Level 0 Admin from staff profile'
+            }, {
+                headers: { 'x-access-token': token }
+            });
+
+            toast.success(res.data.message || 'Device binding reset successfully!');
+            fetchEmployeeProfile();
+        } catch (err) {
+            console.error('Error resetting employee device:', err);
+            toast.error(err.response?.data?.message || 'Failed to reset device binding.');
+        } finally {
+            setResettingDevice(false);
         }
     };
 
@@ -844,6 +869,88 @@ const ViewEmployeeProfile = () => {
                             )}
                         </div>
                     </div>
+
+                    {/* Level 0 Exclusive: Registered Mobile Device Details */}
+                    {isUserSuperAdmin && (
+                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm text-sm">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                                <h2 className="text-base font-bold text-[#1e1b4b] flex items-center gap-2">
+                                    <span className="text-indigo-600"><LuSmartphone /></span> Registered Mobile Device
+                                </h2>
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200">
+                                    Level 0 Only
+                                </span>
+                            </div>
+
+                            {employee.bound_device ? (
+                                <div className="space-y-4">
+                                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Device Model / Platform</p>
+                                            <p className="font-bold text-slate-800 mt-0.5 flex items-center gap-1.5">
+                                                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                                                {employee.bound_device.device_name || 'Mobile Device'}
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Device Fingerprint UUID</p>
+                                            <p className="font-mono text-xs text-slate-600 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 mt-0.5 break-all select-all font-semibold">
+                                                {employee.bound_device.device_id}
+                                            </p>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3 pt-1">
+                                            <div>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase">Network IP</p>
+                                                <p className="font-semibold text-slate-700 text-xs mt-0.5">
+                                                    {employee.bound_device.ip_address || '—'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase">Status</p>
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 mt-0.5">
+                                                    <LuCheck size={12} /> Active Binding
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3 border-t border-slate-200/60 pt-2 text-[11px]">
+                                            <div>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase">First Bound</p>
+                                                <p className="text-slate-600 font-medium mt-0.5">
+                                                    {employee.bound_device.first_bound_at ? new Date(employee.bound_device.first_bound_at).toLocaleDateString() : '—'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase">Last Active</p>
+                                                <p className="text-slate-600 font-medium mt-0.5">
+                                                    {employee.bound_device.last_active_at ? new Date(employee.bound_device.last_active_at).toLocaleString() : '—'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={handleResetDevice}
+                                        disabled={resettingDevice}
+                                        className="w-full py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                    >
+                                        <LuRefreshCw className={`w-3.5 h-3.5 ${resettingDevice ? 'animate-spin' : ''}`} />
+                                        {resettingDevice ? 'Resetting...' : 'Reset Device Registration'}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="text-center py-6 px-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                    <LuSmartphone className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                                    <p className="font-bold text-slate-700 text-xs">No Mobile Device Bound</p>
+                                    <p className="text-[11px] text-slate-400 mt-1">
+                                        Device will be automatically registered on the employee's first mobile attendance or badge access.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
