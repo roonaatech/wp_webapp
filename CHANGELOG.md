@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.5](https://github.com/roonaatech/wp_webapp/compare/v2.12.4...v2.12.5) (2026-09-21)
+
+
+### Features
+
+* implement dual-layer device fingerprint persistence and improve device conflict handling ([dfd2e48](https://github.com/roonaatech/wp_webapp/commit/dfd2e487699922bb0b163be77cc73d9219d5dfda))
+
 ### [2.12.4](https://github.com/roonaatech/wp_webapp/compare/v2.12.3...v2.12.4) (2026-09-21)
 
 
