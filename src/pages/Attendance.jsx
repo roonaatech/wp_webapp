@@ -10,6 +10,7 @@ import {
     LuLock,
     LuMaximize,
     LuShieldAlert,
+    LuShieldCheck,
     LuRefreshCw,
     LuScanLine,
     LuArrowRight,
