@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.4](https://github.com/roonaatech/wp_webapp/compare/v2.12.3...v2.12.4) (2026-09-21)
+
+
+### Features
+
+* implement device fingerprinting and integrate device identification headers for security validation ([d495df7](https://github.com/roonaatech/wp_webapp/commit/d495df7cc17861229e0fc6bd5bdf0a3e0d942272))
+
 ### [2.12.3](https://github.com/roonaatech/wp_webapp/compare/v2.12.2...v2.12.3) (2026-09-21)
 
 
