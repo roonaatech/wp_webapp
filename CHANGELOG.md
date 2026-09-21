@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.12.0](https://github.com/roonaatech/wp_webapp/compare/v2.11.7...v2.12.0) (2026-09-21)
+
+
+### Features
+
+* include side profile images and snapshots in face attendance and registration payloads ([d7638a7](https://github.com/roonaatech/wp_webapp/commit/d7638a75c5d9f121f97f1c7acff682d29861da60))
+
+
+### Code Refactoring
+
+* remove face recognition features and integrate attendance kiosk with new badge view ([2d30bd2](https://github.com/roonaatech/wp_webapp/commit/2d30bd267b7672f29f5f3763b1a64f86a0883835))
+
 ### [2.11.7](https://github.com/roonaatech/wp_webapp/compare/v2.11.6...v2.11.7) (2026-09-16)
 
 
