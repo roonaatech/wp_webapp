@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.10](https://github.com/roonaatech/wp_webapp/compare/v2.12.9...v2.12.10) (2026-09-21)
+
+
+### Features
+
+* import LuShieldCheck icon in Attendance page ([8f5f8eb](https://github.com/roonaatech/wp_webapp/commit/8f5f8eb4efd34d91ff8f24b847e50b052792d6e6))
+
 ### [2.12.9](https://github.com/roonaatech/wp_webapp/compare/v2.12.8...v2.12.9) (2026-09-21)
 
 
