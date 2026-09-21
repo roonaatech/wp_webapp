@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.3](https://github.com/roonaatech/wp_webapp/compare/v2.12.2...v2.12.3) (2026-09-21)
+
+
+### Features
+
+* add login redirection and conditional validation for mandatory password changes and profile declarations ([4422bc3](https://github.com/roonaatech/wp_webapp/commit/4422bc3fdb8b9846a92f9f77446060110eb27b9d))
+
 ### [2.12.2](https://github.com/roonaatech/wp_webapp/compare/v2.12.1...v2.12.2) (2026-09-21)
 
 ### [2.12.1](https://github.com/roonaatech/wp_webapp/compare/v2.12.0...v2.12.1) (2026-09-21)
