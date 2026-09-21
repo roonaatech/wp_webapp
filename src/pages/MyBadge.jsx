@@ -23,6 +23,7 @@ import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 import ModernLoader from '../components/ModernLoader';
 import { canAccessWebApp } from '../utils/roleUtils';
+import { getOrCreateDeviceId, getDeviceName, isMobileClient } from '../utils/deviceFingerprint';
 
 const ROTATION_INTERVAL_SEC = 15;
 
@@ -38,7 +39,7 @@ const MyBadge = () => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobile = isMobileClient();
     const isDesktopWithLayout = canAccessWebApp(user.role) && !isMobile;
 
     const timerRef = useRef(null);
@@ -54,8 +55,21 @@ const MyBadge = () => {
         if (isManual) setRefreshing(true);
 
         try {
+            const isMobileDevice = isMobileClient();
+            const deviceId = getOrCreateDeviceId();
+            const deviceName = getDeviceName();
+
             const response = await axios.get(`${API_BASE_URL}/api/attendance/my-badge`, {
-                headers: { 'x-access-token': token }
+                headers: { 
+                    'x-access-token': token,
+                    'x-is-mobile': isMobileDevice ? 'true' : 'false',
+                    'x-device-id': deviceId,
+                    'x-device-name': deviceName
+                },
+                params: {
+                    deviceId: isMobileDevice ? deviceId : undefined,
+                    deviceName: isMobileDevice ? deviceName : undefined
+                }
             });
 
             if (response.data && response.data.success) {
