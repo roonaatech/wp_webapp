@@ -155,10 +155,19 @@ export function getDeviceName() {
 }
 
 /**
- * Check if the current device is a mobile browser / phone
+ * Check if the current device is a mobile browser / phone / tablet
  * @returns {boolean}
  */
 export function isMobileClient() {
     if (typeof navigator === 'undefined') return false;
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const ua = navigator.userAgent || '';
+    // Standard mobile UA pattern
+    const isStandardMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+    if (isStandardMobile) return true;
+
+    // Check for iPadOS (which often identifies as Macintosh with touch support)
+    const isIPadOS = /Macintosh/i.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1;
+    if (isIPadOS) return true;
+
+    return false;
 }

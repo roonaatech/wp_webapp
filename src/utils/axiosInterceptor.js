@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getOrCreateDeviceId, getDeviceName } from './deviceFingerprint';
+import { getOrCreateDeviceId, getDeviceName, isMobileClient } from './deviceFingerprint';
 
 /**
  * Axios instance with interceptors for handling authentication errors
@@ -35,8 +35,12 @@ export const setupAxiosInterceptors = (navigate) => {
                 config.headers['x-access-token'] = token;
             }
             try {
-                config.headers['x-device-id'] = getOrCreateDeviceId();
-                config.headers['x-device-name'] = getDeviceName();
+                const isMobile = isMobileClient();
+                config.headers['x-is-mobile'] = isMobile ? 'true' : 'false';
+                if (isMobile) {
+                    config.headers['x-device-id'] = getOrCreateDeviceId();
+                    config.headers['x-device-name'] = getDeviceName();
+                }
             } catch (_) {}
             return config;
         },
@@ -146,11 +150,15 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
                 config.headers['x-access-token'] = token;
             }
             try {
-                if (!config.headers['x-device-id']) {
-                    config.headers['x-device-id'] = getOrCreateDeviceId();
-                }
-                if (!config.headers['x-device-name']) {
-                    config.headers['x-device-name'] = getDeviceName();
+                const isMobile = isMobileClient();
+                config.headers['x-is-mobile'] = isMobile ? 'true' : 'false';
+                if (isMobile) {
+                    if (!config.headers['x-device-id']) {
+                        config.headers['x-device-id'] = getOrCreateDeviceId();
+                    }
+                    if (!config.headers['x-device-name']) {
+                        config.headers['x-device-name'] = getDeviceName();
+                    }
                 }
             } catch (_) {}
             return config;
