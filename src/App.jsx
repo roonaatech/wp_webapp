@@ -33,9 +33,9 @@ import ViewEmployeeProfile from './pages/ViewEmployeeProfile';
 import FirstTimeLoginFlow from './pages/FirstTimeLoginFlow';
 import CandidateOnboardingFlow from './pages/CandidateOnboardingFlow';
 import Attendance from './pages/Attendance';
-import RegisterFaceId from './pages/RegisterFaceId';
 import AttendanceReport from './pages/AttendanceReport';
 import ForgotPassword from './pages/ForgotPassword';
+import MyBadge from './pages/MyBadge';
 
 
 
@@ -223,7 +223,6 @@ function App() {
             <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
             <Route path="/service-accounts" element={<ProtectedLayout><ServiceAccounts /></ProtectedLayout>} />
             <Route path="/attendance" element={<ProtectedLayout><Attendance /></ProtectedLayout>} />
-            <Route path="/attendance/register-face" element={<ProtectedLayout><RegisterFaceId /></ProtectedLayout>} />
             <Route path="/approvals" element={<ProtectedLayout><Approvals /></ProtectedLayout>} />
             <Route path="/calendar" element={<ProtectedLayout><Calendar /></ProtectedLayout>} />
             <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
@@ -243,6 +242,8 @@ function App() {
 
             {/* Self-Service Routes (all authenticated users, no sidebar/header) */}
             <Route path="/my-requests" element={<SelfServiceLayout><MyRequests /></SelfServiceLayout>} />
+            <Route path="/my-badge" element={<SelfServiceLayout><MyBadge /></SelfServiceLayout>} />
+            <Route path="/badge" element={<Navigate to="/my-badge" replace />} />
             <Route path="/show-qrcode" element={<ProtectedRoute><ShowQRCode /></ProtectedRoute>} />
             <Route path="/verify-profile" element={<ProtectedRoute skipProfileCheck skipWebAppCheck><FirstTimeLoginFlow /></ProtectedRoute>} />
 

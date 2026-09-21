@@ -211,7 +211,7 @@ const Header = () => {
     };
 
     return (
-        <header className="bg-[var(--header-bg)] border-b border-[var(--border-color)] shadow-sm transition-colors duration-300">
+        <header className="bg-[var(--header-bg)] border-b border-[var(--border-color)] shadow-sm transition-colors duration-300 relative z-40">
             <div className="flex items-center justify-between px-8 py-4">
                 <div className="flex items-center gap-3">
                     <BrandLogo showText={false} iconSize="w-10 h-10" />

@@ -70,8 +70,26 @@ export const getCachedRoles = () => {
  * Get role by ID
  */
 export const getRoleById = (roleId) => {
+    if (!roleId) return null;
     const roles = getCachedRoles();
-    return roles.find(r => r.id === parseInt(roleId));
+    if (typeof roleId === 'object') {
+        const id = roleId.id || roleId.roleId || roleId.role;
+        if (id) {
+            const found = roles.find(r => r.id === parseInt(id));
+            if (found) return found;
+        }
+        return roleId;
+    }
+    const numId = parseInt(roleId, 10);
+    if (!isNaN(numId)) {
+        const found = roles.find(r => r.id === numId);
+        if (found) return found;
+    }
+    if (typeof roleId === 'string') {
+        const foundByName = roles.find(r => r.name === roleId || r.name?.toLowerCase() === roleId.toLowerCase());
+        if (foundByName) return foundByName;
+    }
+    return null;
 };
 
 /**
@@ -354,22 +372,24 @@ export const canManageSystemSettings = (roleId) => {
 };
 
 /**
- * Check if user can access the face attendance portal (global permission - boolean)
+ * Check if user can access the kiosk attendance scanner terminal (global permission - boolean)
+ * Strictly requires can_access_attendance_portal / can_access_kiosk permission to be enabled.
  */
 export const canAccessAttendancePortal = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_access_attendance_portal == true;
+    return role.can_access_attendance_portal === true ||
+           role.can_access_attendance_portal === 1 ||
+           role.can_access_attendance_portal === 'true' ||
+           role.can_access_kiosk === true ||
+           role.can_access_kiosk === 1 ||
+           role.can_access_kiosk === 'true';
 };
 
 /**
- * Check if user can register employee Face ID (global permission - boolean)
+ * Alias for canAccessAttendancePortal
  */
-export const canRegisterFaceId = (roleId) => {
-    const role = getRoleById(roleId);
-    if (!role) return false;
-    return role.hierarchy_level === 0 || role.can_register_face_id == true;
-};
+export const canAccessKiosk = canAccessAttendancePortal;
 
 /**
  * Check if user can view attendance report (any level - subordinates or all)
@@ -497,40 +517,6 @@ export const isSuperAdmin = (roleId) => {
  * Check if a role is Admin or above in hierarchy (hierarchy_level <= 1: Super Admin or Admin)
  */
 export const isAdminOrAbove = (roleId) => {
-    const level = getHierarchyLevel(roleId);
-    return level <= 1;
-};
-
-/**
- * Check if a user's role is permitted to remove employee Face ID biometric data.
- * Governed by the 'remove_face_roles' setting in system settings.
- * Super Admin (level 0) always has access.
- * If setting is empty/unconfigured, falls back to Admin and above (hierarchy_level <= 1).
- *
- * @param {number|string} roleId
- * @param {object} [settings]
- * @returns {boolean}
- */
-export const canUserRemoveFace = (roleId, settings) => {
-    if (!roleId) return false;
-
-    try {
-        const appSettings = settings || JSON.parse(localStorage.getItem('settings') || '{}');
-        const configuredRoles = appSettings.remove_face_roles;
-
-        // If explicitly configured in system settings, strictly enforce the selected roles
-        if (configuredRoles !== undefined && configuredRoles !== null && String(configuredRoles).trim() !== '') {
-            const allowedIds = String(configuredRoles)
-                .split(',')
-                .map(s => s.trim())
-                .filter(Boolean);
-            return allowedIds.includes(String(roleId));
-        }
-    } catch (e) {
-        console.error('Error checking remove_face_roles setting:', e);
-    }
-
-    // Default fallback when not configured / empty: Admin or Super Admin (level <= 1)
     const level = getHierarchyLevel(roleId);
     return level <= 1;
 };
@@ -668,7 +654,7 @@ export default {
     canViewUsers,
     canAccessUsersPage,
     canAccessAttendancePortal,
-    canRegisterFaceId,
+    canAccessKiosk,
     canViewAttendanceReport,
     canViewAttendanceReportAll,
     canManageAttendance,
@@ -679,7 +665,6 @@ export default {
     canDeleteAttendanceAll,
     getHierarchyLevel,
     isAdminOrAbove,
-    canUserRemoveFace,
     canViewBirthdays,
     canViewAnniversaries,
     isHigherRole,

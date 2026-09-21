@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { LuQrCode } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName } from '../utils/roleUtils';
@@ -837,7 +838,16 @@ const MyRequests = () => {
                                 <p className="text-[11px] text-white/70 font-medium">{user.firstname || 'User'} • {getRoleDisplayName(user.role)}</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => navigate('/my-badge')}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all border border-emerald-300/40"
+                                title="My Smart Attendance Badge"
+                            >
+                                <LuQrCode className="w-4 h-4 text-white" />
+                                <span className="hidden sm:inline">Smart Badge</span>
+                                <span className="sm:hidden">Badge</span>
+                            </button>
                             <button
                                 onClick={() => setShowChangePasswordModal(true)}
                                 className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95 text-white/90 hover:text-white"
@@ -861,6 +871,33 @@ const MyRequests = () => {
                                     </svg>
                                 )}
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── Quick Smart Badge Access Banner ── */}
+                <div className="px-4 pt-3 pb-1">
+                    <div 
+                        onClick={() => navigate('/my-badge')}
+                        className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white rounded-2xl p-3.5 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between border border-emerald-400/30 group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
+                                <LuQrCode className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-sm font-bold leading-tight">My Smart Attendance Badge</h3>
+                                    <span className="flex h-2 w-2 relative">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-emerald-100 font-medium mt-0.5">Tap to show dynamic QR for kiosk terminal scan</p>
+                            </div>
+                        </div>
+                        <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white text-xs font-bold group-hover:translate-x-0.5 transition-transform">
+                            →
                         </div>
                     </div>
                 </div>

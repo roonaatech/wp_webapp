@@ -6,8 +6,6 @@ import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 import {
     LuSmartphone,
-    LuEye,
-    LuEyeOff,
     LuKeyRound,
     LuMail,
     LuLock,
@@ -43,7 +41,6 @@ const Login = () => {
         }
         return '';
     });
-    const [showPassword, setShowPassword] = useState(false);
 
     // Login state
     const [loading, setLoading] = useState(false);
@@ -456,22 +453,13 @@ const Login = () => {
                                     </div>
                                     <input
                                         id="password"
-                                        type={showPassword ? 'text' : 'password'}
+                                        type="password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="Enter your password"
                                         required
-                                        className="w-full pl-10 pr-12 py-3.5 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-600 text-sm transition text-slate-900 placeholder-slate-400 font-medium"
+                                        className="w-full pl-10 pr-4 py-3.5 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-600 text-sm transition text-slate-900 placeholder-slate-400 font-medium"
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
-                                        tabIndex={-1}
-                                        title={showPassword ? 'Hide password' : 'Show password'}
-                                    >
-                                        {showPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
-                                    </button>
                                 </div>
                             </div>
 

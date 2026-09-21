@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuScanFace } from "react-icons/lu";
+import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
-import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, canUserRemoveFace, isSuperAdmin } from '../utils/roleUtils';
+import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, isSuperAdmin } from '../utils/roleUtils';
 import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 
 
@@ -71,8 +71,6 @@ const ViewEmployeeProfile = () => {
     const [resendingEmail, setResendingEmail] = useState(false);
     const [dojDisplay, setDojDisplay] = useState('');
     const dojPickerRef = useRef(null);
-    const [isRemoveFaceModalOpen, setIsRemoveFaceModalOpen] = useState(false);
-    const [removingFace, setRemovingFace] = useState(false);
 
     const [systemSettings, setSystemSettings] = useState(() => {
         try {
@@ -266,30 +264,6 @@ const ViewEmployeeProfile = () => {
         }
     };
 
-    const handleRemoveFace = async () => {
-        setRemovingFace(true);
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.delete(`${API_BASE_URL}/api/admin/users/${id}/face`, {
-                headers: { 'x-access-token': token }
-            });
-
-            toast.success(response.data?.message || 'Face ID removed successfully!');
-            setIsRemoveFaceModalOpen(false);
-            setEmployee(prev => ({
-                ...prev,
-                face_image_path: null,
-                face_registered_at: null
-            }));
-            fetchEmployeeProfile();
-        } catch (err) {
-            console.error('Error removing face:', err);
-            toast.error(err.response?.data?.message || 'Failed to remove Face ID.');
-        } finally {
-            setRemovingFace(false);
-        }
-    };
-
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -365,11 +339,6 @@ const ViewEmployeeProfile = () => {
     const currentUserRoleLevel = userRoleObj ? userRoleObj.hierarchy_level : getHierarchyLevel(currentUser.role);
     const targetUserRoleLevel = roleObj ? roleObj.hierarchy_level : getHierarchyLevel(employee.role);
     const isUserSuperAdmin = isSuperAdmin(currentUser.role) || currentUserRoleLevel === 0;
-    const hasRemoveFaceAccess = canUserRemoveFace(currentUser.role, systemSettings);
-    const canRemoveFace = isUserSuperAdmin || (hasRemoveFaceAccess && (
-        targetUserRoleLevel >= currentUserRoleLevel
-    ));
-    const hasFaceRegistered = !!(employee.face_image_path || employee.face_registered_at);
 
     // Checklist documents mapping
     const checklistDocs = [
@@ -426,12 +395,6 @@ const ViewEmployeeProfile = () => {
                             {employee.abis_access && (
                                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                                     ABIS Enabled
-                                </span>
-                            )}
-                            {isUserSuperAdmin && hasFaceRegistered && (
-                                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
-                                    <LuScanFace size={13} className="text-emerald-600" />
-                                    Face ID Available
                                 </span>
                             )}
                         </div>
@@ -517,16 +480,6 @@ const ViewEmployeeProfile = () => {
                                     Resend Welcome Email
                                 </>
                             )}
-                        </button>
-                    )}
-                    {isUserSuperAdmin && hasFaceRegistered && (
-                        <button
-                            onClick={() => setIsRemoveFaceModalOpen(true)}
-                            className="flex-1 md:flex-none px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl transition text-sm shadow-sm flex items-center justify-center gap-1.5"
-                            title="Remove registered Face ID for this employee"
-                        >
-                            <LuTrash2 size={16} className="text-rose-600" />
-                            Remove Face ID
                         </button>
                     )}
                     {canEdit && (
@@ -891,68 +844,6 @@ const ViewEmployeeProfile = () => {
                             )}
                         </div>
                     </div>
-
-                    {/* Registered Face ID Biometric Card (Super Admin Only) */}
-                    {isUserSuperAdmin && hasFaceRegistered && (
-                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm text-sm">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-                                <h2 className="text-base font-bold text-[#1e1b4b] flex items-center gap-2">
-                                    <span className="text-emerald-600"><LuScanFace size={18} /></span> Registered Face ID
-                                </h2>
-                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                                    <LuCheck size={12} strokeWidth={3} /> Enrolled
-                                </span>
-                            </div>
-
-                            <div className="space-y-4">
-                                {employee.face_image_path ? (
-                                    <div className="relative group">
-                                        <div className="w-full h-44 rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center relative">
-                                            <img
-                                                src={`${API_BASE_URL}/${employee.face_image_path.replace(/\\/g, '/')}`}
-                                                alt={`Registered Face ID for ${employee.firstname} ${employee.lastname}`}
-                                                className="w-full h-full object-cover rounded-2xl cursor-zoom-in group-hover:scale-105 transition duration-300"
-                                                onClick={() => {
-                                                    setLightboxImage(`${API_BASE_URL}/${employee.face_image_path.replace(/\\/g, '/')}`);
-                                                    setIsLightboxOpen(true);
-                                                }}
-                                            />
-                                            <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none rounded-2xl">
-                                                <span className="px-3 py-1.5 rounded-xl bg-white/90 backdrop-blur-sm text-xs font-bold text-slate-900 shadow-sm flex items-center gap-1.5">
-                                                    <LuCamera size={14} /> Click to Zoom
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center text-slate-500 text-xs">
-                                        Face ID biometric templates are registered in system.
-                                    </div>
-                                )}
-
-                                <div className="space-y-2 border-t border-slate-100 pt-3 text-xs">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-slate-400 font-bold uppercase text-[10px]">Enrollment Date</span>
-                                        <span className="font-semibold text-slate-700">
-                                            {employee.face_registered_at ? new Date(employee.face_registered_at).toLocaleString() : 'Registered'}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-slate-400 font-bold uppercase text-[10px]">Biometric Model</span>
-                                        <span className="font-semibold text-slate-700">3-Angle 128-d Vector</span>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => setIsRemoveFaceModalOpen(true)}
-                                    className="w-full mt-2 py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl transition text-xs flex items-center justify-center gap-1.5 shadow-2xs"
-                                >
-                                    <LuTrash2 size={14} />
-                                    Remove Face ID
-                                </button>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -1122,49 +1013,6 @@ const ViewEmployeeProfile = () => {
                             alt="Bigger employee profile photo"
                             className="max-w-full max-h-[85vh] rounded-3xl object-contain shadow-2xl border border-white/10 bg-black/20"
                         />
-                    </div>
-                </div>
-            )}
-
-
-
-            {/* Remove Face ID Confirmation Modal */}
-            {isRemoveFaceModalOpen && (
-                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 animate-scaleUp">
-                        <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mx-auto mb-5 text-rose-600 shadow-sm">
-                            <LuTrash2 size={28} />
-                        </div>
-                        <h3 className="text-xl font-black text-slate-900 text-center mb-2">Remove Face ID?</h3>
-                        <p className="text-sm text-slate-500 text-center leading-relaxed mb-6">
-                            Are you sure you want to remove the registered Face ID for <strong className="text-slate-800">{employee.firstname} {employee.lastname}</strong>? 
-                            This will delete the 3-angle biometric templates and stored face capture. The employee will no longer be able to check in using facial recognition until they re-register.
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setIsRemoveFaceModalOpen(false)}
-                                disabled={removingFace}
-                                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleRemoveFace}
-                                disabled={removingFace}
-                                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                                {removingFace ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        Removing...
-                                    </>
-                                ) : (
-                                    'Yes, Remove Face'
-                                )}
-                            </button>
-                        </div>
                     </div>
                 </div>
             )}

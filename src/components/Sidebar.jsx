@@ -17,15 +17,14 @@ import {
     LuChevronRight,
     LuClipboardPen,
     LuSettings,
-    LuCamera,
-    LuScanFace,
-    LuUserCog
+    LuUserCog,
+    LuQrCode
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canRegisterFaceId, canViewAttendanceReport, canManageServiceAccounts, isSelfServiceOnly } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport, canManageServiceAccounts, isSelfServiceOnly } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -45,12 +44,10 @@ const Sidebar = () => {
     const canViewReportsPermission = canViewReports(user.role);
     const canViewActivitiesPermission = canViewActivities(user.role);
     const canAccessAttendance = canAccessAttendancePortal(user.role);
-    const canRegisterFace = canRegisterFaceId(user.role);
-    const hasAttendanceMenu = canRegisterFace || canAccessAttendance;
     const canViewAttendanceReportPermission = canViewAttendanceReport(user.role);
     const canManageServiceAccountsPermission = canManageServiceAccounts(user.role);
     // Show Management section only if the user has at least one item in it
-    const hasAnyManagementPermission = canApprove || canManageActiveOnDutyPermission || canManageSchedulePermission || hasAttendanceMenu;
+    const hasAnyManagementPermission = canApprove || canManageActiveOnDutyPermission || canManageSchedulePermission || canAccessAttendance;
     // Show Staff section if user has staff management permission or service accounts permission
     const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission || canManageServiceAccountsPermission;
     // Show Configurations section if user has any configuration permission
@@ -61,21 +58,6 @@ const Sidebar = () => {
         const saved = localStorage.getItem('sidebarCollapsed');
         return saved ? JSON.parse(saved) : false;
     });
-
-    const [isAttendanceOpen, setIsAttendanceOpen] = useState(() => {
-        return location.pathname === '/attendance' || location.pathname === '/attendance/register-face';
-    });
-    const [isAttendanceFullyOpen, setIsAttendanceFullyOpen] = useState(isAttendanceOpen);
-
-    useEffect(() => {
-        let timeout;
-        if (isAttendanceOpen) {
-            timeout = setTimeout(() => setIsAttendanceFullyOpen(true), 300);
-        } else {
-            setIsAttendanceFullyOpen(false);
-        }
-        return () => clearTimeout(timeout);
-    }, [isAttendanceOpen]);
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(() => {
         return location.pathname === '/email-settings' || location.pathname === '/settings';
@@ -111,13 +93,6 @@ const Sidebar = () => {
     useEffect(() => {
         if (location.pathname === '/email-settings' || location.pathname === '/settings') {
             setIsSettingsOpen(true);
-        }
-    }, [location.pathname]);
-
-    // Constructively open attendance menu if user navigates to a sub-page
-    useEffect(() => {
-        if (location.pathname === '/attendance' || location.pathname === '/attendance/register-face') {
-            setIsAttendanceOpen(true);
         }
     }, [location.pathname]);
 
@@ -296,11 +271,13 @@ const Sidebar = () => {
                     </div>
                 )}
                 {isCollapsed && !user.isServiceAccount && (
-                    isSelfService ? (
-                        <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
-                    ) : (
-                        <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
-                    )
+                    <div className="space-y-2">
+                        {isSelfService ? (
+                            <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
+                        ) : (
+                            <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
+                        )}
+                    </div>
                 )}
 
                 {!isCollapsed && hasAnyManagementPermission && (
@@ -318,32 +295,9 @@ const Sidebar = () => {
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                         )}
-                        {/* Nested Attendance Menu */}
-                        {hasAttendanceMenu && (
-                            <div>
-                                <button
-                                    onClick={() => setIsAttendanceOpen(!isAttendanceOpen)}
-                                    className={`
-                                        w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors duration-200 mx-4 relative mb-1
-                                        text-slate-200 hover:bg-white/5 hover:text-white
-                                    `}
-                                >
-                                    <span className="text-xl flex-shrink-0"><LuCamera /></span>
-                                    <span className="font-medium flex-1 tracking-wide text-base text-left">Attendance</span>
-                                    <span className={`transition-transform duration-300 ${isAttendanceOpen ? 'rotate-90' : ''}`}>
-                                        <LuChevronRight />
-                                    </span>
-                                </button>
-
-                                <div className={`transition-all duration-300 ${isAttendanceFullyOpen ? 'overflow-visible' : 'overflow-hidden'} ${isAttendanceOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                    {canRegisterFace && (
-                                        <NavLink to="/attendance/register-face" icon={<LuScanFace />} label="Register Face ID" indent={true} />
-                                    )}
-                                    {canAccessAttendance && (
-                                        <NavLink to="/attendance" icon={<LuCamera />} label="Face attendance" indent={true} />
-                                    )}
-                                </div>
-                            </div>
+                        {/* Attendance Kiosk - For users with kiosk access permission */}
+                        {canAccessAttendance && (
+                            <NavLink to="/attendance" icon={<LuQrCode />} label="Attendance Kiosk" />
                         )}
                     </div>
                 )}
@@ -358,11 +312,8 @@ const Sidebar = () => {
                         {canManageSchedulePermission && (
                             <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
                         )}
-                        {canRegisterFace && (
-                            <NavLink to="/attendance/register-face" icon={<LuScanFace />} label="Register Face ID" />
-                        )}
                         {canAccessAttendance && (
-                            <NavLink to="/attendance" icon={<LuCamera />} label="Face attendance" />
+                            <NavLink to="/attendance" icon={<LuQrCode />} label="Attendance Kiosk" />
                         )}
                     </div>
                 )}

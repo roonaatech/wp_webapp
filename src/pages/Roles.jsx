@@ -16,7 +16,7 @@ import {
     LuMail,
     LuGlobe,
     LuLock,
-    LuScanFace,
+    LuQrCode,
     LuCake,
     LuAward,
     LuActivity,
@@ -222,17 +222,17 @@ const GLOBAL_GROUPS = [
             },
             {
                 key: 'can_access_attendance_portal',
-                title: 'Access Face Attendance Portal',
-                description: 'Permits opening and operating the kiosk facial recognition terminal',
-                icon: LuScanFace
+                title: 'Access Kiosk Attendance Terminal',
+                description: 'Permits opening and operating the front desk kiosk QR scanner terminal to capture employee attendance',
+                icon: LuQrCode
             }
         ]
     },
     {
-        id: 'hr_biometrics',
-        title: 'HR Operations & Biometrics',
-        categoryTag: 'Section 02 • HR & Biometrics',
-        description: 'Onboarding verification, face biometric enrollment, and staff greetings',
+        id: 'hr_operations',
+        title: 'HR Operations & Greetings',
+        categoryTag: 'Section 02 • HR & Greetings',
+        description: 'Onboarding document verification and staff milestone greetings',
         icon: LuBriefcase,
         theme: {
             border: 'border-rose-200/90 shadow-sm shadow-rose-100/50',
@@ -251,12 +251,6 @@ const GLOBAL_GROUPS = [
                 description: 'Review, verify, and approve/reject submitted joining documents from new recruits',
                 icon: LuFileCheck,
                 disabledFor: ['manager', 'employee']
-            },
-            {
-                key: 'can_register_face_id',
-                title: 'Register Staff Face ID',
-                description: 'Enroll 3-angle facial biometric vectors for staff to enable face check-in',
-                icon: LuScanFace
             },
             {
                 key: 'can_view_birthdays',
@@ -316,7 +310,7 @@ const GLOBAL_GROUPS = [
             {
                 key: 'can_manage_system_settings',
                 title: 'Manage System Settings',
-                description: 'Configure system-wide settings and Face ID removal permissions (Admin / Super Admin)',
+                description: 'Configure system-wide settings and preferences (Admin / Super Admin)',
                 icon: LuSettings,
                 adminOnly: true
             }
@@ -333,10 +327,7 @@ const getRolePermissionsList = (role) => {
         list.push({ label: 'Web App', color: 'bg-teal-50 text-teal-700 border-teal-200' });
     }
     if (role.can_access_attendance_portal) {
-        list.push({ label: 'Attendance Portal', color: 'bg-amber-50 text-amber-700 border-amber-200' });
-    }
-    if (role.can_register_face_id) {
-        list.push({ label: 'Register Face ID', color: 'bg-sky-50 text-sky-700 border-sky-200' });
+        list.push({ label: 'Kiosk Scanner', color: 'bg-amber-50 text-amber-700 border-amber-200' });
     }
     if (role.can_manage_onboarding) {
         list.push({ label: 'Onboarding', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' });
@@ -553,7 +544,6 @@ const Roles = () => {
         can_manage_email_settings: false,
         can_manage_system_settings: 'none',
         can_access_attendance_portal: false,
-        can_register_face_id: false,
         can_manage_attendance: 'none',
         active: true
     });
@@ -650,7 +640,6 @@ const Roles = () => {
                 can_manage_email_settings: role.can_manage_email_settings,
                 can_manage_system_settings: role.can_manage_system_settings,
                 can_access_attendance_portal: role.can_access_attendance_portal || false,
-                can_register_face_id: role.can_register_face_id || false,
                 can_manage_attendance: role.can_manage_attendance || 'none',
                 active: role.active
             });
@@ -685,7 +674,6 @@ const Roles = () => {
                 can_manage_email_settings: false,
                 can_manage_system_settings: 'none',
                 can_access_attendance_portal: false,
-                can_register_face_id: false,
                 can_manage_attendance: 'none',
                 active: true
             });
@@ -813,7 +801,6 @@ const Roles = () => {
         formData.can_access_webapp,
         formData.can_access_attendance_portal,
         formData.can_manage_onboarding && formData.name !== 'manager' && formData.name !== 'employee',
-        formData.can_register_face_id,
         formData.can_view_birthdays,
         formData.can_view_anniversaries,
         formData.can_manage_roles,

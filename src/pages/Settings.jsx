@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward, FiCamera } from 'react-icons/fi';
+import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -69,8 +69,7 @@ export default function Settings() {
         anniversary_notification_schedule: '0 8 * * *',
         google_maps_api_key: '',
         session_timeout: '168',
-        inactivity_timeout: '5',
-        remove_face_roles: ''
+        inactivity_timeout: '5'
     });
 
     // Define settings configuration for easy expansion
@@ -304,20 +303,6 @@ export default function Settings() {
                     description: 'Every active user in the selected roles receives the daily work anniversary digest. Leave all unchecked to fall back to Human Resource and higher hierarchy roles',
                     type: 'multiselect',
                     emptyHint: 'None selected — falls back to roles with the anniversary permission.'
-                }
-            ]
-        },
-        {
-            category: 'Face ID Configuration',
-            description: 'Manage access permissions and settings for biometric Face ID',
-            icon: <FiCamera className="text-indigo-600" />,
-            settings: [
-                {
-                    key: 'remove_face_roles',
-                    label: 'Roles Allowed to Remove Face ID',
-                    description: 'Select which roles have permission to remove or reset employee Face ID biometric data in the web application. Leave all unchecked to default to Admin and Super Admin.',
-                    type: 'multiselect',
-                    emptyHint: 'None selected — defaults to Admin and Super Admin.'
                 }
             ]
         }
