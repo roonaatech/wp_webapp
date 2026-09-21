@@ -50,9 +50,6 @@ const Attendance = () => {
     const lastScannedQrRef = useRef('');
     const lastScannedTimeRef = useRef(0);
 
-    // Real-time terminal scan history
-    const [recentScans, setRecentScans] = useState([]);
-
     // Live Clock
     const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -268,16 +265,6 @@ const Attendance = () => {
             if (data && data.success) {
                 setQrResult(data);
                 toast.success(data.message || `${data.employeeName} recorded ${data.type === 'CHECK_IN' ? 'Check-In' : 'Check-Out'}`);
-                
-                // Add to recent local scan activity
-                setRecentScans(prev => [{
-                    id: Date.now(),
-                    employeeName: data.employeeName,
-                    type: data.type,
-                    time: data.time || new Date().toLocaleTimeString(),
-                    avatarUrl: data.avatarUrl,
-                    duration: data.duration
-                }, ...prev.slice(0, 9)]);
 
                 // Auto dismiss celebration modal in 2.8 seconds
                 setTimeout(() => {
@@ -648,114 +635,76 @@ const Attendance = () => {
                             AES-256 Dynamic QR
                         </span>
                     </div>
-                </div>
-
-                {/* Right 5 Columns: Instructions & Recent Activity */}
+                </div>                {/* Right 5 Columns: Instructions & Security Features */}
                 <div className="lg:col-span-5 flex flex-col justify-between gap-6">
                     {/* Instructions Card */}
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800">
-                                <LuSparkles size={22} />
-                            </div>
-                            <div>
-                                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                                    How to Check In / Out
-                                </h3>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    Zero-touch instant badge scanning
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3 text-xs">
-                            <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    1
-                                </span>
-                                <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
-                                    Open your <strong>WorkPulse Mobile App</strong> or <strong>Web Portal</strong> and navigate to <strong>My Smart Badge</strong>.
-                                </p>
-                            </div>
-
-                            <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    2
-                                </span>
-                                <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
-                                    Hold your phone's screen <strong>6-12 inches</strong> in front of this camera inside the scanning box.
-                                </p>
-                            </div>
-
-                            <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    3
-                                </span>
-                                <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
-                                    The kiosk instantly captures attendance and provides audio & visual confirmation!
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Recent Kiosk Scans Activity Feed */}
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <LuClock size={18} className="text-slate-400" />
-                                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                                    Today's Recent Scans
-                                </h3>
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-400">
-                                Terminal Session Log
-                            </span>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto space-y-2.5 max-h-56 pr-1">
-                            {recentScans.length === 0 ? (
-                                <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-xs">
-                                    <LuQrCode size={28} className="mx-auto mb-2 opacity-40" />
-                                    <p>No badge scans recorded in this session yet.</p>
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex flex-col justify-between">
+                        <div>
+                            <div className="flex items-center gap-3 mb-5">
+                                <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 shadow-sm">
+                                    <LuSparkles size={22} />
                                 </div>
-                            ) : (
-                                recentScans.map((scan) => (
-                                    <div
-                                        key={scan.id}
-                                        className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {scan.avatarUrl ? (
-                                                <img
-                                                    src={`${API_BASE_URL}/${scan.avatarUrl}`}
-                                                    alt={scan.employeeName}
-                                                    className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700"
-                                                />
-                                            ) : (
-                                                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300">
-                                                    {scan.employeeName?.charAt(0)}
-                                                </div>
-                                            )}
-                                            <div>
-                                                <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                                                    {scan.employeeName}
-                                                </h4>
-                                                <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                                                    {scan.time}
-                                                </span>
-                                            </div>
-                                        </div>
+                                <div>
+                                    <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">
+                                        How to Check In / Out
+                                    </h3>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        Zero-touch contactless badge scanning
+                                    </p>
+                                </div>
+                            </div>
 
-                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                            scan.type === 'CHECK_IN'
-                                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                                                : 'bg-blue-50 text-blue-700 dark:bg-blue-950/80 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                                        }`}>
-                                            {scan.type === 'CHECK_IN' ? 'In' : 'Out'}
-                                        </span>
-                                    </div>
-                                ))
-                            )}
+                            <div className="space-y-3.5 text-xs">
+                                <div className="flex items-start gap-3.5 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                                    <span className="w-6 h-6 rounded-xl bg-indigo-600 text-white font-black text-[11px] flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                                        1
+                                    </span>
+                                    <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
+                                        Open your <strong>WorkPulse Mobile App</strong> or <strong>Web Portal</strong> and navigate to <strong>My Smart Badge</strong>.
+                                    </p>
+                                </div>
+
+                                <div className="flex items-start gap-3.5 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                                    <span className="w-6 h-6 rounded-xl bg-indigo-600 text-white font-black text-[11px] flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                                        2
+                                    </span>
+                                    <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
+                                        Hold your phone screen <strong>6-12 inches</strong> in front of this camera inside the scanning box.
+                                    </p>
+                                </div>
+
+                                <div className="flex items-start gap-3.5 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                                    <span className="w-6 h-6 rounded-xl bg-emerald-600 text-white font-black text-[11px] flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                                        3
+                                    </span>
+                                    <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
+                                        The kiosk instantly verifies your badge and records your Check-In / Check-Out with audio confirmation!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Security Badges Footer */}
+                        <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-3">
+                            <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/40 rounded-2xl border border-indigo-100/60 dark:border-indigo-900/40">
+                                <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-black text-[11px] uppercase tracking-wider mb-1">
+                                    <LuShieldCheck size={14} />
+                                    <span>5s Dynamic QR</span>
+                                </div>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
+                                    Anti-screenshot auto-refreshing security tokens.
+                                </p>
+                            </div>
+
+                            <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/40 rounded-2xl border border-emerald-100/60 dark:border-emerald-900/40">
+                                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-black text-[11px] uppercase tracking-wider mb-1">
+                                    <LuCircleCheck size={14} />
+                                    <span>Single Device</span>
+                                </div>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
+                                    Enforced single-device anti-proxy protection.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

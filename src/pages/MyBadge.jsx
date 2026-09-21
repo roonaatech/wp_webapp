@@ -25,7 +25,7 @@ import ModernLoader from '../components/ModernLoader';
 import { canAccessWebApp } from '../utils/roleUtils';
 import { getOrCreateDeviceId, getDeviceName, isMobileClient } from '../utils/deviceFingerprint';
 
-const ROTATION_INTERVAL_SEC = 15;
+const ROTATION_INTERVAL_SEC = 5;
 
 const MyBadge = () => {
     const navigate = useNavigate();
