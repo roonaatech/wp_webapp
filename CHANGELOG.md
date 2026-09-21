@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.7](https://github.com/roonaatech/wp_webapp/compare/v2.12.6...v2.12.7) (2026-09-21)
+
+
+### Features
+
+* add x-is-mobile request header and improve mobile client detection ([8e2a012](https://github.com/roonaatech/wp_webapp/commit/8e2a012f4c9d4fe76fdac223739e732426b2d7b9))
+
 ### [2.12.6](https://github.com/roonaatech/wp_webapp/compare/v2.12.5...v2.12.6) (2026-09-21)
 
 
