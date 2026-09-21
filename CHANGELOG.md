@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.8](https://github.com/roonaatech/wp_webapp/compare/v2.12.7...v2.12.8) (2026-09-21)
+
+
+### Features
+
+* include device fingerprint headers and params in attendance badge request ([f7025ec](https://github.com/roonaatech/wp_webapp/commit/f7025ec5f072ae851a2f314164d7765acf217235))
+
 ### [2.12.7](https://github.com/roonaatech/wp_webapp/compare/v2.12.6...v2.12.7) (2026-09-21)
 
 
