@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.1](https://github.com/roonaatech/wp_webapp/compare/v2.12.0...v2.12.1) (2026-09-21)
+
+
+### Styles
+
+* update mobile header styling with gradient background and refined UI elements in MyBadge ([a842f72](https://github.com/roonaatech/wp_webapp/commit/a842f7228a8b7e7336b874ecc200ac91938704fd))
+
+
+### Code Refactoring
+
+* remove face capture snapshot modal and table columns from attendance reports ([7598c20](https://github.com/roonaatech/wp_webapp/commit/7598c20b9e9058aef469ee7ff846b4b16e1a2f99))
+
 ## [2.12.0](https://github.com/roonaatech/wp_webapp/compare/v2.11.7...v2.12.0) (2026-09-21)
 
 
