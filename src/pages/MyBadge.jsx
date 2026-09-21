@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import { 
     LuShieldCheck, 
+    LuShieldAlert,
     LuRefreshCw, 
     LuClock, 
     LuUser, 
@@ -33,6 +34,7 @@ const MyBadge = () => {
     const [secondsLeft, setSecondsLeft] = useState(ROTATION_INTERVAL_SEC);
     const [isLocked, setIsLocked] = useState(false);
     const [error, setError] = useState(null);
+    const [isDeviceViolation, setIsDeviceViolation] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -59,13 +61,16 @@ const MyBadge = () => {
             if (response.data && response.data.success) {
                 setBadgeData(response.data);
                 setError(null);
+                setIsDeviceViolation(false);
                 setSecondsLeft(ROTATION_INTERVAL_SEC);
             } else {
                 setError(response.data?.message || 'Failed to load attendance badge.');
             }
         } catch (err) {
             console.error('Error fetching badge data:', err);
+            const isViolation = err.response?.data?.deviceViolation === true || err.response?.status === 403;
             const msg = err.response?.data?.message || 'Could not connect to badge server.';
+            setIsDeviceViolation(isViolation);
             setError(msg);
             if (isManual) toast.error(msg);
         } finally {
@@ -168,17 +173,26 @@ const MyBadge = () => {
     if (error) {
         return (
             <div className="min-h-[80vh] flex items-center justify-center p-6 bg-slate-100">
-                <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center border border-red-100">
-                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <LuInfo className="w-8 h-8" />
+                <div className={`bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center border ${isDeviceViolation ? 'border-red-300 ring-4 ring-red-50' : 'border-red-100'}`}>
+                    <div className={`w-16 h-16 ${isDeviceViolation ? 'bg-red-600 text-white shadow-lg shadow-red-200' : 'bg-red-50 text-red-500'} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
+                        {isDeviceViolation ? <LuShieldAlert className="w-8 h-8" /> : <LuInfo className="w-8 h-8" />}
                     </div>
-                    <h2 className="text-xl font-black text-slate-900 mb-2">Badge Unavailable</h2>
-                    <p className="text-sm text-slate-600 mb-6">{error}</p>
+                    <h2 className="text-xl font-black text-slate-900 mb-2">
+                        {isDeviceViolation ? 'Security Alert: Device Conflict' : 'Badge Unavailable'}
+                    </h2>
+                    <p className={`text-sm mb-6 ${isDeviceViolation ? 'text-red-700 font-semibold bg-red-50 p-4 rounded-xl border border-red-100' : 'text-slate-600'}`}>
+                        {error}
+                    </p>
+                    {isDeviceViolation && (
+                        <p className="text-xs text-slate-500 mb-6">
+                            For security and anti-proxy compliance, each mobile phone can only be used by one employee. If you recently changed or received a second-hand phone from a colleague, please contact HR to reset the device registration.
+                        </p>
+                    )}
                     <button
-                        onClick={() => { setError(null); setLoading(true); fetchBadge(true); }}
-                        className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors"
+                        onClick={() => { setError(null); setIsDeviceViolation(false); setLoading(true); fetchBadge(true); }}
+                        className="w-full py-3.5 px-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-md transition-colors text-sm"
                     >
-                        Try Again
+                        Try Refreshing
                     </button>
                 </div>
             </div>

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getOrCreateDeviceId, getDeviceName } from './deviceFingerprint';
 
 /**
  * Axios instance with interceptors for handling authentication errors
@@ -26,13 +27,17 @@ export const setupAxiosInterceptors = (navigate) => {
         api.interceptors.response.eject(apiResponseInterceptorId);
     }
 
-    // Request interceptor - add token to all requests
+    // Request interceptor - add token and device info to all requests
     apiRequestInterceptorId = api.interceptors.request.use(
         (config) => {
             const token = localStorage.getItem('token');
             if (token) {
                 config.headers['x-access-token'] = token;
             }
+            try {
+                config.headers['x-device-id'] = getOrCreateDeviceId();
+                config.headers['x-device-name'] = getDeviceName();
+            } catch (_) {}
             return config;
         },
         (error) => {
@@ -116,7 +121,8 @@ export const setupAxiosInterceptors = (navigate) => {
     );
 };
 
-// Store interceptor ID to allow cleanup
+// Store interceptor IDs to allow cleanup
+let globalRequestInterceptorId = null;
 let globalResponseInterceptorId = null;
 
 /**
@@ -125,9 +131,32 @@ let globalResponseInterceptorId = null;
  */
 export const setupGlobalAxiosInterceptors = (navigate) => {
     // Eject previous interceptor if it exists
+    if (globalRequestInterceptorId !== null) {
+        axios.interceptors.request.eject(globalRequestInterceptorId);
+    }
     if (globalResponseInterceptorId !== null) {
         axios.interceptors.response.eject(globalResponseInterceptorId);
     }
+
+    // Request interceptor for global axios - attach token and device headers
+    globalRequestInterceptorId = axios.interceptors.request.use(
+        (config) => {
+            const token = localStorage.getItem('token');
+            if (token && !config.headers['x-access-token']) {
+                config.headers['x-access-token'] = token;
+            }
+            try {
+                if (!config.headers['x-device-id']) {
+                    config.headers['x-device-id'] = getOrCreateDeviceId();
+                }
+                if (!config.headers['x-device-name']) {
+                    config.headers['x-device-name'] = getDeviceName();
+                }
+            } catch (_) {}
+            return config;
+        },
+        (error) => Promise.reject(error)
+    );
 
     // Response interceptor for global axios
     globalResponseInterceptorId = axios.interceptors.response.use(
@@ -136,6 +165,7 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
             const status = error.response?.status;
             const message = error.response?.data?.message?.toLowerCase() || '';
             const requestUrl = error.config?.url || '';
+            const isDeviceViolation = error.response?.data?.deviceViolation === true || requestUrl.includes('attendance/my-badge');
 
             const isLoginRequest = requestUrl.includes('auth/signin');
             const isPasswordChangeRequest = requestUrl.includes('auth/change-password');
@@ -153,7 +183,7 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
                 });
             }
 
-            if (isLoginRequest || isPasswordChangeRequest || isAttendanceVerifyRequest) {
+            if (isLoginRequest || isPasswordChangeRequest || isAttendanceVerifyRequest || isDeviceViolation) {
                 console.log('✅ Skipping redirect for:', requestUrl);
                 return Promise.reject(error);
             }
