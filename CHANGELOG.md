@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.6](https://github.com/roonaatech/wp_webapp/compare/v2.12.5...v2.12.6) (2026-09-21)
+
+
+### Features
+
+* add mobile device binding management and reset functionality to employee profile ([bc49c74](https://github.com/roonaatech/wp_webapp/commit/bc49c74f431bbca928bff16359f7111a58709ce7))
+
 ### [2.12.5](https://github.com/roonaatech/wp_webapp/compare/v2.12.4...v2.12.5) (2026-09-21)
 
 
