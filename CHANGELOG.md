@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.11](https://github.com/roonaatech/wp_webapp/compare/v2.12.10...v2.12.11) (2026-09-21)
+
+
+### Features
+
+* add login background image, enhance BrandLogo styling, and introduce password visibility toggle ([63912bb](https://github.com/roonaatech/wp_webapp/commit/63912bbacabfce73923660d271b91890d89e896e))
+
 ### [2.12.10](https://github.com/roonaatech/wp_webapp/compare/v2.12.9...v2.12.10) (2026-09-21)
 
 
