@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { LuLock, LuShieldAlert, LuUserCheck, LuSignature, LuCheck, LuUndo2, LuArrowRight, LuPlus, LuTrash2, LuUser, LuEye, LuCalendar } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate } from '../utils/timezone.util';
@@ -11,6 +12,7 @@ const FirstTimeLoginFlow = () => {
     const axiosInstance = axios;
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [auditLoading, setAuditLoading] = useState(false);
     const [auditData, setAuditData] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showDobModal, setShowDobModal] = useState(false);
@@ -327,7 +329,7 @@ const FirstTimeLoginFlow = () => {
         e.preventDefault();
         setPasswordError('');
 
-        if (!editForm.date_of_birth) {
+        if (mustCompleteDeclaration && !editForm.date_of_birth) {
             setPasswordError('Date of birth is required.');
             setShowDobModal(true);
             return;
@@ -407,7 +409,7 @@ const FirstTimeLoginFlow = () => {
     };
 
     const submitDeclaration = async (newPassword, signatureData = null) => {
-        if (!editForm.date_of_birth) {
+        if (mustCompleteDeclaration && !editForm.date_of_birth) {
             toast.error('Date of birth is required.');
             setShowDobModal(true);
             return;

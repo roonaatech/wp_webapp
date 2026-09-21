@@ -126,6 +126,13 @@ const Login = () => {
                 return;
             }
 
+            // Mandatory Profile Setup / Password Change Gating
+            if (data.mustChangePassword || data.mustCompleteDeclaration) {
+                localStorage.setItem('user', JSON.stringify(user));
+                navigate('/verify-profile');
+                return;
+            }
+
             // Force all mobile users to my-requests
             const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             if (isMobileDevice) {
