@@ -133,19 +133,19 @@ const MyBadge = () => {
 
     if (!isMobile) {
         return (
-            <div className="min-h-[70vh] flex items-center justify-center p-6">
-                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl p-8 max-w-md w-full text-center border border-slate-200 dark:border-slate-800">
-                    <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-100 dark:border-emerald-900/50 shadow-sm">
+            <div className="min-h-[70vh] flex items-center justify-center p-6 bg-slate-100">
+                <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center border border-slate-200">
+                    <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-100 shadow-sm">
                         <LuQrCode className="w-8 h-8" />
                     </div>
-                    <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2">Mobile Only Feature</h2>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-6">
+                    <h2 className="text-xl font-black text-slate-900 mb-2">Mobile Only Feature</h2>
+                    <p className="text-sm text-slate-600 leading-relaxed mb-6">
                         Smart Attendance Badges with dynamic rotating QR codes are designed for mobile devices. 
                         Please open <strong>WorkPulse</strong> in your mobile browser or use the WorkPulse Mobile App to scan and clock attendance at the kiosk terminal.
                     </p>
                     <button
                         onClick={() => navigate(canAccessWebApp(user.role) ? '/' : '/my-requests')}
-                        className="w-full py-3 px-4 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold rounded-xl shadow-md transition-colors"
+                        className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-md transition-colors"
                     >
                         {canAccessWebApp(user.role) ? 'Return to Dashboard' : 'Go to My Requests'}
                     </button>
@@ -156,9 +156,9 @@ const MyBadge = () => {
 
     if (loading) {
         return (
-            <div className="min-h-[80vh] flex flex-col items-center justify-center p-6">
+            <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 bg-slate-100">
                 <ModernLoader />
-                <p className="mt-4 text-sm font-medium text-gray-500 animate-pulse">
+                <p className="mt-4 text-sm font-semibold text-slate-600 animate-pulse">
                     Generating secure attendance badge...
                 </p>
             </div>
@@ -167,16 +167,16 @@ const MyBadge = () => {
 
     if (error) {
         return (
-            <div className="min-h-[80vh] flex items-center justify-center p-6">
+            <div className="min-h-[80vh] flex items-center justify-center p-6 bg-slate-100">
                 <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center border border-red-100">
                     <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <LuInfo className="w-8 h-8" />
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">Badge Unavailable</h2>
-                    <p className="text-sm text-gray-600 mb-6">{error}</p>
+                    <h2 className="text-xl font-black text-slate-900 mb-2">Badge Unavailable</h2>
+                    <p className="text-sm text-slate-600 mb-6">{error}</p>
                     <button
                         onClick={() => { setError(null); setLoading(true); fetchBadge(true); }}
-                        className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors"
+                        className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors"
                     >
                         Try Again
                     </button>
@@ -189,7 +189,7 @@ const MyBadge = () => {
     const progressPercent = ((ROTATION_INTERVAL_SEC - secondsLeft) / ROTATION_INTERVAL_SEC) * 100;
 
     return (
-        <div className={`w-full flex flex-col items-center ${isDesktopWithLayout ? 'py-4' : 'min-h-screen bg-gradient-to-br from-slate-100 via-gray-50 to-emerald-50/40'}`}>
+        <div className="w-full min-h-screen bg-slate-100 flex flex-col items-center">
             
             {/* Top Navigation Bar - ONLY for Mobile / Standalone self-service view */}
             {!isDesktopWithLayout && (
@@ -229,12 +229,12 @@ const MyBadge = () => {
             <main className="w-full max-w-xl p-4 sm:p-6 flex flex-col items-center justify-center flex-1">
                 {/* Header Title */}
                 <div className="text-center mb-5 max-w-sm w-full">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold mb-2 shadow-sm border border-emerald-200/50">
-                        <LuShieldCheck className="w-4 h-4" />
-                        Official Digital ID & Attendance Badge
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold mb-2.5 shadow-sm border border-emerald-300">
+                        <LuShieldCheck className="w-4 h-4 text-emerald-700" />
+                        <span>Official Digital ID & Attendance Badge</span>
                     </div>
-                    <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Smart Attendance Badge</h1>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Smart Attendance Badge</h1>
+                    <p className="text-xs text-slate-600 font-medium mt-1">
                         Hold this QR code in front of the office kiosk scanner
                     </p>
                 </div>

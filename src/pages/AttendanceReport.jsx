@@ -41,7 +41,6 @@ const AttendanceReport = () => {
     // UI States
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedSnapshot, setSelectedSnapshot] = useState(null); // Modal viewer state
 
     // Edit Modal States
     const [editingLog, setEditingLog] = useState(null);
@@ -326,7 +325,7 @@ const AttendanceReport = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Attendance Review</h1>
-                    <p className="text-sm text-slate-500 mt-1">Review check-in/out records, location verification, and face snapshots.</p>
+                    <p className="text-sm text-slate-500 mt-1">Review check-in and check-out records and calculated working hours.</p>
                 </div>
             </div>
 
@@ -422,7 +421,6 @@ const AttendanceReport = () => {
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-In</th>
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-Out</th>
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</th>
-                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Face Capture</th>
                                     {canManage && <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>}
                                 </tr>
                             </thead>
@@ -509,26 +507,6 @@ const AttendanceReport = () => {
                                                         </span>
                                                     </td>
 
-                                                    {/* Verification Snapshot */}
-                                                    <td className="px-4 py-2.5 text-center">
-                                                        {log.snapshot_url ? (
-                                                            <div 
-                                                                onClick={() => setSelectedSnapshot(log.snapshot_url)}
-                                                                className="group relative w-12 h-12 mx-auto rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-500 transition"
-                                                            >
-                                                                <img
-                                                                    src={`${API_BASE_URL}/${log.snapshot_url}`}
-                                                                    alt="Audit match"
-                                                                    className="w-full h-full object-cover transform group-hover:scale-110 transition duration-300"
-                                                                />
-                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition duration-200">
-                                                                    <LuEye size={14} />
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-xs text-slate-400 italic">No snapshot</span>
-                                                        )}
-                                                    </td>
                                                     {canManage && (
                                                         <td className="px-4 py-2.5">
                                                             <div className="flex items-center gap-1.5">
@@ -603,7 +581,7 @@ const AttendanceReport = () => {
                                                                 {calculateTotalDuration(group.logs)}
                                                             </span>
                                                         </td>
-                                                        <td className="px-4 py-3 text-center text-slate-350">—</td>
+                                                        {canManage && <td className="px-4 py-3 text-slate-350">—</td>}
                                                     </tr>
 
                                                     {/* Child Rows */}
@@ -639,26 +617,8 @@ const AttendanceReport = () => {
                                                                         {calculateDuration(log.check_in_time, log.check_out_time)}
                                                                     </span>
                                                                 </td>
-                                                                <td className="px-4 py-2.5 text-center">
-                                                                    {log.snapshot_url ? (
-                                                                        <div 
-                                                                            onClick={() => setSelectedSnapshot(log.snapshot_url)}
-                                                                            className="group relative w-10 h-10 mx-auto rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-500 transition"
-                                                                        >
-                                                                            <img
-                                                                                src={`${API_BASE_URL}/${log.snapshot_url}`}
-                                                                                alt="Audit match"
-                                                                                className="w-full h-full object-cover transform group-hover:scale-110 transition duration-300"
-                                                                            />
-                                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition duration-200">
-                                                                                <LuEye size={12} />
-                                                                            </div>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <span className="text-xs text-slate-400 italic">No snapshot</span>
-                                                                    )}
-                                                                                                                       <td className="px-4 py-2.5">
-                                                                    {canManage ? (
+                                                                {canManage && (
+                                                                    <td className="px-4 py-2.5">
                                                                         <div className="flex items-center gap-2">
                                                                             {canEdit && (
                                                                                 <button
@@ -679,10 +639,8 @@ const AttendanceReport = () => {
                                                                                 </button>
                                                                             )}
                                                                         </div>
-                                                                    ) : (
-                                                                        <span className="text-slate-350">—</span>
-                                                                    )}
-                                                                </td>             </td>
+                                                                    </td>
+                                                                )}
                                                             </tr>
                                                         );
                                                     })}
@@ -739,39 +697,6 @@ const AttendanceReport = () => {
                     </div>
                 )}
             </div>
-
-            {/* Modal Snapshot Zoom Viewer */}
-            {selectedSnapshot && (
-                <div 
-                    className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                    onClick={() => setSelectedSnapshot(null)}
-                >
-                    <div 
-                        className="relative bg-[#0f172a] p-2.5 rounded-3xl max-w-xl w-full border border-slate-700/50 shadow-2xl flex flex-col items-center animate-modal-in"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button
-                            onClick={() => setSelectedSnapshot(null)}
-                            className="absolute top-4 right-4 p-2 bg-slate-800/80 hover:bg-slate-800 text-white rounded-full transition"
-                        >
-                            <LuX size={18} />
-                        </button>
-                        
-                        <div className="w-full aspect-video rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 mt-1">
-                            <img
-                                src={`${API_BASE_URL}/${selectedSnapshot}`}
-                                alt="Face recognition audit verification snapshot"
-                                className="w-full h-full object-contain"
-                            />
-                        </div>
-
-                        <div className="py-4 text-center">
-                            <p className="text-sm font-semibold text-slate-300">Facial Verification Audit Snapshot</p>
-                            <p className="text-[10px] text-slate-500 mt-0.5">Captured automatically during verification log trigger.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Edit Log Modal */}
             {editingLog && (
