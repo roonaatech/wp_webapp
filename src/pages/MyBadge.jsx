@@ -193,36 +193,33 @@ const MyBadge = () => {
             
             {/* Top Navigation Bar - ONLY for Mobile / Standalone self-service view */}
             {!isDesktopWithLayout && (
-                <header className="w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 sticky top-0 z-30 shadow-sm">
+                <header className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-30 safe-area-top shadow-lg">
                     <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
                         <button
                             onClick={() => navigate('/my-requests')}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 text-xs font-bold transition-all active:scale-95"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all active:scale-95 border border-white/20 backdrop-blur-sm shadow-sm"
                         >
                             <LuArrowLeft className="w-4 h-4" />
                             <span>Requests</span>
                         </button>
 
                         <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-emerald-600 flex items-center justify-center p-0.5 shadow-sm">
-                                <BrandLogo className="w-full h-full text-white" />
+                            <div className="w-7 h-7 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center p-1 border border-white/20 shadow-inner">
+                                <BrandLogo showText={false} iconSize="w-5 h-5" />
                             </div>
-                            <span className="font-extrabold text-sm tracking-tight text-gray-900 dark:text-white">WorkPulse</span>
+                            <span className="font-extrabold text-sm tracking-tight text-white">WorkPulse</span>
                         </div>
 
                         <button
                             onClick={handleLogout}
                             disabled={isLoggingOut}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 text-xs font-bold transition-all active:scale-95"
+                            className="p-2 rounded-xl hover:bg-white/20 text-white/90 hover:text-white transition-all active:scale-95"
                             title="Sign Out"
                         >
                             {isLoggingOut ? (
-                                <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></span>
+                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin block"></span>
                             ) : (
-                                <>
-                                    <LuLogOut className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Logout</span>
-                                </>
+                                <LuLogOut className="w-5 h-5" />
                             )}
                         </button>
                     </div>
@@ -250,8 +247,8 @@ const MyBadge = () => {
                     <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
                     <div className="relative z-10 flex items-center justify-between text-white">
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center p-1">
-                                <BrandLogo className="w-full h-full text-white" />
+                            <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center p-1 border border-white/20">
+                                <BrandLogo showText={false} iconSize="w-6 h-6" />
                             </div>
                             <span className="font-bold text-sm tracking-wide">WorkPulse</span>
                         </div>
