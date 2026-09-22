@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.13](https://github.com/roonaatech/wp_webapp/compare/v2.12.12...v2.12.13) (2026-09-22)
+
+
+### Features
+
+* add registered mobile device management section to employee profile for super admins ([bd1b8b2](https://github.com/roonaatech/wp_webapp/commit/bd1b8b26189828db3e14e766bb1c58bbe9a9e008))
+
 ### [2.12.12](https://github.com/roonaatech/wp_webapp/compare/v2.12.11...v2.12.12) (2026-09-22)
 
 
