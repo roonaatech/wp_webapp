@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.20](https://github.com/roonaatech/wp_webapp/compare/v2.12.19...v2.12.20) (2026-09-22)
+
+
+### Bug Fixes
+
+* handle duplicate and invalid Excel sheet names with robust sanitization and fallbacks ([fa4b537](https://github.com/roonaatech/wp_webapp/commit/fa4b5377526a562a181b35610c42eaf8ed1cf614))
+
 ### [2.12.19](https://github.com/roonaatech/wp_webapp/compare/v2.12.18...v2.12.19) (2026-09-22)
 
 
