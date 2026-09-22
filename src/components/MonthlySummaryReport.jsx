@@ -169,21 +169,40 @@ const MonthlySummaryReport = () => {
                 cell.border = borderStyle;
             });
 
-            const sheetNames = new Set();
-            
-            summary.forEach((s) => {
-                let baseName = sanitizeSheetName(`${s.firstname} ${s.lastname}`);
-                let sheetName = baseName;
+            // Excel worksheet names are case-insensitive and restricted in length/characters
+            const usedSheetNamesLower = new Set(['summary', 'history']);
+
+            const getUniqueSheetName = (rawName, fallbackId) => {
+                let clean = (rawName || `Staff_${fallbackId || '1'}`)
+                    .replace(/[\[\]\*\?\/\\\:]/g, '')
+                    .replace(/^'+|'+$/g, '')
+                    .trim();
+                if (!clean) clean = `Staff_${fallbackId || '1'}`;
+                clean = clean.substring(0, 31).trim();
+
+                let candidate = clean;
                 let counter = 1;
-                while (sheetNames.has(sheetName)) {
-                    sheetName = `${baseName.substring(0, 27)}_${counter}`;
+                while (
+                    usedSheetNamesLower.has(candidate.toLowerCase()) || 
+                    workbook.worksheets.some(ws => ws.name.toLowerCase() === candidate.toLowerCase())
+                ) {
+                    const suffix = `_${counter}`;
+                    const maxBaseLen = 31 - suffix.length;
+                    candidate = `${clean.substring(0, maxBaseLen).trim()}${suffix}`;
                     counter++;
                 }
-                sheetNames.add(sheetName);
-                s.sheetName = sheetName;
+                usedSheetNamesLower.add(candidate.toLowerCase());
+                return candidate;
+            };
+
+            const dataToExport = sortedSummary.length > 0 ? sortedSummary : summary;
+
+            dataToExport.forEach((s) => {
+                const fullName = `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Employee';
+                s.sheetName = getUniqueSheetName(fullName, s.staff_id);
 
                 const row = summarySheet.addRow({
-                    name: `${s.firstname} ${s.lastname}`,
+                    name: fullName,
                     email: s.email,
                     present: s.present_days || 0,
                     work_hours: formatHours(s.work_hours, s.work_minutes),
@@ -194,7 +213,7 @@ const MonthlySummaryReport = () => {
                 
                 const nameCell = row.getCell(1);
                 nameCell.value = {
-                    text: `${s.firstname} ${s.lastname}`,
+                    text: fullName,
                     hyperlink: `#'${s.sheetName}'!A1`,
                     tooltip: 'Click to view employee details'
                 };
@@ -221,8 +240,14 @@ const MonthlySummaryReport = () => {
             });
 
             // 2. Create Individual Sheets
-            summary.forEach((s) => {
-                const sheet = workbook.addWorksheet(s.sheetName);
+            dataToExport.forEach((s) => {
+                let sheet;
+                try {
+                    sheet = workbook.addWorksheet(s.sheetName);
+                } catch (e) {
+                    const fallbackName = getUniqueSheetName(`Staff_${s.staff_id || Math.random().toString(36).substring(7)}`);
+                    sheet = workbook.addWorksheet(fallbackName);
+                }
                 
                 sheet.mergeCells('A1:D1');
                 const backCell = sheet.getCell('A1');
