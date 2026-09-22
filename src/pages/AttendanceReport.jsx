@@ -7,7 +7,9 @@ import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
 import { fetchRoles, canViewAttendanceReport, canManageAttendance, canEditAttendance, canDeleteAttendance } from '../utils/roleUtils';
 import { formatDateOnly, formatTimeOnly, getCurrentInAppTimezone } from '../utils/timezone.util';
-import { LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock } from 'react-icons/lu';
+import { LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet } from 'react-icons/lu';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 const AttendanceReport = () => {
     const navigate = useNavigate();
@@ -41,6 +43,7 @@ const AttendanceReport = () => {
     // UI States
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isExporting, setIsExporting] = useState(false);
 
     // Edit Modal States
     const [editingLog, setEditingLog] = useState(null);
@@ -204,6 +207,197 @@ const AttendanceReport = () => {
         return timeStr;
     };
 
+    const handleExport = async () => {
+        try {
+            setIsExporting(true);
+            const token = localStorage.getItem('token');
+            if (!token) {
+                toast.error('Authentication session expired.');
+                return;
+            }
+
+            // Fetch all matching records for the current filters (not just current page)
+            const exportLimit = Math.max(totalItems || 0, 5000);
+            const params = {
+                page: 1,
+                limit: exportLimit,
+                userId: selectedUserId,
+                startDate,
+                endDate
+            };
+
+            const response = await axios.get(`${API_BASE_URL}/api/admin/attendance-logs`, {
+                headers: { 'x-access-token': token },
+                params
+            });
+
+            const exportLogs = response.data?.reports || [];
+            if (exportLogs.length === 0) {
+                toast.error('No attendance records found to export for the selected filter.');
+                return;
+            }
+
+            const now = new Date();
+            const dd = String(now.getDate()).padStart(2, '0');
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const yyyy = now.getFullYear();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            const timestamp = `${dd}-${mm}-${yyyy}_${hh}${min}${ss}`;
+
+            // Excel (.xlsx) export via ExcelJS
+            const workbook = new ExcelJS.Workbook();
+            workbook.creator = 'WorkPulse HR';
+            workbook.created = new Date();
+
+            const sheet = workbook.addWorksheet('Attendance Review', {
+                views: [{ showGridLines: true }]
+            });
+
+            // Title banner
+            sheet.mergeCells('A1:J1');
+            const titleCell = sheet.getCell('A1');
+            titleCell.value = 'WORKPULSE - ATTENDANCE REVIEW REPORT';
+            titleCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+            titleCell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF1E1B4B' }
+            };
+            titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            sheet.getRow(1).height = 32;
+
+            // Subtitle metadata
+            sheet.mergeCells('A2:J2');
+            const metaCell = sheet.getCell('A2');
+            const filterDesc = selectedUserId
+                ? `Filtered by Employee ID: ${selectedUserId} | Date Range: ${startDate || 'Start'} to ${endDate || 'End'}`
+                : `Filter: All Employees | Date Range: ${startDate || 'Start'} to ${endDate || 'End'}`;
+            metaCell.value = `${filterDesc} | Total Records: ${exportLogs.length} | Exported: ${new Date().toLocaleString()}`;
+            metaCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF64748B' } };
+            metaCell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFF8FAFC' }
+            };
+            metaCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            sheet.getRow(2).height = 20;
+
+            // Empty row 3
+            sheet.getRow(3).height = 10;
+
+            // Headers (row 4)
+            const headers = [
+                'Staff ID',
+                'Employee Name',
+                'Email',
+                'Date',
+                'Check-In Time',
+                'Check-Out Time',
+                'Duration',
+                'Status',
+                'Check-In Timestamp',
+                'Check-Out Timestamp'
+            ];
+            const headerRow = sheet.getRow(4);
+            headerRow.values = headers;
+            headerRow.height = 25;
+
+            headerRow.eachCell((cell) => {
+                cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FF4338CA' } // Indigo 700
+                };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                };
+            });
+
+            // Data Rows
+            exportLogs.forEach((log) => {
+                const emp = log.user || {};
+                const name = `${emp.firstname || ''} ${emp.lastname || ''}`.trim() || 'Unknown';
+                const staffId = emp.staffid || log.staff_id || '—';
+                const email = emp.email || '—';
+                const date = log.date ? formatDateOnly(log.date) : '—';
+                const checkIn = log.check_in_time ? formatTimeOnly(log.check_in_time) : '-';
+                const checkOut = log.check_out_time ? formatTimeOnly(log.check_out_time) : '-';
+                const duration = calculateDuration(log.check_in_time, log.check_out_time);
+                const status = log.check_out_time ? 'Completed' : 'Active Check-In';
+                const fullCheckIn = log.check_in_time || '—';
+                const fullCheckOut = log.check_out_time || '—';
+
+                const r = sheet.addRow([
+                    staffId,
+                    name,
+                    email,
+                    date,
+                    checkIn,
+                    checkOut,
+                    duration,
+                    status,
+                    fullCheckIn,
+                    fullCheckOut
+                ]);
+                r.height = 20;
+
+                r.eachCell((cell, colNumber) => {
+                    cell.font = { name: 'Calibri', size: 9 };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFF1F5F9' } },
+                        left: { style: 'thin', color: { argb: 'FFF1F5F9' } },
+                        bottom: { style: 'thin', color: { argb: 'FFF1F5F9' } },
+                        right: { style: 'thin', color: { argb: 'FFF1F5F9' } }
+                    };
+
+                    if ([1, 4, 5, 6, 7, 8].includes(colNumber)) {
+                        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    } else {
+                        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+                    }
+
+                    if (colNumber === 8) { // Status
+                        if (status === 'Completed') {
+                            cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF15803D' } };
+                        } else {
+                            cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF4338CA' } };
+                        }
+                    }
+                });
+            });
+
+            sheet.columns = [
+                { key: 'staffId', width: 12 },
+                { key: 'name', width: 25 },
+                { key: 'email', width: 28 },
+                { key: 'date', width: 15 },
+                { key: 'checkIn', width: 14 },
+                { key: 'checkOut', width: 14 },
+                { key: 'duration', width: 16 },
+                { key: 'status', width: 18 },
+                { key: 'fullCheckIn', width: 22 },
+                { key: 'fullCheckOut', width: 22 }
+            ];
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            saveAs(blob, `WorkPulse_Attendance_Review_${timestamp}.xlsx`);
+            toast.success(`Exported ${exportLogs.length} attendance records to Excel!`);
+        } catch (err) {
+            console.error('Export failed:', err);
+            toast.error(err.response?.data?.message || err.message || 'Failed to export attendance review.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
 
 
     const handleClearFilters = () => {
@@ -326,6 +520,19 @@ const AttendanceReport = () => {
                 <div>
                     <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Attendance Review</h1>
                     <p className="text-sm text-slate-500 mt-1">Review check-in and check-out records and calculated working hours.</p>
+                </div>
+
+                {/* Export Action Button */}
+                <div>
+                    <button
+                        onClick={handleExport}
+                        disabled={isExporting || totalItems === 0}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        title="Export all matching records to Microsoft Excel (.xlsx)"
+                    >
+                        <LuFileSpreadsheet size={16} />
+                        <span>{isExporting ? 'Exporting...' : 'Export Excel'}</span>
+                    </button>
                 </div>
             </div>
 

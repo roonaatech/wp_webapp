@@ -297,8 +297,13 @@ const Login = () => {
             {/* Main Content Area: Centered on mobile, shifted on desktop */}
             <main className="relative z-20 flex-1 flex items-center justify-center md:justify-start px-3 sm:px-8 lg:px-16 py-4 sm:py-8">
                 <div className="w-full max-w-md mx-auto md:mx-0 md:ml-6 lg:ml-14 xl:ml-20 2xl:ml-28">
-                    {/* Floating Login Card */}
-                    <div className="bg-white rounded-2xl sm:rounded-[2rem] shadow-xl sm:shadow-2xl shadow-indigo-950/10 border-2 border-slate-300/90 p-5 sm:p-8 md:p-10 text-left transition-all">
+                    {/* Floating Login Card with deep prominent elevation shadow */}
+                    <div
+                        style={{
+                            boxShadow: '0 25px 60px -12px rgba(15, 23, 42, 0.35), 0 16px 32px -8px rgba(15, 23, 42, 0.22), 0 4px 12px -2px rgba(15, 23, 42, 0.12), 0 0 45px -5px rgba(99, 102, 241, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.08)',
+                        }}
+                        className="bg-white rounded-2xl sm:rounded-[2rem] login-box-shadow border border-slate-200/90 p-5 sm:p-8 md:p-10 text-left transition-all"
+                    >
                         {/* Title & Greeting with WorkPulse Gradient Highlights */}
                         <div className="text-center mb-5 sm:mb-7">
                             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100/80 text-indigo-700 text-[10px] font-bold uppercase tracking-wider mb-2">

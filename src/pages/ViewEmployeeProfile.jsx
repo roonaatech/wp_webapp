@@ -85,7 +85,7 @@ const ViewEmployeeProfile = () => {
         const handleSettingsLoaded = () => {
             try {
                 setSystemSettings(JSON.parse(localStorage.getItem('settings') || '{}'));
-            } catch {}
+            } catch { }
         };
         window.addEventListener('settingsLoaded', handleSettingsLoaded);
         return () => window.removeEventListener('settingsLoaded', handleSettingsLoaded);
@@ -433,23 +433,23 @@ const ViewEmployeeProfile = () => {
                             <div className="w-32 bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner border border-slate-200/50">
                                 <div
                                     className={`h-full rounded-full transition-all duration-700 ease-out ${getProfileCompletion() === 100
-                                            ? 'bg-emerald-500'
-                                            : getProfileCompletion() >= 75
-                                                ? 'bg-indigo-600'
-                                                : getProfileCompletion() >= 40
-                                                    ? 'bg-amber-500'
-                                                    : 'bg-rose-500'
+                                        ? 'bg-emerald-500'
+                                        : getProfileCompletion() >= 75
+                                            ? 'bg-indigo-600'
+                                            : getProfileCompletion() >= 40
+                                                ? 'bg-amber-500'
+                                                : 'bg-rose-500'
                                         }`}
                                     style={{ width: `${getProfileCompletion()}%` }}
                                 ></div>
                             </div>
                             <span className={`text-xs font-black tracking-tight ${getProfileCompletion() === 100
-                                    ? 'text-emerald-600'
-                                    : getProfileCompletion() >= 75
-                                        ? 'text-indigo-600'
-                                        : getProfileCompletion() >= 40
-                                            ? 'text-amber-600'
-                                            : 'text-rose-600'
+                                ? 'text-emerald-600'
+                                : getProfileCompletion() >= 75
+                                    ? 'text-indigo-600'
+                                    : getProfileCompletion() >= 40
+                                        ? 'text-amber-600'
+                                        : 'text-rose-600'
                                 }`}>
                                 {getProfileCompletion()}% Completed
                             </span>
@@ -738,6 +738,84 @@ const ViewEmployeeProfile = () => {
                                 </div>
                             )}
                         </div>
+
+                        {/* Registered Mobile Device */}
+                        {isUserSuperAdmin && (
+                            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
+                                    <h2 className="text-base font-bold text-[#1e1b4b] flex items-center gap-2">
+                                        <span className="text-indigo-600"><LuSmartphone /></span> Registered Mobile Device
+                                    </h2>
+                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200">
+                                        Super Admin Only
+                                    </span>
+                                </div>
+
+                                {!employee.bound_device ? (
+                                    <div className="text-center py-6 text-slate-400 text-sm">
+                                        No registered mobile device bound to this profile (Device will be registered automatically upon employee's first mobile attendance).
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                                        <table className="min-w-full divide-y divide-slate-100 text-sm">
+                                            <thead className="bg-slate-50">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Device Model / Platform</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Fingerprint UUID</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Network IP</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Binding Timeline</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                                                <tr className="hover:bg-slate-50/50">
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse"></span>
+                                                            <span className="font-bold text-slate-800">{employee.bound_device.device_name || 'Mobile Device'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="font-mono text-xs text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 select-all font-semibold">
+                                                            {employee.bound_device.device_id}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs text-slate-600">
+                                                        {employee.bound_device.ip_address || '—'}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                            <LuCheck size={12} /> Active Binding
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs text-slate-600 space-y-0.5">
+                                                        <div>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase mr-1">Bound:</span>
+                                                            {employee.bound_device.first_bound_at ? new Date(employee.bound_device.first_bound_at).toLocaleDateString() : '—'}
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase mr-1">Active:</span>
+                                                            {employee.bound_device.last_active_at ? new Date(employee.bound_device.last_active_at).toLocaleString() : '—'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <button
+                                                            onClick={handleResetDevice}
+                                                            disabled={resettingDevice}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition-colors disabled:opacity-50"
+                                                        >
+                                                            <LuRefreshCw className={`w-3.5 h-3.5 ${resettingDevice ? 'animate-spin' : ''}`} />
+                                                            {resettingDevice ? 'Resetting...' : 'Reset Device'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -870,87 +948,6 @@ const ViewEmployeeProfile = () => {
                         </div>
                     </div>
 
-                    {/* Level 0 Exclusive: Registered Mobile Device Details */}
-                    {isUserSuperAdmin && (
-                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm text-sm">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-                                <h2 className="text-base font-bold text-[#1e1b4b] flex items-center gap-2">
-                                    <span className="text-indigo-600"><LuSmartphone /></span> Registered Mobile Device
-                                </h2>
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200">
-                                    Level 0 Only
-                                </span>
-                            </div>
-
-                            {employee.bound_device ? (
-                                <div className="space-y-4">
-                                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-                                        <div>
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Device Model / Platform</p>
-                                            <p className="font-bold text-slate-800 mt-0.5 flex items-center gap-1.5">
-                                                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                                                {employee.bound_device.device_name || 'Mobile Device'}
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Device Fingerprint UUID</p>
-                                            <p className="font-mono text-xs text-slate-600 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 mt-0.5 break-all select-all font-semibold">
-                                                {employee.bound_device.device_id}
-                                            </p>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-3 pt-1">
-                                            <div>
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase">Network IP</p>
-                                                <p className="font-semibold text-slate-700 text-xs mt-0.5">
-                                                    {employee.bound_device.ip_address || '—'}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase">Status</p>
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 mt-0.5">
-                                                    <LuCheck size={12} /> Active Binding
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-3 border-t border-slate-200/60 pt-2 text-[11px]">
-                                            <div>
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase">First Bound</p>
-                                                <p className="text-slate-600 font-medium mt-0.5">
-                                                    {employee.bound_device.first_bound_at ? new Date(employee.bound_device.first_bound_at).toLocaleDateString() : '—'}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase">Last Active</p>
-                                                <p className="text-slate-600 font-medium mt-0.5">
-                                                    {employee.bound_device.last_active_at ? new Date(employee.bound_device.last_active_at).toLocaleString() : '—'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={handleResetDevice}
-                                        disabled={resettingDevice}
-                                        className="w-full py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                    >
-                                        <LuRefreshCw className={`w-3.5 h-3.5 ${resettingDevice ? 'animate-spin' : ''}`} />
-                                        {resettingDevice ? 'Resetting...' : 'Reset Device Registration'}
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="text-center py-6 px-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                                    <LuSmartphone className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                                    <p className="font-bold text-slate-700 text-xs">No Mobile Device Bound</p>
-                                    <p className="text-[11px] text-slate-400 mt-1">
-                                        Device will be automatically registered on the employee's first mobile attendance or badge access.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
             </div>
 
