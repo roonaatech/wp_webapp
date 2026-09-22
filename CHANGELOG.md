@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.16](https://github.com/roonaatech/wp_webapp/compare/v2.12.15...v2.12.16) (2026-09-22)
+
+
+### Code Refactoring
+
+* reposition QR confirmation and result modals to fixed root-level overlays ([01c5fc4](https://github.com/roonaatech/wp_webapp/commit/01c5fc4263af8cd58ea4f813ccd814ff9522659a))
+
 ### [2.12.15](https://github.com/roonaatech/wp_webapp/compare/v2.12.14...v2.12.15) (2026-09-22)
 
 
