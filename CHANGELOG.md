@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.12](https://github.com/roonaatech/wp_webapp/compare/v2.12.11...v2.12.12) (2026-09-22)
+
+
+### Features
+
+* exempt service accounts from inactivity timeouts and remove password visibility toggle ([9cc3d93](https://github.com/roonaatech/wp_webapp/commit/9cc3d93f9313d1f6331d72dbb8f1cd82acbff664))
+
 ### [2.12.11](https://github.com/roonaatech/wp_webapp/compare/v2.12.10...v2.12.11) (2026-09-21)
 
 
