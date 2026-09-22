@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.14](https://github.com/roonaatech/wp_webapp/compare/v2.12.13...v2.12.14) (2026-09-22)
+
+
+### Features
+
+* send client type during login and display device badges in activities ([9561ea2](https://github.com/roonaatech/wp_webapp/commit/9561ea280945a0bd48576f1e9b8588f6f131afb4))
+
 ### [2.12.13](https://github.com/roonaatech/wp_webapp/compare/v2.12.12...v2.12.13) (2026-09-22)
 
 
