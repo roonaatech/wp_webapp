@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.19](https://github.com/roonaatech/wp_webapp/compare/v2.12.18...v2.12.19) (2026-09-22)
+
+
+### Code Refactoring
+
+* change default state of inner rows to collapsed in MonthlySummaryReport ([82c0608](https://github.com/roonaatech/wp_webapp/commit/82c0608f9f6de626d7c528e3aa552f87f27e5353))
+
 ### [2.12.18](https://github.com/roonaatech/wp_webapp/compare/v2.12.17...v2.12.18) (2026-09-22)
 
 
