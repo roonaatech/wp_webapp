@@ -6,6 +6,8 @@
  * uploaded just to auto-detect their version.
  */
 
+import pako from 'pako';
+
 const EOCD_SIGNATURE = 0x06054b50;
 const CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
 const LOCAL_HEADER_SIGNATURE = 0x04034b50;
@@ -76,8 +78,19 @@ const readManifestBytes = async (file) => {
     if (method === 0) return new DataView(await compressed.arrayBuffer());
     if (method !== 8) throw new Error(`Unsupported APK compression method ${method}`);
 
-    const inflated = compressed.stream().pipeThrough(new DecompressionStream('deflate-raw'));
-    return new DataView(await new Response(inflated).arrayBuffer());
+    // Fast in-browser raw deflate via pako (<10ms across all browsers)
+    try {
+        const compressedBytes = new Uint8Array(await compressed.arrayBuffer());
+        const decompressed = pako.inflateRaw(compressedBytes);
+        return new DataView(decompressed.buffer, decompressed.byteOffset, decompressed.byteLength);
+    } catch (pakoErr) {
+        // Fallback to DecompressionStream if available
+        if (typeof DecompressionStream !== 'undefined') {
+            const inflated = compressed.stream().pipeThrough(new DecompressionStream('deflate-raw'));
+            return new DataView(await new Response(inflated).arrayBuffer());
+        }
+        throw pakoErr;
+    }
 };
 
 const readStringPool = (view, start) => {

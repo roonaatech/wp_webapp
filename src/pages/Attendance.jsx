@@ -21,7 +21,8 @@ import {
     LuLogIn,
     LuCamera,
     LuSwitchCamera,
-    LuSparkles
+    LuSparkles,
+    LuX
 } from "react-icons/lu";
 import { fetchRoles, canAccessAttendancePortal } from '../utils/roleUtils';
 import ModernLoader from '../components/ModernLoader';
@@ -47,6 +48,9 @@ const Attendance = () => {
     // Status & Results
     const [statusMessage, setStatusMessage] = useState('QR Scanner Ready. Scan your badge.');
     const [qrResult, setQrResult] = useState(null); // { success, type, employeeName, time, avatarUrl, duration, message }
+    const [qrConfirmation, setQrConfirmation] = useState(null); // { confirmationToken, type, employeeName, time, avatarUrl, duration, message }
+    const [confirmCountdown, setConfirmCountdown] = useState(15);
+    const confirmTimerRef = useRef(null);
     const qrProcessingRef = useRef(false);
     const lastScannedQrRef = useRef('');
     const lastScannedTimeRef = useRef(0);
@@ -263,6 +267,26 @@ const Attendance = () => {
             });
 
             const data = response.data;
+            if (data && data.requiresConfirmation) {
+                setQrConfirmation(data);
+                setStatusMessage(`Confirmation required for ${data.employeeName}`);
+                setConfirmCountdown(15);
+                if (confirmTimerRef.current) clearInterval(confirmTimerRef.current);
+                confirmTimerRef.current = setInterval(() => {
+                    setConfirmCountdown(prev => {
+                        if (prev <= 1) {
+                            clearInterval(confirmTimerRef.current);
+                            setQrConfirmation(null);
+                            qrProcessingRef.current = false;
+                            setStatusMessage("QR Scanner Ready. Scan your badge.");
+                            return 0;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+                return;
+            }
+
             if (data && data.success) {
                 setQrResult(data);
                 toast.success(data.message || `${data.employeeName} recorded ${data.type === 'CHECK_IN' ? 'Check-In' : 'Check-Out'}`);
@@ -281,6 +305,56 @@ const Attendance = () => {
             toast.error(serverMsg);
             setStatusMessage(serverMsg);
 
+            setTimeout(() => {
+                qrProcessingRef.current = false;
+                setStatusMessage("QR Scanner Ready. Scan your badge.");
+            }, 2200);
+        }
+    };
+
+    const handleCancelConfirmation = () => {
+        if (confirmTimerRef.current) clearInterval(confirmTimerRef.current);
+        const actionLabel = qrConfirmation?.type === 'CHECK_IN' ? 'Check-In' : 'Check-Out';
+        setQrConfirmation(null);
+        qrProcessingRef.current = false;
+        setStatusMessage("QR Scanner Ready. Scan your badge.");
+        toast(`${actionLabel} cancelled`, { icon: 'ℹ️' });
+    };
+
+    const handleAcceptConfirmation = async () => {
+        if (!qrConfirmation) return;
+        if (confirmTimerRef.current) clearInterval(confirmTimerRef.current);
+        const pendingToken = qrConfirmation.confirmationToken;
+        setQrConfirmation(null);
+        setStatusMessage("Recording attendance...");
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.post(`${API_BASE_URL}/api/attendance/scan-qr-badge`, {
+                confirmed: true,
+                confirmationToken: pendingToken
+            }, {
+                headers: { 'x-access-token': token }
+            });
+
+            const data = response.data;
+            if (data && data.success) {
+                playSuccessChime();
+                setQrResult(data);
+                toast.success(data.message || `${data.employeeName} recorded ${data.type === 'CHECK_IN' ? 'Check-In' : 'Check-Out'}`);
+
+                setTimeout(() => {
+                    setQrResult(null);
+                    qrProcessingRef.current = false;
+                    setStatusMessage("QR Scanner Ready. Scan your badge.");
+                }, 2800);
+            }
+        } catch (err) {
+            console.error("Confirmation error:", err);
+            playErrorBeep();
+            const serverMsg = err.response?.data?.message || "Failed to confirm attendance.";
+            toast.error(serverMsg);
+            setStatusMessage(serverMsg);
             setTimeout(() => {
                 qrProcessingRef.current = false;
                 setStatusMessage("QR Scanner Ready. Scan your badge.");
@@ -558,7 +632,7 @@ const Attendance = () => {
                         )}
 
                         {/* Animated Scanner Reticle */}
-                        {cameraActive && !qrResult && (
+                        {cameraActive && !qrResult && !qrConfirmation && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4">
                                 <div className="w-56 h-56 sm:w-64 sm:h-64 border-2 border-emerald-400/80 rounded-3xl relative shadow-[0_0_35px_rgba(16,185,129,0.3)] flex items-center justify-center">
                                     {/* Corner Brackets */}
@@ -576,6 +650,85 @@ const Attendance = () => {
                                             Align Smart Badge
                                         </span>
                                     </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Confirmation Dialog Overlay (YES / NO) */}
+                        {qrConfirmation && (
+                            <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-fadeIn z-40">
+                                <div className="relative mb-3">
+                                    {qrConfirmation.avatarUrl ? (
+                                        <img
+                                            src={`${API_BASE_URL}/${qrConfirmation.avatarUrl}`}
+                                            alt={qrConfirmation.employeeName}
+                                            className={`w-24 h-24 rounded-full object-cover border-4 shadow-2xl ${
+                                                qrConfirmation.type === 'CHECK_IN' ? 'border-emerald-400' : 'border-amber-400'
+                                            }`}
+                                        />
+                                    ) : (
+                                        <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-black shadow-2xl border-4 ${
+                                            qrConfirmation.type === 'CHECK_IN'
+                                                ? 'bg-emerald-500/20 border-emerald-400 text-emerald-400'
+                                                : 'bg-amber-500/20 border-amber-400 text-amber-400'
+                                        }`}>
+                                            {qrConfirmation.type === 'CHECK_IN' ? <LuLogIn size={36} /> : <LuLogOut size={36} />}
+                                        </div>
+                                    )}
+                                    <div className={`absolute -bottom-1 -right-1 p-1.5 rounded-full text-white shadow-lg ${
+                                        qrConfirmation.type === 'CHECK_IN' ? 'bg-emerald-500' : 'bg-amber-500'
+                                    }`}>
+                                        {qrConfirmation.type === 'CHECK_IN' ? <LuLogIn size={16} /> : <LuLogOut size={16} />}
+                                    </div>
+                                </div>
+
+                                <div className={`inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-2 shadow-sm border ${
+                                    qrConfirmation.type === 'CHECK_IN'
+                                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                        : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                }`}>
+                                    <span>{qrConfirmation.type === 'CHECK_IN' ? 'CHECK-IN CONFIRMATION' : 'CHECK-OUT CONFIRMATION'}</span>
+                                </div>
+
+                                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                                    Confirm {qrConfirmation.type === 'CHECK_IN' ? 'Check-In' : 'Check-Out'}?
+                                </h2>
+
+                                <p className="text-slate-200 font-semibold text-lg mt-1">
+                                    {qrConfirmation.employeeName}
+                                </p>
+
+                                {qrConfirmation.duration && (
+                                    <div className="mt-2 text-xs font-bold text-slate-300 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-700">
+                                        Worked Duration: <span className="text-amber-400 font-mono font-bold">{qrConfirmation.duration}</span>
+                                    </div>
+                                )}
+
+                                <p className="text-xs text-slate-400 mt-2 font-mono">
+                                    Auto-cancelling in <span className="text-amber-300 font-bold">{confirmCountdown}s</span>
+                                </p>
+
+                                <div className="flex items-center gap-4 mt-6 w-full max-w-xs">
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelConfirmation}
+                                        className="flex-1 py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-bold text-sm transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        <LuX size={18} className="text-rose-400" />
+                                        <span>NO</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleAcceptConfirmation}
+                                        className={`flex-1 py-3 px-4 rounded-xl text-white font-extrabold text-sm transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${
+                                            qrConfirmation.type === 'CHECK_IN'
+                                                ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40'
+                                                : 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/40'
+                                        }`}
+                                    >
+                                        <LuCheck size={18} strokeWidth={3} />
+                                        <span>YES</span>
+                                    </button>
                                 </div>
                             </div>
                         )}
