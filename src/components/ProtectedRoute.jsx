@@ -41,6 +41,11 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
                 setAuthState('valid');
             } catch (err) {
                 if (err.response?.status === 401) {
+                    // Service accounts never time out: do not clear session or redirect to session-expired
+                    if (user.isServiceAccount) {
+                        setAuthState('valid');
+                        return;
+                    }
                     // Token is invalid — clear and redirect
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');

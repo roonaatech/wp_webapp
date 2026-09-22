@@ -9,8 +9,6 @@ import {
     LuKeyRound,
     LuMail,
     LuLock,
-    LuEye,
-    LuEyeOff,
     LuCircleCheck,
     LuCircleAlert,
     LuX,
@@ -40,7 +38,6 @@ const Login = () => {
         }
         return '';
     });
-    const [showPassword, setShowPassword] = useState(false);
 
     // Login state
     const [loading, setLoading] = useState(false);
@@ -364,24 +361,14 @@ const Login = () => {
                                     </div>
                                     <input
                                         id="password"
-                                        type={showPassword ? "text" : "password"}
+                                        type="password"
                                         autoComplete="current-password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="Enter your password"
                                         required
-                                        className="w-full pl-10 pr-12 py-3 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-600 transition shadow-xs"
+                                        className="w-full pl-10 pr-4 py-3 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-600 transition shadow-xs"
                                     />
-                                    {/* Password Visibility Toggle with generous touch target */}
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute inset-y-0 right-0 w-12 flex items-center justify-center text-slate-400 hover:text-indigo-600 active:text-indigo-700 focus:outline-none cursor-pointer transition touch-manipulation"
-                                        tabIndex={-1}
-                                        aria-label={showPassword ? "Hide password" : "Show password"}
-                                    >
-                                        {showPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
-                                    </button>
                                 </div>
                             </div>
 

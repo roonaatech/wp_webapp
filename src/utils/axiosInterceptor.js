@@ -90,6 +90,14 @@ export const setupAxiosInterceptors = (navigate) => {
 
             // Handle 401 Unauthorized (session expired)
             if (status === 401) {
+                // Service accounts must never time out or be redirected to session-expired
+                try {
+                    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                    if (currentUser.isServiceAccount) {
+                        return Promise.reject(error);
+                    }
+                } catch (_) {}
+
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;
@@ -226,6 +234,14 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
 
             // Handle 401 Unauthorized (session expired)
             if (status === 401) {
+                // Service accounts must never time out or be redirected to session-expired
+                try {
+                    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                    if (currentUser.isServiceAccount) {
+                        return Promise.reject(error);
+                    }
+                } catch (_) {}
+
                 // Prevent multiple redirects
                 if (!isRedirecting) {
                     isRedirecting = true;

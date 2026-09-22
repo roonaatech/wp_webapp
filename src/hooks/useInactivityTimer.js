@@ -8,6 +8,16 @@ const THROTTLE_MS = 30000; // Only update timestamp every 30 seconds to avoid ex
 // attendance kiosk, which can sit idle between employees).
 const INACTIVITY_EXEMPT_PATHS = ['/attendance'];
 
+// Helper to check if current logged-in user is a service account
+const isServiceAccountUser = () => {
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        return Boolean(user.isServiceAccount);
+    } catch {
+        return false;
+    }
+};
+
 /**
  * Custom hook that monitors user activity and logs them out
  * after 15 minutes of inactivity. Shows a warning 1 minute before.
@@ -67,6 +77,11 @@ const useInactivityTimer = () => {
     }, []);
 
     const performLogout = useCallback(() => {
+        if (isServiceAccountUser()) {
+            clearTimers();
+            dismissWarning();
+            return;
+        }
         clearTimers();
         // Remove warning dialog if present
         if (warningDialogRef.current && warningDialogRef.current.parentNode) {
@@ -99,7 +114,7 @@ const useInactivityTimer = () => {
     }, []);
 
     const showWarning = useCallback(() => {
-        if (isWarningShownRef.current) return;
+        if (isWarningShownRef.current || isServiceAccountUser()) return;
         isWarningShownRef.current = true;
 
         // Create a warning overlay with glassmorphism
@@ -519,7 +534,11 @@ const useInactivityTimer = () => {
 
     const resetTimer = useCallback(() => {
         const token = localStorage.getItem('token');
-        if (!token) return; // Don't set timers if not logged in
+        if (!token || isServiceAccountUser()) {
+            clearTimers();
+            dismissWarning();
+            return; // Don't set timers if not logged in or if service account
+        }
 
         const timeoutMs = getInactivityTimeoutMs();
         const warningDurationMs = getWarningDurationMs();
@@ -543,9 +562,9 @@ const useInactivityTimer = () => {
         const token = localStorage.getItem('token');
         if (!token) return; // Don't activate if not logged in
 
-        // On exempt routes (attendance kiosk), disable auto-logout entirely:
+        // Service accounts and exempt routes (attendance kiosk) must never auto-logout or show timeout popups:
         // tear down any running timers / warning and skip registering activity listeners.
-        if (isExempt) {
+        if (isExempt || isServiceAccountUser()) {
             clearTimers();
             dismissWarning();
             return;
