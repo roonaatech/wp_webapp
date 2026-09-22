@@ -6,6 +6,7 @@ import ModernLoader from '../components/ModernLoader';
 import { canViewActivities, fetchRoles } from '../utils/roleUtils';
 import { formatInTimezone, getCurrentInAppTimezone, formatTimeOnly, formatDateOnly } from '../utils/timezone.util';
 import TableSortIcon from '../components/TableSortIcon';
+import { LuMonitor, LuSmartphone, LuGlobe } from 'react-icons/lu';
 
 const Activities = () => {
     const navigate = useNavigate();
@@ -234,12 +235,78 @@ const Activities = () => {
         return colors[action] || 'bg-gray-100 text-gray-800';
     };
 
+    const getLoginDevice = (activity) => {
+        if (!activity) return null;
+
+        // 1. Check new_values if present
+        const newVals = parseValues(activity.new_values);
+        if (newVals?.login_device) return newVals.login_device;
+        if (newVals?.device) return newVals.device;
+
+        // 2. Check description text
+        const desc = activity.description || '';
+        if (desc.includes('(Mob App)') || desc.includes('via Mob App')) return 'Mob App';
+        if (desc.includes('(Mob Browser)') || desc.includes('via Mob Browser')) return 'Mob Browser';
+        if (desc.includes('(Web)') || desc.includes('via Web')) return 'Web';
+
+        // 3. Detect from user agent for LOGIN/LOGOUT
+        const ua = activity.user_agent || '';
+        if (activity.action === 'LOGIN' || activity.action === 'LOGOUT') {
+            if (/Dart|Flutter|WorkPulseMobile/i.test(ua)) return 'Mob App';
+            if (/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return 'Mob Browser';
+            return 'Web';
+        }
+
+        // For other activities, if user agent is known, classify or return null
+        if (ua && ua !== 'unknown') {
+            if (/Dart|Flutter|WorkPulseMobile/i.test(ua)) return 'Mob App';
+            if (/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return 'Mob Browser';
+            return 'Web';
+        }
+
+        return null;
+    };
+
+    const renderDeviceBadge = (activity) => {
+        const device = getLoginDevice(activity);
+        if (!device) return <span className="text-gray-400">—</span>;
+
+        if (device === 'Mob App') {
+            return (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                    <LuSmartphone size={12} className="text-emerald-600 shrink-0" />
+                    <span>Mob App</span>
+                </span>
+            );
+        }
+        if (device === 'Mob Browser') {
+            return (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
+                    <LuGlobe size={12} className="text-purple-600 shrink-0" />
+                    <span>Mob Browser</span>
+                </span>
+            );
+        }
+        return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200 shadow-2xs">
+                <LuMonitor size={12} className="text-sky-600 shrink-0" />
+                <span>Web</span>
+            </span>
+        );
+    };
+
     const formatDescription = (activity) => {
         if (!activity.description) return '—';
         if (activity.action === 'APPROVE' && activity.affected_user) {
             const name = `${activity.affected_user.firstname} ${activity.affected_user.lastname}`.trim();
             if (name && !activity.description.toLowerCase().includes('requested by')) {
                 return `${activity.description} requested by ${name}`;
+            }
+        }
+        if (activity.action === 'LOGIN') {
+            const device = getLoginDevice(activity);
+            if (device && !activity.description.includes(`(${device})`) && !activity.description.includes(`via ${device}`)) {
+                return `${activity.description} (${device})`;
             }
         }
         return activity.description;
@@ -745,6 +812,7 @@ const Activities = () => {
                                                     Performed By <TableSortIcon column="performedBy" sortConfig={sortConfig} />
                                                 </button>
                                             </th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Device</th>
                                             <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Description</th>
                                             <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">IP Address</th>
                                         </tr>
@@ -773,6 +841,9 @@ const Activities = () => {
                                                     ) : (
                                                         <span className="text-gray-400">Unknown</span>
                                                     )}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm whitespace-nowrap">
+                                                    {renderDeviceBadge(activity)}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-700 max-w-sm">
                                                     <div className="whitespace-normal break-words leading-relaxed">

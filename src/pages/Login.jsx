@@ -150,10 +150,15 @@ const Login = () => {
         setError(null);
 
         try {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                             (navigator.maxTouchPoints > 2 && /Macintosh/i.test(navigator.userAgent));
+            const clientType = isMobile ? 'mobile_browser' : 'web';
+
             const retryResponse = await axios.post(`${API_BASE_URL}/api/auth/signin`, {
                 email: email.trim(),
                 password,
-                confirmed: true
+                confirmed: true,
+                client_type: clientType
             });
 
             if (retryResponse.data.accessToken) {
@@ -205,9 +210,14 @@ const Login = () => {
         setError(null);
 
         try {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                             (navigator.maxTouchPoints > 2 && /Macintosh/i.test(navigator.userAgent));
+            const clientType = isMobile ? 'mobile_browser' : 'web';
+
             const response = await axios.post(`${API_BASE_URL}/api/auth/signin`, {
                 email: email.trim(),
-                password
+                password,
+                client_type: clientType
             });
 
             if (response.data.requiresConfirmation) {
