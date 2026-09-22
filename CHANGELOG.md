@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.17](https://github.com/roonaatech/wp_webapp/compare/v2.12.16...v2.12.17) (2026-09-22)
+
+
+### Features
+
+* add quick filters and enhance summary UI in Activities page ([b7860e4](https://github.com/roonaatech/wp_webapp/commit/b7860e4e7d0efaaf65c4f4071e539a4cedcafdbc))
+
 ### [2.12.16](https://github.com/roonaatech/wp_webapp/compare/v2.12.15...v2.12.16) (2026-09-22)
 
 
