@@ -34,7 +34,7 @@ const MonthlySummaryReport = () => {
     const toggleInnerRow = (key) => {
         setExpandedInnerRows(prev => ({
             ...prev,
-            [key]: prev[key] === undefined ? false : !prev[key]
+            [key]: !prev[key]
         }));
     };
 
@@ -568,7 +568,7 @@ const MonthlySummaryReport = () => {
                                                             {s.records.map((rec, rIdx) => {
                                                                 if (rec.type === 'Attendance') {
                                                                     const innerKey = `${s.staff_id}_attendance`;
-                                                                    const isInnerOpen = expandedInnerRows[innerKey] !== false; // default open
+                                                                    const isInnerOpen = Boolean(expandedInnerRows[innerKey]); // default collapsed
                                                                     const sessions = rec.sessions || s.attendance_records || [];
                                                                     const presentDaysCount = rec.present_days !== undefined ? rec.present_days : s.present_days;
 
