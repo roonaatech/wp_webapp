@@ -653,130 +653,6 @@ const Attendance = () => {
                                 </div>
                             </div>
                         )}
-
-                        {/* Confirmation Dialog Overlay (YES / NO) */}
-                        {qrConfirmation && (
-                            <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-fadeIn z-40">
-                                <div className="relative mb-3">
-                                    {qrConfirmation.avatarUrl ? (
-                                        <img
-                                            src={`${API_BASE_URL}/${qrConfirmation.avatarUrl}`}
-                                            alt={qrConfirmation.employeeName}
-                                            className={`w-24 h-24 rounded-full object-cover border-4 shadow-2xl ${
-                                                qrConfirmation.type === 'CHECK_IN' ? 'border-emerald-400' : 'border-amber-400'
-                                            }`}
-                                        />
-                                    ) : (
-                                        <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-black shadow-2xl border-4 ${
-                                            qrConfirmation.type === 'CHECK_IN'
-                                                ? 'bg-emerald-500/20 border-emerald-400 text-emerald-400'
-                                                : 'bg-amber-500/20 border-amber-400 text-amber-400'
-                                        }`}>
-                                            {qrConfirmation.type === 'CHECK_IN' ? <LuLogIn size={36} /> : <LuLogOut size={36} />}
-                                        </div>
-                                    )}
-                                    <div className={`absolute -bottom-1 -right-1 p-1.5 rounded-full text-white shadow-lg ${
-                                        qrConfirmation.type === 'CHECK_IN' ? 'bg-emerald-500' : 'bg-amber-500'
-                                    }`}>
-                                        {qrConfirmation.type === 'CHECK_IN' ? <LuLogIn size={16} /> : <LuLogOut size={16} />}
-                                    </div>
-                                </div>
-
-                                <div className={`inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-2 shadow-sm border ${
-                                    qrConfirmation.type === 'CHECK_IN'
-                                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                        : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                                }`}>
-                                    <span>{qrConfirmation.type === 'CHECK_IN' ? 'CHECK-IN CONFIRMATION' : 'CHECK-OUT CONFIRMATION'}</span>
-                                </div>
-
-                                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                                    Confirm {qrConfirmation.type === 'CHECK_IN' ? 'Check-In' : 'Check-Out'}?
-                                </h2>
-
-                                <p className="text-slate-200 font-semibold text-lg mt-1">
-                                    {qrConfirmation.employeeName}
-                                </p>
-
-                                {qrConfirmation.duration && (
-                                    <div className="mt-2 text-xs font-bold text-slate-300 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-700">
-                                        Worked Duration: <span className="text-amber-400 font-mono font-bold">{qrConfirmation.duration}</span>
-                                    </div>
-                                )}
-
-                                <p className="text-xs text-slate-400 mt-2 font-mono">
-                                    Auto-cancelling in <span className="text-amber-300 font-bold">{confirmCountdown}s</span>
-                                </p>
-
-                                <div className="flex items-center gap-4 mt-6 w-full max-w-xs">
-                                    <button
-                                        type="button"
-                                        onClick={handleCancelConfirmation}
-                                        className="flex-1 py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-bold text-sm transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
-                                    >
-                                        <LuX size={18} className="text-rose-400" />
-                                        <span>NO</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleAcceptConfirmation}
-                                        className={`flex-1 py-3 px-4 rounded-xl text-white font-extrabold text-sm transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${
-                                            qrConfirmation.type === 'CHECK_IN'
-                                                ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40'
-                                                : 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/40'
-                                        }`}
-                                    >
-                                        <LuCheck size={18} strokeWidth={3} />
-                                        <span>YES</span>
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Celebration / Scan Success Card Overlay */}
-                        {qrResult && (
-                            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-fadeIn z-30">
-                                <div className="relative mb-3">
-                                    {qrResult.avatarUrl ? (
-                                        <img
-                                            src={`${API_BASE_URL}/${qrResult.avatarUrl}`}
-                                            alt={qrResult.employeeName}
-                                            className="w-24 h-24 rounded-full object-cover border-4 border-emerald-400 shadow-2xl"
-                                        />
-                                    ) : (
-                                        <div className="w-24 h-24 rounded-full bg-emerald-500/20 border-4 border-emerald-400 flex items-center justify-center text-emerald-400 text-3xl font-black shadow-2xl">
-                                            {qrResult.employeeName?.charAt(0) || '✓'}
-                                        </div>
-                                    )}
-                                    <div className="absolute -bottom-2 -right-2 p-2 bg-emerald-500 text-white rounded-full shadow-lg">
-                                        <LuCheck size={20} strokeWidth={3} />
-                                    </div>
-                                </div>
-
-                                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-2 shadow-sm bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                    {qrResult.type === 'CHECK_IN' ? <LuLogIn size={14} /> : <LuLogOut size={14} />}
-                                    <span>{qrResult.type === 'CHECK_IN' ? 'Check-In Recorded' : 'Check-Out Recorded'}</span>
-                                </div>
-
-                                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                                    {qrResult.employeeName}
-                                </h2>
-
-                                <p className="text-emerald-300 font-mono text-base font-bold mt-1">
-                                    {qrResult.time}
-                                </p>
-
-                                {qrResult.duration && (
-                                    <div className="mt-2 text-xs font-bold text-slate-300 bg-slate-900/80 px-3 py-1 rounded-xl border border-slate-700">
-                                        Worked Duration: <span className="text-emerald-400 font-mono">{qrResult.duration}</span>
-                                    </div>
-                                )}
-
-                                <p className="text-xs text-slate-400 mt-3 font-medium">
-                                    {qrResult.message || 'Attendance logged successfully! Have a great day.'}
-                                </p>
-                            </div>
-                        )}
                     </div>
 
                     {/* Viewfinder Footer status bar */}
@@ -863,6 +739,205 @@ const Attendance = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Confirmation Dialog Overlay (YES / NO) */}
+            {qrConfirmation && (
+                <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
+                    <div className={`relative w-full max-w-lg bg-slate-900 border-2 rounded-3xl p-6 sm:p-8 text-center shadow-2xl animate-scaleUp overflow-hidden ${
+                        qrConfirmation.type === 'CHECK_IN' ? 'border-emerald-500/50' : 'border-amber-500/50'
+                    }`}>
+                        {/* Ambient background glow */}
+                        <div className={`absolute -top-24 -right-24 w-60 h-60 rounded-full blur-3xl opacity-20 pointer-events-none ${
+                            qrConfirmation.type === 'CHECK_IN' ? 'bg-emerald-500' : 'bg-amber-500'
+                        }`} />
+                        <div className={`absolute -bottom-24 -left-24 w-60 h-60 rounded-full blur-3xl opacity-20 pointer-events-none ${
+                            qrConfirmation.type === 'CHECK_IN' ? 'bg-teal-500' : 'bg-orange-500'
+                        }`} />
+
+                        {/* Top Close / Dismiss 'X' button */}
+                        <button
+                            type="button"
+                            onClick={handleCancelConfirmation}
+                            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
+                            title="Cancel"
+                        >
+                            <LuX size={22} />
+                        </button>
+
+                        {/* Avatar & Action Icon Badge */}
+                        <div className="relative inline-block mb-4 mt-2">
+                            {qrConfirmation.avatarUrl ? (
+                                <img
+                                    src={`${API_BASE_URL}/${qrConfirmation.avatarUrl}`}
+                                    alt={qrConfirmation.employeeName}
+                                    className={`w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-4 shadow-2xl mx-auto ${
+                                        qrConfirmation.type === 'CHECK_IN'
+                                            ? 'border-emerald-500 shadow-emerald-500/20'
+                                            : 'border-amber-500 shadow-amber-500/20'
+                                    }`}
+                                />
+                            ) : (
+                                <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-3xl flex items-center justify-center text-3xl font-black shadow-2xl border-4 mx-auto ${
+                                    qrConfirmation.type === 'CHECK_IN'
+                                        ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400 shadow-emerald-500/20'
+                                        : 'bg-amber-950/80 border-amber-500 text-amber-400 shadow-amber-500/20'
+                                }`}>
+                                    {qrConfirmation.employeeName?.charAt(0) || <LuUser size={40} />}
+                                </div>
+                            )}
+                            <div className={`absolute -bottom-2 -right-2 p-2 rounded-2xl text-white shadow-xl border-2 border-slate-900 ${
+                                qrConfirmation.type === 'CHECK_IN' ? 'bg-emerald-500' : 'bg-amber-500'
+                            }`}>
+                                {qrConfirmation.type === 'CHECK_IN' ? <LuLogIn size={18} /> : <LuLogOut size={18} />}
+                            </div>
+                        </div>
+
+                        {/* Action Type Badge */}
+                        <div className="mb-2">
+                            <span className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-sm ${
+                                qrConfirmation.type === 'CHECK_IN'
+                                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                    : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                            }`}>
+                                {qrConfirmation.type === 'CHECK_IN' ? <LuLogIn size={14} /> : <LuLogOut size={14} />}
+                                <span>{qrConfirmation.type === 'CHECK_IN' ? 'CONFIRM CHECK-IN' : 'CONFIRM CHECK-OUT'}</span>
+                            </span>
+                        </div>
+
+                        {/* Employee Name */}
+                        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                            {qrConfirmation.employeeName}
+                        </h2>
+
+                        {/* Time & Duration Info Pills */}
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                            <div className="text-xs font-bold text-slate-300 bg-slate-800/90 px-3.5 py-1.5 rounded-xl border border-slate-700/80 inline-flex items-center gap-1.5 shadow-sm">
+                                <LuClock size={14} className="text-slate-400" />
+                                <span>Time: {qrConfirmation.time || currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            {qrConfirmation.duration && (
+                                <div className="text-xs font-bold text-slate-300 bg-slate-800/90 px-3.5 py-1.5 rounded-xl border border-slate-700/80 inline-flex items-center gap-1.5 shadow-sm">
+                                    <span className="text-slate-400">Worked Duration:</span>
+                                    <span className="text-amber-400 font-mono font-bold">{qrConfirmation.duration}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Confirmation Question */}
+                        <p className="text-sm font-medium text-slate-300 mt-4 leading-relaxed">
+                            {qrConfirmation.type === 'CHECK_IN'
+                                ? 'Would you like to record Check-In for this employee?'
+                                : 'Would you like to record Check-Out for this employee?'}
+                        </p>
+
+                        {/* Auto-cancel countdown */}
+                        <div className="mt-2 text-xs text-slate-400 font-mono">
+                            Auto-cancelling in <span className="text-amber-400 font-black">{confirmCountdown}s</span>
+                        </div>
+
+                        {/* Two Big Action Buttons: CANCEL (NO) and PROCEED (YES) */}
+                        <div className="grid grid-cols-2 gap-3.5 sm:gap-4 mt-6 pt-2">
+                            <button
+                                type="button"
+                                onClick={handleCancelConfirmation}
+                                className="w-full py-4 px-4 rounded-2xl border-2 border-slate-700 bg-slate-800 hover:bg-slate-750 hover:border-slate-600 text-slate-200 font-bold text-sm sm:text-base transition-all active:scale-95 shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                <LuX size={20} className="text-rose-400" />
+                                <span>NO, Cancel</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleAcceptConfirmation}
+                                className={`w-full py-4 px-4 rounded-2xl text-white font-black text-sm sm:text-base transition-all active:scale-95 shadow-xl flex items-center justify-center gap-2 cursor-pointer ${
+                                    qrConfirmation.type === 'CHECK_IN'
+                                        ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/50'
+                                        : 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/50'
+                                }`}
+                            >
+                                <LuCheck size={22} strokeWidth={3} />
+                                <span>YES, Proceed</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Attendance Scan Success Modal */}
+            {qrResult && (
+                <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
+                    <div className="relative w-full max-w-lg bg-slate-900 border-2 border-emerald-500/50 rounded-3xl p-6 sm:p-8 text-center shadow-[0_25px_60px_-15px_rgba(16,185,129,0.3)] animate-scaleUp overflow-hidden">
+                        {/* Ambient Glow */}
+                        <div className="absolute -top-24 -right-24 w-60 h-60 rounded-full blur-3xl bg-emerald-500 opacity-20 pointer-events-none" />
+
+                        {/* Avatar & Checkmark */}
+                        <div className="relative inline-block mb-4 mt-2">
+                            {qrResult.avatarUrl ? (
+                                <img
+                                    src={`${API_BASE_URL}/${qrResult.avatarUrl}`}
+                                    alt={qrResult.employeeName}
+                                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-4 border-emerald-400 shadow-2xl shadow-emerald-500/20 mx-auto"
+                                />
+                            ) : (
+                                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-emerald-950/80 border-4 border-emerald-400 flex items-center justify-center text-emerald-400 text-3xl font-black shadow-2xl shadow-emerald-500/20 mx-auto">
+                                    {qrResult.employeeName?.charAt(0) || <LuCheck size={40} strokeWidth={3} />}
+                                </div>
+                            )}
+                            <div className="absolute -bottom-2 -right-2 p-2 bg-emerald-500 text-white rounded-2xl shadow-xl border-2 border-slate-900">
+                                <LuCheck size={18} strokeWidth={3} />
+                            </div>
+                        </div>
+
+                        {/* Type Badge */}
+                        <div className="mb-2">
+                            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                {qrResult.type === 'CHECK_IN' ? <LuLogIn size={14} /> : <LuLogOut size={14} />}
+                                <span>{qrResult.type === 'CHECK_IN' ? 'Check-In Recorded' : 'Check-Out Recorded'}</span>
+                            </span>
+                        </div>
+
+                        {/* Employee Name */}
+                        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                            {qrResult.employeeName}
+                        </h2>
+
+                        {/* Timestamp & Duration */}
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                            <div className="text-xs font-bold text-slate-300 bg-slate-800/90 px-3.5 py-1.5 rounded-xl border border-slate-700/80 inline-flex items-center gap-1.5">
+                                <LuClock size={14} className="text-emerald-400" />
+                                <span className="text-emerald-300 font-mono">{qrResult.time}</span>
+                            </div>
+                            {qrResult.duration && (
+                                <div className="text-xs font-bold text-slate-300 bg-slate-800/90 px-3.5 py-1.5 rounded-xl border border-slate-700/80 inline-flex items-center gap-1.5">
+                                    <span className="text-slate-400">Worked Duration:</span>
+                                    <span className="text-emerald-400 font-mono font-bold">{qrResult.duration}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Message */}
+                        <p className="text-sm text-slate-300 mt-4 leading-relaxed font-medium">
+                            {qrResult.message || 'Attendance logged successfully! Have a great day.'}
+                        </p>
+
+                        {/* Done / Dismiss Button */}
+                        <div className="mt-6 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setQrResult(null);
+                                    qrProcessingRef.current = false;
+                                    setStatusMessage("QR Scanner Ready. Scan your badge.");
+                                }}
+                                className="w-full py-4 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm sm:text-base transition-all active:scale-95 shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                <LuCheck size={20} strokeWidth={3} />
+                                <span>Done</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Exit / Enter Kiosk Password Confirmation Modal */}
             {kioskModal && (
