@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.18](https://github.com/roonaatech/wp_webapp/compare/v2.12.17...v2.12.18) (2026-09-22)
+
+
+### Features
+
+* include attendance sessions and work hours breakdown in monthly summary report export ([094c4cf](https://github.com/roonaatech/wp_webapp/commit/094c4cfd6c0c53549ab099b9a01d272d0bb404c3))
+
 ### [2.12.17](https://github.com/roonaatech/wp_webapp/compare/v2.12.16...v2.12.17) (2026-09-22)
 
 
