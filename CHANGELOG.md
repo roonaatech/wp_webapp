@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.22](https://github.com/roonaatech/wp_webapp/compare/v2.12.21...v2.12.22) (2026-09-23)
+
+
+### Features
+
+* add mobile device model fingerprinting and device violation handling for authentication and badge checks ([8277b8c](https://github.com/roonaatech/wp_webapp/commit/8277b8c820daf7ac2fd110cae3b4df5d495d06c9))
+* add mobile web blocking detection and update mobile-only feature UI ([74fec74](https://github.com/roonaatech/wp_webapp/commit/74fec74ae9967408525079aa2125b4cae6aed6fb))
+
 ### [2.12.21](https://github.com/roonaatech/wp_webapp/compare/v2.12.20...v2.12.21) (2026-09-23)
 
 ### [2.12.20](https://github.com/roonaatech/wp_webapp/compare/v2.12.19...v2.12.20) (2026-09-22)
