@@ -17,7 +17,9 @@ import {
     LuSparkles,
     LuInfo,
     LuArrowLeft,
-    LuLogOut
+    LuLogOut,
+    LuSmartphone,
+    LuExternalLink
 } from 'react-icons/lu';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
@@ -36,6 +38,7 @@ const MyBadge = () => {
     const [isLocked, setIsLocked] = useState(false);
     const [error, setError] = useState(null);
     const [isDeviceViolation, setIsDeviceViolation] = useState(false);
+    const [isMobileWebBlocked, setIsMobileWebBlocked] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -82,9 +85,11 @@ const MyBadge = () => {
             }
         } catch (err) {
             console.error('Error fetching badge data:', err);
-            const isViolation = err.response?.data?.deviceViolation === true || err.response?.status === 403;
+            const isViolation = err.response?.data?.deviceViolation === true;
+            const isBlocked = err.response?.data?.isMobileWebBlocked === true;
             const msg = err.response?.data?.message || 'Could not connect to badge server.';
             setIsDeviceViolation(isViolation);
+            setIsMobileWebBlocked(isBlocked);
             setError(msg);
             if (isManual) toast.error(msg);
         } finally {
@@ -154,21 +159,26 @@ const MyBadge = () => {
         }
     };
 
+    // Desktop browser notice
     if (!isMobile) {
         return (
             <div className="min-h-[70vh] flex items-center justify-center p-6 bg-slate-100">
                 <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center border border-slate-200">
-                    <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-100 shadow-sm">
+                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-100 shadow-sm">
                         <LuQrCode className="w-8 h-8" />
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-3">
+                        <LuShieldCheck className="w-3.5 h-3.5" />
+                        <span>Mobile Attendance Security</span>
                     </div>
                     <h2 className="text-xl font-black text-slate-900 mb-2">Mobile Only Feature</h2>
                     <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                        Smart Attendance Badges with dynamic rotating QR codes are designed for mobile devices. 
-                        Please open <strong>WorkPulse</strong> in your mobile browser or use the WorkPulse Mobile App to scan and clock attendance at the kiosk terminal.
+                        Smart Attendance Badges with dynamic rotating QR codes are presented at the kiosk terminal from your phone. 
+                        Please open the official <strong>WorkPulse Mobile App</strong> on your mobile device to view your attendance badge.
                     </p>
                     <button
                         onClick={() => navigate(canAccessWebApp(user.role) ? '/' : '/my-requests')}
-                        className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-md transition-colors"
+                        className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-md transition-colors text-sm"
                     >
                         {canAccessWebApp(user.role) ? 'Return to Dashboard' : 'Go to My Requests'}
                     </button>
@@ -176,6 +186,7 @@ const MyBadge = () => {
             </div>
         );
     }
+
 
     if (loading) {
         return (
