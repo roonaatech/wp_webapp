@@ -14,9 +14,11 @@ import {
     LuX,
     LuArrowRight,
     LuSparkles,
-    LuShieldCheck
+    LuShieldCheck,
+    LuShieldAlert
 } from "react-icons/lu";
 import { fetchRoles, canAccessWebApp, isSelfServiceOnly, canAccessAttendancePortal } from '../utils/roleUtils';
+import { getOrCreateDeviceId, getDeviceName, isMobileClient, getMobileDeviceMetadata } from '../utils/deviceFingerprint';
 import packageJson from '../../package.json';
 
 const Login = () => {
@@ -46,6 +48,7 @@ const Login = () => {
     const [showNotAuthorizedModal, setShowNotAuthorizedModal] = useState(false);
     const [showWelcomeModal, setShowWelcomeModal] = useState(false);
     const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, message: '' });
+    const [deviceViolationModal, setDeviceViolationModal] = useState({ isOpen: false, message: '' });
 
     // Forgot Password Modal State
     const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
@@ -150,15 +153,25 @@ const Login = () => {
         setError(null);
 
         try {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                             (navigator.maxTouchPoints > 2 && /Macintosh/i.test(navigator.userAgent));
-            const clientType = isMobile ? 'mobile_browser' : 'web';
+            const devMeta = await getMobileDeviceMetadata();
+            const clientType = devMeta.isMobile ? 'mobile_browser' : 'web';
 
             const retryResponse = await axios.post(`${API_BASE_URL}/api/auth/signin`, {
                 email: email.trim(),
                 password,
                 confirmed: true,
-                client_type: clientType
+                client_type: clientType,
+                deviceId: devMeta.deviceId,
+                deviceName: devMeta.deviceName,
+                deviceModel: devMeta.deviceModel,
+                is_mobile: devMeta.isMobile
+            }, {
+                headers: {
+                    'x-is-mobile': devMeta.isMobile ? 'true' : 'false',
+                    'x-device-id': devMeta.deviceId,
+                    'x-device-name': devMeta.deviceName,
+                    'x-device-model': devMeta.deviceModel || ''
+                }
             });
 
             if (retryResponse.data.accessToken) {
@@ -180,7 +193,14 @@ const Login = () => {
         let errorMsg = 'Login failed. Please try again.';
 
         if (err.response) {
-            if (err.response.status === 401) {
+            if (err.response.data?.deviceViolation) {
+                setDeviceViolationModal({
+                    isOpen: true,
+                    message: err.response.data.message || 'This mobile device is registered to another employee. Attendance and login on this device have been restricted.'
+                });
+                setLoading(false);
+                return;
+            } else if (err.response.status === 401) {
                 errorMsg = err.response.data?.message || 'Invalid email or password.';
             } else if (err.response.status === 403) {
                 if (err.response.data?.isInactive) {
@@ -210,14 +230,24 @@ const Login = () => {
         setError(null);
 
         try {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                             (navigator.maxTouchPoints > 2 && /Macintosh/i.test(navigator.userAgent));
-            const clientType = isMobile ? 'mobile_browser' : 'web';
+            const devMeta = await getMobileDeviceMetadata();
+            const clientType = devMeta.isMobile ? 'mobile_browser' : 'web';
 
             const response = await axios.post(`${API_BASE_URL}/api/auth/signin`, {
                 email: email.trim(),
                 password,
-                client_type: clientType
+                client_type: clientType,
+                deviceId: devMeta.deviceId,
+                deviceName: devMeta.deviceName,
+                deviceModel: devMeta.deviceModel,
+                is_mobile: devMeta.isMobile
+            }, {
+                headers: {
+                    'x-is-mobile': devMeta.isMobile ? 'true' : 'false',
+                    'x-device-id': devMeta.deviceId,
+                    'x-device-name': devMeta.deviceName,
+                    'x-device-model': devMeta.deviceModel || ''
+                }
             });
 
             if (response.data.requiresConfirmation) {
@@ -691,6 +721,30 @@ const Login = () => {
                                 Yes, Log In
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Device Violation / Security Alert Modal */}
+            {deviceViolationModal.isOpen && (
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-red-200 ring-4 ring-red-50">
+                        <div className="w-16 h-16 bg-red-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-200">
+                            <LuShieldAlert size={32} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 mb-2">Security Alert: Device Conflict</h3>
+                        <p className="text-sm text-red-700 font-semibold bg-red-50 p-4 rounded-xl border border-red-100 mb-4 text-left leading-relaxed">
+                            {deviceViolationModal.message}
+                        </p>
+                        <p className="text-xs text-slate-500 mb-6 text-left leading-relaxed">
+                            For security and anti-proxy compliance, each mobile phone can only be used by one employee. If you recently received this phone from a colleague, please contact HR or an Administrator to reset the device registration.
+                        </p>
+                        <button
+                            onClick={() => setDeviceViolationModal({ isOpen: false, message: '' })}
+                            className="w-full py-3.5 bg-slate-900 hover:bg-black text-white rounded-xl font-bold transition-all text-sm shadow-md cursor-pointer"
+                        >
+                            Acknowledge
+                        </button>
                     </div>
                 </div>
             )}

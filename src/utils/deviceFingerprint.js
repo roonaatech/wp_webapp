@@ -113,11 +113,59 @@ export function getOrCreateDeviceId() {
     }
 }
 
+let _cachedMobileModel = null;
+
+/**
+ * Extract physical device hardware model (e.g. "SM-A536B", "Pixel 7 Pro", "iPhone")
+ * Uses Chromium Client Hints API (supported in Chrome/Edge/Samsung Internet on Android)
+ * with robust regex fallbacks for other browsers.
+ * @returns {Promise<string|null>}
+ */
+export async function getMobileDeviceModel() {
+    if (_cachedMobileModel !== null) return _cachedMobileModel;
+    if (typeof navigator === 'undefined') return null;
+
+    // 1. Client Hints (Chromium Android: Chrome, Samsung Internet, Edge, Opera)
+    if (navigator.userAgentData && typeof navigator.userAgentData.getHighEntropyValues === 'function') {
+        try {
+            const hints = await navigator.userAgentData.getHighEntropyValues(['model', 'platform', 'platformVersion']);
+            if (hints && hints.model && typeof hints.model === 'string' && hints.model.trim().length >= 2) {
+                const cleaned = hints.model.trim();
+                if (!/^(K|Mobile|wv|unknown)$/i.test(cleaned)) {
+                    _cachedMobileModel = cleaned;
+                    return cleaned;
+                }
+            }
+        } catch (_) {}
+    }
+
+    // 2. Android model from User-Agent
+    const ua = navigator.userAgent || '';
+    const m = ua.match(/\bAndroid[^;)]*;\s*([^;)]+)/i);
+    if (m) {
+        const cleaned = m[1].replace(/\s*Build\/.*$/i, '').trim();
+        if (cleaned && cleaned.length >= 3 && !/^(K|Mobile|wv)$/i.test(cleaned)) {
+            _cachedMobileModel = cleaned;
+            return cleaned;
+        }
+    }
+
+    // 3. Apple iOS
+    if (/iPhone|iPad|iPod/i.test(ua)) {
+        _cachedMobileModel = 'iPhone';
+        return 'iPhone';
+    }
+
+    _cachedMobileModel = null;
+    return null;
+}
+
 /**
  * Get a friendly device name and browser description
- * @returns {string} e.g. "iPhone (iOS) - Mobile Safari" or "Android Phone - Chrome Mobile"
+ * @param {string} [explicitModel]
+ * @returns {string} e.g. "SM-A536B - Android Device - Chrome (412x915)"
  */
-export function getDeviceName() {
+export function getDeviceName(explicitModel = null) {
     if (typeof navigator === 'undefined') return 'Unknown Device';
 
     const ua = navigator.userAgent;
@@ -151,7 +199,26 @@ export function getDeviceName() {
     }
 
     const screenRes = typeof window !== 'undefined' ? `${window.screen.width}x${window.screen.height}` : '';
-    return `${os} - ${browser} (${screenRes})`;
+    const modelPrefix = explicitModel || _cachedMobileModel ? `${explicitModel || _cachedMobileModel} - ` : '';
+    return `${modelPrefix}${os} - ${browser} (${screenRes})`.trim();
+}
+
+/**
+ * Get full mobile device metadata bundle for authentication and attendance
+ * @returns {Promise<{ isMobile: boolean, deviceId: string, deviceName: string, deviceModel: string|null }>}
+ */
+export async function getMobileDeviceMetadata() {
+    const isMobile = isMobileClient();
+    const deviceId = isMobile ? getOrCreateDeviceId() : undefined;
+    const deviceModel = isMobile ? await getMobileDeviceModel() : null;
+    const deviceName = isMobile ? getDeviceName(deviceModel) : getDeviceName();
+
+    return {
+        isMobile,
+        deviceId,
+        deviceName,
+        deviceModel
+    };
 }
 
 /**
@@ -171,3 +238,4 @@ export function isMobileClient() {
 
     return false;
 }
+

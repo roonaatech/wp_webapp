@@ -25,7 +25,7 @@ import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 import ModernLoader from '../components/ModernLoader';
 import { canAccessWebApp } from '../utils/roleUtils';
-import { getOrCreateDeviceId, getDeviceName, isMobileClient } from '../utils/deviceFingerprint';
+import { getOrCreateDeviceId, getDeviceName, isMobileClient, getMobileDeviceMetadata } from '../utils/deviceFingerprint';
 
 const ROTATION_INTERVAL_SEC = 5;
 
@@ -58,20 +58,20 @@ const MyBadge = () => {
         if (isManual) setRefreshing(true);
 
         try {
-            const isMobileDevice = isMobileClient();
-            const deviceId = getOrCreateDeviceId();
-            const deviceName = getDeviceName();
+            const devMeta = await getMobileDeviceMetadata();
 
             const response = await axios.get(`${API_BASE_URL}/api/attendance/my-badge`, {
                 headers: { 
                     'x-access-token': token,
-                    'x-is-mobile': isMobileDevice ? 'true' : 'false',
-                    'x-device-id': deviceId,
-                    'x-device-name': deviceName
+                    'x-is-mobile': devMeta.isMobile ? 'true' : 'false',
+                    'x-device-id': devMeta.deviceId,
+                    'x-device-name': devMeta.deviceName,
+                    'x-device-model': devMeta.deviceModel || ''
                 },
                 params: {
-                    deviceId: isMobileDevice ? deviceId : undefined,
-                    deviceName: isMobileDevice ? deviceName : undefined
+                    deviceId: devMeta.isMobile ? devMeta.deviceId : undefined,
+                    deviceName: devMeta.isMobile ? devMeta.deviceName : undefined,
+                    deviceModel: devMeta.isMobile ? devMeta.deviceModel : undefined
                 }
             });
 
