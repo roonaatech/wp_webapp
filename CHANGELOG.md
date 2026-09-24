@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.25](https://github.com/roonaatech/wp_webapp/compare/v2.12.24...v2.12.25) (2026-09-24)
+
+
+### Features
+
+* enhance Attendance kiosk with inactivity timeout, privacy blur, and dynamic timezone support ([5e05c94](https://github.com/roonaatech/wp_webapp/commit/5e05c94b0881f741adad2bb7f67c0a16a62449ba))
+
 ### [2.12.24](https://github.com/roonaatech/wp_webapp/compare/v2.12.23...v2.12.24) (2026-09-24)
 
 
