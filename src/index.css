@@ -60,6 +60,45 @@ body {
   animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -18px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scaleUp {
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .login-box-shadow {
   box-shadow:
     0 25px 60px -12px rgba(15, 23, 42, 0.35),
@@ -68,3 +107,4 @@ body {
     0 0 45px -5px rgba(99, 102, 241, 0.2),
     0 0 0 1px rgba(15, 23, 42, 0.08);
 }
+
