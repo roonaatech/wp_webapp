@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.24](https://github.com/roonaatech/wp_webapp/compare/v2.12.23...v2.12.24) (2026-09-24)
+
+
+### Features
+
+* add 3 and 6-month attendance chart filters, improve date parsing, and clear auth flags on logout ([7dbc484](https://github.com/roonaatech/wp_webapp/commit/7dbc484f7e7ff42f89efd7ee7bd99172da7d4ce4))
+
 ### [2.12.23](https://github.com/roonaatech/wp_webapp/compare/v2.12.22...v2.12.23) (2026-09-23)
 
 ### [2.12.22](https://github.com/roonaatech/wp_webapp/compare/v2.12.21...v2.12.22) (2026-09-23)
