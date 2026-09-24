@@ -2278,24 +2278,29 @@ const Users = () => {
                                                                                     })}
                                                                                 </div>
 
-                                                                                {showAbsent[u.staffid] && attData.present && attData.present.length > 0 && (() => {
+                                                                                {(() => {
                                                                                     const userId = u.staffid;
                                                                                     const activeFilter = chartFilters[userId] || '30d';
                                                                                     const FILTERS = [
-                                                                                        { key: '7d',         label: '7 Days'      },
-                                                                                        { key: '14d',        label: '14 Days'     },
-                                                                                        { key: '30d',        label: '30 Days'     },
-                                                                                        { key: '60d',        label: '60 Days'     },
-                                                                                        { key: '90d',        label: '90 Days'     },
-                                                                                        { key: 'this_week',  label: 'This Week'   },
-                                                                                        { key: 'this_month', label: 'This Month'  },
-                                                                                        { key: 'last_month', label: 'Last Month'  },
-                                                                                        { key: 'year',       label: 'This Year'   },
+                                                                                        { key: '7d',            label: '7 Days'        },
+                                                                                        { key: '14d',           label: '14 Days'       },
+                                                                                        { key: '30d',           label: '30 Days'       },
+                                                                                        { key: '60d',           label: '60 Days'       },
+                                                                                        { key: '90d',           label: '90 Days'       },
+                                                                                        { key: 'this_week',     label: 'This Week'     },
+                                                                                        { key: 'this_month',    label: 'This Month'    },
+                                                                                        { key: 'last_month',    label: 'Last Month'    },
+                                                                                        { key: 'last_3_months', label: 'Last 3 Months' },
+                                                                                        { key: 'last_6_months', label: 'Last 6 Months' },
+                                                                                        { key: 'year',          label: 'This Year'     },
                                                                                     ];
                                                                                     const now = new Date();
-                                                                                    const filteredLogs = attData.present.filter(log => {
+                                                                                    const filteredLogs = (attData.present || []).filter(log => {
                                                                                         if (!log.date) return false;
-                                                                                        const logDate = new Date(log.date);
+                                                                                        const dateParts = String(log.date).split('-');
+                                                                                        const logDate = dateParts.length === 3
+                                                                                            ? new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
+                                                                                            : new Date(log.date);
                                                                                         if (activeFilter === 'year') {
                                                                                             return logDate.getFullYear() === now.getFullYear();
                                                                                         }
@@ -2312,10 +2317,29 @@ const Users = () => {
                                                                                             const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
                                                                                             return logDate.getFullYear() === lm.getFullYear() && logDate.getMonth() === lm.getMonth();
                                                                                         }
+                                                                                        if (activeFilter === 'last_3_months') {
+                                                                                            const cutoff = new Date(now);
+                                                                                            const targetMonth = cutoff.getMonth() - 3;
+                                                                                            cutoff.setMonth(targetMonth);
+                                                                                            const expectedMonth = ((targetMonth % 12) + 12) % 12;
+                                                                                            if (cutoff.getMonth() !== expectedMonth) cutoff.setDate(0);
+                                                                                            cutoff.setHours(0, 0, 0, 0);
+                                                                                            return logDate >= cutoff;
+                                                                                        }
+                                                                                        if (activeFilter === 'last_6_months') {
+                                                                                            const cutoff = new Date(now);
+                                                                                            const targetMonth = cutoff.getMonth() - 6;
+                                                                                            cutoff.setMonth(targetMonth);
+                                                                                            const expectedMonth = ((targetMonth % 12) + 12) % 12;
+                                                                                            if (cutoff.getMonth() !== expectedMonth) cutoff.setDate(0);
+                                                                                            cutoff.setHours(0, 0, 0, 0);
+                                                                                            return logDate >= cutoff;
+                                                                                        }
                                                                                         const daysMap = { '7d': 7, '14d': 14, '30d': 30, '60d': 60, '90d': 90 };
                                                                                         const days = daysMap[activeFilter] || 30;
                                                                                         const cutoff = new Date(now);
                                                                                         cutoff.setDate(cutoff.getDate() - days);
+                                                                                        cutoff.setHours(0, 0, 0, 0);
                                                                                         return logDate >= cutoff;
                                                                                     });
                                                                                     const chartData = getChartData(filteredLogs);
@@ -2327,7 +2351,7 @@ const Users = () => {
                                                                                                     <span className="w-2 h-2 bg-indigo-600 rounded-full" />
                                                                                                     Work Duration Trend (Hours per Day)
                                                                                                 </h5>
-                                                                                                <div className="flex items-center gap-1">
+                                                                                                <div className="flex flex-wrap items-center gap-1">
                                                                                                     {FILTERS.map(f => (
                                                                                                         <button
                                                                                                             key={f.key}

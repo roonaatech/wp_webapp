@@ -103,6 +103,13 @@ const Login = () => {
         localStorage.setItem('token', data.accessToken);
         localStorage.setItem('user', JSON.stringify(user));
 
+        // Store password change & declaration requirements
+        const mustChangePassword = Boolean(data.mustChangePassword === true || data.isTemporaryPassword === true);
+        const mustCompleteDeclaration = Boolean(data.mustCompleteDeclaration === true);
+
+        localStorage.setItem('mustChangePassword', mustChangePassword ? 'true' : 'false');
+        localStorage.setItem('mustCompleteDeclaration', mustCompleteDeclaration ? 'true' : 'false');
+
         // Fetch dynamic roles and app settings
         try {
             await fetchRoles();
@@ -113,8 +120,8 @@ const Login = () => {
             console.error('Error refreshing roles on login:', roleErr);
         }
 
-        // Check first-time login profile completion
-        if (data.isFirstTimeLogin) {
+        // Gating Check: If user must change password, sign declaration, or complete first-time setup
+        if (mustChangePassword || mustCompleteDeclaration || data.isFirstLogin || data.isFirstTimeLogin) {
             navigate('/verify-profile');
             return;
         }
@@ -144,6 +151,8 @@ const Login = () => {
         setShowNotAuthorizedModal(true);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        localStorage.removeItem('mustChangePassword');
+        localStorage.removeItem('mustCompleteDeclaration');
         setLoading(false);
     };
 

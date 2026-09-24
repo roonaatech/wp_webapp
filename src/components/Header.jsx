@@ -200,6 +200,8 @@ const Header = () => {
         } finally {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            localStorage.removeItem('mustChangePassword');
+            localStorage.removeItem('mustCompleteDeclaration');
             toast.success('Logged out. See you soon!', {
                 style: {
                     background: '#4b5563',

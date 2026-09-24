@@ -595,8 +595,14 @@ const FirstTimeLoginFlow = () => {
                 {/* Header indicators */}
                 <div className="flex items-center justify-between mb-8 border-b border-slate-100 pb-5">
                     <div>
-                        <h1 className="text-3xl font-black text-[#1e1b4b]">Profile Setup & Audit</h1>
-                        <p className="text-base text-slate-500 mt-1.5">Please complete the mandatory first-time verification steps.</p>
+                        <h1 className="text-3xl font-black text-[#1e1b4b]">
+                            {mustCompleteDeclaration ? 'Profile Setup & Audit' : 'Set New Password'}
+                        </h1>
+                        <p className="text-base text-slate-500 mt-1.5">
+                            {mustCompleteDeclaration 
+                                ? 'Please complete the mandatory first-time verification steps.' 
+                                : 'To secure your account, please set a new permanent password.'}
+                        </p>
                     </div>
                     {/* Stepper indicator badges */}
                     <div className="flex gap-2">

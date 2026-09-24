@@ -40,10 +40,26 @@ const Attendance = () => {
     const videoRef = useRef(null);
     const streamRef = useRef(null);
     const scanLoopRef = useRef(null);
+    const barcodeDetectorRef = useRef(null);
+    const canvasRef = useRef(null);
+    const isScanningRef = useRef(false);
+    const videoFrameCallbackIdRef = useRef(null);
+    const animFrameIdRef = useRef(null);
     const [devices, setDevices] = useState([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState('');
     const [cameraActive, setCameraActive] = useState(false);
     const [cameraError, setCameraError] = useState('');
+
+    // Initialize native hardware-accelerated BarcodeDetector (Chrome/Chromium native, <5ms detection)
+    useEffect(() => {
+        if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+            try {
+                barcodeDetectorRef.current = new window.BarcodeDetector({ formats: ['qr_code'] });
+            } catch (err) {
+                console.warn('Native BarcodeDetector not available, using jsQR fallback:', err);
+            }
+        }
+    }, []);
 
     // Status & Results
     const [statusMessage, setStatusMessage] = useState('QR Scanner Ready. Scan your badge.');
@@ -164,8 +180,8 @@ const Attendance = () => {
         try {
             const constraints = {
                 video: selectedDeviceId 
-                    ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-                    : { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+                    ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60, min: 30 } }
+                    : { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60, min: 30 } }
             };
 
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -183,6 +199,16 @@ const Attendance = () => {
     };
 
     const stopCamera = () => {
+        if (videoRef.current && videoFrameCallbackIdRef.current && 'cancelVideoFrameCallback' in videoRef.current) {
+            try {
+                videoRef.current.cancelVideoFrameCallback(videoFrameCallbackIdRef.current);
+            } catch (_) {}
+            videoFrameCallbackIdRef.current = null;
+        }
+        if (animFrameIdRef.current) {
+            cancelAnimationFrame(animFrameIdRef.current);
+            animFrameIdRef.current = null;
+        }
         if (scanLoopRef.current) {
             clearTimeout(scanLoopRef.current);
             scanLoopRef.current = null;
@@ -191,6 +217,7 @@ const Attendance = () => {
             streamRef.current.getTracks().forEach(t => t.stop());
             streamRef.current = null;
         }
+        isScanningRef.current = false;
         setCameraActive(false);
     };
 
@@ -203,45 +230,107 @@ const Attendance = () => {
         };
     }, [hasPermission, selectedDeviceId]);
 
-    // High-performance QR Detection Loop with jsQR
+    // Ultra-Fast QR Detection Loop:
+    // 1. Uses Chrome native BarcodeDetector API (hardware GPU accelerated, <5ms)
+    // 2. Uses requestVideoFrameCallback (fires as soon as camera hardware renders a new frame)
+    // 3. Fallback: Reuses a single downscaled canvas + jsQR (<15ms)
     const runDetectionLoop = () => {
         if (!streamRef.current || !videoRef.current) return;
+        const video = videoRef.current;
+
+        // Initialize reusable offscreen canvas for fallback
+        if (!canvasRef.current) {
+            canvasRef.current = document.createElement('canvas');
+        }
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
         const scanFrame = async () => {
-            if (!streamRef.current) return;
+            if (!streamRef.current || !videoRef.current) return;
 
             if (
-                videoRef.current &&
-                videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA &&
-                !qrProcessingRef.current
+                video.readyState >= 2 && // HAVE_CURRENT_DATA or higher
+                !qrProcessingRef.current &&
+                !isScanningRef.current
             ) {
+                isScanningRef.current = true;
                 try {
-                    const video = videoRef.current;
-                    const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth || 640;
-                    canvas.height = video.videoHeight || 480;
-                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "dontInvert"
-                    });
+                    let detectedPayload = null;
 
-                    if (code && code.data && code.data.startsWith('WPQR.')) {
-                        await handleQrScanned(code.data);
+                    // 1. Ultra-fast hardware-accelerated BarcodeDetector (Chrome/Chromium native, <5ms)
+                    if (barcodeDetectorRef.current) {
+                        try {
+                            const barcodes = await barcodeDetectorRef.current.detect(video);
+                            if (barcodes && barcodes.length > 0) {
+                                for (const barcode of barcodes) {
+                                    const val = (barcode.rawValue || '').trim();
+                                    if (val.startsWith('WPQR.')) {
+                                        detectedPayload = val;
+                                        break;
+                                    }
+                                }
+                            }
+                        } catch (_) {
+                            // BarcodeDetector fallback
+                        }
+                    }
+
+                    // 2. High-speed jsQR fallback with downscaled frame (<15ms)
+                    if (!detectedPayload && video.videoWidth > 0 && video.videoHeight > 0) {
+                        const maxDim = 640;
+                        const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
+                        const sw = Math.round(video.videoWidth * scale);
+                        const sh = Math.round(video.videoHeight * scale);
+
+                        if (canvas.width !== sw || canvas.height !== sh) {
+                            canvas.width = sw;
+                            canvas.height = sh;
+                        }
+
+                        ctx.drawImage(video, 0, 0, sw, sh);
+                        const imageData = ctx.getImageData(0, 0, sw, sh);
+
+                        let code = jsQR(imageData.data, sw, sh, {
+                            inversionAttempts: "dontInvert"
+                        });
+
+                        // Fallback with inversion if not found (e.g. dark mode phone screen)
+                        if (!code || !code.data) {
+                            code = jsQR(imageData.data, sw, sh, {
+                                inversionAttempts: "onlyInvert"
+                            });
+                        }
+
+                        if (code && code.data && code.data.startsWith('WPQR.')) {
+                            detectedPayload = code.data;
+                        }
+                    }
+
+                    if (detectedPayload) {
+                        await handleQrScanned(detectedPayload);
                     }
                 } catch (qrErr) {
                     console.error("QR frame scan error:", qrErr);
+                } finally {
+                    isScanningRef.current = false;
                 }
             }
 
-            if (streamRef.current) {
-                scanLoopRef.current = setTimeout(scanFrame, 100); // 10 scans/second
+            // Continuously scan as soon as the next camera frame is ready:
+            if (streamRef.current && videoRef.current) {
+                if ('requestVideoFrameCallback' in video) {
+                    videoFrameCallbackIdRef.current = video.requestVideoFrameCallback(scanFrame);
+                } else {
+                    animFrameIdRef.current = requestAnimationFrame(scanFrame);
+                }
             }
         };
 
-        scanLoopRef.current = setTimeout(scanFrame, 100);
+        if ('requestVideoFrameCallback' in video) {
+            videoFrameCallbackIdRef.current = video.requestVideoFrameCallback(scanFrame);
+        } else {
+            animFrameIdRef.current = requestAnimationFrame(scanFrame);
+        }
     };
 
     // Handler for Scanned QR Badge
