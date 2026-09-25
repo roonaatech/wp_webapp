@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.29](https://github.com/roonaatech/wp_webapp/compare/v2.12.28...v2.12.29) (2026-09-25)
+
+
+### Features
+
+* add compliance day tracking and date presets to attendance reports and monthly summary exports ([4347774](https://github.com/roonaatech/wp_webapp/commit/4347774e45606e2ce94b80019c6f7a8d4fd7e2d2))
+
 ### [2.12.28](https://github.com/roonaatech/wp_webapp/compare/v2.12.27...v2.12.28) (2026-09-25)
 
 
