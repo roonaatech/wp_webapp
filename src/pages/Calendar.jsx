@@ -4,14 +4,15 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { hasAdminPermission, fetchRoles, canManageSchedule } from '../utils/roleUtils';
-import { getCurrentInAppTimezone, getAppTimezone, mirrorToTimezone, formatTimeOnly, parseAppTimezone } from '../utils/timezone.util';
+import { getCurrentInAppTimezone, getAppTimezone, mirrorToTimezone, formatTimeOnly, formatDateOnly, formatInTimezone, parseAppTimezone } from '../utils/timezone.util';
 
 const Calendar = () => {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
-    // Memoize 'now' to prevent infinite effect loops
-    const now = React.useMemo(() => getCurrentInAppTimezone().full, []);
+    const [settingsVersion, setSettingsVersion] = useState(0);
+    // Memoize 'now' to prevent infinite effect loops; updates on settingsVersion change
+    const now = React.useMemo(() => getCurrentInAppTimezone().full, [settingsVersion]);
     const [currentDate, setCurrentDate] = useState(now);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -78,6 +79,21 @@ const Calendar = () => {
             window.removeEventListener('approvalStatusChanged', handleStatusChange);
         };
     }, [currentDate]);
+
+    // Listen for system settings changes
+    useEffect(() => {
+        const handleSettingsChanged = () => {
+            setSettingsVersion(v => v + 1);
+            if (hasPermission) {
+                fetchCalendarEvents();
+            }
+        };
+
+        window.addEventListener('settingsLoaded', handleSettingsChanged);
+        return () => {
+            window.removeEventListener('settingsLoaded', handleSettingsChanged);
+        };
+    }, [hasPermission, currentDate]);
 
     // Update selected events when any filter changes
     useEffect(() => {
@@ -203,7 +219,7 @@ const Calendar = () => {
         handleDateClickInternal(day);
     };
 
-    const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+    const monthName = formatInTimezone(currentDate, null, { month: 'long', year: 'numeric' });
     const daysInMonth = getDaysInMonth(currentDate);
     const firstDay = getFirstDayOfMonth(currentDate);
     const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -455,7 +471,7 @@ const Calendar = () => {
                 {/* Events Sidebar */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 h-fit">
                     <h3 className="text-lg font-bold text-gray-900 mb-4">
-                        {selectedDate ? `${monthName.split(' ')[0]} ${selectedDate}, ${currentDate.getFullYear()}` : 'Select a date'}
+                        {selectedDate ? formatDateOnly(new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDate)) : 'Select a date'}
                     </h3>
 
                     <div className="space-y-4">

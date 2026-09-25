@@ -94,6 +94,13 @@ const Dashboard = () => {
     const [detailsModal, setDetailsModal] = useState({ show: false, item: null, isLeave: false });
     const [modalError, setModalError] = useState('');
     const [processingId, setProcessingId] = useState(null);
+    const [, setSettingsVersion] = useState(0);
+
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
+    }, []);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -448,15 +455,11 @@ const Dashboard = () => {
         const today = getCurrentInAppTimezone().full;
         const trendDays = [];
 
-        // Generate dates for the selected duration in DD/MM/YY format
+        // Generate dates for the selected duration
         for (let i = days - 1; i >= 0; i--) {
             const date = new Date(today);
             date.setDate(date.getDate() - i);
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = String(date.getFullYear()).slice(-2); // Get last 2 digits of year
-            const dateStr = `${day}/${month}/${year}`;
-            trendDays.push(dateStr);
+            trendDays.push(formatDateOnly(date));
         }
 
         const trends = [];

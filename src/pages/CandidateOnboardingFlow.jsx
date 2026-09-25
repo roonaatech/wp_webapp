@@ -4,7 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { LuUser, LuContact, LuGraduationCap, LuFileText, LuSave, LuUndo2, LuFileUp, LuCoins, LuCheck, LuPlus, LuTrash2, LuShieldAlert, LuCalendar } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
-import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate } from '../utils/timezone.util';
+import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, getCurrentInAppTimezone } from '../utils/timezone.util';
 
 const TABS = [
     { id: 'personal', name: 'Personal Details', icon: <LuContact /> },
@@ -27,6 +27,13 @@ const CandidateOnboardingFlow = () => {
     const [errors, setErrors] = useState({});
     const [dobDisplay, setDobDisplay] = useState('');
     const dobPickerRef = useRef(null);
+
+    const [, setSettingsVersion] = useState(0);
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
+    }, []);
 
     // Forms
     const [formData, setFormData] = useState({
@@ -248,7 +255,7 @@ const CandidateOnboardingFlow = () => {
                 setFormData(prev => ({ ...prev, date_of_birth: '', age: '' }));
             } else {
                 const birthDate = new Date(parsed);
-                const today = new Date();
+                const today = getCurrentInAppTimezone().full;
                 let ageVal = today.getFullYear() - birthDate.getFullYear();
                 const monthDiff = today.getMonth() - birthDate.getMonth();
                 if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) ageVal--;

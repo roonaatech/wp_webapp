@@ -7,6 +7,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import TableSortIcon from '../components/TableSortIcon';
 import { fetchRoles as fetchRolesUtil, canManageServiceAccounts } from '../utils/roleUtils';
+import { formatInTimezone } from '../utils/timezone.util';
 
 const ServiceAccounts = () => {
     const navigate = useNavigate();
@@ -23,6 +24,13 @@ const ServiceAccounts = () => {
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
+    const [, setSettingsVersion] = useState(0);
+
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
+    }, []);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -348,7 +356,7 @@ const ServiceAccounts = () => {
                                     </td>
                                     <td className="px-6 py-4 text-gray-600 text-sm">
                                         {account.last_login
-                                            ? new Date(account.last_login).toLocaleString()
+                                            ? formatInTimezone(account.last_login)
                                             : 'Never logged in'}
                                     </td>
                                     <td className="px-6 py-4 text-right">

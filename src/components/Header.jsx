@@ -29,6 +29,13 @@ const Header = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{"email":"Admin User"}');
+    const [, setSettingsVersion] = useState(0);
+
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
+    }, []);
 
     // Close dropdowns when clicking outside
     useEffect(() => {

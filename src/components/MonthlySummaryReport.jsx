@@ -61,7 +61,19 @@ const MonthlySummaryReport = () => {
     const years = [];
     for (let y = now.getFullYear(); y >= now.getFullYear() - 5; y--) years.push(y);
 
+    const [, setSettingsVersion] = useState(0);
+
     useEffect(() => { fetchSummary(); }, [month, year]);
+
+    useEffect(() => {
+        const handleSettingsChanged = () => {
+            setSettingsVersion(v => v + 1);
+            fetchSummary();
+        };
+
+        window.addEventListener('settingsLoaded', handleSettingsChanged);
+        return () => window.removeEventListener('settingsLoaded', handleSettingsChanged);
+    }, [month, year]);
 
     const fetchSummary = async () => {
         setLoading(true);
@@ -382,7 +394,7 @@ const MonthlySummaryReport = () => {
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             
-            const dateObj = new Date();
+            const dateObj = getCurrentInAppTimezone().full;
             const dd = String(dateObj.getDate()).padStart(2, '0');
             const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
             const yy = String(dateObj.getFullYear()).slice(-2);

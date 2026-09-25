@@ -58,6 +58,13 @@ const Approvals = () => {
     });
     const [selectedItems, setSelectedItems] = useState(new Set());
     const [manageableStaffMembers, setManageableStaffMembers] = useState([]);
+    const [, setSettingsVersion] = useState(0);
+
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
+    }, []);
 
     // Modals State
     const [detailsModal, setDetailsModal] = useState({ show: false, item: null, type: null });

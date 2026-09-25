@@ -44,11 +44,19 @@ const ActiveOnDuty = () => {
         checkPermission();
     }, [user.role, navigate]);
 
+    const [, setSettingsVersion] = useState(0);
+
     useEffect(() => {
         if (hasPermission) {
             fetchActiveOnDuty();
         }
     }, [hasPermission]);
+
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
+    }, []);
 
     const fetchActiveOnDuty = async (isManualRefresh = false) => {
         try {

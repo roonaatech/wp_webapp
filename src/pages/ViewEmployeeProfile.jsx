@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuSmartphone, LuRefreshCw } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, isSuperAdmin } from '../utils/roleUtils';
-import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
+import { formatDateOnly, formatInTimezone, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 
 
 const calculateExperience = (dateOfJoining) => {
@@ -792,11 +792,11 @@ const ViewEmployeeProfile = () => {
                                                     <td className="px-4 py-3 text-xs text-slate-600 space-y-0.5">
                                                         <div>
                                                             <span className="text-[10px] text-slate-400 font-bold uppercase mr-1">Bound:</span>
-                                                            {employee.bound_device.first_bound_at ? new Date(employee.bound_device.first_bound_at).toLocaleDateString() : '—'}
+                                                            {employee.bound_device.first_bound_at ? formatDateOnly(employee.bound_device.first_bound_at) : '—'}
                                                         </div>
                                                         <div>
                                                             <span className="text-[10px] text-slate-400 font-bold uppercase mr-1">Active:</span>
-                                                            {employee.bound_device.last_active_at ? new Date(employee.bound_device.last_active_at).toLocaleString() : '—'}
+                                                            {employee.bound_device.last_active_at ? formatInTimezone(employee.bound_device.last_active_at) : '—'}
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
@@ -924,7 +924,7 @@ const ViewEmployeeProfile = () => {
                                 <div className="col-span-2">
                                     <p className="text-[10px] text-slate-400 font-bold uppercase">Signing Date</p>
                                     <p className="font-bold text-slate-700 mt-0.5">
-                                        {profile.signature_date ? new Date(profile.signature_date).toLocaleString() : '—'}
+                                        {profile.signature_date ? formatInTimezone(profile.signature_date) : '—'}
                                     </p>
                                 </div>
                             </div>

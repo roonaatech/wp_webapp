@@ -4,7 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { LuLock, LuShieldAlert, LuUserCheck, LuSignature, LuCheck, LuUndo2, LuArrowRight, LuPlus, LuTrash2, LuUser, LuEye, LuCalendar } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
-import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate } from '../utils/timezone.util';
+import { formatDateOnly, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, getCurrentInAppTimezone } from '../utils/timezone.util';
 import { fetchRoles, canAccessWebApp, isSelfServiceOnly } from '../utils/roleUtils';
 
 const FirstTimeLoginFlow = () => {
@@ -32,6 +32,13 @@ const FirstTimeLoginFlow = () => {
     // Initial flags from localStorage
     const mustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
     const mustCompleteDeclaration = localStorage.getItem('mustCompleteDeclaration') === 'true';
+
+    const [, setSettingsVersion] = useState(0);
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
+    }, []);
 
     // Form States
     const [passwordData, setPasswordData] = useState({
@@ -205,7 +212,7 @@ const FirstTimeLoginFlow = () => {
                 setEditForm(prev => ({ ...prev, date_of_birth: '', age: '' }));
             } else {
                 const birthDate = new Date(parsed);
-                const today = new Date();
+                const today = getCurrentInAppTimezone().full;
                 let ageVal = today.getFullYear() - birthDate.getFullYear();
                 const monthDiff = today.getMonth() - birthDate.getMonth();
                 if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) ageVal--;

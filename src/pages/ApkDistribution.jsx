@@ -56,8 +56,16 @@ const ApkDistribution = () => {
     const [qrExpiresAt, setQrExpiresAt] = useState(null);
     const [qrCountdown, setQrCountdown] = useState(0);
 
+    const [, setSettingsVersion] = useState(0);
+
     useEffect(() => {
         fetchData();
+    }, []);
+
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
     }, []);
 
     // Generate a fresh short-lived QR token whenever 'My Requests' tab is selected

@@ -49,6 +49,13 @@ const Reports = () => {
     const [typeFilter, setTypeFilter] = useState('both');
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
+    const [, setSettingsVersion] = useState(0);
+
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
+    }, []);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -362,7 +369,7 @@ const Reports = () => {
             const a = document.createElement('a');
             a.href = url;
             // Generate filename using Monthly Report convention
-            const dateObj = new Date();
+            const dateObj = getCurrentInAppTimezone().full;
             const dd = String(dateObj.getDate()).padStart(2, '0');
             const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
             const yy = String(dateObj.getFullYear()).slice(-2);
@@ -539,30 +546,31 @@ const Reports = () => {
                                     const val = e.target.value;
                                     setDatePreset(val);
                                     setPage(1);
+                                    const toIso = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                                     if (val === 'today') {
-                                        const now = getCurrentInAppTimezone().full;
-                                        const d = now.toISOString().slice(0, 10);
+                                        const d = getCurrentInAppTimezone().date;
                                         setStartDate(d); setEndDate(d);
                                     } else if (val === 'thismonth') {
                                         const now = getCurrentInAppTimezone().full;
-                                        const s = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-                                        const e = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
-                                        setStartDate(s); setEndDate(e);
+                                        const y = now.getFullYear();
+                                        const m = now.getMonth() + 1;
+                                        const lastD = new Date(y, m, 0).getDate();
+                                        setStartDate(toIso(y, m, 1)); setEndDate(toIso(y, m, lastD));
                                     } else if (val === 'lastmonth') {
                                         const now = getCurrentInAppTimezone().full;
-                                        const s = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
-                                        const e = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
-                                        setStartDate(s); setEndDate(e);
+                                        const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                                        const y = prevDate.getFullYear();
+                                        const m = prevDate.getMonth() + 1;
+                                        const lastD = new Date(y, m, 0).getDate();
+                                        setStartDate(toIso(y, m, 1)); setEndDate(toIso(y, m, lastD));
                                     } else if (val === 'thisyear') {
                                         const now = getCurrentInAppTimezone().full;
-                                        const s = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
-                                        const e = new Date(now.getFullYear(), 11, 31).toISOString().slice(0, 10);
-                                        setStartDate(s); setEndDate(e);
+                                        const y = now.getFullYear();
+                                        setStartDate(toIso(y, 1, 1)); setEndDate(toIso(y, 12, 31));
                                     } else if (val === 'lastyear') {
                                         const now = getCurrentInAppTimezone().full;
-                                        const s = new Date(now.getFullYear() - 1, 0, 1).toISOString().slice(0, 10);
-                                        const e = new Date(now.getFullYear() - 1, 11, 31).toISOString().slice(0, 10);
-                                        setStartDate(s); setEndDate(e);
+                                        const y = now.getFullYear() - 1;
+                                        setStartDate(toIso(y, 1, 1)); setEndDate(toIso(y, 12, 31));
                                     } else if (val === 'thisquarter' || val === 'lastquarter') {
                                         const now = getCurrentInAppTimezone().full;
                                         let qStartMonth = Math.floor(now.getMonth() / 3) * 3;
@@ -571,9 +579,10 @@ const Reports = () => {
                                             qStartMonth -= 3;
                                             if (qStartMonth < 0) { qStartMonth += 12; year -= 1; }
                                         }
-                                        const s = new Date(year, qStartMonth, 1).toISOString().slice(0, 10);
-                                        const e = new Date(year, qStartMonth + 3, 0).toISOString().slice(0, 10);
-                                        setStartDate(s); setEndDate(e);
+                                        const startM = qStartMonth + 1;
+                                        const endM = qStartMonth + 3;
+                                        const lastD = new Date(year, endM, 0).getDate();
+                                        setStartDate(toIso(year, startM, 1)); setEndDate(toIso(year, endM, lastD));
                                     } else if (val === 'custom') {
                                         setStartDate(''); setEndDate('');
                                     } else {

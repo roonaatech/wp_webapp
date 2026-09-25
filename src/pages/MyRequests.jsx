@@ -1742,7 +1742,7 @@ const MyRequests = () => {
                 const tMon = toCalendarMonth.getMonth();
                 const tDaysInMonth = new Date(tYear, tMon + 1, 0).getDate();
                 const tFirstDay = new Date(tYear, tMon, 1).getDay();
-                const tMonthLabel = new Date(tYear, tMon).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                const tMonthLabel = formatInTimezone(toCalendarMonth, null, { month: 'long', year: 'numeric' });
 
                 const tDays = [];
                 for (let i = 0; i < tFirstDay; i++) tDays.push(null);

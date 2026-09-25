@@ -114,7 +114,7 @@ const Login = () => {
         try {
             await fetchRoles();
             if (window.refreshAppSettings) {
-                window.refreshAppSettings();
+                await window.refreshAppSettings();
             }
         } catch (roleErr) {
             console.error('Error refreshing roles on login:', roleErr);

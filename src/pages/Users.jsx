@@ -27,7 +27,7 @@ import {
     isAdminOrAbove
 } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
-import { formatInTimezone, parseAppTimezone } from '../utils/timezone.util';
+import { formatInTimezone, parseAppTimezone, formatDateOnly, formatTimeOnly, getCurrentInAppTimezone } from '../utils/timezone.util';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer } from 'recharts';
 
 const Users = () => {
@@ -78,14 +78,8 @@ const Users = () => {
 
         const sortedRaw = Object.entries(dailyRawHours).sort((a, b) => a[0].localeCompare(b[0]));
         return sortedRaw.map(([rawDate, hours]) => {
-            let displayDate = rawDate;
-            try {
-                const [y, m, d] = rawDate.split('-');
-                const dateObj = new Date(y, m - 1, d);
-                displayDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
-            } catch {}
             return {
-                date: displayDate,
+                date: formatDateOnly(rawDate),
                 hours: parseFloat(hours.toFixed(2))
             };
         });
@@ -602,7 +596,7 @@ const Users = () => {
             setLoadingHistory(prev => ({ ...prev, [userId]: true }));
             const token = localStorage.getItem('token');
             if (!token) return;
-            const currentYear = new Date().getFullYear();
+            const currentYear = getCurrentInAppTimezone().full.getFullYear();
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/users/${userId}/yearly-history?year=${currentYear}`, {
                 headers: { 'x-access-token': token }
@@ -629,7 +623,7 @@ const Users = () => {
             setLoadingAttendance(prev => ({ ...prev, [userId]: true }));
             const token = localStorage.getItem('token');
             if (!token) return;
-            const currentYear = new Date().getFullYear();
+            const currentYear = getCurrentInAppTimezone().full.getFullYear();
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/users/${userId}/attendance-history?year=${currentYear}`, {
                 headers: { 'x-access-token': token }
@@ -1013,8 +1007,9 @@ const Users = () => {
         const firstLetter = cleanName.charAt(0);
         const lastLetter = cleanName.length > 1 ? cleanName.charAt(cleanName.length - 1) : cleanName.charAt(0);
         const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-        const currentMonthStr = months[new Date().getMonth()];
-        const todayDay = new Date().getDate();
+        const now = getCurrentInAppTimezone().full;
+        const currentMonthStr = months[now.getMonth()];
+        const todayDay = now.getDate();
         const dayClamped = todayDay > 30 ? 30 : todayDay;
         const dayStr = String(dayClamped).padStart(2, '0');
         const alphabets = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -2123,7 +2118,7 @@ const Users = () => {
                                                                     <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center justify-between gap-3">
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
-                                                                            {new Date().getFullYear()} Leave &amp; Attendance History
+                                                                            {getCurrentInAppTimezone().full.getFullYear()} Leave &amp; Attendance History
                                                                         </div>
                                                                         <div className="flex items-center gap-2 normal-case tracking-normal">
                                                                             <span className={`text-xs font-semibold ${showAbsent[u.staffid] ? 'text-red-600' : 'text-gray-400'}`}>
@@ -2158,8 +2153,8 @@ const Users = () => {
                                                                         const presentMap = {};
                                                                         (attData.present || []).forEach(p => { presentMap[p.date] = p; });
                                                                         const excusedSet = new Set(attData.excused || []);
-                                                                        const todayStr = attData.today || new Date().toISOString().split('T')[0];
-                                                                        const fmtTime = (t) => t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
+                                                                         const todayStr = attData.today || getCurrentInAppTimezone().date;
+                                                                        const fmtTime = (t) => t ? formatTimeOnly(t) : '--';
                                                                         return (
                                                                             <div>
                                                                                 <div className="flex flex-wrap items-center gap-4 mb-6 text-xs font-medium text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">
@@ -2174,10 +2169,10 @@ const Users = () => {
                                                                                 </div>
                                                                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                                                                                     {Array.from({ length: 12 }).map((_, monthIndex) => {
-                                                                                        const year = new Date().getFullYear();
+                                                                                        const year = getCurrentInAppTimezone().full.getFullYear();
                                                                                         const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
                                                                                         const firstDayOfWeek = new Date(year, monthIndex, 1).getDay();
-                                                                                        const monthName = new Date(year, monthIndex, 1).toLocaleString('default', { month: 'short' });
+                                                                                        const monthName = formatInTimezone(new Date(year, monthIndex, 1), null, { month: 'short' });
 
                                                                                         return (
                                                                                             <div key={monthIndex} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow">
@@ -2294,7 +2289,7 @@ const Users = () => {
                                                                                         { key: 'last_6_months', label: 'Last 6 Months' },
                                                                                         { key: 'year',          label: 'This Year'     },
                                                                                     ];
-                                                                                    const now = new Date();
+                                                                                    const now = getCurrentInAppTimezone().full;
                                                                                     const filteredLogs = (attData.present || []).filter(log => {
                                                                                         if (!log.date) return false;
                                                                                         const dateParts = String(log.date).split('-');
@@ -2502,7 +2497,7 @@ const Users = () => {
                     }}
                 >
                     <div className="font-semibold text-gray-200 mb-1.5 pb-1 border-b border-gray-700 whitespace-nowrap">
-                        {historyTooltip.date && new Date(historyTooltip.date).toLocaleDateString('default', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                        {historyTooltip.date && formatDateOnly(historyTooltip.date)}
                     </div>
                     <div className="space-y-2">
                         {historyTooltip.events.map((ev, idx) => {

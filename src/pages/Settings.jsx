@@ -443,19 +443,43 @@ export default function Settings() {
     useEffect(() => {
         const updatePreview = () => {
             try {
-                const tz = settings.application_timezone || 'America/Chicago';
+                const tz = settings.application_timezone || 'Asia/Kolkata';
+                const dateFmt = settings.application_date_format || 'MMM DD, YYYY';
+                const timeFmt = settings.application_time_format || '12h';
                 const now = new Date();
-                const formatted = new Intl.DateTimeFormat('en-US', {
+
+                const parts = new Intl.DateTimeFormat('en-US', {
                     timeZone: tz,
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
+                    day: '2-digit',
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit',
-                    hour12: true,
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric'
-                }).format(now);
-                setCurrentTimePreview(formatted);
+                    hour12: timeFmt !== '24h'
+                }).formatToParts(now);
+
+                const p = {};
+                parts.forEach(part => { p[part.type] = part.value; });
+
+                let dateStr = `${p.weekday}, ${p.month} ${p.day}, ${p.year}`;
+                if (dateFmt === 'DD/MM/YYYY') {
+                    const numMonth = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: '2-digit' }).format(now);
+                    dateStr = `${p.weekday}, ${p.day}/${numMonth}/${p.year}`;
+                } else if (dateFmt === 'MM/DD/YYYY') {
+                    const numMonth = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: '2-digit' }).format(now);
+                    dateStr = `${p.weekday}, ${numMonth}/${p.day}/${p.year}`;
+                } else if (dateFmt === 'YYYY-MM-DD') {
+                    const numMonth = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: '2-digit' }).format(now);
+                    dateStr = `${p.weekday}, ${p.year}-${numMonth}-${p.day}`;
+                }
+
+                const timeStr = timeFmt === '24h'
+                    ? `${p.hour}:${p.minute}:${p.second}`
+                    : `${p.hour}:${p.minute}:${p.second} ${p.dayPeriod || ''}`.trim();
+
+                setCurrentTimePreview(`${dateStr} • ${timeStr}`);
             } catch (e) {
                 setCurrentTimePreview('Invalid Timezone');
             }
@@ -464,7 +488,7 @@ export default function Settings() {
         updatePreview();
         const interval = setInterval(updatePreview, 1000);
         return () => clearInterval(interval);
-    }, [settings.application_timezone]);
+    }, [settings.application_timezone, settings.application_date_format, settings.application_time_format]);
 
     // Show loading while checking permissions
     if (!permissionChecked) {

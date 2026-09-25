@@ -238,9 +238,14 @@ export const getCurrentInAppTimezone = () => {
     } catch (error) {
         console.error('Error in getCurrentInAppTimezone:', error);
         const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
         return {
-            date: now.toISOString().split('T')[0],
-            time: now.toTimeString().split(' ')[0].substring(0, 5),
+            date: `${y}-${m}-${d}`,
+            time: `${hh}:${mm}`,
             full: now
         };
     }
@@ -462,7 +467,8 @@ export const validateAndParseDate = (formatted, options = {}) => {
 
     if (y < 1900) return { parsed: '', error: "Year must be 1900 or later" };
 
-    const currentYear = new Date().getFullYear();
+    const todayInApp = getCurrentInAppTimezone().full;
+    const currentYear = todayInApp.getFullYear();
     if (!allowFuture && y > currentYear) {
         return { parsed: '', error: "Date cannot be in the future" };
     }
@@ -476,11 +482,11 @@ export const validateAndParseDate = (formatted, options = {}) => {
 
     if (!allowFuture) {
         const dateObj = new Date(y, m - 1, d);
-        const today = new Date();
-        if (dateObj > today) return { parsed: '', error: "Date cannot be in the future" };
+        const todayNoTime = new Date(todayInApp.getFullYear(), todayInApp.getMonth(), todayInApp.getDate());
+        if (dateObj > todayNoTime) return { parsed: '', error: "Date cannot be in the future" };
     }
 
-    if (maxAge && (new Date().getFullYear() - y > maxAge)) {
+    if (maxAge && (currentYear - y > maxAge)) {
         return { parsed: '', error: "Please enter a realistic year" };
     }
 

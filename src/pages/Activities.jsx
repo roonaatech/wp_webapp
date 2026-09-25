@@ -61,6 +61,13 @@ const Activities = () => {
     const [showSummary, setShowSummary] = useState(false);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const [, setSettingsVersion] = useState(0);
+
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
+    }, []);
 
     // Check permission first
     useEffect(() => {

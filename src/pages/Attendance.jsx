@@ -192,7 +192,7 @@ const Attendance = () => {
                 hour12: timeFmt !== '24h'
             }).format(date);
         } catch (_) {
-            return date.toLocaleTimeString();
+            return formatTimeOnly(date);
         }
     };
 
@@ -215,7 +215,7 @@ const Attendance = () => {
             if (dateFmt === 'YYYY-MM-DD') return `${p.weekday}, ${p.year}-${p.month}-${p.day}`;
             return `${p.weekday}, ${p.month} ${p.day}, ${p.year}`;
         } catch (_) {
-            return date.toLocaleDateString();
+            return formatDateOnly(date);
         }
     };
 

@@ -22,11 +22,22 @@ const DateFilterInput = ({ value, onChange, className = '' }) => {
     const [error, setError] = useState('');
     const nativeRef = useRef(null);
 
+    const [, setSettingsVersion] = useState(0);
+
     // Keep the display value in sync when the ISO value changes externally
     // (e.g. "Clear Filters" resetting the range).
     useEffect(() => {
         setDisplay(isoToDisplayDate(value));
         setError('');
+    }, [value]);
+
+    useEffect(() => {
+        const onSettingsLoaded = () => {
+            setSettingsVersion(v => v + 1);
+            setDisplay(isoToDisplayDate(value));
+        };
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
     }, [value]);
 
     const handleChange = (e) => {

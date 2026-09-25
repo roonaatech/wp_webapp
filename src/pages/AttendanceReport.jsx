@@ -6,7 +6,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
 import { fetchRoles, canViewAttendanceReport, canManageAttendance, canEditAttendance, canDeleteAttendance } from '../utils/roleUtils';
-import { formatDateOnly, formatTimeOnly, getCurrentInAppTimezone } from '../utils/timezone.util';
+import { formatDateOnly, formatTimeOnly, formatInTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 import { LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet } from 'react-icons/lu';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -55,6 +55,13 @@ const AttendanceReport = () => {
     // Delete Confirmation Modal State
     const [deletingLogId, setDeletingLogId] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [, setSettingsVersion] = useState(0);
+
+    useEffect(() => {
+        const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
+        window.addEventListener('settingsLoaded', onSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
+    }, []);
 
 
     // Grouped Rows State
@@ -237,7 +244,7 @@ const AttendanceReport = () => {
                 return;
             }
 
-            const now = new Date();
+            const now = getCurrentInAppTimezone().full;
             const dd = String(now.getDate()).padStart(2, '0');
             const mm = String(now.getMonth() + 1).padStart(2, '0');
             const yyyy = now.getFullYear();
@@ -274,7 +281,7 @@ const AttendanceReport = () => {
             const filterDesc = selectedUserId
                 ? `Filtered by Employee ID: ${selectedUserId} | Date Range: ${startDate || 'Start'} to ${endDate || 'End'}`
                 : `Filter: All Employees | Date Range: ${startDate || 'Start'} to ${endDate || 'End'}`;
-            metaCell.value = `${filterDesc} | Total Records: ${exportLogs.length} | Exported: ${new Date().toLocaleString()}`;
+            metaCell.value = `${filterDesc} | Total Records: ${exportLogs.length} | Exported: ${formatInTimezone(new Date())}`;
             metaCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF64748B' } };
             metaCell.fill = {
                 type: 'pattern',
