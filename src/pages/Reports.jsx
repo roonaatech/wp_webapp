@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiPlusCircle, FiMinusCircle } from 'react-icons/fi';
+import { FiPlusCircle, FiMinusCircle, FiInfo } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
@@ -267,82 +267,6 @@ const Reports = () => {
         return sorted;
     }, [reports, sortConfig]);
 
-    const complianceHours = (() => {
-        try {
-            const stored = JSON.parse(localStorage.getItem('settings') || '{}');
-            const val = parseFloat(stored.attendance_compliance_hours);
-            return (!isNaN(val) && val > 0) ? val : 8;
-        } catch (e) {
-            return 8;
-        }
-    })();
-
-    const getReportCompliance = (report, threshold = complianceHours) => {
-        // Leave and Time-Off are requests/absences, not office attendance
-        if (report.type === 'leave' || report.type === 'timeoff') {
-            return { applicable: false, isActive: false, label: '—' };
-        }
-
-        // On-Duty or attendance-based report
-        const checkIn = report.check_in_time || report.start_time;
-        if (!checkIn) {
-            return { applicable: true, isActive: false, isCompliant: false, label: 'Non-Compliant' };
-        }
-
-        const checkOut = report.check_out_time || report.end_time;
-        // Active check-in: currently active / in progress
-        if (!checkOut) {
-            return {
-                applicable: true,
-                isActive: true,
-                isCompliant: false,
-                hours: 0,
-                label: 'In Progress'
-            };
-        }
-
-        try {
-            const start = parseAppTimezone(checkIn) || new Date(checkIn);
-            const end = parseAppTimezone(checkOut) || new Date(checkOut);
-            const diffMs = end.getTime() - start.getTime();
-            if (diffMs <= 0) {
-                return { applicable: true, isActive: false, isCompliant: false, label: 'Non-Compliant' };
-            }
-
-            const hours = diffMs / (1000 * 60 * 60);
-            const isCompliant = hours >= threshold;
-            return {
-                applicable: true,
-                isActive: false,
-                isCompliant,
-                hours,
-                label: isCompliant ? 'Compliant' : 'Non-Compliant'
-            };
-        } catch (e) {
-            return { applicable: true, isActive: false, isCompliant: false, label: 'Non-Compliant' };
-        }
-    };
-
-    const reportComplianceSummary = (() => {
-        let compliantCount = 0;
-        let nonCompliantCount = 0;
-        let inProgressCount = 0;
-        reports.forEach(r => {
-            const comp = getReportCompliance(r);
-            if (comp.applicable) {
-                if (comp.isActive) inProgressCount++;
-                else if (comp.isCompliant) compliantCount++;
-                else nonCompliantCount++;
-            }
-        });
-        return {
-            compliantCount,
-            nonCompliantCount,
-            inProgressCount,
-            totalApplicable: compliantCount + nonCompliantCount + inProgressCount
-        };
-    })();
-
     const downloadCSV = async () => {
         // Feature upgrade: Download ALL filtered data, not just current page
         try {
@@ -382,7 +306,6 @@ const Reports = () => {
                 'Start',
                 'End',
                 'Duration',
-                'Compliance',
                 'Location',
                 'Reason / Purpose',
                 'Status',
@@ -405,8 +328,6 @@ const Reports = () => {
                 } else {
                     duration = calculateDuration(report.check_in_time, report.check_out_time);
                 }
-                const comp = getReportCompliance(report);
-                const complianceStr = comp.applicable ? comp.label : 'N/A';
                 const activityStatus = isLeave || isTimeOff ? 'N/A' : (report.check_out_time ? 'Completed' : 'Active');
                 const approvalStatus = report.status || 'N/A';
                 const approver = report.approver
@@ -427,7 +348,6 @@ const Reports = () => {
                     isLeave ? formatDateOnly(report.start_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.start_time)}` : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A'),
                     isLeave ? formatDateOnly(report.end_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.end_time)}` : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A'),
                     duration,
-                    complianceStr,
                     isLeave || isTimeOff ? 'N/A' : (report.end_location ? `${report.location || 'Remote'} to ${report.end_location}` : (report.location || 'N/A')),
                     isLeave ? (report.reason || 'N/A') : isTimeOff ? (report.reason || 'N/A') : (report.purpose || 'N/A'),
                     activityStatus,
@@ -437,9 +357,28 @@ const Reports = () => {
                 ];
             });
 
+            const summaryRow = [
+                'TOTAL',
+                `${exportData.length} Records`,
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            ];
+
             const csv = [
                 headers.join(','),
-                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+                ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
+                summaryRow.map(cell => `"${cell}"`).join(',')
             ].join('\n');
 
             // Add UTF-8 BOM for proper Excel compatibility
@@ -535,17 +474,15 @@ const Reports = () => {
                     />
                     <button
                         onClick={() => setActiveTab('monthly')}
-                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none ${
-                            activeTab === 'monthly' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
-                        }`}
+                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none ${activeTab === 'monthly' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
+                            }`}
                     >
                         📊 Monthly Summary
                     </button>
                     <button
                         onClick={() => setActiveTab('detailed')}
-                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none ${
-                            activeTab === 'detailed' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
-                        }`}
+                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none ${activeTab === 'detailed' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
+                            }`}
                     >
                         📋 Detailed Reports
                     </button>
@@ -555,509 +492,471 @@ const Reports = () => {
             {activeTab === 'monthly' ? (
                 <MonthlySummaryReport />
             ) : (
-            <>
+                <>
 
-            {/* Error Message */}
-            {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                    <p className="text-red-800 font-medium">⚠️ {error}</p>
-                </div>
-            )}
+                    {/* Error Message */}
+                    {error && (
+                        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                            <p className="text-red-800 font-medium">⚠️ {error}</p>
+                        </div>
+                    )}
 
-            {/* Summary Stats moved to Page Info due to pagination */}
-            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="text-sm text-gray-500">
-                    <span className="font-medium text-gray-700">Total Records Found:</span> {totalItems}
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-gray-700">Rows per page:</label>
-                    <select
-                        value={limit}
-                        onChange={handleLimitChange}
-                        className="px-2 py-1 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500"
-                    >
-                        <option value={5}>5</option>
-                        <option value={10}>10</option>
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                    </select>
-                </div>
-            </div>
-
-            {/* Filters */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Record Type</label>
-                        <select
-                            value={typeFilter}
-                            onChange={(e) => handleFilterChange(setTypeFilter, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                        >
-                            <option value="both">All (Leave, On-Duty & Time-Off)</option>
-                            <option value="leave">Leave Only</option>
-                            <option value="onduty">On-Duty Only</option>
-                            <option value="timeoff">Time-Off Only</option>
-                        </select>
+                    {/* Attendance Notice */}
+                    <div className="mb-4 flex items-start sm:items-center gap-3 px-4 py-3 bg-blue-50/80 border border-blue-200/90 rounded-xl text-xs text-blue-900 shadow-sm">
+                        <FiInfo className="text-blue-600 shrink-0 text-base mt-0.5 sm:mt-0" />
+                        <p>
+                            <span className="font-bold text-blue-950">Note:</span> Attendance and shift punch records are not included in this Detailed Report. This report is dedicated to Leave, Time-Off, and On-Duty requests only.
+                        </p>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Filter by User</label>
-                        <select
-                            value={selectedUserId}
-                            onChange={(e) => handleFilterChange(setSelectedUserId, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                        >
-                            <option value="">All Users</option>
-                            {users.map(user => (
-                                <option key={user.staffid} value={user.staffid}>
-                                    {user.firstname} {user.lastname}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-                        <div>
+
+                    {/* Summary Stats moved to Page Info due to pagination */}
+                    <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="text-sm text-gray-500">
+                            <span className="font-medium text-gray-700">Total Records Found:</span> {totalItems}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium text-gray-700">Rows per page:</label>
                             <select
-                                value={datePreset}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    setDatePreset(val);
-                                    setPage(1);
-                                    const toIso = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                                    if (val === 'today') {
-                                        const d = getCurrentInAppTimezone().date;
-                                        setStartDate(d); setEndDate(d);
-                                    } else if (val === 'thismonth') {
-                                        const now = getCurrentInAppTimezone().full;
-                                        const y = now.getFullYear();
-                                        const m = now.getMonth() + 1;
-                                        const lastD = new Date(y, m, 0).getDate();
-                                        setStartDate(toIso(y, m, 1)); setEndDate(toIso(y, m, lastD));
-                                    } else if (val === 'lastmonth') {
-                                        const now = getCurrentInAppTimezone().full;
-                                        const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                                        const y = prevDate.getFullYear();
-                                        const m = prevDate.getMonth() + 1;
-                                        const lastD = new Date(y, m, 0).getDate();
-                                        setStartDate(toIso(y, m, 1)); setEndDate(toIso(y, m, lastD));
-                                    } else if (val === 'thisyear') {
-                                        const now = getCurrentInAppTimezone().full;
-                                        const y = now.getFullYear();
-                                        setStartDate(toIso(y, 1, 1)); setEndDate(toIso(y, 12, 31));
-                                    } else if (val === 'lastyear') {
-                                        const now = getCurrentInAppTimezone().full;
-                                        const y = now.getFullYear() - 1;
-                                        setStartDate(toIso(y, 1, 1)); setEndDate(toIso(y, 12, 31));
-                                    } else if (val === 'thisquarter' || val === 'lastquarter') {
-                                        const now = getCurrentInAppTimezone().full;
-                                        let qStartMonth = Math.floor(now.getMonth() / 3) * 3;
-                                        let year = now.getFullYear();
-                                        if (val === 'lastquarter') {
-                                            qStartMonth -= 3;
-                                            if (qStartMonth < 0) { qStartMonth += 12; year -= 1; }
-                                        }
-                                        const startM = qStartMonth + 1;
-                                        const endM = qStartMonth + 3;
-                                        const lastD = new Date(year, endM, 0).getDate();
-                                        setStartDate(toIso(year, startM, 1)); setEndDate(toIso(year, endM, lastD));
-                                    } else if (val === 'custom') {
-                                        setStartDate(''); setEndDate('');
-                                    } else {
-                                        setStartDate(''); setEndDate('');
-                                    }
-                                }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                value={limit}
+                                onChange={handleLimitChange}
+                                className="px-2 py-1 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500"
                             >
-                                <option value="today">Today</option>
-                                <option value="7days">Last 7 Days</option>
-                                <option value="30days">Last 30 Days</option>
-                                <option value="90days">Last 90 Days</option>
-                                <option value="thismonth">This Month</option>
-                                <option value="lastmonth">Last Month</option>
-                                <option value="thisquarter">This Quarter</option>
-                                <option value="lastquarter">Last Quarter</option>
-                                <option value="thisyear">This Year</option>
-                                <option value="lastyear">Last Year</option>
-                                <option value="custom">Custom Range</option>
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
                             </select>
-
-                            {datePreset === 'custom' && (
-                                <div className="flex gap-2 mt-2">
-                                    <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} className="w-1/2 px-2 py-1 border border-gray-300 rounded" />
-                                    <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} className="w-1/2 px-2 py-1 border border-gray-300 rounded" />
-                                </div>
-                            )}
                         </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => handleFilterChange(setStatusFilter, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                        >
-                            <option value="all">All Status</option>
-                            <option value="approved">Approved</option>
-                            <option value="pending">Pending</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="completed">Completed</option>
-                            <option value="active">Active</option>
-                        </select>
-                    </div>
-                    <div>
-                        <button
-                            onClick={downloadCSV}
-                            disabled={reports.length === 0}
-                            className="group relative overflow-hidden w-full px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center justify-center gap-2 z-10"
-                        >
-                            <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
-                            <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
-                            📥 Export
-                        </button>
-                    </div>
-                </div>
-            </div>
 
-            <div className="relative overflow-x-auto bg-white rounded-lg border border-gray-100 min-h-[400px]">
-                {loading && (
-                    <ModernLoader size="container" message="Updating reports..." fullScreen={false} />
-                )}
-                {reports.length === 0 && !loading ? (
-                    <div className="p-6 text-center text-gray-500">No reports found</div>
-                ) : (
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-[#1e1b4b] text-white">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Details</th>
-                                <th className="px-4 py-3 text-left">
-                                    <button
-                                        onClick={() => handleSort('date')}
-                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
-                                    >
-                                        Created Date <TableSortIcon column="date" sortConfig={sortConfig} />
-                                    </button>
-                                </th>
-                                <th className="px-4 py-3 text-left">
-                                    <button
-                                        onClick={() => handleSort('staffName')}
-                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
-                                    >
-                                        Staff <TableSortIcon column="staffName" sortConfig={sortConfig} />
-                                    </button>
-                                </th>
-                                <th className="px-4 py-3 text-left">
-                                    <button
-                                        onClick={() => handleSort('type')}
-                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
-                                    >
-                                        Type <TableSortIcon column="type" sortConfig={sortConfig} />
-                                    </button>
-                                </th>
-                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Detail</th>
-                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Start</th>
-                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">End</th>
-                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
-                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Compliance</th>
-                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Location</th>
-                                <th className="px-4 py-3 text-left">
-                                    <button
-                                        onClick={() => handleSort('status')}
-                                        className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
-                                    >
-                                        Status <TableSortIcon column="status" sortConfig={sortConfig} />
-                                    </button>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {sortedReports.map((report) => {
-                                const isLeave = report.type === 'leave';
-                                const isTimeOff = report.type === 'timeoff';
-                                const isOnDuty = report.type === 'onduty';
-                                const uniqueKey = `${isLeave ? 'lv' : isTimeOff ? 'to' : 'od'}_${report.id}`;
-                                const staffName = `${report.tblstaff?.firstname || 'Unknown'} ${report.tblstaff?.lastname || ''}`.trim();
-                                const isExpanded = !!expandedRows[uniqueKey];
-
-                                // compute primary cells
-                                const createdAtVal = report.createdAt || report.created_at || report.created_on || report.created || report.date_created || null;
-                                const dateCell = createdAtVal ? formatDateOnly(createdAtVal) : 'N/A';
-                                const staffId = report.tblstaff?.staffid || report.staff_id || 'N/A';
-                                const detail = isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'Time-Off' : (report.client_name || 'N/A');
-                                const startCell = isLeave ? formatDateOnly(report.start_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.start_time)}` : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A');
-                                const endCell = isLeave ? formatDateOnly(report.end_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.end_time)}` : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A');
-                                const durationCell = isLeave ? (report.start_date && report.end_date ? (() => {
-                                    const effectiveStart = (startDate && report.start_date < startDate) ? startDate : report.start_date;
-                                    const effectiveEnd = (endDate && report.end_date > endDate) ? endDate : report.end_date;
-                                    const days = calculateLeaveDays(effectiveStart, effectiveEnd) - (report.is_half_day === true || report.is_half_day === 1 ? 0.5 : 0);
-                                    return formatLeaveDuration(days, { lowercase: true });
-                                })() : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
-                                const locationCell = isLeave || isTimeOff ? 'N/A' : (report.end_location ? `${report.location || 'Remote'} to ${report.end_location}` : (report.location || report.client_name || 'N/A'));
-                                const statusCell = (report.type === 'leave' || report.type === 'timeoff') ? (report.status || 'N/A') : (report.check_out_time ? 'Completed' : 'Active');
-
-                                // Timestamps: backend may return camelCase or snake_case fields
-                                const updatedAtVal = report.updatedAt || report.updated_at || report.decision_at || report.updated || report.date_updated || null;
-
-                                return (
-                                    <React.Fragment key={uniqueKey}>
-                                        <tr className="hover:bg-gray-50 transition-colors group">
-                                            <td className="px-2 py-2 text-sm">
-                                                <button
-                                                    onClick={() => toggleRow(uniqueKey)}
-                                                    className="text-gray-400 hover:text-blue-600 transition-colors"
-                                                >
-                                                    {isExpanded ? <FiMinusCircle size={16} /> : <FiPlusCircle size={16} />}
-                                                </button>
-                                            </td>
-                                            <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{dateCell}</td>
-                                            <td className="px-2 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">{staffName}</td>
-                                            <td className="px-2 py-2 text-sm">
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-bold border ${isLeave ? 'bg-blue-50 text-blue-700 border-blue-200' : isTimeOff ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>
-                                                    {isLeave ? 'Leave' : isTimeOff ? 'Time-Off' : 'On-Duty'}
-                                                </span>
-                                            </td>
-                                            <td className="px-2 py-2 text-sm text-gray-700 max-w-[150px] truncate" title={detail}>{detail}</td>
-                                            <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{startCell}</td>
-                                            <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{endCell}</td>
-                                            <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{durationCell}</td>
-                                            <td className="px-2 py-2 text-sm whitespace-nowrap">
-                                                {(() => {
-                                                    const comp = getReportCompliance(report);
-                                                    if (!comp.applicable) {
-                                                        return <span className="text-gray-300 font-semibold text-xs">—</span>;
-                                                    }
-                                                    if (comp.isActive) {
-                                                        return (
-                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                                                In Progress
-                                                            </span>
-                                                        );
-                                                    }
-                                                    return comp.isCompliant ? (
-                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                            Compliant
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                                                            Non-Compliant
-                                                        </span>
-                                                    );
-                                                })()}
-                                            </td>
-                                            <td className="px-2 py-2 text-sm text-gray-700 max-w-[150px] truncate" title={locationCell}>{locationCell}</td>
-                                            <td className="px-2 py-2 text-sm">{getStatusBadge(report)}</td>
-                                        </tr>
-
-                                        {isExpanded && (
-                                            <tr>
-                                                <td colSpan={11} className="bg-blue-50 px-6 py-4 text-sm text-gray-700">
-                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                                        <div>
-                                                            <p className="text-xs text-gray-500">Full Name</p>
-                                                            <p className="text-sm text-gray-900">{staffName}</p>
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs text-gray-500">Email</p>
-                                                            <p className="text-sm text-gray-900">{report.tblstaff?.email || 'N/A'}</p>
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs text-gray-500">Type / Detail</p>
-                                                            <p className="text-sm text-gray-900">{detail}</p>
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs text-gray-500">Location</p>
-                                                            <p className="text-sm text-gray-900">{locationCell}</p>
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs text-gray-500">Reason / Purpose</p>
-                                                            <p className="text-sm text-gray-900">{report.reason || report.purpose || 'N/A'}</p>
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs text-gray-500">Approver</p>
-                                                            <p className="text-sm text-gray-900">{report.approver ? `${report.approver.firstname} ${report.approver.lastname} (${report.approver.email})` : 'N/A'}</p>
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs text-gray-500">Submitted</p>
-                                                            <p className="text-sm text-gray-900">{createdAtVal ? formatInTimezone(createdAtVal) : 'N/A'}</p>
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs text-gray-500">Decision</p>
-                                                            {report.status && (report.status === 'Approved' || report.status === 'Rejected') ? (
-                                                                <p className="text-sm text-gray-900">{`${report.status === 'Approved' ? 'Approved At' : 'Rejected At'}: ${updatedAtVal ? formatInTimezone(updatedAtVal) : 'N/A'}`}</p>
-                                                            ) : (
-                                                                <p className="text-sm text-gray-900">{report.status || 'N/A'}</p>
-                                                            )}
-
-                                                            {report.rejection_reason && (
-                                                                <>
-                                                                    <p className="text-xs text-red-500 mt-2">Rejection Reason</p>
-                                                                    <p className="text-sm text-red-700">{report.rejection_reason}</p>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </React.Fragment>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                )}
-            </div>
-
-            {/* Pagination Controls */}
-            {reports.length > 0 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 mt-4 rounded-b-lg">
-                    <div className="text-sm text-gray-600 flex flex-wrap items-center gap-2">
-                        <span>Showing page {page} of {totalPages} ({totalItems} total records)</span>
-                        {reportComplianceSummary.totalApplicable > 0 && (
-                            <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-2 border-l border-gray-300">
-                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                    {reportComplianceSummary.compliantCount} Compliant
-                                </span>
-                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                                    {reportComplianceSummary.nonCompliantCount} Non-Compliant
-                                </span>
-                                {reportComplianceSummary.inProgressCount > 0 && (
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                        {reportComplianceSummary.inProgressCount} In Progress
-                                    </span>
-                                )}
+                    {/* Filters */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Record Type</label>
+                                <select
+                                    value={typeFilter}
+                                    onChange={(e) => handleFilterChange(setTypeFilter, e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                >
+                                    <option value="both">All (Leave, On-Duty & Time-Off)</option>
+                                    <option value="leave">Leave Only</option>
+                                    <option value="onduty">On-Duty Only</option>
+                                    <option value="timeoff">Time-Off Only</option>
+                                </select>
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Filter by User</label>
+                                <select
+                                    value={selectedUserId}
+                                    onChange={(e) => handleFilterChange(setSelectedUserId, e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                >
+                                    <option value="">All Users</option>
+                                    {users.map(user => (
+                                        <option key={user.staffid} value={user.staffid}>
+                                            {user.firstname} {user.lastname}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+                                <div>
+                                    <select
+                                        value={datePreset}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setDatePreset(val);
+                                            setPage(1);
+                                            const toIso = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                            if (val === 'today') {
+                                                const d = getCurrentInAppTimezone().date;
+                                                setStartDate(d); setEndDate(d);
+                                            } else if (val === 'thismonth') {
+                                                const now = getCurrentInAppTimezone().full;
+                                                const y = now.getFullYear();
+                                                const m = now.getMonth() + 1;
+                                                const lastD = new Date(y, m, 0).getDate();
+                                                setStartDate(toIso(y, m, 1)); setEndDate(toIso(y, m, lastD));
+                                            } else if (val === 'lastmonth') {
+                                                const now = getCurrentInAppTimezone().full;
+                                                const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                                                const y = prevDate.getFullYear();
+                                                const m = prevDate.getMonth() + 1;
+                                                const lastD = new Date(y, m, 0).getDate();
+                                                setStartDate(toIso(y, m, 1)); setEndDate(toIso(y, m, lastD));
+                                            } else if (val === 'thisyear') {
+                                                const now = getCurrentInAppTimezone().full;
+                                                const y = now.getFullYear();
+                                                setStartDate(toIso(y, 1, 1)); setEndDate(toIso(y, 12, 31));
+                                            } else if (val === 'lastyear') {
+                                                const now = getCurrentInAppTimezone().full;
+                                                const y = now.getFullYear() - 1;
+                                                setStartDate(toIso(y, 1, 1)); setEndDate(toIso(y, 12, 31));
+                                            } else if (val === 'thisquarter' || val === 'lastquarter') {
+                                                const now = getCurrentInAppTimezone().full;
+                                                let qStartMonth = Math.floor(now.getMonth() / 3) * 3;
+                                                let year = now.getFullYear();
+                                                if (val === 'lastquarter') {
+                                                    qStartMonth -= 3;
+                                                    if (qStartMonth < 0) { qStartMonth += 12; year -= 1; }
+                                                }
+                                                const startM = qStartMonth + 1;
+                                                const endM = qStartMonth + 3;
+                                                const lastD = new Date(year, endM, 0).getDate();
+                                                setStartDate(toIso(year, startM, 1)); setEndDate(toIso(year, endM, lastD));
+                                            } else if (val === 'custom') {
+                                                setStartDate(''); setEndDate('');
+                                            } else {
+                                                setStartDate(''); setEndDate('');
+                                            }
+                                        }}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                    >
+                                        <option value="today">Today</option>
+                                        <option value="7days">Last 7 Days</option>
+                                        <option value="30days">Last 30 Days</option>
+                                        <option value="90days">Last 90 Days</option>
+                                        <option value="thismonth">This Month</option>
+                                        <option value="lastmonth">Last Month</option>
+                                        <option value="thisquarter">This Quarter</option>
+                                        <option value="lastquarter">Last Quarter</option>
+                                        <option value="thisyear">This Year</option>
+                                        <option value="lastyear">Last Year</option>
+                                        <option value="custom">Custom Range</option>
+                                    </select>
+
+                                    {datePreset === 'custom' && (
+                                        <div className="flex gap-2 mt-2">
+                                            <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} className="w-1/2 px-2 py-1 border border-gray-300 rounded" />
+                                            <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} className="w-1/2 px-2 py-1 border border-gray-300 rounded" />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => handleFilterChange(setStatusFilter, e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                >
+                                    <option value="all">All Status</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="active">Active</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button
+                                    onClick={downloadCSV}
+                                    disabled={reports.length === 0}
+                                    className="group relative overflow-hidden w-full px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center justify-center gap-2 z-10"
+                                >
+                                    <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
+                                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                                    📥 Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="relative overflow-x-auto bg-white rounded-lg border border-gray-100 min-h-[400px]">
+                        {loading && (
+                            <ModernLoader size="container" message="Updating reports..." fullScreen={false} />
+                        )}
+                        {reports.length === 0 && !loading ? (
+                            <div className="p-6 text-center text-gray-500">No reports found</div>
+                        ) : (
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-[#1e1b4b] text-white">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Details</th>
+                                        <th className="px-4 py-3 text-left">
+                                            <button
+                                                onClick={() => handleSort('date')}
+                                                className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
+                                            >
+                                                Created Date <TableSortIcon column="date" sortConfig={sortConfig} />
+                                            </button>
+                                        </th>
+                                        <th className="px-4 py-3 text-left">
+                                            <button
+                                                onClick={() => handleSort('staffName')}
+                                                className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
+                                            >
+                                                Staff <TableSortIcon column="staffName" sortConfig={sortConfig} />
+                                            </button>
+                                        </th>
+                                        <th className="px-4 py-3 text-left">
+                                            <button
+                                                onClick={() => handleSort('type')}
+                                                className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
+                                            >
+                                                Type <TableSortIcon column="type" sortConfig={sortConfig} />
+                                            </button>
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Detail</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Start</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">End</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Location</th>
+                                        <th className="px-4 py-3 text-left">
+                                            <button
+                                                onClick={() => handleSort('status')}
+                                                className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
+                                            >
+                                                Status <TableSortIcon column="status" sortConfig={sortConfig} />
+                                            </button>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {sortedReports.map((report) => {
+                                        const isLeave = report.type === 'leave';
+                                        const isTimeOff = report.type === 'timeoff';
+                                        const isOnDuty = report.type === 'onduty';
+                                        const uniqueKey = `${isLeave ? 'lv' : isTimeOff ? 'to' : 'od'}_${report.id}`;
+                                        const staffName = `${report.tblstaff?.firstname || 'Unknown'} ${report.tblstaff?.lastname || ''}`.trim();
+                                        const isExpanded = !!expandedRows[uniqueKey];
+
+                                        // compute primary cells
+                                        const createdAtVal = report.createdAt || report.created_at || report.created_on || report.created || report.date_created || null;
+                                        const dateCell = createdAtVal ? formatDateOnly(createdAtVal) : 'N/A';
+                                        const staffId = report.tblstaff?.staffid || report.staff_id || 'N/A';
+                                        const detail = isLeave ? (report.leave_type || 'N/A') : isTimeOff ? 'Time-Off' : (report.client_name || 'N/A');
+                                        const startCell = isLeave ? formatDateOnly(report.start_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.start_time)}` : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A');
+                                        const endCell = isLeave ? formatDateOnly(report.end_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.end_time)}` : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A');
+                                        const durationCell = isLeave ? (report.start_date && report.end_date ? (() => {
+                                            const effectiveStart = (startDate && report.start_date < startDate) ? startDate : report.start_date;
+                                            const effectiveEnd = (endDate && report.end_date > endDate) ? endDate : report.end_date;
+                                            const days = calculateLeaveDays(effectiveStart, effectiveEnd) - (report.is_half_day === true || report.is_half_day === 1 ? 0.5 : 0);
+                                            return formatLeaveDuration(days, { lowercase: true });
+                                        })() : 'N/A') : isTimeOff ? calculateTimeOffDuration(report.start_time, report.end_time) : calculateDuration(report.check_in_time, report.check_out_time);
+                                        const locationCell = isLeave || isTimeOff ? 'N/A' : (report.end_location ? `${report.location || 'Remote'} to ${report.end_location}` : (report.location || report.client_name || 'N/A'));
+                                        const statusCell = (report.type === 'leave' || report.type === 'timeoff') ? (report.status || 'N/A') : (report.check_out_time ? 'Completed' : 'Active');
+
+                                        // Timestamps: backend may return camelCase or snake_case fields
+                                        const updatedAtVal = report.updatedAt || report.updated_at || report.decision_at || report.updated || report.date_updated || null;
+
+                                        return (
+                                            <React.Fragment key={uniqueKey}>
+                                                <tr className="hover:bg-gray-50 transition-colors group">
+                                                    <td className="px-2 py-2 text-sm">
+                                                        <button
+                                                            onClick={() => toggleRow(uniqueKey)}
+                                                            className="text-gray-400 hover:text-blue-600 transition-colors"
+                                                        >
+                                                            {isExpanded ? <FiMinusCircle size={16} /> : <FiPlusCircle size={16} />}
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{dateCell}</td>
+                                                    <td className="px-2 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">{staffName}</td>
+                                                    <td className="px-2 py-2 text-sm">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-bold border ${isLeave ? 'bg-blue-50 text-blue-700 border-blue-200' : isTimeOff ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>
+                                                            {isLeave ? 'Leave' : isTimeOff ? 'Time-Off' : 'On-Duty'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-2 py-2 text-sm text-gray-700 max-w-[150px] truncate" title={detail}>{detail}</td>
+                                                    <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{startCell}</td>
+                                                    <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{endCell}</td>
+                                                    <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{durationCell}</td>
+                                                    <td className="px-2 py-2 text-sm text-gray-700 max-w-[150px] truncate" title={locationCell}>{locationCell}</td>
+                                                    <td className="px-2 py-2 text-sm">{getStatusBadge(report)}</td>
+                                                </tr>
+
+                                                {isExpanded && (
+                                                    <tr>
+                                                        <td colSpan={10} className="bg-blue-50 px-6 py-4 text-sm text-gray-700">
+                                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                                <div>
+                                                                    <p className="text-xs text-gray-500">Full Name</p>
+                                                                    <p className="text-sm text-gray-900">{staffName}</p>
+                                                                </div>
+
+                                                                <div>
+                                                                    <p className="text-xs text-gray-500">Email</p>
+                                                                    <p className="text-sm text-gray-900">{report.tblstaff?.email || 'N/A'}</p>
+                                                                </div>
+
+                                                                <div>
+                                                                    <p className="text-xs text-gray-500">Type / Detail</p>
+                                                                    <p className="text-sm text-gray-900">{detail}</p>
+                                                                </div>
+
+                                                                <div>
+                                                                    <p className="text-xs text-gray-500">Location</p>
+                                                                    <p className="text-sm text-gray-900">{locationCell}</p>
+                                                                </div>
+
+                                                                <div>
+                                                                    <p className="text-xs text-gray-500">Reason / Purpose</p>
+                                                                    <p className="text-sm text-gray-900">{report.reason || report.purpose || 'N/A'}</p>
+                                                                </div>
+
+                                                                <div>
+                                                                    <p className="text-xs text-gray-500">Approver</p>
+                                                                    <p className="text-sm text-gray-900">{report.approver ? `${report.approver.firstname} ${report.approver.lastname} (${report.approver.email})` : 'N/A'}</p>
+                                                                </div>
+
+                                                                <div>
+                                                                    <p className="text-xs text-gray-500">Submitted</p>
+                                                                    <p className="text-sm text-gray-900">{createdAtVal ? formatInTimezone(createdAtVal) : 'N/A'}</p>
+                                                                </div>
+
+                                                                <div>
+                                                                    <p className="text-xs text-gray-500">Decision</p>
+                                                                    {report.status && (report.status === 'Approved' || report.status === 'Rejected') ? (
+                                                                        <p className="text-sm text-gray-900">{`${report.status === 'Approved' ? 'Approved At' : 'Rejected At'}: ${updatedAtVal ? formatInTimezone(updatedAtVal) : 'N/A'}`}</p>
+                                                                    ) : (
+                                                                        <p className="text-sm text-gray-900">{report.status || 'N/A'}</p>
+                                                                    )}
+
+                                                                    {report.rejection_reason && (
+                                                                        <>
+                                                                            <p className="text-xs text-red-500 mt-2">Rejection Reason</p>
+                                                                            <p className="text-sm text-red-700">{report.rejection_reason}</p>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         )}
                     </div>
-                    <div className="flex gap-2 items-center">
-                        {/* Previous Button */}
-                        <button
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                            disabled={page === 1}
-                            className="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Previous
-                        </button>
 
-                        {/* Page Numbers with Smart Ellipsis */}
-                        <div className="flex items-center gap-1">
-                            {(() => {
-                                const pageNumbers = [];
-                                const showEllipsis = totalPages > 7;
+                    {/* Pagination Controls */}
+                    {reports.length > 0 && (
+                        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 mt-4 rounded-b-lg">
+                            <div className="text-sm text-gray-600 flex flex-wrap items-center gap-2">
+                                <span>Showing page {page} of {totalPages} ({totalItems} total records)</span>
+                            </div>
+                            <div className="flex gap-2 items-center">
+                                {/* Previous Button */}
+                                <button
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                    className="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Previous
+                                </button>
 
-                                if (!showEllipsis) {
-                                    // Show all pages if <= 7
-                                    for (let i = 1; i <= totalPages; i++) {
-                                        pageNumbers.push(
-                                            <button
-                                                key={i}
-                                                onClick={() => setPage(i)}
-                                                className={`px-3 py-1 rounded-lg text-sm transition-colors ${page === i
-                                                    ? 'bg-blue-600 text-white font-semibold'
-                                                    : 'border border-gray-300 hover:bg-gray-200'
-                                                    }`}
-                                            >
-                                                {i}
-                                            </button>
-                                        );
-                                    }
-                                } else {
-                                    // Always show first page
-                                    pageNumbers.push(
-                                        <button
-                                            key={1}
-                                            onClick={() => setPage(1)}
-                                            className={`px-3 py-1 rounded-lg text-sm transition-colors ${page === 1
-                                                ? 'bg-blue-600 text-white font-semibold'
-                                                : 'border border-gray-300 hover:bg-gray-200'
-                                                }`}
-                                        >
-                                            1
-                                        </button>
-                                    );
+                                {/* Page Numbers with Smart Ellipsis */}
+                                <div className="flex items-center gap-1">
+                                    {(() => {
+                                        const pageNumbers = [];
+                                        const showEllipsis = totalPages > 7;
 
-                                    // Left ellipsis
-                                    if (page > 3) {
-                                        pageNumbers.push(
-                                            <span key="left-ellipsis" className="px-2 text-gray-500">
-                                                ...
-                                            </span>
-                                        );
-                                    }
+                                        if (!showEllipsis) {
+                                            // Show all pages if <= 7
+                                            for (let i = 1; i <= totalPages; i++) {
+                                                pageNumbers.push(
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => setPage(i)}
+                                                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${page === i
+                                                            ? 'bg-blue-600 text-white font-semibold'
+                                                            : 'border border-gray-300 hover:bg-gray-200'
+                                                            }`}
+                                                    >
+                                                        {i}
+                                                    </button>
+                                                );
+                                            }
+                                        } else {
+                                            // Always show first page
+                                            pageNumbers.push(
+                                                <button
+                                                    key={1}
+                                                    onClick={() => setPage(1)}
+                                                    className={`px-3 py-1 rounded-lg text-sm transition-colors ${page === 1
+                                                        ? 'bg-blue-600 text-white font-semibold'
+                                                        : 'border border-gray-300 hover:bg-gray-200'
+                                                        }`}
+                                                >
+                                                    1
+                                                </button>
+                                            );
 
-                                    // Pages around current
-                                    const start = Math.max(2, page - 1);
-                                    const end = Math.min(totalPages - 1, page + 1);
+                                            // Left ellipsis
+                                            if (page > 3) {
+                                                pageNumbers.push(
+                                                    <span key="left-ellipsis" className="px-2 text-gray-500">
+                                                        ...
+                                                    </span>
+                                                );
+                                            }
 
-                                    for (let i = start; i <= end; i++) {
-                                        pageNumbers.push(
-                                            <button
-                                                key={i}
-                                                onClick={() => setPage(i)}
-                                                className={`px-3 py-1 rounded-lg text-sm transition-colors ${page === i
-                                                    ? 'bg-blue-600 text-white font-semibold'
-                                                    : 'border border-gray-300 hover:bg-gray-200'
-                                                    }`}
-                                            >
-                                                {i}
-                                            </button>
-                                        );
-                                    }
+                                            // Pages around current
+                                            const start = Math.max(2, page - 1);
+                                            const end = Math.min(totalPages - 1, page + 1);
 
-                                    // Right ellipsis
-                                    if (page < totalPages - 2) {
-                                        pageNumbers.push(
-                                            <span key="right-ellipsis" className="px-2 text-gray-500">
-                                                ...
-                                            </span>
-                                        );
-                                    }
+                                            for (let i = start; i <= end; i++) {
+                                                pageNumbers.push(
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => setPage(i)}
+                                                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${page === i
+                                                            ? 'bg-blue-600 text-white font-semibold'
+                                                            : 'border border-gray-300 hover:bg-gray-200'
+                                                            }`}
+                                                    >
+                                                        {i}
+                                                    </button>
+                                                );
+                                            }
 
-                                    // Always show last page
-                                    pageNumbers.push(
-                                        <button
-                                            key={totalPages}
-                                            onClick={() => setPage(totalPages)}
-                                            className={`px-3 py-1 rounded-lg text-sm transition-colors ${page === totalPages
-                                                ? 'bg-blue-600 text-white font-semibold'
-                                                : 'border border-gray-300 hover:bg-gray-200'
-                                                }`}
-                                        >
-                                            {totalPages}
-                                        </button>
-                                    );
-                                }
+                                            // Right ellipsis
+                                            if (page < totalPages - 2) {
+                                                pageNumbers.push(
+                                                    <span key="right-ellipsis" className="px-2 text-gray-500">
+                                                        ...
+                                                    </span>
+                                                );
+                                            }
 
-                                return pageNumbers;
-                            })()}
+                                            // Always show last page
+                                            pageNumbers.push(
+                                                <button
+                                                    key={totalPages}
+                                                    onClick={() => setPage(totalPages)}
+                                                    className={`px-3 py-1 rounded-lg text-sm transition-colors ${page === totalPages
+                                                        ? 'bg-blue-600 text-white font-semibold'
+                                                        : 'border border-gray-300 hover:bg-gray-200'
+                                                        }`}
+                                                >
+                                                    {totalPages}
+                                                </button>
+                                            );
+                                        }
+
+                                        return pageNumbers;
+                                    })()}
+                                </div>
+
+                                {/* Next Button */}
+                                <button
+                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={page === totalPages}
+                                    className="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
                         </div>
-
-                        {/* Next Button */}
-                        <button
-                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                            disabled={page === totalPages}
-                            className="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Next
-                        </button>
-                    </div>
-                </div>
-            )}
-            </>
+                    )}
+                </>
             )}
         </div>
     );

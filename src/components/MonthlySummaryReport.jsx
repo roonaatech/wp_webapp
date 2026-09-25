@@ -288,6 +288,8 @@ const MonthlySummaryReport = () => {
                 { header: 'Employee Name', key: 'name', width: 25 },
                 { header: 'Email', key: 'email', width: 30 },
                 { header: 'Present Days', key: 'present', width: 15 },
+                { header: 'Compliant Days', key: 'compliant_days', width: 16 },
+                { header: 'Non-Compliant Days', key: 'non_compliant_days', width: 18 },
                 { header: 'Work Hours', key: 'work_hours', width: 15 },
                 { header: 'Leave Days', key: 'leave', width: 15 },
                 { header: 'Time-Off', key: 'timeoff', width: 15 },
@@ -329,14 +331,24 @@ const MonthlySummaryReport = () => {
 
             const dataToExport = sortedSummary.length > 0 ? sortedSummary : summary;
 
+            let totalCompliantDays = 0;
+            let totalNonCompliantDays = 0;
+
             dataToExport.forEach((s) => {
                 const fullName = `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Employee';
                 s.sheetName = getUniqueSheetName(fullName, s.staff_id);
+
+                const attSessions = s.attendance_records || (s.records?.find(r => r.type === 'Attendance')?.sessions) || [];
+                const compCounts = getModalComplianceDayCounts(attSessions, complianceHours);
+                totalCompliantDays += compCounts.compliantDays;
+                totalNonCompliantDays += compCounts.nonCompliantDays;
 
                 const row = summarySheet.addRow({
                     name: fullName,
                     email: s.email,
                     present: s.present_days || 0,
+                    compliant_days: compCounts.compliantDays,
+                    non_compliant_days: compCounts.nonCompliantDays,
                     work_hours: formatHours(s.work_hours, s.work_minutes),
                     leave: s.leave_days,
                     timeoff: formatHours(s.timeoff_hours, s.timeoff_minutes),
@@ -354,21 +366,40 @@ const MonthlySummaryReport = () => {
                     underline: true
                 };
 
-                row.eachCell(cell => { cell.border = borderStyle; });
+                row.eachCell((cell, colNumber) => {
+                    cell.border = borderStyle;
+                    if ([3, 4, 5, 6, 7, 8, 9].includes(colNumber)) {
+                        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    }
+                    if (colNumber === 4 && compCounts.compliantDays > 0) {
+                        cell.font = { color: { argb: 'FF15803D' }, bold: true };
+                    }
+                    if (colNumber === 5 && compCounts.nonCompliantDays > 0) {
+                        cell.font = { color: { argb: 'FFBE123C' }, bold: true };
+                    }
+                });
             });
             
             const totalRow = summarySheet.addRow({
                 name: 'TOTAL',
+                email: '',
                 present: totals.present_days,
+                compliant_days: totalCompliantDays,
+                non_compliant_days: totalNonCompliantDays,
                 work_hours: formatHours(0, totals.work_minutes),
                 leave: totals.leave_days,
                 timeoff: formatHours(0, totals.timeoff_minutes),
                 onduty: formatHours(0, totals.onduty_minutes)
             });
             totalRow.font = { bold: true };
-            totalRow.eachCell(cell => {
+            totalRow.eachCell((cell, colNumber) => {
                 cell.border = borderStyle;
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+                if ([3, 4, 5, 6, 7, 8, 9].includes(colNumber)) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                }
+                if (colNumber === 4) cell.font = { bold: true, color: { argb: 'FF15803D' } };
+                if (colNumber === 5) cell.font = { bold: true, color: { argb: 'FFBE123C' } };
             });
 
             // 2. Create Individual Sheets
@@ -416,7 +447,8 @@ const MonthlySummaryReport = () => {
                 if (attSessions.length > 0) {
                     sheet.mergeCells(`A${curRowIdx}:I${curRowIdx}`);
                     const attTitle = sheet.getCell(`A${curRowIdx}`);
-                    attTitle.value = `ATTENDANCE SESSIONS (${s.present_days || 0} Present Days | Total Work Time: ${formatHours(s.work_hours, s.work_minutes)})`;
+                    const compCounts = getModalComplianceDayCounts(attSessions, complianceHours);
+                    attTitle.value = `ATTENDANCE SESSIONS (${s.present_days || 0} Present Days | ${compCounts.compliantDays} Compliant | ${compCounts.nonCompliantDays} Non-Compliant${compCounts.inProgressDays > 0 ? ` | ${compCounts.inProgressDays} In Progress` : ''} | Total Work Time: ${formatHours(s.work_hours, s.work_minutes)})`;
                     attTitle.font = { bold: true, color: { argb: 'FF065F46' }, size: 10 };
                     attTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
                     attTitle.border = borderStyle;

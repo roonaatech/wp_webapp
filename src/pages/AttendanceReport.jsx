@@ -7,7 +7,7 @@ import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
 import { fetchRoles, canViewAttendanceReport, canManageAttendance, canEditAttendance, canDeleteAttendance } from '../utils/roleUtils';
 import { formatDateOnly, formatTimeOnly, formatInTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
-import { LuFilter, LuUser, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet } from 'react-icons/lu';
+import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet } from 'react-icons/lu';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -18,19 +18,88 @@ const AttendanceReport = () => {
 
     // Filter States
     const [selectedUserId, setSelectedUserId] = useState('');
+    const defaultToday = getCurrentInAppTimezone().date;
+    const [datePreset, setDatePreset] = useState('today');
+    const [startDate, setStartDate] = useState(defaultToday);
+    const [endDate, setEndDate] = useState(defaultToday);
 
-    const getThisMonthRange = () => {
-        const now = getCurrentInAppTimezone().full;
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
-        const start = `${year}-${String(month).padStart(2, '0')}-01`;
-        const lastDay = new Date(year, month, 0).getDate();
-        const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-        return { start, end };
+    const getDatePresetRange = (presetKey) => {
+        const nowInApp = getCurrentInAppTimezone();
+        const todayStr = nowInApp.date;
+        const nowFull = nowInApp.full;
+
+        const toIso = (dateObj) => {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+
+        if (presetKey === 'today') {
+            return { start: todayStr, end: todayStr };
+        }
+
+        if (presetKey === 'yesterday') {
+            const y = new Date(nowFull);
+            y.setDate(y.getDate() - 1);
+            const yStr = toIso(y);
+            return { start: yStr, end: yStr };
+        }
+
+        if (presetKey === 'thisweek') {
+            const d = new Date(nowFull);
+            const day = d.getDay();
+            const diffToMonday = day === 0 ? 6 : day - 1;
+            d.setDate(d.getDate() - diffToMonday);
+            return { start: toIso(d), end: todayStr };
+        }
+
+        if (presetKey === '7days') {
+            const d = new Date(nowFull);
+            d.setDate(d.getDate() - 6);
+            return { start: toIso(d), end: todayStr };
+        }
+
+        if (presetKey === '30days') {
+            const d = new Date(nowFull);
+            d.setDate(d.getDate() - 29);
+            return { start: toIso(d), end: todayStr };
+        }
+
+        if (presetKey === 'thismonth') {
+            const y = nowFull.getFullYear();
+            const m = nowFull.getMonth() + 1;
+            const lastD = new Date(y, m, 0).getDate();
+            const start = `${y}-${String(m).padStart(2, '0')}-01`;
+            const end = `${y}-${String(m).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
+            return { start, end };
+        }
+
+        if (presetKey === 'lastmonth') {
+            const prev = new Date(nowFull.getFullYear(), nowFull.getMonth() - 1, 1);
+            const y = prev.getFullYear();
+            const m = prev.getMonth() + 1;
+            const lastD = new Date(y, m, 0).getDate();
+            const start = `${y}-${String(m).padStart(2, '0')}-01`;
+            const end = `${y}-${String(m).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
+            return { start, end };
+        }
+
+        return null;
     };
-    const { start: defaultStart, end: defaultEnd } = getThisMonthRange();
-    const [startDate, setStartDate] = useState(defaultStart);
-    const [endDate, setEndDate] = useState(defaultEnd);
+
+    const handlePresetChange = (preset) => {
+        setDatePreset(preset);
+        setPage(1);
+        if (preset === 'custom') {
+            return;
+        }
+        const range = getDatePresetRange(preset);
+        if (range) {
+            setStartDate(range.start);
+            setEndDate(range.end);
+        }
+    };
 
     // Data States
     const [logs, setLogs] = useState([]);
@@ -403,13 +472,25 @@ const AttendanceReport = () => {
             titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
             sheet.getRow(1).height = 32;
 
+            // Calculate total compliance statistics for the export
+            let exportCompliantCount = 0;
+            let exportNonCompliantCount = 0;
+            let exportInProgressCount = 0;
+            exportLogs.forEach((log) => {
+                const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+                if (comp.isActive) exportInProgressCount++;
+                else if (comp.isCompliant) exportCompliantCount++;
+                else exportNonCompliantCount++;
+            });
+
             // Subtitle metadata
             sheet.mergeCells('A2:K2');
             const metaCell = sheet.getCell('A2');
             const filterDesc = selectedUserId
                 ? `Filtered by Employee ID: ${selectedUserId} | Date Range: ${startDate || 'Start'} to ${endDate || 'End'}`
                 : `Filter: All Employees | Date Range: ${startDate || 'Start'} to ${endDate || 'End'}`;
-            metaCell.value = `${filterDesc} | Total Records: ${exportLogs.length} | Exported: ${formatInTimezone(new Date())}`;
+            const complianceSummaryText = `Compliant: ${exportCompliantCount} | Non-Compliant: ${exportNonCompliantCount}${exportInProgressCount > 0 ? ` | In Progress: ${exportInProgressCount}` : ''}`;
+            metaCell.value = `${filterDesc} | Total Records: ${exportLogs.length} (${complianceSummaryText}) | Exported: ${formatInTimezone(new Date())}`;
             metaCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF64748B' } };
             metaCell.fill = {
                 type: 'pattern',
@@ -522,6 +603,39 @@ const AttendanceReport = () => {
                 });
             });
 
+            // Total / Summary Row
+            const summaryRow = sheet.addRow([
+                'TOTAL',
+                `${exportLogs.length} Records`,
+                '',
+                '',
+                '',
+                '',
+                '',
+                complianceSummaryText,
+                '',
+                '',
+                ''
+            ]);
+            summaryRow.height = 22;
+            summaryRow.eachCell((cell, colNumber) => {
+                cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF1E1B4B' } };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFF1F5F9' }
+                };
+                cell.border = {
+                    top: { style: 'medium', color: { argb: 'FFCBD5E1' } },
+                    left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    bottom: { style: 'medium', color: { argb: 'FFCBD5E1' } },
+                    right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                };
+                if ([1, 8].includes(colNumber)) {
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                }
+            });
+
             sheet.columns = [
                 { key: 'staffId', width: 12 },
                 { key: 'name', width: 25 },
@@ -552,9 +666,10 @@ const AttendanceReport = () => {
 
     const handleClearFilters = () => {
         setSelectedUserId('');
-        const range = getThisMonthRange();
-        setStartDate(range.start);
-        setEndDate(range.end);
+        const today = getCurrentInAppTimezone().date;
+        setDatePreset('today');
+        setStartDate(today);
+        setEndDate(today);
         setPage(1);
     };
 
@@ -693,9 +808,9 @@ const AttendanceReport = () => {
                     <span className="uppercase tracking-wider text-sm">Filter Reports</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="flex flex-wrap items-end gap-3">
                     {/* Employee Filter */}
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-[200px]">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Employee</label>
                         <div className="relative">
                             <select
@@ -716,30 +831,66 @@ const AttendanceReport = () => {
                         </div>
                     </div>
 
-                    {/* Date Filters */}
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">From Date</label>
-                        <DateFilterInput
-                            value={startDate}
-                            onChange={(iso) => { setStartDate(iso); setPage(1); }}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-                        />
+                    {/* Date Preset Filter */}
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-[180px]">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date Range</label>
+                        <div className="relative">
+                            <select
+                                value={datePreset}
+                                onChange={(e) => handlePresetChange(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
+                            >
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="thisweek">This Week</option>
+                                <option value="7days">Last 7 Days</option>
+                                <option value="thismonth">This Month</option>
+                                <option value="lastmonth">Last Month</option>
+                                <option value="30days">Last 30 Days</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                <LuCalendar size={16} />
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">To Date</label>
-                        <DateFilterInput
-                            value={endDate}
-                            onChange={(iso) => { setEndDate(iso); setPage(1); }}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-                        />
-                    </div>
+                    {/* From Date & To Date — only shown when Custom Range is active */}
+                    {datePreset === 'custom' && (
+                        <>
+                            <div className="flex flex-col gap-1.5 w-full sm:w-44">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">From Date</label>
+                                <DateFilterInput
+                                    value={startDate}
+                                    onChange={(iso) => {
+                                        setStartDate(iso);
+                                        setPage(1);
+                                    }}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                                />
+                            </div>
 
-                    {/* Clear Filters — shares the row with the filter inputs, aligned to the bottom */}
-                    <div className="flex items-end justify-end">
+                            <div className="flex flex-col gap-1.5 w-full sm:w-44">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">To Date</label>
+                                <DateFilterInput
+                                    value={endDate}
+                                    onChange={(iso) => {
+                                        setEndDate(iso);
+                                        setPage(1);
+                                    }}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {/* Clear Filters */}
+                    <div className="flex items-end">
                         <button
+                            type="button"
                             onClick={handleClearFilters}
-                            className="px-4 py-2 border border-rose-200 bg-rose-50 rounded-xl hover:bg-rose-100 text-rose-600 text-xs font-bold transition uppercase tracking-wider"
+                            className="px-4 py-2 border border-rose-200 bg-rose-50 rounded-xl hover:bg-rose-100 text-rose-600 text-xs font-bold transition uppercase tracking-wider cursor-pointer whitespace-nowrap"
+                            title="Reset filters to Today and All Employees"
                         >
                             Clear Filters
                         </button>
