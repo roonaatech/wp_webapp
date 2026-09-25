@@ -249,30 +249,41 @@ const AttendanceReport = () => {
 
     const getAttendanceCompliance = (checkInStr, checkOutStr, threshold = complianceHours) => {
         if (!checkInStr) {
-            return { isCompliant: false, hours: 0, label: 'Non-Compliant' };
+            return { isCompliant: false, isActive: false, hours: 0, label: '—' };
+        }
+
+        // Active check-in: checked in, but checkout has not been completed
+        if (!checkOutStr) {
+            return {
+                isCompliant: false,
+                isActive: true,
+                hours: 0,
+                label: 'In Progress'
+            };
         }
 
         try {
             const checkIn = new Date(checkInStr);
-            const checkOut = checkOutStr ? new Date(checkOutStr) : new Date();
+            const checkOut = new Date(checkOutStr);
             const diffMs = checkOut.getTime() - checkIn.getTime();
-            if (diffMs <= 0) return { isCompliant: false, hours: 0, label: 'Non-Compliant' };
+            if (diffMs <= 0) return { isCompliant: false, isActive: false, hours: 0, label: 'Non-Compliant' };
 
             const hours = diffMs / (1000 * 60 * 60);
             const isCompliant = hours >= threshold;
             return {
                 isCompliant,
+                isActive: false,
                 hours,
-                label: isCompliant ? 'Compliant' : 'Non-Compliant',
-                isActive: !checkOutStr
+                label: isCompliant ? 'Compliant' : 'Non-Compliant'
             };
         } catch (e) {
-            return { isCompliant: false, hours: 0, label: 'Non-Compliant' };
+            return { isCompliant: false, isActive: false, hours: 0, label: 'Non-Compliant' };
         }
     };
 
     const getGroupCompliance = (userLogs, threshold = complianceHours) => {
         const dayTotals = {};
+        const activeDays = new Set();
         userLogs.forEach(log => {
             const d = log.date || 'unknown';
             if (!dayTotals[d]) dayTotals[d] = 0;
@@ -280,45 +291,55 @@ const AttendanceReport = () => {
             if (log.check_in_time && log.check_out_time) {
                 const diffMs = new Date(log.check_out_time).getTime() - new Date(log.check_in_time).getTime();
                 if (diffMs > 0) mins = Math.floor(diffMs / 60000);
-            } else if (log.check_in_time) {
-                const diffMs = new Date().getTime() - new Date(log.check_in_time).getTime();
-                if (diffMs > 0) mins = Math.floor(diffMs / 60000);
+            } else if (log.check_in_time && !log.check_out_time) {
+                activeDays.add(d);
             }
             dayTotals[d] += mins;
         });
 
         let compliantDays = 0;
         let nonCompliantDays = 0;
+        let inProgressDays = 0;
         const thresholdMins = threshold * 60;
 
-        Object.values(dayTotals).forEach(totalMins => {
-            if (totalMins >= thresholdMins) compliantDays++;
-            else nonCompliantDays++;
+        Object.entries(dayTotals).forEach(([d, totalMins]) => {
+            if (totalMins >= thresholdMins) {
+                compliantDays++;
+            } else if (activeDays.has(d)) {
+                inProgressDays++;
+            } else {
+                nonCompliantDays++;
+            }
         });
 
-        const totalDays = compliantDays + nonCompliantDays;
-        const isAllCompliant = nonCompliantDays === 0 && compliantDays > 0;
-        const isAllNonCompliant = compliantDays === 0;
+        const totalCompletedDays = compliantDays + nonCompliantDays;
+        const isAllCompliant = nonCompliantDays === 0 && inProgressDays === 0 && compliantDays > 0;
+        const isAllNonCompliant = compliantDays === 0 && inProgressDays === 0 && nonCompliantDays > 0;
+        const isOnlyInProgress = compliantDays === 0 && nonCompliantDays === 0 && inProgressDays > 0;
 
         return {
             compliantDays,
             nonCompliantDays,
-            totalDays,
+            inProgressDays,
+            totalCompletedDays,
             isAllCompliant,
             isAllNonCompliant,
-            isMixed: !isAllCompliant && !isAllNonCompliant
+            isOnlyInProgress,
+            isMixed: !isAllCompliant && !isAllNonCompliant && !isOnlyInProgress
         };
     };
 
     const complianceSummary = (() => {
         let compliantCount = 0;
         let nonCompliantCount = 0;
+        let inProgressCount = 0;
         logs.forEach(log => {
             const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
-            if (comp.isCompliant) compliantCount++;
+            if (comp.isActive) inProgressCount++;
+            else if (comp.isCompliant) compliantCount++;
             else nonCompliantCount++;
         });
-        return { compliantCount, nonCompliantCount };
+        return { compliantCount, nonCompliantCount, inProgressCount };
     })();
 
     const handleExport = async () => {
@@ -484,6 +505,8 @@ const AttendanceReport = () => {
                     if (colNumber === 8) { // Compliance
                         if (complianceStr === 'Compliant') {
                             cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF15803D' } }; // Emerald
+                        } else if (complianceStr === 'In Progress') {
+                            cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFB45309' } }; // Amber
                         } else {
                             cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFBE123C' } }; // Rose / Red
                         }
@@ -846,6 +869,14 @@ const AttendanceReport = () => {
                                                     <td className="px-4 py-2.5">
                                                         {(() => {
                                                             const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+                                                            if (comp.isActive) {
+                                                                return (
+                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                        In Progress
+                                                                    </span>
+                                                                );
+                                                            }
                                                             return comp.isCompliant ? (
                                                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -947,6 +978,14 @@ const AttendanceReport = () => {
                                                         <td className="px-4 py-3">
                                                             {(() => {
                                                                 const comp = getGroupCompliance(group.logs);
+                                                                if (comp.isOnlyInProgress) {
+                                                                    return (
+                                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                            In Progress
+                                                                        </span>
+                                                                    );
+                                                                }
                                                                 if (comp.isAllCompliant) {
                                                                     return (
                                                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -965,14 +1004,24 @@ const AttendanceReport = () => {
                                                                 }
                                                                 return (
                                                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                                            {comp.compliantDays} Compliant
-                                                                        </span>
-                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200">
-                                                                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                                                                            {comp.nonCompliantDays} Non-Compliant
-                                                                        </span>
+                                                                        {comp.compliantDays > 0 && (
+                                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                                {comp.compliantDays} Compliant
+                                                                            </span>
+                                                                        )}
+                                                                        {comp.nonCompliantDays > 0 && (
+                                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                                                                {comp.nonCompliantDays} Non-Compliant
+                                                                            </span>
+                                                                        )}
+                                                                        {comp.inProgressDays > 0 && (
+                                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                                {comp.inProgressDays} In Progress
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                 );
                                                             })()}
@@ -1016,6 +1065,14 @@ const AttendanceReport = () => {
                                                                 <td className="px-4 py-2.5">
                                                                     {(() => {
                                                                         const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+                                                                        if (comp.isActive) {
+                                                                            return (
+                                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                                    In Progress
+                                                                                </span>
+                                                                            );
+                                                                        }
                                                                         return comp.isCompliant ? (
                                                                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -1093,6 +1150,12 @@ const AttendanceReport = () => {
                                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                                     {complianceSummary.nonCompliantCount} Non-Compliant
                                 </span>
+                                {complianceSummary.inProgressCount > 0 && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                        {complianceSummary.inProgressCount} In Progress
+                                    </span>
+                                )}
                             </div>
                         </div>
 

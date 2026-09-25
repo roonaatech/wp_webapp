@@ -280,48 +280,67 @@ const Reports = () => {
     const getReportCompliance = (report, threshold = complianceHours) => {
         // Leave and Time-Off are requests/absences, not office attendance
         if (report.type === 'leave' || report.type === 'timeoff') {
-            return { applicable: false, label: '—' };
+            return { applicable: false, isActive: false, label: '—' };
         }
 
         // On-Duty or attendance-based report
         const checkIn = report.check_in_time || report.start_time;
         if (!checkIn) {
-            return { applicable: true, isCompliant: false, label: 'Non-Compliant' };
+            return { applicable: true, isActive: false, isCompliant: false, label: 'Non-Compliant' };
+        }
+
+        const checkOut = report.check_out_time || report.end_time;
+        // Active check-in: currently active / in progress
+        if (!checkOut) {
+            return {
+                applicable: true,
+                isActive: true,
+                isCompliant: false,
+                hours: 0,
+                label: 'In Progress'
+            };
         }
 
         try {
             const start = parseAppTimezone(checkIn) || new Date(checkIn);
-            const checkOut = report.check_out_time || report.end_time;
-            const end = checkOut ? (parseAppTimezone(checkOut) || new Date(checkOut)) : new Date();
+            const end = parseAppTimezone(checkOut) || new Date(checkOut);
             const diffMs = end.getTime() - start.getTime();
             if (diffMs <= 0) {
-                return { applicable: true, isCompliant: false, label: 'Non-Compliant' };
+                return { applicable: true, isActive: false, isCompliant: false, label: 'Non-Compliant' };
             }
 
             const hours = diffMs / (1000 * 60 * 60);
             const isCompliant = hours >= threshold;
             return {
                 applicable: true,
+                isActive: false,
                 isCompliant,
                 hours,
                 label: isCompliant ? 'Compliant' : 'Non-Compliant'
             };
         } catch (e) {
-            return { applicable: true, isCompliant: false, label: 'Non-Compliant' };
+            return { applicable: true, isActive: false, isCompliant: false, label: 'Non-Compliant' };
         }
     };
 
     const reportComplianceSummary = (() => {
         let compliantCount = 0;
         let nonCompliantCount = 0;
+        let inProgressCount = 0;
         reports.forEach(r => {
             const comp = getReportCompliance(r);
             if (comp.applicable) {
-                if (comp.isCompliant) compliantCount++;
+                if (comp.isActive) inProgressCount++;
+                else if (comp.isCompliant) compliantCount++;
                 else nonCompliantCount++;
             }
         });
-        return { compliantCount, nonCompliantCount, totalApplicable: compliantCount + nonCompliantCount };
+        return {
+            compliantCount,
+            nonCompliantCount,
+            inProgressCount,
+            totalApplicable: compliantCount + nonCompliantCount + inProgressCount
+        };
     })();
 
     const downloadCSV = async () => {
@@ -809,6 +828,14 @@ const Reports = () => {
                                                     if (!comp.applicable) {
                                                         return <span className="text-gray-300 font-semibold text-xs">—</span>;
                                                     }
+                                                    if (comp.isActive) {
+                                                        return (
+                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                In Progress
+                                                            </span>
+                                                        );
+                                                    }
                                                     return comp.isCompliant ? (
                                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -907,6 +934,12 @@ const Reports = () => {
                                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                                     {reportComplianceSummary.nonCompliantCount} Non-Compliant
                                 </span>
+                                {reportComplianceSummary.inProgressCount > 0 && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                        {reportComplianceSummary.inProgressCount} In Progress
+                                    </span>
+                                )}
                             </div>
                         )}
                     </div>

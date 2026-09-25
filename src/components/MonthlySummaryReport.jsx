@@ -85,20 +85,28 @@ const MonthlySummaryReport = () => {
     })();
 
     const getSessionCompliance = (sess, threshold = complianceHours) => {
+        // Active session: currently checked in without checkout
+        if (!sess.check_out_time || sess.status === 'Active' || sess.check_out_time_str === 'Active') {
+            return {
+                isCompliant: false,
+                isActive: true,
+                hours: 0,
+                label: 'In Progress'
+            };
+        }
+
         let hours = 0;
         if (sess.work_minutes !== undefined && sess.work_minutes > 0) {
             hours = sess.work_minutes / 60;
         } else if (sess.check_in_time && sess.check_out_time) {
             const diffMs = new Date(sess.check_out_time).getTime() - new Date(sess.check_in_time).getTime();
             if (diffMs > 0) hours = diffMs / (1000 * 60 * 60);
-        } else if (sess.check_in_time) {
-            const diffMs = new Date().getTime() - new Date(sess.check_in_time).getTime();
-            if (diffMs > 0) hours = diffMs / (1000 * 60 * 60);
         }
 
         const isCompliant = hours >= threshold;
         return {
             isCompliant,
+            isActive: false,
             hours,
             label: isCompliant ? 'Compliant' : 'Non-Compliant'
         };
@@ -106,6 +114,7 @@ const MonthlySummaryReport = () => {
 
     const getModalComplianceDayCounts = (sessions = [], thresholdHours = complianceHours) => {
         const dayTotals = {};
+        const activeDays = new Set();
         sessions.forEach(sess => {
             const d = sess.date || 'unknown';
             if (!dayTotals[d]) {
@@ -117,26 +126,28 @@ const MonthlySummaryReport = () => {
             } else if (sess.check_in_time && sess.check_out_time) {
                 const diffMs = new Date(sess.check_out_time).getTime() - new Date(sess.check_in_time).getTime();
                 if (diffMs > 0) mins = Math.floor(diffMs / 60000);
-            } else if (sess.check_in_time) {
-                const diffMs = new Date().getTime() - new Date(sess.check_in_time).getTime();
-                if (diffMs > 0) mins = Math.floor(diffMs / 60000);
+            } else if (sess.check_in_time && !sess.check_out_time) {
+                activeDays.add(d);
             }
             dayTotals[d] += mins;
         });
 
         let compliantDays = 0;
         let nonCompliantDays = 0;
+        let inProgressDays = 0;
         const thresholdMins = thresholdHours * 60;
 
-        Object.values(dayTotals).forEach(totalMins => {
+        Object.entries(dayTotals).forEach(([d, totalMins]) => {
             if (totalMins >= thresholdMins) {
                 compliantDays++;
+            } else if (activeDays.has(d)) {
+                inProgressDays++;
             } else {
                 nonCompliantDays++;
             }
         });
 
-        return { compliantDays, nonCompliantDays };
+        return { compliantDays, nonCompliantDays, inProgressDays };
     };
 
     const getModalAverageDuration = (sessions = [], presentDaysCount = 1) => {
@@ -442,6 +453,8 @@ const MonthlySummaryReport = () => {
                         row.getCell(5).font = { bold: true, color: { argb: 'FF059669' } };
                         if (comp.isCompliant) {
                             row.getCell(6).font = { bold: true, color: { argb: 'FF15803D' } }; // Green
+                        } else if (comp.isActive) {
+                            row.getCell(6).font = { bold: true, color: { argb: 'FFB45309' } }; // Amber
                         } else {
                             row.getCell(6).font = { bold: true, color: { argb: 'FFBE123C' } }; // Red
                         }
@@ -861,83 +874,101 @@ const MonthlySummaryReport = () => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
-                        <div className="bg-gradient-to-r from-[#1e1b4b] via-indigo-950 to-slate-900 text-white p-5 sm:p-6 flex items-start justify-between">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-300">
+                        <div className="bg-gradient-to-r from-[#1e1b4b] via-indigo-950 to-slate-900 text-white px-5 py-3 sm:px-6 flex items-center justify-between gap-3">
+                            <div className="flex items-center flex-wrap gap-2.5 min-w-0">
+                                <div className="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full shrink-0">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
                                         Daily Attendance Breakdown
                                     </span>
                                 </div>
-                                <h3 className="text-xl font-black text-white tracking-tight">
+                                <span className="text-white/30 hidden sm:inline">•</span>
+                                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
                                     {attendanceModalData.employeeName}
                                 </h3>
-                                <p className="text-xs text-gray-300 mt-0.5">
-                                    {attendanceModalData.email}
-                                </p>
+                                {attendanceModalData.email && (
+                                    <>
+                                        <span className="text-white/30 hidden sm:inline">•</span>
+                                        <span className="text-xs text-gray-300 truncate">
+                                            {attendanceModalData.email}
+                                        </span>
+                                    </>
+                                )}
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setAttendanceModalData(null)}
-                                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                                className="p-1.5 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer shrink-0"
                                 title="Close"
                             >
-                                <FiX size={20} />
+                                <FiX size={18} />
                             </button>
                         </div>
 
                         {/* Summary Badges Bar */}
-                        <div className="bg-emerald-50/60 border-b border-emerald-100 px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
-                            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                        <div className="bg-emerald-50/50 border-b border-emerald-100/80 px-4 py-2 sm:px-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-[11px]">
+                            <div className="flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1">
                                 <div>
-                                    <span className="text-gray-500 font-medium">Period: </span>
-                                    <span className="font-bold text-gray-800">{attendanceModalData.dateRange}</span>
+                                    <span className="text-gray-400 font-medium">Period: </span>
+                                    <span className="font-semibold text-gray-800">{attendanceModalData.dateRange}</span>
                                 </div>
-                                <div className="h-4 w-px bg-emerald-200 hidden sm:block"></div>
+                                <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
                                 <div>
-                                    <span className="text-gray-500 font-medium">Present Days: </span>
-                                    <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                    <span className="text-gray-400 font-medium">Present: </span>
+                                    <span className="font-semibold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded text-[10px]">
                                         {attendanceModalData.presentDaysCount} {attendanceModalData.presentDaysCount === 1 ? 'day' : 'days'}
                                     </span>
                                 </div>
                                 {(() => {
-                                    const { compliantDays, nonCompliantDays } = getModalComplianceDayCounts(attendanceModalData.sessions, complianceHours);
+                                    const { compliantDays, nonCompliantDays, inProgressDays } = getModalComplianceDayCounts(attendanceModalData.sessions, complianceHours);
                                     return (
                                         <>
-                                            <div className="h-4 w-px bg-emerald-200 hidden sm:block"></div>
+                                            <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
                                             <div>
-                                                <span className="text-gray-500 font-medium">Compliant Days: </span>
-                                                <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                                                <span className="text-gray-400 font-medium">Compliant: </span>
+                                                <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full border border-emerald-200 text-[10px]">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                                                     {compliantDays} {compliantDays === 1 ? 'day' : 'days'}
                                                 </span>
                                             </div>
-                                            <div className="h-4 w-px bg-emerald-200 hidden sm:block"></div>
+                                            <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
                                             <div>
-                                                <span className="text-gray-500 font-medium">Non-Compliant Days: </span>
-                                                <span className="inline-flex items-center gap-1 font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full border border-rose-300">
+                                                <span className="text-gray-400 font-medium">Non-Compliant: </span>
+                                                <span className="inline-flex items-center gap-1 font-semibold text-rose-800 bg-rose-100/80 px-1.5 py-0.5 rounded-full border border-rose-200 text-[10px]">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
                                                     {nonCompliantDays} {nonCompliantDays === 1 ? 'day' : 'days'}
                                                 </span>
                                             </div>
+                                            {inProgressDays > 0 && (
+                                                <>
+                                                    <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
+                                                    <div>
+                                                        <span className="text-gray-400 font-medium">In Progress: </span>
+                                                        <span className="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded-full border border-amber-200 text-[10px]">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                            {inProgressDays} {inProgressDays === 1 ? 'day' : 'days'}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
                                         </>
                                     );
                                 })()}
-                                <div className="h-4 w-px bg-emerald-200 hidden sm:block"></div>
+                                <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
                                 <div>
-                                    <span className="text-gray-500 font-medium">Total Duration: </span>
-                                    <span className="font-bold text-emerald-800">{attendanceModalData.totalDuration}</span>
+                                    <span className="text-gray-400 font-medium">Total: </span>
+                                    <span className="font-semibold text-emerald-800">{attendanceModalData.totalDuration}</span>
                                 </div>
-                                <div className="h-4 w-px bg-emerald-200 hidden sm:block"></div>
+                                <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
                                 <div>
-                                    <span className="text-gray-500 font-medium">Avg Duration: </span>
-                                    <span className="font-bold text-emerald-800">
+                                    <span className="text-gray-400 font-medium">Avg: </span>
+                                    <span className="font-semibold text-emerald-800">
                                         {getModalAverageDuration(attendanceModalData.sessions, attendanceModalData.presentDaysCount)}
-                                        <span className="text-gray-400 font-normal text-[11px] ml-1">/ day</span>
+                                        <span className="text-gray-400 font-normal text-[10px] ml-0.5">/day</span>
                                     </span>
                                 </div>
                             </div>
-                            <div className="text-xs font-bold text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                            <div className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs shrink-0">
                                 {attendanceModalData.sessions.length} {attendanceModalData.sessions.length === 1 ? 'Session' : 'Sessions'} Logged
                             </div>
                         </div>
@@ -983,6 +1014,14 @@ const MonthlySummaryReport = () => {
                                                     <td className="px-4 py-2.5 whitespace-nowrap">
                                                         {(() => {
                                                             const comp = getSessionCompliance(sess);
+                                                            if (comp.isActive) {
+                                                                return (
+                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                        In Progress
+                                                                    </span>
+                                                                );
+                                                            }
                                                             return comp.isCompliant ? (
                                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
