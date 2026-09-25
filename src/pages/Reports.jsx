@@ -267,6 +267,63 @@ const Reports = () => {
         return sorted;
     }, [reports, sortConfig]);
 
+    const complianceHours = (() => {
+        try {
+            const stored = JSON.parse(localStorage.getItem('settings') || '{}');
+            const val = parseFloat(stored.attendance_compliance_hours);
+            return (!isNaN(val) && val > 0) ? val : 8;
+        } catch (e) {
+            return 8;
+        }
+    })();
+
+    const getReportCompliance = (report, threshold = complianceHours) => {
+        // Leave and Time-Off are requests/absences, not office attendance
+        if (report.type === 'leave' || report.type === 'timeoff') {
+            return { applicable: false, label: '—' };
+        }
+
+        // On-Duty or attendance-based report
+        const checkIn = report.check_in_time || report.start_time;
+        if (!checkIn) {
+            return { applicable: true, isCompliant: false, label: 'Non-Compliant' };
+        }
+
+        try {
+            const start = parseAppTimezone(checkIn) || new Date(checkIn);
+            const checkOut = report.check_out_time || report.end_time;
+            const end = checkOut ? (parseAppTimezone(checkOut) || new Date(checkOut)) : new Date();
+            const diffMs = end.getTime() - start.getTime();
+            if (diffMs <= 0) {
+                return { applicable: true, isCompliant: false, label: 'Non-Compliant' };
+            }
+
+            const hours = diffMs / (1000 * 60 * 60);
+            const isCompliant = hours >= threshold;
+            return {
+                applicable: true,
+                isCompliant,
+                hours,
+                label: isCompliant ? 'Compliant' : 'Non-Compliant'
+            };
+        } catch (e) {
+            return { applicable: true, isCompliant: false, label: 'Non-Compliant' };
+        }
+    };
+
+    const reportComplianceSummary = (() => {
+        let compliantCount = 0;
+        let nonCompliantCount = 0;
+        reports.forEach(r => {
+            const comp = getReportCompliance(r);
+            if (comp.applicable) {
+                if (comp.isCompliant) compliantCount++;
+                else nonCompliantCount++;
+            }
+        });
+        return { compliantCount, nonCompliantCount, totalApplicable: compliantCount + nonCompliantCount };
+    })();
+
     const downloadCSV = async () => {
         // Feature upgrade: Download ALL filtered data, not just current page
         try {
@@ -306,6 +363,7 @@ const Reports = () => {
                 'Start',
                 'End',
                 'Duration',
+                'Compliance',
                 'Location',
                 'Reason / Purpose',
                 'Status',
@@ -328,6 +386,8 @@ const Reports = () => {
                 } else {
                     duration = calculateDuration(report.check_in_time, report.check_out_time);
                 }
+                const comp = getReportCompliance(report);
+                const complianceStr = comp.applicable ? comp.label : 'N/A';
                 const activityStatus = isLeave || isTimeOff ? 'N/A' : (report.check_out_time ? 'Completed' : 'Active');
                 const approvalStatus = report.status || 'N/A';
                 const approver = report.approver
@@ -348,6 +408,7 @@ const Reports = () => {
                     isLeave ? formatDateOnly(report.start_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.start_time)}` : (report.check_in_time ? formatInTimezone(report.check_in_time) : 'N/A'),
                     isLeave ? formatDateOnly(report.end_date) : isTimeOff ? `${formatDateOnly(report.date)}, ${formatTimeOnly(report.end_time)}` : (report.check_out_time ? formatInTimezone(report.check_out_time) : 'N/A'),
                     duration,
+                    complianceStr,
                     isLeave || isTimeOff ? 'N/A' : (report.end_location ? `${report.location || 'Remote'} to ${report.end_location}` : (report.location || 'N/A')),
                     isLeave ? (report.reason || 'N/A') : isTimeOff ? (report.reason || 'N/A') : (report.purpose || 'N/A'),
                     activityStatus,
@@ -680,6 +741,7 @@ const Reports = () => {
                                 <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Start</th>
                                 <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">End</th>
                                 <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Duration</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Compliance</th>
                                 <th className="px-4 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest">Location</th>
                                 <th className="px-4 py-3 text-left">
                                     <button
@@ -741,13 +803,32 @@ const Reports = () => {
                                             <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{startCell}</td>
                                             <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{endCell}</td>
                                             <td className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap">{durationCell}</td>
+                                            <td className="px-2 py-2 text-sm whitespace-nowrap">
+                                                {(() => {
+                                                    const comp = getReportCompliance(report);
+                                                    if (!comp.applicable) {
+                                                        return <span className="text-gray-300 font-semibold text-xs">—</span>;
+                                                    }
+                                                    return comp.isCompliant ? (
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                            Compliant
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                                            Non-Compliant
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </td>
                                             <td className="px-2 py-2 text-sm text-gray-700 max-w-[150px] truncate" title={locationCell}>{locationCell}</td>
                                             <td className="px-2 py-2 text-sm">{getStatusBadge(report)}</td>
                                         </tr>
 
                                         {isExpanded && (
                                             <tr>
-                                                <td colSpan={10} className="bg-blue-50 px-6 py-4 text-sm text-gray-700">
+                                                <td colSpan={11} className="bg-blue-50 px-6 py-4 text-sm text-gray-700">
                                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                                         <div>
                                                             <p className="text-xs text-gray-500">Full Name</p>
@@ -814,8 +895,20 @@ const Reports = () => {
             {/* Pagination Controls */}
             {reports.length > 0 && (
                 <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 mt-4 rounded-b-lg">
-                    <div className="text-sm text-gray-600">
-                        Showing page {page} of {totalPages} ({totalItems} total records)
+                    <div className="text-sm text-gray-600 flex flex-wrap items-center gap-2">
+                        <span>Showing page {page} of {totalPages} ({totalItems} total records)</span>
+                        {reportComplianceSummary.totalApplicable > 0 && (
+                            <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-2 border-l border-gray-300">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    {reportComplianceSummary.compliantCount} Compliant
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                    {reportComplianceSummary.nonCompliantCount} Non-Compliant
+                                </span>
+                            </div>
+                        )}
                     </div>
                     <div className="flex gap-2 items-center">
                         {/* Previous Button */}

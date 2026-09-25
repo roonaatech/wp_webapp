@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward } from 'react-icons/fi';
+import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward, FiCheckCircle } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -69,7 +69,8 @@ export default function Settings() {
         anniversary_notification_schedule: '0 8 * * *',
         google_maps_api_key: '',
         session_timeout: '168',
-        inactivity_timeout: '5'
+        inactivity_timeout: '5',
+        attendance_compliance_hours: '8'
     });
 
     // Define settings configuration for easy expansion
@@ -150,6 +151,24 @@ export default function Settings() {
                     step: 1,
                     unit: 'seconds',
                     placeholder: '60'
+                }
+            ]
+        },
+        {
+            category: 'Attendance Configuration',
+            description: 'Manage attendance compliance and daily office hour requirements',
+            icon: <FiCheckCircle className="text-emerald-600" />,
+            settings: [
+                {
+                    key: 'attendance_compliance_hours',
+                    label: 'Daily Office Hours for Compliance',
+                    description: 'Minimum required hours an employee must be in office per day. Employees with hours below this threshold will be marked as Non-Compliant, while those meeting or exceeding it will be marked as Compliant.',
+                    type: 'number',
+                    min: 1,
+                    max: 24,
+                    step: 0.5,
+                    unit: 'hours',
+                    placeholder: '8'
                 }
             ]
         },

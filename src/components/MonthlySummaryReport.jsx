@@ -3,7 +3,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from './ModernLoader';
 import { getCurrentInAppTimezone, formatDateOnly, formatTimeOnly } from '../utils/timezone.util';
-import { FiPlusCircle, FiMinusCircle } from 'react-icons/fi';
+import { FiPlusCircle, FiMinusCircle, FiX, FiExternalLink } from 'react-icons/fi';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -22,7 +22,18 @@ const MonthlySummaryReport = () => {
     const [error, setError] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: 'firstname', direction: 'asc' });
     const [expandedRows, setExpandedRows] = useState({});
-    const [expandedInnerRows, setExpandedInnerRows] = useState({});
+    const [attendanceModalData, setAttendanceModalData] = useState(null);
+
+    // Close attendance modal on Escape key
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && attendanceModalData) {
+                setAttendanceModalData(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [attendanceModalData]);
 
     const toggleRow = (staffId) => {
         setExpandedRows(prev => ({
@@ -62,6 +73,104 @@ const MonthlySummaryReport = () => {
     for (let y = now.getFullYear(); y >= now.getFullYear() - 5; y--) years.push(y);
 
     const [, setSettingsVersion] = useState(0);
+
+    const complianceHours = (() => {
+        try {
+            const stored = JSON.parse(localStorage.getItem('settings') || '{}');
+            const val = parseFloat(stored.attendance_compliance_hours);
+            return (!isNaN(val) && val > 0) ? val : 8;
+        } catch (e) {
+            return 8;
+        }
+    })();
+
+    const getSessionCompliance = (sess, threshold = complianceHours) => {
+        let hours = 0;
+        if (sess.work_minutes !== undefined && sess.work_minutes > 0) {
+            hours = sess.work_minutes / 60;
+        } else if (sess.check_in_time && sess.check_out_time) {
+            const diffMs = new Date(sess.check_out_time).getTime() - new Date(sess.check_in_time).getTime();
+            if (diffMs > 0) hours = diffMs / (1000 * 60 * 60);
+        } else if (sess.check_in_time) {
+            const diffMs = new Date().getTime() - new Date(sess.check_in_time).getTime();
+            if (diffMs > 0) hours = diffMs / (1000 * 60 * 60);
+        }
+
+        const isCompliant = hours >= threshold;
+        return {
+            isCompliant,
+            hours,
+            label: isCompliant ? 'Compliant' : 'Non-Compliant'
+        };
+    };
+
+    const getModalComplianceDayCounts = (sessions = [], thresholdHours = complianceHours) => {
+        const dayTotals = {};
+        sessions.forEach(sess => {
+            const d = sess.date || 'unknown';
+            if (!dayTotals[d]) {
+                dayTotals[d] = 0;
+            }
+            let mins = 0;
+            if (sess.work_minutes !== undefined && sess.work_minutes > 0) {
+                mins = sess.work_minutes;
+            } else if (sess.check_in_time && sess.check_out_time) {
+                const diffMs = new Date(sess.check_out_time).getTime() - new Date(sess.check_in_time).getTime();
+                if (diffMs > 0) mins = Math.floor(diffMs / 60000);
+            } else if (sess.check_in_time) {
+                const diffMs = new Date().getTime() - new Date(sess.check_in_time).getTime();
+                if (diffMs > 0) mins = Math.floor(diffMs / 60000);
+            }
+            dayTotals[d] += mins;
+        });
+
+        let compliantDays = 0;
+        let nonCompliantDays = 0;
+        const thresholdMins = thresholdHours * 60;
+
+        Object.values(dayTotals).forEach(totalMins => {
+            if (totalMins >= thresholdMins) {
+                compliantDays++;
+            } else {
+                nonCompliantDays++;
+            }
+        });
+
+        return { compliantDays, nonCompliantDays };
+    };
+
+    const getModalAverageDuration = (sessions = [], presentDaysCount = 1) => {
+        let totalMins = 0;
+        const dayTotals = {};
+        sessions.forEach(sess => {
+            const d = sess.date || 'unknown';
+            if (!dayTotals[d]) {
+                dayTotals[d] = 0;
+            }
+            let mins = 0;
+            if (sess.work_minutes !== undefined && sess.work_minutes > 0) {
+                mins = sess.work_minutes;
+            } else if (sess.check_in_time && sess.check_out_time) {
+                const diffMs = new Date(sess.check_out_time).getTime() - new Date(sess.check_in_time).getTime();
+                if (diffMs > 0) mins = Math.floor(diffMs / 60000);
+            } else if (sess.check_in_time) {
+                const diffMs = new Date().getTime() - new Date(sess.check_in_time).getTime();
+                if (diffMs > 0) mins = Math.floor(diffMs / 60000);
+            }
+            dayTotals[d] += mins;
+            totalMins += mins;
+        });
+
+        const uniqueDays = Object.keys(dayTotals).filter(k => k !== 'unknown').length;
+        const days = (presentDaysCount && presentDaysCount > 0) ? presentDaysCount : (uniqueDays > 0 ? uniqueDays : 1);
+
+        if (totalMins <= 0) return '0h 0m';
+        const avgMins = Math.round(totalMins / days);
+        if (avgMins <= 0 && totalMins > 0) return '< 1m';
+        const hrs = Math.floor(avgMins / 60);
+        const mins = avgMins % 60;
+        return `${hrs}h ${mins}m`;
+    };
 
     useEffect(() => { fetchSummary(); }, [month, year]);
 
@@ -284,16 +393,17 @@ const MonthlySummaryReport = () => {
                     { key: 'c3', width: 14 },
                     { key: 'c4', width: 14 },
                     { key: 'c5', width: 16 },
-                    { key: 'c6', width: 30 },
-                    { key: 'c7', width: 18 },
-                    { key: 'c8', width: 14 }
+                    { key: 'c6', width: 16 },
+                    { key: 'c7', width: 30 },
+                    { key: 'c8', width: 18 },
+                    { key: 'c9', width: 14 }
                 ];
 
                 let curRowIdx = 5;
 
                 // 1. Attendance Sessions Section
                 if (attSessions.length > 0) {
-                    sheet.mergeCells(`A${curRowIdx}:H${curRowIdx}`);
+                    sheet.mergeCells(`A${curRowIdx}:I${curRowIdx}`);
                     const attTitle = sheet.getCell(`A${curRowIdx}`);
                     attTitle.value = `ATTENDANCE SESSIONS (${s.present_days || 0} Present Days | Total Work Time: ${formatHours(s.work_hours, s.work_minutes)})`;
                     attTitle.font = { bold: true, color: { argb: 'FF065F46' }, size: 10 };
@@ -301,7 +411,7 @@ const MonthlySummaryReport = () => {
                     attTitle.border = borderStyle;
                     curRowIdx++;
 
-                    const attHeaders = ['#', 'Date', 'Check-In', 'Check-Out', 'Duration', 'Terminal / Device', 'IP Address', 'Status'];
+                    const attHeaders = ['#', 'Date', 'Check-In', 'Check-Out', 'Duration', 'Compliance', 'Terminal / Device', 'IP Address', 'Status'];
                     const hRow = sheet.getRow(curRowIdx);
                     hRow.values = attHeaders;
                     hRow.eachCell(cell => {
@@ -312,6 +422,7 @@ const MonthlySummaryReport = () => {
                     curRowIdx++;
 
                     attSessions.forEach((sess, idx) => {
+                        const comp = getSessionCompliance(sess);
                         const row = sheet.getRow(curRowIdx);
                         row.values = [
                             idx + 1,
@@ -319,6 +430,7 @@ const MonthlySummaryReport = () => {
                             sess.check_in_time ? formatTimeOnly(sess.check_in_time) : (sess.check_in_time_str || '—'),
                             sess.check_out_time ? formatTimeOnly(sess.check_out_time) : (sess.check_out_time_str || 'Active'),
                             sess.formatted_duration || sess.duration,
+                            comp.label,
                             sess.phone_model || 'Web / Kiosk',
                             sess.ip_address || 'N/A',
                             sess.status || (sess.check_out_time ? 'Completed' : 'Active')
@@ -328,6 +440,11 @@ const MonthlySummaryReport = () => {
                             cell.alignment = { vertical: 'middle', wrapText: true };
                         });
                         row.getCell(5).font = { bold: true, color: { argb: 'FF059669' } };
+                        if (comp.isCompliant) {
+                            row.getCell(6).font = { bold: true, color: { argb: 'FF15803D' } }; // Green
+                        } else {
+                            row.getCell(6).font = { bold: true, color: { argb: 'FFBE123C' } }; // Red
+                        }
                         curRowIdx++;
                     });
 
@@ -336,7 +453,7 @@ const MonthlySummaryReport = () => {
 
                 // 2. Leaves, Time-Off & On-Duty Section
                 if (otherRecords.length > 0) {
-                    sheet.mergeCells(`A${curRowIdx}:H${curRowIdx}`);
+                    sheet.mergeCells(`A${curRowIdx}:I${curRowIdx}`);
                     const otherTitle = sheet.getCell(`A${curRowIdx}`);
                     otherTitle.value = `LEAVES, TIME-OFF & ON-DUTY RECORDS`;
                     otherTitle.font = { bold: true, color: { argb: 'FF1E1B4B' }, size: 10 };
@@ -604,134 +721,84 @@ const MonthlySummaryReport = () => {
                                                         <tbody className="divide-y divide-gray-50">
                                                             {s.records.map((rec, rIdx) => {
                                                                 if (rec.type === 'Attendance') {
-                                                                    const innerKey = `${s.staff_id}_attendance`;
-                                                                    const isInnerOpen = Boolean(expandedInnerRows[innerKey]); // default collapsed
                                                                     const sessions = rec.sessions || s.attendance_records || [];
                                                                     const presentDaysCount = rec.present_days !== undefined ? rec.present_days : s.present_days;
+                                                                    const dateRangeStr = rec.start_date && rec.end_date 
+                                                                        ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
+                                                                        : formatDateOnly(rec.date);
+
+                                                                    const openModal = () => {
+                                                                        setAttendanceModalData({
+                                                                            employeeName: `${s.firstname || ''} ${s.lastname || ''}`.trim(),
+                                                                            email: s.email,
+                                                                            dateRange: dateRangeStr,
+                                                                            totalDuration: rec.duration,
+                                                                            presentDaysCount,
+                                                                            sessions
+                                                                        });
+                                                                    };
 
                                                                     return (
-                                                                        <React.Fragment key={`att-${rIdx}`}>
-                                                                            <tr 
-                                                                                className="hover:bg-emerald-50/50 cursor-pointer transition-colors bg-emerald-50/20"
-                                                                                onClick={() => toggleInnerRow(innerKey)}
-                                                                            >
-                                                                                <td className="px-4 py-2.5 align-middle">
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <button 
-                                                                                            type="button"
-                                                                                            onClick={(e) => { e.stopPropagation(); toggleInnerRow(innerKey); }}
-                                                                                            className="text-emerald-600 hover:text-emerald-800 transition-colors focus:outline-none"
-                                                                                            title={isInnerOpen ? "Collapse inner attendance rows" : "Expand inner attendance rows"}
-                                                                                        >
-                                                                                            {isInnerOpen ? <FiMinusCircle size={15}/> : <FiPlusCircle size={15}/>}
-                                                                                        </button>
-                                                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200">
-                                                                                            Attendance
-                                                                                            <span className="px-1.5 py-0.2 rounded-full bg-emerald-200/90 text-emerald-950 text-[10px] font-black">
-                                                                                                {presentDaysCount} {presentDaysCount === 1 ? 'day' : 'days'}
-                                                                                            </span>
-                                                                                        </span>
+                                                                        <tr 
+                                                                            key={`att-${rIdx}`} 
+                                                                            onClick={openModal}
+                                                                            className="hover:bg-emerald-50/50 cursor-pointer transition-colors group"
+                                                                            title="Click to view daily attendance sessions in popup"
+                                                                        >
+                                                                            <td className="px-4 py-2.5 align-middle">
+                                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200">
+                                                                                    Attendance
+                                                                                    <span className="px-1.5 py-0.2 rounded-full bg-emerald-200/90 text-emerald-950 text-[10px] font-black">
+                                                                                        {presentDaysCount} {presentDaysCount === 1 ? 'day' : 'days'}
+                                                                                    </span>
+                                                                                </span>
+                                                                            </td>
+                                                                            <td className="px-4 py-2.5 text-xs text-gray-700 font-semibold align-middle">
+                                                                                {dateRangeStr}
+                                                                            </td>
+                                                                            <td className="px-4 py-2.5 text-xs text-emerald-800 font-black align-middle">
+                                                                                <div>{rec.duration}</div>
+                                                                                {presentDaysCount > 1 && (
+                                                                                    <div className="text-[10px] text-gray-400 font-medium">
+                                                                                        Avg: {getModalAverageDuration(sessions, presentDaysCount)} / day
                                                                                     </div>
-                                                                                </td>
-                                                                                <td className="px-4 py-2.5 text-xs text-gray-700 font-semibold align-middle">
-                                                                                    {rec.start_date && rec.end_date 
-                                                                                        ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
-                                                                                        : formatDateOnly(rec.date)}
-                                                                                </td>
-                                                                                <td className="px-4 py-2.5 text-xs text-emerald-800 font-black align-middle">
-                                                                                    {rec.duration}
-                                                                                </td>
-                                                                                <td className="px-4 py-2.5 text-xs text-gray-600 align-middle">
-                                                                                    <div className="flex items-center justify-between">
+                                                                                )}
+                                                                            </td>
+                                                                            <td className="px-4 py-2.5 text-xs text-gray-600 align-middle">
+                                                                                <div className="flex items-center justify-between gap-2">
+                                                                                    <div className="flex flex-wrap items-center gap-2">
                                                                                         <span className="text-gray-600 font-medium">
                                                                                             {sessions.length} session(s) logged
                                                                                         </span>
-                                                                                        <span className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1">
-                                                                                            {isInnerOpen ? 'Hide Daily Details ▲' : 'Show Daily Details ▼'}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                </td>
-                                                                            </tr>
-
-                                                                            {/* Inner Child Row for Attendance */}
-                                                                            {isInnerOpen && sessions.length > 0 && (
-                                                                                <tr className="bg-emerald-50/10">
-                                                                                    <td colSpan={4} className="px-6 py-3 border-t border-b border-emerald-100">
-                                                                                        <div className="rounded-xl border border-emerald-200 bg-white shadow-sm overflow-hidden">
-                                                                                            <div className="bg-gradient-to-r from-emerald-50 via-teal-50/30 to-white px-4 py-2.5 border-b border-emerald-100 flex items-center justify-between">
-                                                                                                <div className="flex items-center gap-2">
-                                                                                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                                                                                    <span className="text-xs font-black text-emerald-900 uppercase tracking-wider">
-                                                                                                        Daily Attendance Breakdown ({sessions.length} Sessions)
+                                                                                        {(() => {
+                                                                                            const { compliantDays, nonCompliantDays } = getModalComplianceDayCounts(sessions, complianceHours);
+                                                                                            return (
+                                                                                                <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px]">
+                                                                                                    <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                                                                                        {compliantDays} Compliant
                                                                                                     </span>
-                                                                                                </div>
-                                                                                                <span className="text-[11px] text-emerald-700 font-bold">
-                                                                                                    Total: {presentDaysCount} Days • {rec.duration}
+                                                                                                    <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
+                                                                                                        {nonCompliantDays} Non-Compliant
+                                                                                                    </span>
                                                                                                 </span>
-                                                                                            </div>
-                                                                                            <div className="overflow-x-auto">
-                                                                                                <table className="min-w-full divide-y divide-gray-100 text-xs">
-                                                                                                    <thead className="bg-slate-50 text-[10px] font-black text-gray-500 uppercase tracking-wider">
-                                                                                                        <tr>
-                                                                                                            <th className="px-3 py-2 text-center w-10">#</th>
-                                                                                                            <th className="px-4 py-2 text-left">Date</th>
-                                                                                                            <th className="px-4 py-2 text-left">Check-In</th>
-                                                                                                            <th className="px-4 py-2 text-left">Check-Out</th>
-                                                                                                            <th className="px-4 py-2 text-left">Duration</th>
-                                                                                                            <th className="px-4 py-2 text-left">Terminal / Device</th>
-                                                                                                            <th className="px-4 py-2 text-left">IP Address</th>
-                                                                                                            <th className="px-3 py-2 text-center">Status</th>
-                                                                                                        </tr>
-                                                                                                    </thead>
-                                                                                                    <tbody className="divide-y divide-gray-50 bg-white">
-                                                                                                        {sessions.map((sess, sIdx) => (
-                                                                                                            <tr key={sess.id || sIdx} className="hover:bg-emerald-50/30 transition-colors">
-                                                                                                                <td className="px-3 py-2 text-center text-gray-400 font-mono text-[11px]">{sIdx + 1}</td>
-                                                                                                                <td className="px-4 py-2 font-semibold text-gray-900 whitespace-nowrap">
-                                                                                                                    {formatDateWithWeekday(sess.date)}
-                                                                                                                </td>
-                                                                                                                <td className="px-4 py-2 font-mono text-gray-700 whitespace-nowrap">
-                                                                                                                    {sess.check_in_time ? formatTimeOnly(sess.check_in_time) : (sess.check_in_time_str || '—')}
-                                                                                                                </td>
-                                                                                                                <td className="px-4 py-2 font-mono text-gray-700 whitespace-nowrap">
-                                                                                                                    {sess.check_out_time ? formatTimeOnly(sess.check_out_time) : (
-                                                                                                                        <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                                                                            Active
-                                                                                                                        </span>
-                                                                                                                    )}
-                                                                                                                </td>
-                                                                                                                <td className="px-4 py-2 font-black text-emerald-700 whitespace-nowrap">
-                                                                                                                    {sess.formatted_duration || sess.duration}
-                                                                                                                </td>
-                                                                                                                <td className="px-4 py-2 text-gray-600">
-                                                                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-700 text-[11px] font-medium border border-gray-200">
-                                                                                                                        {sess.phone_model || 'Web / Kiosk'}
-                                                                                                                    </span>
-                                                                                                                </td>
-                                                                                                                <td className="px-4 py-2 font-mono text-gray-500 text-[11px] whitespace-nowrap">
-                                                                                                                    {sess.ip_address || '—'}
-                                                                                                                </td>
-                                                                                                                <td className="px-3 py-2 text-center whitespace-nowrap">
-                                                                                                                    {sess.status === 'Completed' ? (
-                                                                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                                                                            ✓ Done
-                                                                                                                        </span>
-                                                                                                                    ) : (
-                                                                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                                                                            • Active
-                                                                                                                        </span>
-                                                                                                                    )}
-                                                                                                                </td>
-                                                                                                            </tr>
-                                                                                                        ))}
-                                                                                                    </tbody>
-                                                                                                </table>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </td>
-                                                                                </tr>
-                                                                            )}
-                                                                        </React.Fragment>
+                                                                                            );
+                                                                                        })()}
+                                                                                    </div>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            openModal();
+                                                                                        }}
+                                                                                        className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 hover:opacity-80 inline-flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
+                                                                                        title="Open daily attendance popup"
+                                                                                    >
+                                                                                        <span>View Details</span>
+                                                                                        <FiExternalLink size={12} className="text-emerald-600" />
+                                                                                    </button>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
                                                                     );
                                                                 }
 
@@ -783,6 +850,196 @@ const MonthlySummaryReport = () => {
                 )}
             </div>
 
+            {/* Attendance Details Popup Modal */}
+            {attendanceModalData && (
+                <div
+                    className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-fadeIn"
+                    onClick={() => setAttendanceModalData(null)}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-[#1e1b4b] via-indigo-950 to-slate-900 text-white p-5 sm:p-6 flex items-start justify-between">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-300">
+                                        Daily Attendance Breakdown
+                                    </span>
+                                </div>
+                                <h3 className="text-xl font-black text-white tracking-tight">
+                                    {attendanceModalData.employeeName}
+                                </h3>
+                                <p className="text-xs text-gray-300 mt-0.5">
+                                    {attendanceModalData.email}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setAttendanceModalData(null)}
+                                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                                title="Close"
+                            >
+                                <FiX size={20} />
+                            </button>
+                        </div>
+
+                        {/* Summary Badges Bar */}
+                        <div className="bg-emerald-50/60 border-b border-emerald-100 px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                                <div>
+                                    <span className="text-gray-500 font-medium">Period: </span>
+                                    <span className="font-bold text-gray-800">{attendanceModalData.dateRange}</span>
+                                </div>
+                                <div className="h-4 w-px bg-emerald-200 hidden sm:block"></div>
+                                <div>
+                                    <span className="text-gray-500 font-medium">Present Days: </span>
+                                    <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                        {attendanceModalData.presentDaysCount} {attendanceModalData.presentDaysCount === 1 ? 'day' : 'days'}
+                                    </span>
+                                </div>
+                                {(() => {
+                                    const { compliantDays, nonCompliantDays } = getModalComplianceDayCounts(attendanceModalData.sessions, complianceHours);
+                                    return (
+                                        <>
+                                            <div className="h-4 w-px bg-emerald-200 hidden sm:block"></div>
+                                            <div>
+                                                <span className="text-gray-500 font-medium">Compliant Days: </span>
+                                                <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                                    {compliantDays} {compliantDays === 1 ? 'day' : 'days'}
+                                                </span>
+                                            </div>
+                                            <div className="h-4 w-px bg-emerald-200 hidden sm:block"></div>
+                                            <div>
+                                                <span className="text-gray-500 font-medium">Non-Compliant Days: </span>
+                                                <span className="inline-flex items-center gap-1 font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full border border-rose-300">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                                                    {nonCompliantDays} {nonCompliantDays === 1 ? 'day' : 'days'}
+                                                </span>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                                <div className="h-4 w-px bg-emerald-200 hidden sm:block"></div>
+                                <div>
+                                    <span className="text-gray-500 font-medium">Total Duration: </span>
+                                    <span className="font-bold text-emerald-800">{attendanceModalData.totalDuration}</span>
+                                </div>
+                                <div className="h-4 w-px bg-emerald-200 hidden sm:block"></div>
+                                <div>
+                                    <span className="text-gray-500 font-medium">Avg Duration: </span>
+                                    <span className="font-bold text-emerald-800">
+                                        {getModalAverageDuration(attendanceModalData.sessions, attendanceModalData.presentDaysCount)}
+                                        <span className="text-gray-400 font-normal text-[11px] ml-1">/ day</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="text-xs font-bold text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                                {attendanceModalData.sessions.length} {attendanceModalData.sessions.length === 1 ? 'Session' : 'Sessions'} Logged
+                            </div>
+                        </div>
+
+                        {/* Sessions Table */}
+                        <div className="overflow-y-auto p-4 sm:p-6 flex-1">
+                            {attendanceModalData.sessions && attendanceModalData.sessions.length > 0 ? (
+                                <div className="rounded-xl border border-gray-200 overflow-hidden shadow-2xs">
+                                    <table className="min-w-full divide-y divide-gray-100 text-xs">
+                                        <thead className="bg-[#1e1b4b]/5 text-[10px] font-black text-gray-600 uppercase tracking-wider">
+                                            <tr>
+                                                <th className="px-3 py-3 text-center w-10">#</th>
+                                                <th className="px-4 py-3 text-left">Date</th>
+                                                <th className="px-4 py-3 text-left">Check-In</th>
+                                                <th className="px-4 py-3 text-left">Check-Out</th>
+                                                <th className="px-4 py-3 text-left">Duration</th>
+                                                <th className="px-4 py-3 text-left">Compliance</th>
+                                                <th className="px-4 py-3 text-left">Terminal / Device</th>
+                                                <th className="px-4 py-3 text-left">IP Address</th>
+                                                <th className="px-3 py-3 text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50 bg-white">
+                                            {attendanceModalData.sessions.map((sess, sIdx) => (
+                                                <tr key={sess.id || sIdx} className="hover:bg-emerald-50/30 transition-colors">
+                                                    <td className="px-3 py-2.5 text-center text-gray-400 font-mono text-[11px]">{sIdx + 1}</td>
+                                                    <td className="px-4 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
+                                                        {formatDateWithWeekday(sess.date)}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
+                                                        {sess.check_in_time ? formatTimeOnly(sess.check_in_time) : (sess.check_in_time_str || '—')}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
+                                                        {sess.check_out_time ? formatTimeOnly(sess.check_out_time) : (
+                                                            <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                Active
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 font-black text-emerald-700 whitespace-nowrap">
+                                                        {sess.formatted_duration || sess.duration}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 whitespace-nowrap">
+                                                        {(() => {
+                                                            const comp = getSessionCompliance(sess);
+                                                            return comp.isCompliant ? (
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                    Compliant
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                                                    Non-Compliant
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-gray-600">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-700 text-[11px] font-medium border border-gray-200">
+                                                            {sess.phone_model || 'Web / Kiosk'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-2.5 font-mono text-gray-500 text-[11px] whitespace-nowrap">
+                                                        {sess.ip_address || '—'}
+                                                    </td>
+                                                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                                                        {sess.status === 'Completed' ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                ✓ Done
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                • Active
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="py-12 text-center text-gray-400">
+                                    <p className="text-sm font-medium">No session details recorded</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="bg-gray-50 border-t border-gray-100 px-6 py-3 flex items-center justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setAttendanceModalData(null)}
+                                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-100 text-xs font-bold transition-colors cursor-pointer"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

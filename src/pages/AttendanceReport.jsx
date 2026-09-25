@@ -38,7 +38,7 @@ const AttendanceReport = () => {
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(10);
+    const [limit, setLimit] = useState(50);
 
     // UI States
     const [loading, setLoading] = useState(true);
@@ -214,6 +214,113 @@ const AttendanceReport = () => {
         return timeStr;
     };
 
+    const calculateAverageDuration = (userLogs) => {
+        let totalMs = 0;
+        const uniqueDates = new Set();
+        userLogs.forEach(log => {
+            if (log.date) uniqueDates.add(log.date);
+            if (log.check_in_time && log.check_out_time) {
+                const diff = new Date(log.check_out_time).getTime() - new Date(log.check_in_time).getTime();
+                if (diff > 0) totalMs += diff;
+            } else if (log.check_in_time && !log.check_out_time) {
+                const diff = new Date().getTime() - new Date(log.check_in_time).getTime();
+                if (diff > 0) totalMs += diff;
+            }
+        });
+
+        const dayCount = uniqueDates.size || 1;
+        if (totalMs === 0 || dayCount <= 1) return null;
+
+        const diffMins = Math.round(totalMs / 60000 / dayCount);
+        const hours = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        return `${hours}h ${mins}m / day`;
+    };
+
+    const complianceHours = (() => {
+        try {
+            const stored = JSON.parse(localStorage.getItem('settings') || '{}');
+            const val = parseFloat(stored.attendance_compliance_hours);
+            return (!isNaN(val) && val > 0) ? val : 8;
+        } catch (e) {
+            return 8;
+        }
+    })();
+
+    const getAttendanceCompliance = (checkInStr, checkOutStr, threshold = complianceHours) => {
+        if (!checkInStr) {
+            return { isCompliant: false, hours: 0, label: 'Non-Compliant' };
+        }
+
+        try {
+            const checkIn = new Date(checkInStr);
+            const checkOut = checkOutStr ? new Date(checkOutStr) : new Date();
+            const diffMs = checkOut.getTime() - checkIn.getTime();
+            if (diffMs <= 0) return { isCompliant: false, hours: 0, label: 'Non-Compliant' };
+
+            const hours = diffMs / (1000 * 60 * 60);
+            const isCompliant = hours >= threshold;
+            return {
+                isCompliant,
+                hours,
+                label: isCompliant ? 'Compliant' : 'Non-Compliant',
+                isActive: !checkOutStr
+            };
+        } catch (e) {
+            return { isCompliant: false, hours: 0, label: 'Non-Compliant' };
+        }
+    };
+
+    const getGroupCompliance = (userLogs, threshold = complianceHours) => {
+        const dayTotals = {};
+        userLogs.forEach(log => {
+            const d = log.date || 'unknown';
+            if (!dayTotals[d]) dayTotals[d] = 0;
+            let mins = 0;
+            if (log.check_in_time && log.check_out_time) {
+                const diffMs = new Date(log.check_out_time).getTime() - new Date(log.check_in_time).getTime();
+                if (diffMs > 0) mins = Math.floor(diffMs / 60000);
+            } else if (log.check_in_time) {
+                const diffMs = new Date().getTime() - new Date(log.check_in_time).getTime();
+                if (diffMs > 0) mins = Math.floor(diffMs / 60000);
+            }
+            dayTotals[d] += mins;
+        });
+
+        let compliantDays = 0;
+        let nonCompliantDays = 0;
+        const thresholdMins = threshold * 60;
+
+        Object.values(dayTotals).forEach(totalMins => {
+            if (totalMins >= thresholdMins) compliantDays++;
+            else nonCompliantDays++;
+        });
+
+        const totalDays = compliantDays + nonCompliantDays;
+        const isAllCompliant = nonCompliantDays === 0 && compliantDays > 0;
+        const isAllNonCompliant = compliantDays === 0;
+
+        return {
+            compliantDays,
+            nonCompliantDays,
+            totalDays,
+            isAllCompliant,
+            isAllNonCompliant,
+            isMixed: !isAllCompliant && !isAllNonCompliant
+        };
+    };
+
+    const complianceSummary = (() => {
+        let compliantCount = 0;
+        let nonCompliantCount = 0;
+        logs.forEach(log => {
+            const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+            if (comp.isCompliant) compliantCount++;
+            else nonCompliantCount++;
+        });
+        return { compliantCount, nonCompliantCount };
+    })();
+
     const handleExport = async () => {
         try {
             setIsExporting(true);
@@ -263,7 +370,7 @@ const AttendanceReport = () => {
             });
 
             // Title banner
-            sheet.mergeCells('A1:J1');
+            sheet.mergeCells('A1:K1');
             const titleCell = sheet.getCell('A1');
             titleCell.value = 'WORKPULSE - ATTENDANCE REVIEW REPORT';
             titleCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -276,7 +383,7 @@ const AttendanceReport = () => {
             sheet.getRow(1).height = 32;
 
             // Subtitle metadata
-            sheet.mergeCells('A2:J2');
+            sheet.mergeCells('A2:K2');
             const metaCell = sheet.getCell('A2');
             const filterDesc = selectedUserId
                 ? `Filtered by Employee ID: ${selectedUserId} | Date Range: ${startDate || 'Start'} to ${endDate || 'End'}`
@@ -303,6 +410,7 @@ const AttendanceReport = () => {
                 'Check-In Time',
                 'Check-Out Time',
                 'Duration',
+                'Compliance',
                 'Status',
                 'Check-In Timestamp',
                 'Check-Out Timestamp'
@@ -337,6 +445,8 @@ const AttendanceReport = () => {
                 const checkIn = log.check_in_time ? formatTimeOnly(log.check_in_time) : '-';
                 const checkOut = log.check_out_time ? formatTimeOnly(log.check_out_time) : '-';
                 const duration = calculateDuration(log.check_in_time, log.check_out_time);
+                const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+                const complianceStr = comp.label;
                 const status = log.check_out_time ? 'Completed' : 'Active Check-In';
                 const fullCheckIn = log.check_in_time || '—';
                 const fullCheckOut = log.check_out_time || '—';
@@ -349,6 +459,7 @@ const AttendanceReport = () => {
                     checkIn,
                     checkOut,
                     duration,
+                    complianceStr,
                     status,
                     fullCheckIn,
                     fullCheckOut
@@ -364,13 +475,21 @@ const AttendanceReport = () => {
                         right: { style: 'thin', color: { argb: 'FFF1F5F9' } }
                     };
 
-                    if ([1, 4, 5, 6, 7, 8].includes(colNumber)) {
+                    if ([1, 4, 5, 6, 7, 8, 9].includes(colNumber)) {
                         cell.alignment = { horizontal: 'center', vertical: 'middle' };
                     } else {
                         cell.alignment = { horizontal: 'left', vertical: 'middle' };
                     }
 
-                    if (colNumber === 8) { // Status
+                    if (colNumber === 8) { // Compliance
+                        if (complianceStr === 'Compliant') {
+                            cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF15803D' } }; // Emerald
+                        } else {
+                            cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFBE123C' } }; // Rose / Red
+                        }
+                    }
+
+                    if (colNumber === 9) { // Status
                         if (status === 'Completed') {
                             cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF15803D' } };
                         } else {
@@ -388,6 +507,7 @@ const AttendanceReport = () => {
                 { key: 'checkIn', width: 14 },
                 { key: 'checkOut', width: 14 },
                 { key: 'duration', width: 16 },
+                { key: 'compliance', width: 18 },
                 { key: 'status', width: 18 },
                 { key: 'fullCheckIn', width: 22 },
                 { key: 'fullCheckOut', width: 22 }
@@ -635,6 +755,7 @@ const AttendanceReport = () => {
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-In</th>
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-Out</th>
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</th>
+                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Compliance</th>
                                     {canManage && <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>}
                                 </tr>
                             </thead>
@@ -721,6 +842,24 @@ const AttendanceReport = () => {
                                                         </span>
                                                     </td>
 
+                                                    {/* Compliance */}
+                                                    <td className="px-4 py-2.5">
+                                                        {(() => {
+                                                            const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+                                                            return comp.isCompliant ? (
+                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                    Compliant
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                                                    Non-Compliant
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </td>
+
                                                     {canManage && (
                                                         <td className="px-4 py-2.5">
                                                             <div className="flex items-center gap-1.5">
@@ -791,9 +930,52 @@ const AttendanceReport = () => {
                                                         <td className="px-4 py-3 text-slate-350">—</td>
                                                         <td className="px-4 py-3 text-slate-350">—</td>
                                                         <td className="px-4 py-3">
-                                                            <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-100/60 text-indigo-800">
-                                                                {calculateTotalDuration(group.logs)}
-                                                            </span>
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-100/60 text-indigo-800">
+                                                                    {calculateTotalDuration(group.logs)}
+                                                                </span>
+                                                                {(() => {
+                                                                    const avg = calculateAverageDuration(group.logs);
+                                                                    return avg ? (
+                                                                        <span className="text-[10px] text-slate-400 font-medium pl-0.5">
+                                                                            Avg: {avg}
+                                                                        </span>
+                                                                    ) : null;
+                                                                })()}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            {(() => {
+                                                                const comp = getGroupCompliance(group.logs);
+                                                                if (comp.isAllCompliant) {
+                                                                    return (
+                                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                            Compliant
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                                if (comp.isAllNonCompliant) {
+                                                                    return (
+                                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                                                            Non-Compliant
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                            {comp.compliantDays} Compliant
+                                                                        </span>
+                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                                                            {comp.nonCompliantDays} Non-Compliant
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </td>
                                                         {canManage && <td className="px-4 py-3 text-slate-350">—</td>}
                                                     </tr>
@@ -830,6 +1012,22 @@ const AttendanceReport = () => {
                                                                     }`}>
                                                                         {calculateDuration(log.check_in_time, log.check_out_time)}
                                                                     </span>
+                                                                </td>
+                                                                <td className="px-4 py-2.5">
+                                                                    {(() => {
+                                                                        const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+                                                                        return comp.isCompliant ? (
+                                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                                Compliant
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                                                                Non-Compliant
+                                                                            </span>
+                                                                        );
+                                                                    })()}
                                                                 </td>
                                                                 {canManage && (
                                                                     <td className="px-4 py-2.5">
@@ -881,10 +1079,21 @@ const AttendanceReport = () => {
                                 <option value={10}>10</option>
                                 <option value={20}>20</option>
                                 <option value={50}>50</option>
+                                <option value={100}>100</option>
                             </select>
                             <span className="text-xs text-slate-400 font-medium ml-3">
                                 Showing {logs.length} of {totalItems} records
                             </span>
+                            <div className="hidden sm:flex items-center gap-2 ml-3 pl-3 border-l border-slate-200">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    {complianceSummary.compliantCount} Compliant
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                    {complianceSummary.nonCompliantCount} Non-Compliant
+                                </span>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-1.5">
