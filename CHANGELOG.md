@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.26](https://github.com/roonaatech/wp_webapp/compare/v2.12.25...v2.12.26) (2026-09-25)
+
+
+### Features
+
+* add settingsLoaded event listeners across pages and update app timezone handling ([05ffd1a](https://github.com/roonaatech/wp_webapp/commit/05ffd1afd7bd431e6b22eb52667f9b3e442e55a5))
+
 ### [2.12.25](https://github.com/roonaatech/wp_webapp/compare/v2.12.24...v2.12.25) (2026-09-24)
 
 
