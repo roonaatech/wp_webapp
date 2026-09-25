@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.27](https://github.com/roonaatech/wp_webapp/compare/v2.12.26...v2.12.27) (2026-09-25)
+
+
+### Features
+
+* add attendance compliance tracking and update default pagination limit in reports ([70e6bac](https://github.com/roonaatech/wp_webapp/commit/70e6bac30b98f2c4820dbc65feb88cdbd9d95376))
+
 ### [2.12.26](https://github.com/roonaatech/wp_webapp/compare/v2.12.25...v2.12.26) (2026-09-25)
 
 
