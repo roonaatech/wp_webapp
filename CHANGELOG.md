@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.13.0](https://github.com/roonaatech/wp_webapp/compare/v2.12.30...v2.13.0) (2026-09-26)
+
+
+### Code Refactoring
+
+* centralize page headers using a new PageHeaderContext across application pages ([9dd527e](https://github.com/roonaatech/wp_webapp/commit/9dd527eb16864595900aca7d6513e0b41a8387f7))
+
 ### [2.12.30](https://github.com/roonaatech/wp_webapp/compare/v2.12.29...v2.12.30) (2026-09-26)
 
 
