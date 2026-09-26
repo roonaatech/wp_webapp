@@ -519,27 +519,21 @@ const Activities = () => {
 
     return (
         <div className="p-6">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Activity Logs</h1>
-                    <p className="text-gray-600 mt-1">Track all admin, manager, and employee operations</p>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setShowSummary(!showSummary)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
-                    >
-                        <LuActivity size={16} />
-                        {showSummary ? 'Hide' : 'Show'} Summary
-                    </button>
-                    <button
-                        onClick={handleExportCSV}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                    >
-                        📥 Export CSV
-                    </button>
-                </div>
+            {/* Actions */}
+            <div className="flex justify-end mb-6 gap-2">
+                <button
+                    onClick={() => setShowSummary(!showSummary)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+                >
+                    <LuActivity size={16} />
+                    {showSummary ? 'Hide' : 'Show'} Summary
+                </button>
+                <button
+                    onClick={handleExportCSV}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                >
+                    📥 Export CSV
+                </button>
             </div>
 
             {/* Summary Section */}

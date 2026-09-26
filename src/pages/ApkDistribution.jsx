@@ -438,12 +438,14 @@ const ApkDistribution = () => {
                 )}
 
                 <div className={token ? "" : "w-full"}>
-                    <div className="flex justify-between items-center mb-6">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Mobile App Distribution</h1>
-                            <p className="text-gray-500 mt-2">Download the latest version of the WorkPulse mobile app.</p>
+                    {!token && (
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Mobile App Distribution</h1>
+                                <p className="text-gray-500 mt-2">Download the latest version of the WorkPulse mobile app.</p>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
                         {/* Latest Version Card */}

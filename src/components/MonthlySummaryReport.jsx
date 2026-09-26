@@ -69,7 +69,7 @@ const MonthlySummaryReport = () => {
                 const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 return days[d.getDay()];
             }
-        } catch (e) {}
+        } catch (e) { }
         return '';
     };
 
@@ -276,7 +276,7 @@ const MonthlySummaryReport = () => {
 
     const exportExcel = async () => {
         if (summary.length === 0) return;
-        
+
         try {
             const workbook = new ExcelJS.Workbook();
             workbook.creator = 'WorkPulse';
@@ -305,7 +305,7 @@ const MonthlySummaryReport = () => {
 
             // 1. Create Summary Sheet
             const summarySheet = workbook.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 1 }] });
-            
+
             summarySheet.columns = [
                 { header: 'Employee Name', key: 'name', width: 25 },
                 { header: 'Email', key: 'email', width: 30 },
@@ -339,7 +339,7 @@ const MonthlySummaryReport = () => {
                 let candidate = clean;
                 let counter = 1;
                 while (
-                    usedSheetNamesLower.has(candidate.toLowerCase()) || 
+                    usedSheetNamesLower.has(candidate.toLowerCase()) ||
                     workbook.worksheets.some(ws => ws.name.toLowerCase() === candidate.toLowerCase())
                 ) {
                     const suffix = `_${counter}`;
@@ -376,7 +376,7 @@ const MonthlySummaryReport = () => {
                     timeoff: formatHours(s.timeoff_hours, s.timeoff_minutes),
                     onduty: formatHours(s.onduty_hours, s.onduty_minutes)
                 });
-                
+
                 const nameCell = row.getCell(1);
                 nameCell.value = {
                     text: fullName,
@@ -401,7 +401,7 @@ const MonthlySummaryReport = () => {
                     }
                 });
             });
-            
+
             const totalRow = summarySheet.addRow({
                 name: 'TOTAL',
                 email: '',
@@ -433,7 +433,7 @@ const MonthlySummaryReport = () => {
                     const fallbackName = getUniqueSheetName(`Staff_${s.staff_id || Math.random().toString(36).substring(7)}`);
                     sheet = workbook.addWorksheet(fallbackName);
                 }
-                
+
                 sheet.mergeCells('A1:D1');
                 const backCell = sheet.getCell('A1');
                 backCell.value = { text: '← Back to Summary', hyperlink: `#'Summary'!A1`, tooltip: 'Go back to Summary sheet' };
@@ -443,7 +443,7 @@ const MonthlySummaryReport = () => {
                 sheet.mergeCells('A3:B3');
                 sheet.getCell('A3').value = `Employee: ${s.firstname} ${s.lastname}`;
                 sheet.getCell('A3').font = { bold: true, size: 12, color: { argb: 'FF1E1B4B' } };
-                
+
                 sheet.mergeCells('C3:D3');
                 sheet.getCell('C3').value = `Email: ${s.email}`;
                 sheet.getCell('C3').font = { color: { argb: 'FF4B5563' } };
@@ -542,7 +542,7 @@ const MonthlySummaryReport = () => {
                         let displayDuration = rec.duration;
 
                         if (rec.type === 'Leave') {
-                            displayDate = rec.start_date === rec.end_date 
+                            displayDate = rec.start_date === rec.end_date
                                 ? formatDateOnly(rec.start_date)
                                 : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`;
                         } else if (rec.type === 'Time-Off' || rec.type === 'On-Duty') {
@@ -577,7 +577,7 @@ const MonthlySummaryReport = () => {
 
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            
+
             const dateObj = getCurrentInAppTimezone().full;
             const dd = String(dateObj.getDate()).padStart(2, '0');
             const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -586,7 +586,7 @@ const MonthlySummaryReport = () => {
             const mmm = String(dateObj.getMinutes()).padStart(2, '0');
             const sss = String(dateObj.getSeconds()).padStart(2, '0');
             const formattedDate = `${dd}-${mm}-${yy}_${hh}${mmm}${sss}`;
-            
+
             saveAs(blob, `WorkPulse_Monthly_Report_${formattedDate}.xlsx`);
         } catch (error) {
             console.error("Error generating Excel:", error);
@@ -601,81 +601,76 @@ const MonthlySummaryReport = () => {
 
     return (
         <div>
-            {/* Summary Stats */}
-            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="text-sm text-gray-500">
-                    <span className="font-medium text-gray-700">Total Records Found:</span> {summary.length}
-                </div>
-            </div>
+
 
             {/* Filters */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto items-end">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+                <div className="flex flex-wrap items-center justify-center gap-6 max-w-3xl mx-auto">
+                    <div className="flex items-center gap-3">
+                        <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Month</label>
                         <select
                             value={month}
                             onChange={(e) => setMonth(parseInt(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 bg-white"
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 bg-white text-sm font-medium min-w-[150px]"
                         >
                             {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                         </select>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                    <div className="flex items-center gap-3">
+                        <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Year</label>
                         <select
                             value={year}
                             onChange={(e) => setYear(parseInt(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 bg-white"
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 bg-white text-sm font-medium min-w-[110px]"
                         >
                             {years.map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                     </div>
-                    <div>
-                        <button
-                            onClick={exportExcel}
-                            disabled={summary.length === 0}
-                            className="group relative overflow-hidden w-full px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center justify-center gap-2 z-10"
-                        >
-                            <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
-                            <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
-                            📥 Export
-                        </button>
-                    </div>
+                    <button
+                        onClick={exportExcel}
+                        disabled={summary.length === 0}
+                        className="group relative overflow-hidden px-6 py-2.5 bg-white text-[#1e1b4b] border-2 border-[#1e1b4b] rounded-xl font-black text-xs uppercase tracking-widest hover:text-white hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm hover:shadow-lg flex items-center justify-center gap-2 z-10 shrink-0 cursor-pointer"
+                    >
+                        <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
+                        <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                        📥 Export
+                    </button>
                 </div>
-                {period && (
-                    <p className="mt-4 text-xs text-gray-500 text-center">
-                        Showing approved records and attendance for <span className="font-semibold">{MONTHS[month - 1]} {year}</span> ({period.includes(' to ') ? period.split(' to ').map(d => formatDateOnly(d.trim())).join(' to ') : formatDateOnly(period)})
-                    </p>
-                )}
             </div>
 
-            {/* Stats Cards */}
+            {/* Summary Section (Single Line) */}
             {!loading && summary.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
-                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Employees</p>
-                        <p className="text-3xl font-black text-[#1e1b4b]">{summary.length}</p>
-                    </div>
-                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Present Days</p>
-                        <p className="text-3xl font-black text-emerald-600">{totals.present_days}</p>
-                    </div>
-                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Total Work Hours</p>
-                        <p className="text-3xl font-black text-indigo-600">{formatHours(0, totals.work_minutes)}</p>
-                    </div>
-                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Approved Leave Days</p>
-                        <p className="text-3xl font-black text-orange-500">{totals.leave_days}</p>
-                    </div>
-                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Approved Time-Off</p>
-                        <p className="text-3xl font-black text-teal-500">{formatHours(0, totals.timeoff_minutes)}</p>
-                    </div>
-                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Approved On-Duty</p>
-                        <p className="text-3xl font-black text-[#0ea5e9]">{formatHours(0, totals.onduty_minutes)}</p>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-4 mb-6">
+                    <div className="flex flex-wrap items-center justify-between gap-y-3 gap-x-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Employees:</span>
+                            <span className="text-base font-black text-[#1e1b4b]">{summary.length}</span>
+                        </div>
+                        <div className="hidden xl:block h-4 w-px bg-gray-200" />
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Present Days:</span>
+                            <span className="text-base font-black text-emerald-600">{totals.present_days}</span>
+                        </div>
+                        <div className="hidden xl:block h-4 w-px bg-gray-200" />
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Work Hours:</span>
+                            <span className="text-base font-black text-indigo-600">{formatHours(0, totals.work_minutes)}</span>
+                        </div>
+                        <div className="hidden xl:block h-4 w-px bg-gray-200" />
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Approved Leave Days:</span>
+                            <span className="text-base font-black text-orange-500">{totals.leave_days}</span>
+                        </div>
+                        <div className="hidden xl:block h-4 w-px bg-gray-200" />
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Approved Time-Off:</span>
+                            <span className="text-base font-black text-teal-600">{formatHours(0, totals.timeoff_minutes)}</span>
+                        </div>
+                        <div className="hidden xl:block h-4 w-px bg-gray-200" />
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Approved On-Duty:</span>
+                            <span className="text-base font-black text-[#0ea5e9]">{formatHours(0, totals.onduty_minutes)}</span>
+                        </div>
                     </div>
                 </div>
             )}
@@ -731,288 +726,286 @@ const MonthlySummaryReport = () => {
                                                 <td className="px-4 py-3 text-center">
                                                     {s.records && s.records.length > 0 && (
                                                         <button onClick={() => toggleRow(s.staff_id)} className="text-[#0ea5e9] hover:text-blue-700 transition-colors inline-flex items-center font-black">
-                                                            {expandedRows[s.staff_id] ? <FiMinusCircle size={16}/> : <FiPlusCircle size={16}/>}
+                                                            {expandedRows[s.staff_id] ? <FiMinusCircle size={16} /> : <FiPlusCircle size={16} />}
                                                         </button>
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-400 font-medium">{startIndex + idx + 1}</td>
-                                        <td className="px-4 py-3 text-sm font-bold text-gray-900">{s.firstname} {s.lastname}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-500">{s.email}</td>
-                                        <td className="px-4 py-3 text-center">
-                                            {s.present_days > 0 ? (
-                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                                    {s.present_days} {s.present_days === 1 ? 'day' : 'days'}
-                                                </span>
-                                            ) : <span className="text-gray-300 text-xs">—</span>}
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            {s.work_minutes > 0 ? (
-                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-600 border border-indigo-100">
-                                                    {formatHours(s.work_hours, s.work_minutes)}
-                                                </span>
-                                            ) : <span className="text-gray-300 text-xs">—</span>}
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            {s.leave_days > 0 ? (
-                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-orange-50 text-orange-600 border border-orange-100">
-                                                    {s.leave_days} {s.leave_days === 1 ? 'day' : 'days'}
-                                                </span>
-                                            ) : <span className="text-gray-300 text-xs">—</span>}
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            {s.timeoff_minutes > 0 ? (
-                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-teal-50 text-teal-600 border border-teal-100">
-                                                    {formatHours(s.timeoff_hours, s.timeoff_minutes)}
-                                                </span>
-                                            ) : <span className="text-gray-300 text-xs">—</span>}
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            {s.onduty_minutes > 0 ? (
-                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-sky-50 text-[#0ea5e9] border border-sky-100">
-                                                    {formatHours(s.onduty_hours, s.onduty_minutes)}
-                                                </span>
-                                            ) : <span className="text-gray-300 text-xs">—</span>}
-                                        </td>
-                                    </tr>
-                                    {expandedRows[s.staff_id] && s.records && s.records.length > 0 && (
-                                        <tr>
-                                            <td colSpan={9} className="px-8 py-3 bg-[#f8fafc] border-b border-gray-100">
-                                                <div className="rounded-xl overflow-hidden shadow-sm border border-gray-200 bg-white inline-block w-full">
-                                                    <table className="min-w-full divide-y divide-gray-100">
-                                                        <thead className="bg-[#1e1b4b]/5">
-                                                            <tr>
-                                                                <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/6">Type</th>
-                                                                <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/4">Date</th>
-                                                                <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/4">Duration</th>
-                                                                <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Details</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-gray-50">
-                                                            {s.records.map((rec, rIdx) => {
-                                                                if (rec.type === 'Attendance') {
-                                                                    const sessions = rec.sessions || s.attendance_records || [];
-                                                                    const presentDaysCount = rec.present_days !== undefined ? rec.present_days : s.present_days;
-                                                                    const dateRangeStr = rec.start_date && rec.end_date 
-                                                                        ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
-                                                                        : formatDateOnly(rec.date);
-
-                                                                    const openModal = () => {
-                                                                        setAttendanceModalData({
-                                                                            employeeName: `${s.firstname || ''} ${s.lastname || ''}`.trim(),
-                                                                            email: s.email,
-                                                                            dateRange: dateRangeStr,
-                                                                            totalDuration: rec.duration,
-                                                                            presentDaysCount,
-                                                                            sessions
-                                                                        });
-                                                                    };
-
-                                                                    return (
-                                                                        <tr 
-                                                                            key={`att-${rIdx}`} 
-                                                                            onClick={openModal}
-                                                                            className="hover:bg-emerald-50/50 cursor-pointer transition-colors group"
-                                                                            title="Click to view daily attendance sessions in popup"
-                                                                        >
-                                                                            <td className="px-4 py-2.5 align-middle">
-                                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200">
-                                                                                    Attendance
-                                                                                    <span className="px-1.5 py-0.2 rounded-full bg-emerald-200/90 text-emerald-950 text-[10px] font-black">
-                                                                                        {presentDaysCount} {presentDaysCount === 1 ? 'day' : 'days'}
-                                                                                    </span>
-                                                                                </span>
-                                                                            </td>
-                                                                            <td className="px-4 py-2.5 text-xs text-gray-700 font-semibold align-middle">
-                                                                                {dateRangeStr}
-                                                                            </td>
-                                                                            <td className="px-4 py-2.5 text-xs text-emerald-800 font-black align-middle">
-                                                                                <div>{rec.duration}</div>
-                                                                                {presentDaysCount > 1 && (
-                                                                                    <div className="text-[10px] text-gray-400 font-medium">
-                                                                                        Avg: {getModalAverageDuration(sessions, presentDaysCount)} / day
-                                                                                    </div>
-                                                                                )}
-                                                                            </td>
-                                                                            <td className="px-4 py-2.5 text-xs text-gray-600 align-middle">
-                                                                                <div className="flex items-center justify-between gap-2">
-                                                                                    <div className="flex flex-wrap items-center gap-2">
-                                                                                        <span className="text-gray-600 font-medium">
-                                                                                            {sessions.length} session(s) logged
-                                                                                        </span>
-                                                                                        {(() => {
-                                                                                            const { compliantDays, nonCompliantDays } = getModalComplianceDayCounts(sessions, complianceHours);
-                                                                                            return (
-                                                                                                <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px]">
-                                                                                                    <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                                                                                                        {compliantDays} Compliant
-                                                                                                    </span>
-                                                                                                    <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
-                                                                                                        {nonCompliantDays} Non-Compliant
-                                                                                                    </span>
-                                                                                                </span>
-                                                                                            );
-                                                                                        })()}
-                                                                                    </div>
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            openModal();
-                                                                                        }}
-                                                                                        className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 hover:opacity-80 inline-flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
-                                                                                        title="Open daily attendance popup"
-                                                                                    >
-                                                                                        <span>View Details</span>
-                                                                                        <FiExternalLink size={12} className="text-emerald-600" />
-                                                                                    </button>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                }
-
-                                                                return (
-                                                                    <tr key={rIdx} className="hover:bg-gray-50/50">
-                                                                        <td className="px-4 py-2 align-top">
-                                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                                                                rec.type === 'Leave' 
-                                                                                    ? 'bg-orange-50 text-orange-600 border-orange-100' 
-                                                                                    : rec.type === 'Time-Off' 
-                                                                                    ? 'bg-teal-50 text-teal-600 border-teal-100' 
-                                                                                    : 'bg-sky-50 text-[#0ea5e9] border-sky-100'
-                                                                            }`}>
-                                                                                {rec.type}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-xs text-gray-600 font-medium align-top">
-                                                                            {rec.type === 'Leave' 
-                                                                                ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
-                                                                                : formatDateOnly(rec.date)}
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-xs text-gray-800 font-bold align-top">
-                                                                            {rec.type === 'Leave' 
-                                                                                ? rec.duration 
-                                                                                : `${formatTimeOnly(rec.start_time)} to ${formatTimeOnly(rec.end_time)}${rec.duration.match(/\((.+)\)$/) ? ` (${rec.duration.match(/\((.+)\)$/)[1]})` : ""}`}
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-xs text-gray-600 align-top break-words">{rec.detail}</td>
+                                                <td className="px-4 py-3 text-sm font-bold text-gray-900">{s.firstname} {s.lastname}</td>
+                                                <td className="px-4 py-3 text-sm text-gray-500">{s.email}</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {s.present_days > 0 ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                            {s.present_days} {s.present_days === 1 ? 'day' : 'days'}
+                                                        </span>
+                                                    ) : <span className="text-gray-300 text-xs">—</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {s.work_minutes > 0 ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                                            {formatHours(s.work_hours, s.work_minutes)}
+                                                        </span>
+                                                    ) : <span className="text-gray-300 text-xs">—</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {s.leave_days > 0 ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-orange-50 text-orange-600 border border-orange-100">
+                                                            {s.leave_days} {s.leave_days === 1 ? 'day' : 'days'}
+                                                        </span>
+                                                    ) : <span className="text-gray-300 text-xs">—</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {s.timeoff_minutes > 0 ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-teal-50 text-teal-600 border border-teal-100">
+                                                            {formatHours(s.timeoff_hours, s.timeoff_minutes)}
+                                                        </span>
+                                                    ) : <span className="text-gray-300 text-xs">—</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {s.onduty_minutes > 0 ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-sky-50 text-[#0ea5e9] border border-sky-100">
+                                                            {formatHours(s.onduty_hours, s.onduty_minutes)}
+                                                        </span>
+                                                    ) : <span className="text-gray-300 text-xs">—</span>}
+                                                </td>
+                                            </tr>
+                                            {expandedRows[s.staff_id] && s.records && s.records.length > 0 && (
+                                                <tr>
+                                                    <td colSpan={9} className="px-8 py-3 bg-[#f8fafc] border-b border-gray-100">
+                                                        <div className="rounded-xl overflow-hidden shadow-sm border border-gray-200 bg-white inline-block w-full">
+                                                            <table className="min-w-full divide-y divide-gray-100">
+                                                                <thead className="bg-[#1e1b4b]/5">
+                                                                    <tr>
+                                                                        <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/6">Type</th>
+                                                                        <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/4">Date</th>
+                                                                        <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/4">Duration</th>
+                                                                        <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Details</th>
                                                                     </tr>
-                                                                );
-                                                            })}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </React.Fragment>
-                            ))}
-                            <tr className="bg-[#1e1b4b]/5 font-black">
-                                <td colSpan={4} className="px-4 py-3 text-sm text-[#1e1b4b] uppercase tracking-widest text-right">Total</td>
-                                <td className="px-4 py-3 text-center text-sm text-emerald-600">{totals.present_days} {totals.present_days === 1 ? 'day' : 'days'}</td>
-                                <td className="px-4 py-3 text-center text-sm text-indigo-600">{formatHours(0, totals.work_minutes)}</td>
-                                <td className="px-4 py-3 text-center text-sm text-orange-600">{totals.leave_days} {totals.leave_days === 1 ? 'day' : 'days'}</td>
-                                <td className="px-4 py-3 text-center text-sm text-teal-600">{formatHours(0, totals.timeoff_minutes)}</td>
-                                <td className="px-4 py-3 text-center text-sm text-[#0ea5e9]">{formatHours(0, totals.onduty_minutes)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-gray-50">
+                                                                    {s.records.map((rec, rIdx) => {
+                                                                        if (rec.type === 'Attendance') {
+                                                                            const sessions = rec.sessions || s.attendance_records || [];
+                                                                            const presentDaysCount = rec.present_days !== undefined ? rec.present_days : s.present_days;
+                                                                            const dateRangeStr = rec.start_date && rec.end_date
+                                                                                ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
+                                                                                : formatDateOnly(rec.date);
 
-                {/* Pagination Controls */}
-                {totalItems > 0 && (
-                    <div className="bg-gray-50/80 border-t border-gray-100 px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
-                        {/* Left: Info & Rows per page */}
-                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-gray-600 order-2 sm:order-1">
-                            <span>
-                                Showing <strong className="text-gray-900 font-bold">{startIndex + 1}</strong>–<strong className="text-gray-900 font-bold">{endIndex}</strong> of <strong className="text-gray-900 font-bold">{totalItems}</strong> employees
-                            </span>
-                            <div className="flex items-center gap-2 pl-3 sm:pl-4 border-l border-gray-200">
-                                <span className="text-gray-500 font-medium">Rows:</span>
-                                <select
-                                    value={pageSize}
-                                    onChange={(e) => {
-                                        setPageSize(Number(e.target.value));
-                                        setCurrentPage(1);
-                                    }}
-                                    className="px-2.5 py-1 bg-white border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:border-[#1e1b4b] cursor-pointer shadow-2xs"
-                                >
-                                    <option value={10}>10</option>
-                                    <option value={20}>20</option>
-                                    <option value={50}>50</option>
-                                    <option value={100}>100</option>
-                                </select>
-                            </div>
+                                                                            const openModal = () => {
+                                                                                setAttendanceModalData({
+                                                                                    employeeName: `${s.firstname || ''} ${s.lastname || ''}`.trim(),
+                                                                                    email: s.email,
+                                                                                    dateRange: dateRangeStr,
+                                                                                    totalDuration: rec.duration,
+                                                                                    presentDaysCount,
+                                                                                    sessions
+                                                                                });
+                                                                            };
+
+                                                                            return (
+                                                                                <tr
+                                                                                    key={`att-${rIdx}`}
+                                                                                    onClick={openModal}
+                                                                                    className="hover:bg-emerald-50/50 cursor-pointer transition-colors group"
+                                                                                    title="Click to view daily attendance sessions in popup"
+                                                                                >
+                                                                                    <td className="px-4 py-2.5 align-middle">
+                                                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200">
+                                                                                            Attendance
+                                                                                            <span className="px-1.5 py-0.2 rounded-full bg-emerald-200/90 text-emerald-950 text-[10px] font-black">
+                                                                                                {presentDaysCount} {presentDaysCount === 1 ? 'day' : 'days'}
+                                                                                            </span>
+                                                                                        </span>
+                                                                                    </td>
+                                                                                    <td className="px-4 py-2.5 text-xs text-gray-700 font-semibold align-middle">
+                                                                                        {dateRangeStr}
+                                                                                    </td>
+                                                                                    <td className="px-4 py-2.5 text-xs text-emerald-800 font-black align-middle">
+                                                                                        <div>{rec.duration}</div>
+                                                                                        {presentDaysCount > 1 && (
+                                                                                            <div className="text-[10px] text-gray-400 font-medium">
+                                                                                                Avg: {getModalAverageDuration(sessions, presentDaysCount)} / day
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </td>
+                                                                                    <td className="px-4 py-2.5 text-xs text-gray-600 align-middle">
+                                                                                        <div className="flex items-center justify-between gap-2">
+                                                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                                                <span className="text-gray-600 font-medium">
+                                                                                                    {sessions.length} session(s) logged
+                                                                                                </span>
+                                                                                                {(() => {
+                                                                                                    const { compliantDays, nonCompliantDays } = getModalComplianceDayCounts(sessions, complianceHours);
+                                                                                                    return (
+                                                                                                        <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px]">
+                                                                                                            <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                                                                                                {compliantDays} Compliant
+                                                                                                            </span>
+                                                                                                            <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
+                                                                                                                {nonCompliantDays} Non-Compliant
+                                                                                                            </span>
+                                                                                                        </span>
+                                                                                                    );
+                                                                                                })()}
+                                                                                            </div>
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    openModal();
+                                                                                                }}
+                                                                                                className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 hover:opacity-80 inline-flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
+                                                                                                title="Open daily attendance popup"
+                                                                                            >
+                                                                                                <span>View Details</span>
+                                                                                                <FiExternalLink size={12} className="text-emerald-600" />
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        }
+
+                                                                        return (
+                                                                            <tr key={rIdx} className="hover:bg-gray-50/50">
+                                                                                <td className="px-4 py-2 align-top">
+                                                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${rec.type === 'Leave'
+                                                                                        ? 'bg-orange-50 text-orange-600 border-orange-100'
+                                                                                        : rec.type === 'Time-Off'
+                                                                                            ? 'bg-teal-50 text-teal-600 border-teal-100'
+                                                                                            : 'bg-sky-50 text-[#0ea5e9] border-sky-100'
+                                                                                        }`}>
+                                                                                        {rec.type}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td className="px-4 py-2 text-xs text-gray-600 font-medium align-top">
+                                                                                    {rec.type === 'Leave'
+                                                                                        ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
+                                                                                        : formatDateOnly(rec.date)}
+                                                                                </td>
+                                                                                <td className="px-4 py-2 text-xs text-gray-800 font-bold align-top">
+                                                                                    {rec.type === 'Leave'
+                                                                                        ? rec.duration
+                                                                                        : `${formatTimeOnly(rec.start_time)} to ${formatTimeOnly(rec.end_time)}${rec.duration.match(/\((.+)\)$/) ? ` (${rec.duration.match(/\((.+)\)$/)[1]})` : ""}`}
+                                                                                </td>
+                                                                                <td className="px-4 py-2 text-xs text-gray-600 align-top break-words">{rec.detail}</td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                    <tr className="bg-[#1e1b4b]/5 font-black">
+                                        <td colSpan={4} className="px-4 py-3 text-sm text-[#1e1b4b] uppercase tracking-widest text-right">Total</td>
+                                        <td className="px-4 py-3 text-center text-sm text-emerald-600">{totals.present_days} {totals.present_days === 1 ? 'day' : 'days'}</td>
+                                        <td className="px-4 py-3 text-center text-sm text-indigo-600">{formatHours(0, totals.work_minutes)}</td>
+                                        <td className="px-4 py-3 text-center text-sm text-orange-600">{totals.leave_days} {totals.leave_days === 1 ? 'day' : 'days'}</td>
+                                        <td className="px-4 py-3 text-center text-sm text-teal-600">{formatHours(0, totals.timeoff_minutes)}</td>
+                                        <td className="px-4 py-3 text-center text-sm text-[#0ea5e9]">{formatHours(0, totals.onduty_minutes)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
 
-                        {/* Right: Page Navigation */}
-                        <div className="flex items-center gap-1.5 sm:gap-2 order-1 sm:order-2 w-full sm:w-auto justify-between sm:justify-end">
-                            <button
-                                type="button"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={safeCurrentPage === 1}
-                                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                            >
-                                <FiChevronLeft size={14} />
-                                <span>Previous</span>
-                            </button>
+                        {/* Pagination Controls */}
+                        {totalItems > 0 && (
+                            <div className="bg-gray-50/80 border-t border-gray-100 px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                                {/* Left: Info & Rows per page */}
+                                <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-gray-600 order-2 sm:order-1">
+                                    <span>
+                                        Showing <strong className="text-gray-900 font-bold">{startIndex + 1}</strong>–<strong className="text-gray-900 font-bold">{endIndex}</strong> of <strong className="text-gray-900 font-bold">{totalItems}</strong> employees
+                                    </span>
+                                    <div className="flex items-center gap-2 pl-3 sm:pl-4 border-l border-gray-200">
+                                        <span className="text-gray-500 font-medium">Rows:</span>
+                                        <select
+                                            value={pageSize}
+                                            onChange={(e) => {
+                                                setPageSize(Number(e.target.value));
+                                                setCurrentPage(1);
+                                            }}
+                                            className="px-2.5 py-1 bg-white border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:border-[#1e1b4b] cursor-pointer shadow-2xs"
+                                        >
+                                            <option value={10}>10</option>
+                                            <option value={20}>20</option>
+                                            <option value={50}>50</option>
+                                            <option value={100}>100</option>
+                                        </select>
+                                    </div>
+                                </div>
 
-                            {/* Smart page numbers with ellipsis */}
-                            <div className="flex items-center gap-1">
-                                {(() => {
-                                    const pageButtons = [];
-                                    const maxButtons = 5;
-                                    if (totalPages <= maxButtons) {
-                                        for (let i = 1; i <= totalPages; i++) pageButtons.push(i);
-                                    } else {
-                                        pageButtons.push(1);
-                                        if (safeCurrentPage > 3) pageButtons.push('ellipsis-left');
-                                        const start = Math.max(2, safeCurrentPage - 1);
-                                        const end = Math.min(totalPages - 1, safeCurrentPage + 1);
-                                        for (let i = start; i <= end; i++) {
-                                            if (!pageButtons.includes(i)) pageButtons.push(i);
-                                        }
-                                        if (safeCurrentPage < totalPages - 2) pageButtons.push('ellipsis-right');
-                                        if (!pageButtons.includes(totalPages)) pageButtons.push(totalPages);
-                                    }
+                                {/* Right: Page Navigation */}
+                                <div className="flex items-center gap-1.5 sm:gap-2 order-1 sm:order-2 w-full sm:w-auto justify-between sm:justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={safeCurrentPage === 1}
+                                        className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                    >
+                                        <FiChevronLeft size={14} />
+                                        <span>Previous</span>
+                                    </button>
 
-                                    return pageButtons.map((btn, bIdx) => {
-                                        if (btn === 'ellipsis-left' || btn === 'ellipsis-right') {
-                                            return <span key={`main-ell-${bIdx}`} className="px-1 text-gray-400 text-xs font-bold">...</span>;
-                                        }
-                                        const isActive = btn === safeCurrentPage;
-                                        return (
-                                            <button
-                                                key={btn}
-                                                type="button"
-                                                onClick={() => setCurrentPage(btn)}
-                                                className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                                    isActive
-                                                        ? 'bg-[#1e1b4b] text-white shadow-xs'
-                                                        : 'text-gray-700 bg-white hover:bg-gray-100 border border-gray-300'
-                                                }`}
-                                            >
-                                                {btn}
-                                            </button>
-                                        );
-                                    });
-                                })()}
+                                    {/* Smart page numbers with ellipsis */}
+                                    <div className="flex items-center gap-1">
+                                        {(() => {
+                                            const pageButtons = [];
+                                            const maxButtons = 5;
+                                            if (totalPages <= maxButtons) {
+                                                for (let i = 1; i <= totalPages; i++) pageButtons.push(i);
+                                            } else {
+                                                pageButtons.push(1);
+                                                if (safeCurrentPage > 3) pageButtons.push('ellipsis-left');
+                                                const start = Math.max(2, safeCurrentPage - 1);
+                                                const end = Math.min(totalPages - 1, safeCurrentPage + 1);
+                                                for (let i = start; i <= end; i++) {
+                                                    if (!pageButtons.includes(i)) pageButtons.push(i);
+                                                }
+                                                if (safeCurrentPage < totalPages - 2) pageButtons.push('ellipsis-right');
+                                                if (!pageButtons.includes(totalPages)) pageButtons.push(totalPages);
+                                            }
+
+                                            return pageButtons.map((btn, bIdx) => {
+                                                if (btn === 'ellipsis-left' || btn === 'ellipsis-right') {
+                                                    return <span key={`main-ell-${bIdx}`} className="px-1 text-gray-400 text-xs font-bold">...</span>;
+                                                }
+                                                const isActive = btn === safeCurrentPage;
+                                                return (
+                                                    <button
+                                                        key={btn}
+                                                        type="button"
+                                                        onClick={() => setCurrentPage(btn)}
+                                                        className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
+                                                            ? 'bg-[#1e1b4b] text-white shadow-xs'
+                                                            : 'text-gray-700 bg-white hover:bg-gray-100 border border-gray-300'
+                                                            }`}
+                                                    >
+                                                        {btn}
+                                                    </button>
+                                                );
+                                            });
+                                        })()}
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={safeCurrentPage === totalPages}
+                                        className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                    >
+                                        <span>Next</span>
+                                        <FiChevronRight size={14} />
+                                    </button>
+                                </div>
                             </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={safeCurrentPage === totalPages}
-                                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                            >
-                                <span>Next</span>
-                                <FiChevronRight size={14} />
-                            </button>
-                        </div>
-                    </div>
+                        )}
+                    </>
                 )}
-            </>
-        )}
-    </div>
+            </div>
 
             {/* Attendance Details Popup Modal */}
             {attendanceModalData && (
@@ -1291,11 +1284,10 @@ const MonthlySummaryReport = () => {
                                                                     key={btn}
                                                                     type="button"
                                                                     onClick={() => setModalPage(btn)}
-                                                                    className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                                                        isActive
-                                                                            ? 'bg-[#1e1b4b] text-white shadow-xs'
-                                                                            : 'text-gray-700 bg-white hover:bg-gray-100 border border-gray-300'
-                                                                    }`}
+                                                                    className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
+                                                                        ? 'bg-[#1e1b4b] text-white shadow-xs'
+                                                                        : 'text-gray-700 bg-white hover:bg-gray-100 border border-gray-300'
+                                                                        }`}
                                                                 >
                                                                     {btn}
                                                                 </button>

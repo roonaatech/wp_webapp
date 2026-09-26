@@ -514,14 +514,6 @@ const Arch = () => {
 
     return (
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-h-screen" >
-            {/* Header */}
-            < div className="bg-slate-900 text-white p-8" >
-                <h1 className="text-3xl font-bold flex items-center gap-3">
-                    <FiServer className="text-blue-400" />
-                    System Architecture & Documentation
-                </h1>
-                <p className="mt-2 text-slate-400">Technical overview, design patterns, and API reference.</p>
-            </div >
 
             {/* Navigation Tabs */}
             < div className="flex border-b border-gray-200 bg-gray-50 flex-wrap" >

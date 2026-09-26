@@ -4,7 +4,7 @@ import axios from 'axios';
 import { LuQrCode } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
-import { getRoleDisplayName } from '../utils/roleUtils';
+import { getRoleDisplayName, canAccessWebApp } from '../utils/roleUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { formatLeaveDuration } from '../utils/dateUtils';
 
@@ -64,6 +64,8 @@ const MyRequests = () => {
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const token = localStorage.getItem('token');
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isDesktopWithLayout = canAccessWebApp(user.role) && !isMobile;
 
     // Tab State
     const [activeTab, setActiveTab] = useState('leave'); // 'leave' | 'onduty' | 'timeoff'
@@ -827,53 +829,66 @@ const MyRequests = () => {
         <div className="min-h-screen bg-slate-100 flex justify-center" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
             <div className="w-full max-w-xl bg-white shadow-xl min-h-screen flex flex-col relative border-x border-slate-200">
                 {/* ── Top App Bar ── */}
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-50 safe-area-top shadow-lg">
-                    <div className="flex items-center justify-between px-4 py-3">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg font-black backdrop-blur-sm">
-                                {(user.firstname || 'U').charAt(0)}
+                {!isDesktopWithLayout ? (
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-50 safe-area-top shadow-lg">
+                        <div className="flex items-center justify-between px-4 py-3">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg font-black backdrop-blur-sm">
+                                    {(user.firstname || 'U').charAt(0)}
+                                </div>
+                                <div>
+                                    <h1 className="text-base font-bold leading-tight">WorkPulse</h1>
+                                    <p className="text-[11px] text-white/70 font-medium">{user.firstname || 'User'} • {getRoleDisplayName(user.role)}</p>
+                                </div>
                             </div>
-                            <div>
-                                <h1 className="text-base font-bold leading-tight">WorkPulse</h1>
-                                <p className="text-[11px] text-white/70 font-medium">{user.firstname || 'User'} • {getRoleDisplayName(user.role)}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => navigate('/my-badge')}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all border border-emerald-300/40"
-                                title="My Smart Attendance Badge"
-                            >
-                                <LuQrCode className="w-4 h-4 text-white" />
-                                <span className="hidden sm:inline">Smart Badge</span>
-                                <span className="sm:hidden">Badge</span>
-                            </button>
-                            <button
-                                onClick={() => setShowChangePasswordModal(true)}
-                                className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95 text-white/90 hover:text-white"
-                                title="Change Password"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                            </button>
-                            <button
-                                onClick={handleLogout}
-                                disabled={isLoggingOut}
-                                className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95"
-                                title="Sign Out"
-                            >
-                                {isLoggingOut ? (
-                                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin block"></span>
-                                ) : (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => navigate('/my-badge')}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all border border-emerald-300/40"
+                                    title="My Smart Attendance Badge"
+                                >
+                                    <LuQrCode className="w-4 h-4 text-white" />
+                                    <span className="hidden sm:inline">Smart Badge</span>
+                                    <span className="sm:hidden">Badge</span>
+                                </button>
+                                <button
+                                    onClick={() => setShowChangePasswordModal(true)}
+                                    className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95 text-white/90 hover:text-white"
+                                    title="Change Password"
+                                >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                     </svg>
-                                )}
-                            </button>
+                                </button>
+                                <button
+                                    onClick={handleLogout}
+                                    disabled={isLoggingOut}
+                                    className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95"
+                                    title="Sign Out"
+                                >
+                                    {isLoggingOut ? (
+                                        <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin block"></span>
+                                    ) : (
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        </svg>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="flex justify-end p-3 bg-white border-b border-slate-100">
+                        <button
+                            onClick={() => navigate('/my-badge')}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                            title="My Smart Attendance Badge"
+                        >
+                            <LuQrCode className="w-4 h-4 text-white" />
+                            <span>Smart Badge</span>
+                        </button>
+                    </div>
+                )}
 
                 {/* ── Quick Smart Badge Access Banner ── */}
                 <div className="px-4 pt-3 pb-1">

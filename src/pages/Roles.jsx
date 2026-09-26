@@ -1012,10 +1012,6 @@ const Roles = () => {
             {loading && (
                 <ModernLoader size="container" message="Fetching roles..." fullScreen={false} />
             )/* Localization: Overlay instead of full-page blur */}
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Role Management</h1>
-                <p className="text-gray-600">Manage system roles and their permissions</p>
-            </div>
 
             {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">

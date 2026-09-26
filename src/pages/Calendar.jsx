@@ -259,15 +259,7 @@ const Calendar = () => {
                 <ModernLoader size="container" message="Fetching calendar events..." />
             )}
             <div>
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Calendar</h1>
-                <p className="text-gray-600 mt-1">
-                    {isAdmin
-                        ? 'View all staff leave and on-duty schedules'
-                        : "View your reportees' leave and on-duty schedules"}
-                </p>
-            </div>
+
 
             {error && (
                 <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">

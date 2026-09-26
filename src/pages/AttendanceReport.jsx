@@ -780,25 +780,17 @@ const AttendanceReport = () => {
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-4">
-            {/* Header section */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
-                <div>
-                    <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Attendance Review</h1>
-                    <p className="text-sm text-slate-500 mt-1">Review check-in and check-out records and calculated working hours.</p>
-                </div>
-
-                {/* Export Action Button */}
-                <div>
-                    <button
-                        onClick={handleExport}
-                        disabled={isExporting || totalItems === 0}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                        title="Export all matching records to Microsoft Excel (.xlsx)"
-                    >
-                        <LuFileSpreadsheet size={16} />
-                        <span>{isExporting ? 'Exporting...' : 'Export Excel'}</span>
-                    </button>
-                </div>
+            {/* Export Action Button */}
+            <div className="flex justify-end pb-2">
+                <button
+                    onClick={handleExport}
+                    disabled={isExporting || totalItems === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    title="Export all matching records to Microsoft Excel (.xlsx)"
+                >
+                    <LuFileSpreadsheet size={16} />
+                    <span>{isExporting ? 'Exporting...' : 'Export Excel'}</span>
+                </button>
             </div>
 
             {/* Filter Panel */}

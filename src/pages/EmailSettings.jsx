@@ -227,7 +227,6 @@ export default function EmailSettings() {
 
     return (
         <div className="p-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-6">Email Settings</h1>
 
             {/* Tabs */}
             <div className="flex border-b border-gray-200 mb-6 sticky top-0 bg-gray-50 z-10 transition-all duration-300">

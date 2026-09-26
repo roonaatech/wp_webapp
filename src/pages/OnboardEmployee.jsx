@@ -855,19 +855,6 @@ const OnboardEmployee = () => {
 
     return (
         <div className="max-w-7xl mx-auto pb-12 font-sans">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <div>
-                    <h1 className="text-3xl font-extrabold text-[#1e1b4b] tracking-tight">
-                        {id ? 'Edit Employee Profile' : 'Onboard New Employee'}
-                    </h1>
-                    <p className="text-sm text-slate-500 mt-1">
-                        {id
-                            ? 'Modify employee joining form details and profile settings.'
-                            : 'Fill in joining form records and initialize active system profiles directly.'}
-                    </p>
-                </div>
-            </div>
 
             {/* Mode Selection Screen */}
             {!id && !onboardingMode && (

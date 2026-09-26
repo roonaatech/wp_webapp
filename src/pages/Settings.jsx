@@ -532,16 +532,7 @@ export default function Settings() {
 
     return (
         <div className="p-6 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-8">
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl text-white shadow-lg">
-                    <FiSettings size={28} />
-                </div>
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">System Settings</h1>
-                    <p className="text-gray-500 text-sm mt-1">Configure global application parameters</p>
-                </div>
-            </div>
+
 
             {/* Grid Layout */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">

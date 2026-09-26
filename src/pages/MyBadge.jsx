@@ -271,16 +271,18 @@ const MyBadge = () => {
 
             <main className="w-full max-w-xl p-4 sm:p-6 flex flex-col items-center justify-center flex-1">
                 {/* Header Title */}
-                <div className="text-center mb-5 max-w-sm w-full">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold mb-2.5 shadow-sm border border-emerald-300">
-                        <LuShieldCheck className="w-4 h-4 text-emerald-700" />
-                        <span>Official Digital ID & Attendance Badge</span>
+                {!isDesktopWithLayout && (
+                    <div className="text-center mb-5 max-w-sm w-full">
+                        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold mb-2.5 shadow-sm border border-emerald-300">
+                            <LuShieldCheck className="w-4 h-4 text-emerald-700" />
+                            <span>Official Digital ID & Attendance Badge</span>
+                        </div>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Smart Attendance Badge</h1>
+                        <p className="text-xs text-slate-600 font-medium mt-1">
+                            Hold this QR code in front of the office kiosk scanner
+                        </p>
                     </div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Smart Attendance Badge</h1>
-                    <p className="text-xs text-slate-600 font-medium mt-1">
-                        Hold this QR code in front of the office kiosk scanner
-                    </p>
-                </div>
+                )}
 
             {/* Smart ID Card */}
             <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 transition-all">

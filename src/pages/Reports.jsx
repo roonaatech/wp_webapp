@@ -456,14 +456,7 @@ const Reports = () => {
 
     return (
         <div>
-            <div className="mb-8">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-black text-[#1e1b4b] tracking-tight">Reports</h1>
-                        <p className="text-gray-500 mt-1 text-sm">View and export leave, on-duty and time-off records</p>
-                    </div>
-                </div>
-            </div>
+
 
             {/* Tab Switcher (Sliding Pill) */}
             <div className="mb-8 flex justify-center w-full" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>

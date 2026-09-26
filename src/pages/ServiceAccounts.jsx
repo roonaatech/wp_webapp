@@ -256,12 +256,8 @@ const ServiceAccounts = () => {
             {loading && (
                 <ModernLoader size="container" message="Fetching service accounts..." fullScreen={false} />
             )}
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Service Accounts</h1>
-                    <p className="text-gray-600">Manage system-level service credentials with custom role assignments</p>
-                </div>
+            {/* Actions */}
+            <div className="flex justify-end items-center mb-6">
                 <button
                     onClick={handleOpenAddModal}
                     className="flex items-center gap-2 px-4 py-2 text-white bg-blue-700 rounded-lg hover:opacity-90 transition"

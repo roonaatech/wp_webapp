@@ -721,14 +721,8 @@ const Approvals = () => {
 
     return (
         <div className="p-6 font-sans min-h-screen bg-[var(--bg-primary)] transition-colors duration-300">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-[var(--text-main)]">Approvals & Requests</h1>
-                    <p className="text-[var(--text-muted)] mt-1">Manage {statusFilter.toLowerCase()} leave and on-duty requests</p>
-                </div>
-
-                {/* Status Tabs */}
+            {/* Status Tabs */}
+            <div className="flex justify-end items-center mb-6">
                 <div className="bg-transparent p-1 inline-flex gap-4">
                     {[
                         { id: 'Pending', icon: <LuClock />, color: 'amber' },

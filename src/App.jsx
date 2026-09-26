@@ -36,6 +36,7 @@ import Attendance from './pages/Attendance';
 import AttendanceReport from './pages/AttendanceReport';
 import ForgotPassword from './pages/ForgotPassword';
 import MyBadge from './pages/MyBadge';
+import { PageHeaderProvider } from './context/PageHeaderContext';
 
 
 
@@ -176,7 +177,8 @@ function App() {
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AxiosInterceptorSetup>
         <GlobalInit>
-          <Toaster
+          <PageHeaderProvider>
+            <Toaster
             position="top-right"
             reverseOrder={false}
             toastOptions={{
@@ -251,6 +253,7 @@ function App() {
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </PageHeaderProvider>
         </GlobalInit>
       </AxiosInterceptorSetup>
     </Router>

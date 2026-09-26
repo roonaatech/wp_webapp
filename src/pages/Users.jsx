@@ -1299,30 +1299,15 @@ const Users = () => {
 
     return (
         <div>
-            <div className="mb-8">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-                        <p className="text-gray-600 mt-1">
-                            {!canManageUsers
-                                ? 'View users and their information (read-only)'
-                                : isAdmin
-                                    ? 'Manage all system users and their permissions'
-                                    : 'Manage your team members and their leave balances'}
-                        </p>
-                    </div>
-                    {canManageOnboarding(user.role) && (
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => navigate('/onboard')}
-                                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors font-semibold flex items-center gap-2 shadow-sm text-sm">
-                                <span className="text-indigo-200 text-lg">+</span> Onboard Employee
-                            </button>
-                        </div>
-                    )}
-
+            {canManageOnboarding(user.role) && (
+                <div className="flex justify-end mb-6">
+                    <button
+                        onClick={() => navigate('/onboard')}
+                        className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors font-semibold flex items-center gap-2 shadow-sm text-sm">
+                        <span className="text-indigo-200 text-lg">+</span> Onboard Employee
+                    </button>
                 </div>
-            </div>
+            )}
 
             {/* Error Message */}
             {error && (

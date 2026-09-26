@@ -6,6 +6,7 @@ import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, isSuperAdmin } from '../utils/roleUtils';
 import { formatDateOnly, formatInTimezone, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
+import { usePageHeader } from '../context/PageHeaderContext';
 
 
 const calculateExperience = (dateOfJoining) => {
@@ -61,6 +62,18 @@ const ViewEmployeeProfile = () => {
     const [employee, setEmployee] = useState(null);
     const [loading, setLoading] = useState(true);
     const [roles, setRoles] = useState([]);
+    const { setHeaderInfo } = usePageHeader();
+
+    useEffect(() => {
+        if (employee && employee.firstname) {
+            const roleObj = roles.find(r => r.id === employee.role);
+            const roleName = roleObj ? roleObj.display_name : 'Staff';
+            setHeaderInfo({
+                title: `${employee.firstname} ${employee.lastname}`,
+                subtitle: `${roleName} • ${employee.email || 'Employee Profile'}`
+            });
+        }
+    }, [employee, roles, setHeaderInfo]);
     const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
     const [managers, setManagers] = useState([]);
     const [approvalForm, setApprovalForm] = useState({

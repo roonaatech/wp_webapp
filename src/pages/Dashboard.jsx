@@ -836,11 +836,7 @@ const Dashboard = () => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC]">
-            <div className="max-w-7xl mx-auto px-6 py-10 relative">
-                <div className="mb-10">
-                    <h1 className="text-4xl font-black text-gray-900 tracking-tight">Dashboard Overview</h1>
-                    <p className="text-gray-500 mt-2 text-lg font-medium">Real-time attendance and leave insights.</p>
-                </div>
+            <div className="max-w-7xl mx-auto px-6 py-2 relative">
 
                 {error && (
                     <div className="mb-8 bg-red-50 border-l-4 border-red-500 rounded-r-2xl p-4 shadow-sm">

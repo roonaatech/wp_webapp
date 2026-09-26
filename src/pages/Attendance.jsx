@@ -840,29 +840,47 @@ const Attendance = () => {
             {/* Top Bar / Header */}
             <div className="flex items-center justify-between gap-4 mb-3 sm:mb-4 pb-3 border-b border-slate-800/80 flex-shrink-0">
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <BrandLogo textTheme="dark" />
-                    <div className="hidden sm:block h-8 w-[1px] bg-slate-800" />
-                    <div>
+                    {isKioskMode ? (
+                        <>
+                            <BrandLogo textTheme="dark" />
+                            <div className="hidden sm:block h-8 w-[1px] bg-slate-800" />
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase drop-shadow-sm">
+                                        Attendance Kiosk
+                                    </h1>
+                                    {scannerSleeping ? (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-950/80 text-amber-400 border border-amber-500/30 shadow-sm">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                            Standby Mode
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 shadow-sm">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                            Live QR Scanner
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                                    Front-Desk Dynamic Smart Badge Terminal
+                                </p>
+                            </div>
+                        </>
+                    ) : (
                         <div className="flex items-center gap-2">
-                            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase drop-shadow-sm">
-                                Attendance Kiosk
-                            </h1>
                             {scannerSleeping ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-950/80 text-amber-400 border border-amber-500/30 shadow-sm">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-950/80 text-amber-400 border border-amber-500/30 shadow-sm">
+                                    <span className="w-2 h-2 rounded-full bg-amber-400" />
                                     Standby Mode
                                 </span>
                             ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 shadow-sm">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 shadow-sm">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                                     Live QR Scanner
                                 </span>
                             )}
                         </div>
-                        <p className="text-xs text-slate-400 font-medium mt-0.5">
-                            Front-Desk Dynamic Smart Badge Terminal
-                        </p>
-                    </div>
+                    )}
                 </div>
 
                 {/* Clock & Kiosk Actions */}

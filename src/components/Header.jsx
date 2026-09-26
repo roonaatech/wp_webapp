@@ -7,6 +7,155 @@ import BrandLogo from './BrandLogo';
 import { getRoleDisplayName, canApproveLeave, canApproveOnDuty, canManageUsers, canViewBirthdays, canViewAnniversaries } from '../utils/roleUtils';
 import { formatDateOnly } from '../utils/timezone.util';
 import ChangePasswordModal from './ChangePasswordModal';
+import { usePageHeader } from '../context/PageHeaderContext';
+
+const getPageHeaderInfo = (pathname, user) => {
+    const isAdmin = user?.role === 1 || user?.role_name === 'Admin' || user?.is_admin;
+    const canManageUserPerm = canManageUsers(user?.role);
+    const path = (pathname || '').toLowerCase().replace(/\/$/, '') || '/';
+
+    if (path === '' || path === '/') {
+        return {
+            title: 'Dashboard Overview',
+            subtitle: 'Real-time attendance and leave insights'
+        };
+    }
+    if (path.startsWith('/calendar')) {
+        return {
+            title: 'Calendar',
+            subtitle: isAdmin
+                ? 'View all staff leave and on-duty schedules'
+                : "View your reportees' leave and on-duty schedules"
+        };
+    }
+    if (path.startsWith('/approvals')) {
+        return {
+            title: 'Approvals & Requests',
+            subtitle: 'Manage leave and on-duty requests'
+        };
+    }
+    if (path.startsWith('/users')) {
+        return {
+            title: 'User Management',
+            subtitle: !canManageUserPerm
+                ? 'View users and their information (read-only)'
+                : isAdmin
+                    ? 'Manage all system users and their permissions'
+                    : 'Manage your team members and their leave balances'
+        };
+    }
+    if (path.startsWith('/attendance-report')) {
+        return {
+            title: 'Attendance Review',
+            subtitle: 'Review check-in and check-out records and calculated working hours'
+        };
+    }
+    if (path.startsWith('/attendance')) {
+        return {
+            title: 'Smart Attendance Terminal',
+            subtitle: 'Face recognition and kiosk check-in terminal'
+        };
+    }
+    if (path.startsWith('/reports')) {
+        return {
+            title: 'Reports & Analytics',
+            subtitle: 'View and export leave, on-duty and time-off records'
+        };
+    }
+    if (path.startsWith('/leave-types')) {
+        return {
+            title: 'Leave Types',
+            subtitle: 'Manage leave types for your organization'
+        };
+    }
+    if (path.startsWith('/roles')) {
+        return {
+            title: 'Role Management',
+            subtitle: 'Manage system roles and their permissions'
+        };
+    }
+    if (path.startsWith('/active-onduty')) {
+        return {
+            title: 'Active On-Duty',
+            subtitle: isAdmin
+                ? 'View all active on-duty records'
+                : 'View active on-duty records for your team'
+        };
+    }
+    if (path.startsWith('/activities')) {
+        return {
+            title: 'Activity Logs',
+            subtitle: 'Track all admin, manager, and employee operations'
+        };
+    }
+    if (path.startsWith('/service-accounts')) {
+        return {
+            title: 'Service Accounts',
+            subtitle: 'Manage system-level service credentials with custom role assignments'
+        };
+    }
+    if (path.startsWith('/email-settings')) {
+        return {
+            title: 'Email Settings',
+            subtitle: 'Configure SMTP credentials and system notification templates'
+        };
+    }
+    if (path.startsWith('/settings')) {
+        return {
+            title: 'System Settings',
+            subtitle: 'Configure global application parameters and timeouts'
+        };
+    }
+    if (path.startsWith('/onboard')) {
+        const isEdit = path.split('/').filter(Boolean).length > 1;
+        return {
+            title: isEdit ? 'Edit Employee Profile' : 'Onboard New Employee',
+            subtitle: isEdit
+                ? 'Modify employee joining form details and profile settings'
+                : 'Fill in joining form records and initialize active system profiles directly'
+        };
+    }
+    if (path.startsWith('/staff-profile')) {
+        return {
+            title: 'Employee Profile',
+            subtitle: 'Comprehensive view of employee credentials, history, and status'
+        };
+    }
+    if (path.startsWith('/arch')) {
+        return {
+            title: 'System Architecture & Documentation',
+            subtitle: 'Technical overview, design patterns, and API reference'
+        };
+    }
+    if (path.startsWith('/apk')) {
+        return {
+            title: 'Mobile App Distribution',
+            subtitle: 'Download the latest version of the WorkPulse mobile app'
+        };
+    }
+    if (path.startsWith('/my-requests')) {
+        return {
+            title: 'My Requests',
+            subtitle: 'View and submit personal leave, time-off, and on-duty requests'
+        };
+    }
+    if (path.startsWith('/my-badge') || path.startsWith('/badge')) {
+        return {
+            title: 'Smart Attendance Badge',
+            subtitle: 'Personal digital ID badge and quick check-in'
+        };
+    }
+
+    const segment = path.split('/')[1] || '';
+    const formatted = segment
+        .split('-')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    return {
+        title: formatted || 'WorkPulse',
+        subtitle: ''
+    };
+};
 
 const Header = () => {
     const [showMenu, setShowMenu] = useState(false);
@@ -29,6 +178,9 @@ const Header = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{"email":"Admin User"}');
+    const { customHeader } = usePageHeader();
+    const routeHeader = getPageHeaderInfo(location.pathname, user);
+    const headerInfo = customHeader || routeHeader;
     const [, setSettingsVersion] = useState(0);
 
     useEffect(() => {
@@ -222,12 +374,15 @@ const Header = () => {
     return (
         <header className="bg-[var(--header-bg)] border-b border-[var(--border-color)] shadow-sm transition-colors duration-300 relative z-40">
             <div className="flex items-center justify-between px-8 py-4">
-                <div className="flex items-center gap-3">
-                    <BrandLogo showText={false} iconSize="w-10 h-10" />
-                    <div>
-                        <h1 className="text-2xl font-bold text-[var(--text-main)] transition-colors">WorkPulse</h1>
-                        <p className="text-sm text-[var(--text-muted)]">Leave and On-Duty Management System</p>
-                    </div>
+                <div className="flex flex-col justify-center min-w-0 pr-4">
+                    <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)] tracking-tight truncate leading-tight">
+                        {headerInfo.title}
+                    </h1>
+                    {headerInfo.subtitle && (
+                        <p className="text-xs sm:text-sm text-[var(--text-muted)] font-medium truncate mt-0.5">
+                            {headerInfo.subtitle}
+                        </p>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-4">

@@ -167,30 +167,20 @@ const ActiveOnDuty = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Active On-Duty</h1>
-                    <p className="text-gray-600 mt-1">
-                        {isAdmin
-                            ? 'View all active on-duty records'
-                            : 'View active on-duty records for your team'}
-                    </p>
-                </div>
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => fetchActiveOnDuty(true)}
-                        disabled={refreshing || loading}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#2E5090] text-white rounded-lg hover:bg-blue-800 transition-all shadow-md disabled:opacity-50"
-                        title="Refresh Data"
-                    >
-                        <FiRefreshCw className={`${refreshing ? 'animate-spin' : ''}`} />
-                        <span className="font-semibold text-sm">Refresh</span>
-                    </button>
-                    <div className="text-right">
-                        <div className="text-4xl font-bold text-blue-600">{sortedRecords.length}</div>
-                        <p className="text-gray-600 text-sm">Currently Active</p>
-                    </div>
+            {/* Action Bar */}
+            <div className="flex justify-end items-center gap-4">
+                <button
+                    onClick={() => fetchActiveOnDuty(true)}
+                    disabled={refreshing || loading}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#2E5090] text-white rounded-lg hover:bg-blue-800 transition-all shadow-md disabled:opacity-50"
+                    title="Refresh Data"
+                >
+                    <FiRefreshCw className={`${refreshing ? 'animate-spin' : ''}`} />
+                    <span className="font-semibold text-sm">Refresh</span>
+                </button>
+                <div className="text-right">
+                    <div className="text-4xl font-bold text-blue-600">{sortedRecords.length}</div>
+                    <p className="text-gray-600 text-sm">Currently Active</p>
                 </div>
             </div>
 
