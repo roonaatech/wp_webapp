@@ -3,7 +3,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from './ModernLoader';
 import { getCurrentInAppTimezone, formatDateOnly, formatTimeOnly } from '../utils/timezone.util';
-import { FiPlusCircle, FiMinusCircle, FiX, FiExternalLink } from 'react-icons/fi';
+import { FiPlusCircle, FiMinusCircle, FiX, FiExternalLink, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -23,6 +23,17 @@ const MonthlySummaryReport = () => {
     const [sortConfig, setSortConfig] = useState({ key: 'firstname', direction: 'asc' });
     const [expandedRows, setExpandedRows] = useState({});
     const [attendanceModalData, setAttendanceModalData] = useState(null);
+    const [modalPage, setModalPage] = useState(1);
+    const [modalLimit, setModalLimit] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+
+    // Reset modal page whenever a new modal is opened
+    useEffect(() => {
+        if (attendanceModalData) {
+            setModalPage(1);
+        }
+    }, [attendanceModalData]);
 
     // Close attendance modal on Escape key
     useEffect(() => {
@@ -183,7 +194,10 @@ const MonthlySummaryReport = () => {
         return `${hrs}h ${mins}m`;
     };
 
-    useEffect(() => { fetchSummary(); }, [month, year]);
+    useEffect(() => {
+        fetchSummary();
+        setCurrentPage(1);
+    }, [month, year]);
 
     useEffect(() => {
         const handleSettingsChanged = () => {
@@ -228,6 +242,7 @@ const MonthlySummaryReport = () => {
             key,
             direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
         }));
+        setCurrentPage(1);
     };
 
     const sortedSummary = [...summary].sort((a, b) => {
@@ -242,6 +257,13 @@ const MonthlySummaryReport = () => {
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
     });
+
+    const totalItems = sortedSummary.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalItems);
+    const paginatedSummary = sortedSummary.slice(startIndex, endIndex);
 
     // Totals
     const totals = summary.reduce((acc, s) => ({
@@ -665,7 +687,7 @@ const MonthlySummaryReport = () => {
             )}
 
             {/* Table */}
-            <div className="overflow-x-auto bg-white rounded-2xl border border-gray-100 shadow-sm mb-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6 overflow-hidden">
                 {loading ? (
                     <div className="p-8"><ModernLoader size="lg" message="Generating summary..." fullScreen={false} /></div>
                 ) : summary.length === 0 ? (
@@ -674,44 +696,46 @@ const MonthlySummaryReport = () => {
                         <p className="text-gray-300 text-sm mt-1">Try selecting a different month or year</p>
                     </div>
                 ) : (
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-[#1e1b4b]">
-                            <tr>
-                                <th className="px-4 py-3 text-left w-12"></th>
-                                <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-widest w-12">#</th>
-                                <th className="px-4 py-3 text-left cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('name')}>
-                                    <span className="text-xs font-black text-white uppercase tracking-widest">Employee<SortIcon col="name" /></span>
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-widest">Email</th>
-                                <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('present_days')}>
-                                    <span className="text-xs font-black text-white uppercase tracking-widest">Present Days<SortIcon col="present_days" /></span>
-                                </th>
-                                <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('work_minutes')}>
-                                    <span className="text-xs font-black text-white uppercase tracking-widest">Work Hours<SortIcon col="work_minutes" /></span>
-                                </th>
-                                <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('leave_days')}>
-                                    <span className="text-xs font-black text-white uppercase tracking-widest">Leave Days<SortIcon col="leave_days" /></span>
-                                </th>
-                                <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('timeoff_minutes')}>
-                                    <span className="text-xs font-black text-white uppercase tracking-widest">Time-Off<SortIcon col="timeoff_minutes" /></span>
-                                </th>
-                                <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('onduty_minutes')}>
-                                    <span className="text-xs font-black text-white uppercase tracking-widest">On-Duty<SortIcon col="onduty_minutes" /></span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {sortedSummary.map((s, idx) => (
-                                <React.Fragment key={s.staff_id}>
-                                    <tr className={`hover:bg-[#f0f9ff]/50 transition-colors ${expandedRows[s.staff_id] ? 'bg-[#f0f9ff]/30' : ''}`}>
-                                        <td className="px-4 py-3 text-center">
-                                            {s.records && s.records.length > 0 && (
-                                                <button onClick={() => toggleRow(s.staff_id)} className="text-[#0ea5e9] hover:text-blue-700 transition-colors inline-flex items-center font-black">
-                                                    {expandedRows[s.staff_id] ? <FiMinusCircle size={16}/> : <FiPlusCircle size={16}/>}
-                                                </button>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-400 font-medium">{idx + 1}</td>
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-[#1e1b4b]">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left w-12"></th>
+                                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-widest w-12">#</th>
+                                        <th className="px-4 py-3 text-left cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('name')}>
+                                            <span className="text-xs font-black text-white uppercase tracking-widest">Employee<SortIcon col="name" /></span>
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-widest">Email</th>
+                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('present_days')}>
+                                            <span className="text-xs font-black text-white uppercase tracking-widest">Present Days<SortIcon col="present_days" /></span>
+                                        </th>
+                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('work_minutes')}>
+                                            <span className="text-xs font-black text-white uppercase tracking-widest">Work Hours<SortIcon col="work_minutes" /></span>
+                                        </th>
+                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('leave_days')}>
+                                            <span className="text-xs font-black text-white uppercase tracking-widest">Leave Days<SortIcon col="leave_days" /></span>
+                                        </th>
+                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('timeoff_minutes')}>
+                                            <span className="text-xs font-black text-white uppercase tracking-widest">Time-Off<SortIcon col="timeoff_minutes" /></span>
+                                        </th>
+                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('onduty_minutes')}>
+                                            <span className="text-xs font-black text-white uppercase tracking-widest">On-Duty<SortIcon col="onduty_minutes" /></span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {paginatedSummary.map((s, idx) => (
+                                        <React.Fragment key={s.staff_id}>
+                                            <tr className={`hover:bg-[#f0f9ff]/50 transition-colors ${expandedRows[s.staff_id] ? 'bg-[#f0f9ff]/30' : ''}`}>
+                                                <td className="px-4 py-3 text-center">
+                                                    {s.records && s.records.length > 0 && (
+                                                        <button onClick={() => toggleRow(s.staff_id)} className="text-[#0ea5e9] hover:text-blue-700 transition-colors inline-flex items-center font-black">
+                                                            {expandedRows[s.staff_id] ? <FiMinusCircle size={16}/> : <FiPlusCircle size={16}/>}
+                                                        </button>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-400 font-medium">{startIndex + idx + 1}</td>
                                         <td className="px-4 py-3 text-sm font-bold text-gray-900">{s.firstname} {s.lastname}</td>
                                         <td className="px-4 py-3 text-sm text-gray-500">{s.email}</td>
                                         <td className="px-4 py-3 text-center">
@@ -892,8 +916,103 @@ const MonthlySummaryReport = () => {
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination Controls */}
+                {totalItems > 0 && (
+                    <div className="bg-gray-50/80 border-t border-gray-100 px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        {/* Left: Info & Rows per page */}
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-gray-600 order-2 sm:order-1">
+                            <span>
+                                Showing <strong className="text-gray-900 font-bold">{startIndex + 1}</strong>–<strong className="text-gray-900 font-bold">{endIndex}</strong> of <strong className="text-gray-900 font-bold">{totalItems}</strong> employees
+                            </span>
+                            <div className="flex items-center gap-2 pl-3 sm:pl-4 border-l border-gray-200">
+                                <span className="text-gray-500 font-medium">Rows:</span>
+                                <select
+                                    value={pageSize}
+                                    onChange={(e) => {
+                                        setPageSize(Number(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                    className="px-2.5 py-1 bg-white border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:border-[#1e1b4b] cursor-pointer shadow-2xs"
+                                >
+                                    <option value={10}>10</option>
+                                    <option value={20}>20</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Right: Page Navigation */}
+                        <div className="flex items-center gap-1.5 sm:gap-2 order-1 sm:order-2 w-full sm:w-auto justify-between sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={safeCurrentPage === 1}
+                                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                            >
+                                <FiChevronLeft size={14} />
+                                <span>Previous</span>
+                            </button>
+
+                            {/* Smart page numbers with ellipsis */}
+                            <div className="flex items-center gap-1">
+                                {(() => {
+                                    const pageButtons = [];
+                                    const maxButtons = 5;
+                                    if (totalPages <= maxButtons) {
+                                        for (let i = 1; i <= totalPages; i++) pageButtons.push(i);
+                                    } else {
+                                        pageButtons.push(1);
+                                        if (safeCurrentPage > 3) pageButtons.push('ellipsis-left');
+                                        const start = Math.max(2, safeCurrentPage - 1);
+                                        const end = Math.min(totalPages - 1, safeCurrentPage + 1);
+                                        for (let i = start; i <= end; i++) {
+                                            if (!pageButtons.includes(i)) pageButtons.push(i);
+                                        }
+                                        if (safeCurrentPage < totalPages - 2) pageButtons.push('ellipsis-right');
+                                        if (!pageButtons.includes(totalPages)) pageButtons.push(totalPages);
+                                    }
+
+                                    return pageButtons.map((btn, bIdx) => {
+                                        if (btn === 'ellipsis-left' || btn === 'ellipsis-right') {
+                                            return <span key={`main-ell-${bIdx}`} className="px-1 text-gray-400 text-xs font-bold">...</span>;
+                                        }
+                                        const isActive = btn === safeCurrentPage;
+                                        return (
+                                            <button
+                                                key={btn}
+                                                type="button"
+                                                onClick={() => setCurrentPage(btn)}
+                                                className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                                    isActive
+                                                        ? 'bg-[#1e1b4b] text-white shadow-xs'
+                                                        : 'text-gray-700 bg-white hover:bg-gray-100 border border-gray-300'
+                                                }`}
+                                            >
+                                                {btn}
+                                            </button>
+                                        );
+                                    });
+                                })()}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={safeCurrentPage === totalPages}
+                                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                            >
+                                <span>Next</span>
+                                <FiChevronRight size={14} />
+                            </button>
+                        </div>
+                    </div>
                 )}
-            </div>
+            </>
+        )}
+    </div>
 
             {/* Attendance Details Popup Modal */}
             {attendanceModalData && (
@@ -1005,109 +1124,208 @@ const MonthlySummaryReport = () => {
                             </div>
                         </div>
 
-                        {/* Sessions Table */}
-                        <div className="overflow-y-auto p-4 sm:p-6 flex-1">
-                            {attendanceModalData.sessions && attendanceModalData.sessions.length > 0 ? (
-                                <div className="rounded-xl border border-gray-200 overflow-hidden shadow-2xs">
-                                    <table className="min-w-full divide-y divide-gray-100 text-xs">
-                                        <thead className="bg-[#1e1b4b]/5 text-[10px] font-black text-gray-600 uppercase tracking-wider">
-                                            <tr>
-                                                <th className="px-3 py-3 text-center w-10">#</th>
-                                                <th className="px-4 py-3 text-left">Date</th>
-                                                <th className="px-4 py-3 text-left">Check-In</th>
-                                                <th className="px-4 py-3 text-left">Check-Out</th>
-                                                <th className="px-4 py-3 text-left">Duration</th>
-                                                <th className="px-4 py-3 text-left">Compliance</th>
-                                                <th className="px-4 py-3 text-left">Terminal / Device</th>
-                                                <th className="px-4 py-3 text-left">IP Address</th>
-                                                <th className="px-3 py-3 text-center">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-50 bg-white">
-                                            {attendanceModalData.sessions.map((sess, sIdx) => (
-                                                <tr key={sess.id || sIdx} className="hover:bg-emerald-50/30 transition-colors">
-                                                    <td className="px-3 py-2.5 text-center text-gray-400 font-mono text-[11px]">{sIdx + 1}</td>
-                                                    <td className="px-4 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
-                                                        {formatDateWithWeekday(sess.date)}
-                                                    </td>
-                                                    <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
-                                                        {sess.check_in_time ? formatTimeOnly(sess.check_in_time) : (sess.check_in_time_str || '—')}
-                                                    </td>
-                                                    <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
-                                                        {sess.check_out_time ? formatTimeOnly(sess.check_out_time) : (
-                                                            <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                Active
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-4 py-2.5 font-black text-emerald-700 whitespace-nowrap">
-                                                        {sess.formatted_duration || sess.duration}
-                                                    </td>
-                                                    <td className="px-4 py-2.5 whitespace-nowrap">
-                                                        {(() => {
-                                                            const comp = getSessionCompliance(sess);
-                                                            if (comp.isActive) {
-                                                                return (
-                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                                                        In Progress
-                                                                    </span>
-                                                                );
-                                                            }
-                                                            return comp.isCompliant ? (
-                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                                    Compliant
-                                                                </span>
-                                                            ) : (
-                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                                                                    Non-Compliant
-                                                                </span>
-                                                            );
-                                                        })()}
-                                                    </td>
-                                                    <td className="px-4 py-2.5 text-gray-600">
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-700 text-[11px] font-medium border border-gray-200">
-                                                            {sess.phone_model || 'Web / Kiosk'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-2.5 font-mono text-gray-500 text-[11px] whitespace-nowrap">
-                                                        {sess.ip_address || '—'}
-                                                    </td>
-                                                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                                        {sess.status === 'Completed' ? (
-                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                ✓ Done
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                • Active
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div className="py-12 text-center text-gray-400">
-                                    <p className="text-sm font-medium">No session details recorded</p>
-                                </div>
-                            )}
-                        </div>
+                        {/* Sessions Table & Pagination Calculations */}
+                        {(() => {
+                            const totalModalSessions = attendanceModalData.sessions?.length || 0;
+                            const totalModalPages = Math.max(1, Math.ceil(totalModalSessions / modalLimit));
+                            const safeModalPage = Math.min(Math.max(1, modalPage), totalModalPages);
+                            const startIndex = (safeModalPage - 1) * modalLimit;
+                            const endIndex = Math.min(startIndex + modalLimit, totalModalSessions);
+                            const currentModalSessions = (attendanceModalData.sessions || []).slice(startIndex, endIndex);
 
-                        {/* Footer */}
-                        <div className="bg-gray-50 border-t border-gray-100 px-6 py-3 flex items-center justify-end">
-                            <button
-                                type="button"
-                                onClick={() => setAttendanceModalData(null)}
-                                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-100 text-xs font-bold transition-colors cursor-pointer"
-                            >
-                                Close
-                            </button>
-                        </div>
+                            return (
+                                <>
+                                    <div className="overflow-y-auto p-4 sm:p-6 flex-1">
+                                        {currentModalSessions && currentModalSessions.length > 0 ? (
+                                            <div className="rounded-xl border border-gray-200 overflow-hidden shadow-2xs">
+                                                <table className="min-w-full divide-y divide-gray-100 text-xs">
+                                                    <thead className="bg-[#1e1b4b]/5 text-[10px] font-black text-gray-600 uppercase tracking-wider">
+                                                        <tr>
+                                                            <th className="px-3 py-3 text-center w-10">#</th>
+                                                            <th className="px-4 py-3 text-left">Date</th>
+                                                            <th className="px-4 py-3 text-left">Check-In</th>
+                                                            <th className="px-4 py-3 text-left">Check-Out</th>
+                                                            <th className="px-4 py-3 text-left">Duration</th>
+                                                            <th className="px-4 py-3 text-left">Compliance</th>
+                                                            <th className="px-4 py-3 text-left">Terminal / Device</th>
+                                                            <th className="px-4 py-3 text-left">IP Address</th>
+                                                            <th className="px-3 py-3 text-center">Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-50 bg-white">
+                                                        {currentModalSessions.map((sess, sIdx) => (
+                                                            <tr key={sess.id || (startIndex + sIdx)} className="hover:bg-emerald-50/30 transition-colors">
+                                                                <td className="px-3 py-2.5 text-center text-gray-400 font-mono text-[11px]">{startIndex + sIdx + 1}</td>
+                                                                <td className="px-4 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
+                                                                    {formatDateWithWeekday(sess.date)}
+                                                                </td>
+                                                                <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
+                                                                    {sess.check_in_time ? formatTimeOnly(sess.check_in_time) : (sess.check_in_time_str || '—')}
+                                                                </td>
+                                                                <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
+                                                                    {sess.check_out_time ? formatTimeOnly(sess.check_out_time) : (
+                                                                        <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                            Active
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-4 py-2.5 font-black text-emerald-700 whitespace-nowrap">
+                                                                    {sess.formatted_duration || sess.duration}
+                                                                </td>
+                                                                <td className="px-4 py-2.5 whitespace-nowrap">
+                                                                    {(() => {
+                                                                        const comp = getSessionCompliance(sess);
+                                                                        if (comp.isActive) {
+                                                                            return (
+                                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                                    In Progress
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        return comp.isCompliant ? (
+                                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                                Compliant
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                                                                Non-Compliant
+                                                                            </span>
+                                                                        );
+                                                                    })()}
+                                                                </td>
+                                                                <td className="px-4 py-2.5 text-gray-600">
+                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-700 text-[11px] font-medium border border-gray-200">
+                                                                        {sess.phone_model || 'Web / Kiosk'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 py-2.5 font-mono text-gray-500 text-[11px] whitespace-nowrap">
+                                                                    {sess.ip_address || '—'}
+                                                                </td>
+                                                                <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                                                                    {sess.status === 'Completed' ? (
+                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                            ✓ Done
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                            • Active
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <div className="py-12 text-center text-gray-400">
+                                                <p className="text-sm font-medium">No session details recorded</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Footer with Pagination */}
+                                    <div className="bg-gray-50 border-t border-gray-100 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 text-xs text-gray-600 order-2 sm:order-1">
+                                            <span>
+                                                Showing <strong className="text-gray-900 font-bold">{totalModalSessions > 0 ? startIndex + 1 : 0}</strong>–<strong className="text-gray-900 font-bold">{endIndex}</strong> of <strong className="text-gray-900 font-bold">{totalModalSessions}</strong> records
+                                            </span>
+                                            <div className="flex items-center gap-1.5 pl-3 border-l border-gray-200">
+                                                <span className="text-gray-500 font-medium">Rows:</span>
+                                                <select
+                                                    value={modalLimit}
+                                                    onChange={(e) => {
+                                                        setModalLimit(Number(e.target.value));
+                                                        setModalPage(1);
+                                                    }}
+                                                    className="px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                                                >
+                                                    <option value={5}>5</option>
+                                                    <option value={10}>10</option>
+                                                    <option value={15}>15</option>
+                                                    <option value={20}>20</option>
+                                                    <option value={50}>50</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 order-1 sm:order-2 w-full sm:w-auto justify-between sm:justify-end">
+                                            {totalModalPages > 1 && (
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setModalPage(p => Math.max(1, p - 1))}
+                                                        disabled={safeModalPage === 1}
+                                                        className="px-2.5 py-1 border border-gray-300 bg-white rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                                    >
+                                                        Previous
+                                                    </button>
+
+                                                    {(() => {
+                                                        const pageButtons = [];
+                                                        const maxButtons = 5;
+                                                        if (totalModalPages <= maxButtons) {
+                                                            for (let i = 1; i <= totalModalPages; i++) pageButtons.push(i);
+                                                        } else {
+                                                            pageButtons.push(1);
+                                                            if (safeModalPage > 3) pageButtons.push('ellipsis-left');
+                                                            const start = Math.max(2, safeModalPage - 1);
+                                                            const end = Math.min(totalModalPages - 1, safeModalPage + 1);
+                                                            for (let i = start; i <= end; i++) {
+                                                                if (!pageButtons.includes(i)) pageButtons.push(i);
+                                                            }
+                                                            if (safeModalPage < totalModalPages - 2) pageButtons.push('ellipsis-right');
+                                                            if (!pageButtons.includes(totalModalPages)) pageButtons.push(totalModalPages);
+                                                        }
+
+                                                        return pageButtons.map((btn, idx) => {
+                                                            if (btn === 'ellipsis-left' || btn === 'ellipsis-right') {
+                                                                return <span key={`ell-${idx}`} className="px-1 text-gray-400 text-xs font-bold">...</span>;
+                                                            }
+                                                            const isActive = btn === safeModalPage;
+                                                            return (
+                                                                <button
+                                                                    key={btn}
+                                                                    type="button"
+                                                                    onClick={() => setModalPage(btn)}
+                                                                    className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                                                        isActive
+                                                                            ? 'bg-[#1e1b4b] text-white shadow-xs'
+                                                                            : 'text-gray-700 bg-white hover:bg-gray-100 border border-gray-300'
+                                                                    }`}
+                                                                >
+                                                                    {btn}
+                                                                </button>
+                                                            );
+                                                        });
+                                                    })()}
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setModalPage(p => Math.min(totalModalPages, p + 1))}
+                                                        disabled={safeModalPage === totalModalPages}
+                                                        className="px-2.5 py-1 border border-gray-300 bg-white rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                                    >
+                                                        Next
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                onClick={() => setAttendanceModalData(null)}
+                                                className="px-4 py-1.5 bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-100 text-xs font-bold transition-colors cursor-pointer shadow-2xs ml-1"
+                                            >
+                                                Close
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             )}

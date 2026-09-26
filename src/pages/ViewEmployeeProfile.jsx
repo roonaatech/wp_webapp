@@ -63,7 +63,16 @@ const ViewEmployeeProfile = () => {
     const [roles, setRoles] = useState([]);
     const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
     const [managers, setManagers] = useState([]);
-    const [approvalForm, setApprovalForm] = useState({ email: '', role: '', approving_manager_id: '', abis_access: false, date_of_joining: '' });
+    const [approvalForm, setApprovalForm] = useState({
+        email: '',
+        role: '',
+        approving_manager_id: '',
+        abis_access: false,
+        date_of_joining: '',
+        allocate_leaves: true,
+        casual_leave_days: 6,
+        sick_leave_days: 6
+    });
     const [approvalErrors, setApprovalErrors] = useState({});
     const [approving, setApproving] = useState(false);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -109,7 +118,10 @@ const ViewEmployeeProfile = () => {
                 role: response.data.role || '',
                 approving_manager_id: response.data.approving_manager_id || '',
                 abis_access: response.data.abis_access || false,
-                date_of_joining: response.data.profile_info?.date_of_joining || ''
+                date_of_joining: response.data.profile_info?.date_of_joining || '',
+                allocate_leaves: true,
+                casual_leave_days: 6,
+                sick_leave_days: 6
             });
         } catch (err) {
             console.error('Error fetching employee profile:', err);
@@ -251,7 +263,10 @@ const ViewEmployeeProfile = () => {
                     role: approvalForm.role,
                     approving_manager_id: approvalForm.approving_manager_id || null,
                     abis_access: approvalForm.abis_access,
-                    date_of_joining: approvalForm.date_of_joining
+                    date_of_joining: approvalForm.date_of_joining,
+                    allocate_leaves: approvalForm.allocate_leaves,
+                    casual_leave_days: approvalForm.allocate_leaves ? parseInt(approvalForm.casual_leave_days || 6) : 0,
+                    sick_leave_days: approvalForm.allocate_leaves ? parseInt(approvalForm.sick_leave_days || 6) : 0
                 },
                 {
                     headers: { 'x-access-token': token }
@@ -1053,17 +1068,82 @@ const ViewEmployeeProfile = () => {
                                 {approvalErrors.date_of_joining && <p className="text-xs text-rose-500 mt-1 font-bold">{approvalErrors.date_of_joining}</p>}
                             </div>
 
-                            <div className="flex items-center gap-3 py-2">
+                            <div className="flex items-center gap-3 py-1">
                                 <input
                                     type="checkbox"
                                     id="abis_access"
                                     checked={approvalForm.abis_access}
                                     onChange={(e) => setApprovalForm(prev => ({ ...prev, abis_access: e.target.checked }))}
-                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
                                 />
                                 <label htmlFor="abis_access" className="text-sm font-semibold text-slate-700 select-none cursor-pointer">
                                     Enable ABIS Access
                                 </label>
+                            </div>
+
+                            {/* Leave Allocation Option */}
+                            <div className="pt-3 border-t border-slate-100">
+                                <div className="flex items-center justify-between mb-2">
+                                    <label htmlFor="allocate_leaves" className="flex items-center gap-2.5 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            id="allocate_leaves"
+                                            checked={approvalForm.allocate_leaves}
+                                            onChange={(e) => setApprovalForm(prev => ({ ...prev, allocate_leaves: e.target.checked }))}
+                                            className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
+                                        />
+                                        <span className="text-sm font-bold text-slate-700">
+                                            Allocate Initial Leaves
+                                        </span>
+                                    </label>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                        6 + 6 Days
+                                    </span>
+                                </div>
+
+                                {approvalForm.allocate_leaves && (
+                                    <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-3 mt-2 animate-in fade-in duration-150">
+                                        <p className="text-xs text-slate-500 leading-relaxed">
+                                            Allocate Casual Leave and Sick Leave upon approval. Default is 6 days each.
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                                    Casual Leave
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="365"
+                                                        value={approvalForm.casual_leave_days}
+                                                        onChange={(e) => setApprovalForm(prev => ({ ...prev, casual_leave_days: e.target.value }))}
+                                                        className="w-full pl-3.5 pr-12 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
+                                                        placeholder="6"
+                                                    />
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">days</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                                    Sick Leave
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="365"
+                                                        value={approvalForm.sick_leave_days}
+                                                        onChange={(e) => setApprovalForm(prev => ({ ...prev, sick_leave_days: e.target.value }))}
+                                                        className="w-full pl-3.5 pr-12 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
+                                                        placeholder="6"
+                                                    />
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">days</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">

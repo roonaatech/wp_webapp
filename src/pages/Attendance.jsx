@@ -22,7 +22,6 @@ import {
     LuCamera,
     LuCameraOff,
     LuPower,
-    LuSwitchCamera,
     LuSparkles,
     LuX
 } from "react-icons/lu";
@@ -332,11 +331,19 @@ const Attendance = () => {
         try {
             const constraints = {
                 video: selectedDeviceId 
-                    ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 1920, min: 1280 }, height: { ideal: 1080, min: 720 }, frameRate: { ideal: 60, min: 30 } }
+                    ? { deviceId: { ideal: selectedDeviceId }, facingMode: "user", width: { ideal: 1920, min: 1280 }, height: { ideal: 1080, min: 720 }, frameRate: { ideal: 60, min: 30 } }
                     : { facingMode: "user", width: { ideal: 1920, min: 1280 }, height: { ideal: 1080, min: 720 }, frameRate: { ideal: 60, min: 30 } }
             };
 
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (constraintErr) {
+                console.warn("Primary camera constraints failed, falling back to default device camera:", constraintErr);
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user" }
+                }).catch(() => navigator.mediaDevices.getUserMedia({ video: true }));
+            }
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 streamRef.current = stream;
@@ -940,24 +947,6 @@ const Attendance = () => {
                                 </button>
                             )}
                         </div>
-
-                        {/* Camera device selector if multiple */}
-                        {devices.length > 1 && !scannerSleeping && (
-                            <div className="flex items-center gap-2 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-700">
-                                <LuSwitchCamera size={14} className="text-slate-400" />
-                                <select
-                                    value={selectedDeviceId}
-                                    onChange={(e) => setSelectedDeviceId(e.target.value)}
-                                    className="bg-transparent text-[11px] font-bold text-slate-200 focus:outline-none cursor-pointer"
-                                >
-                                    {devices.map((d, i) => (
-                                        <option key={d.deviceId || i} value={d.deviceId} className="bg-slate-900 text-white">
-                                            {d.label || `Camera ${i + 1}`}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
                     </div>
 
                     {/* Camera Video Feed - expands to fill the entire remaining card height */}

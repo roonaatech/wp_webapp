@@ -1,14 +1,24 @@
 import React from 'react';
 
 const BrandLogo = ({ className = "h-10", showText = true, iconSize = "w-12 h-12", textTheme = "light" }) => {
+    const isDark = textTheme === "dark";
+    const brandGradId = isDark ? "brandGradVibrantDark" : "brandGradVibrantLight";
+
     return (
         <div className={`flex items-center gap-3 select-none ${className}`}>
             {/* SVG Icon - Thick, Bright, and Clear */}
-            <div className={`relative ${iconSize} flex-shrink-0 drop-shadow-md`}>
+            <div className={`relative ${iconSize} flex-shrink-0 ${isDark ? 'drop-shadow-[0_2px_8px_rgba(56,189,248,0.25)]' : 'drop-shadow-md'}`}>
                 <svg viewBox="0 0 100 100" className="w-full h-full filter">
                     <defs>
-                        {/* High-vibrancy Electric Blue to Punchy Violet Gradient */}
-                        <linearGradient id='brandGradVibrant' x1='0%' y1='0%' x2='100%' y2='0%'>
+                        {/* High-vibrancy Electric Sky to Luminous Violet Gradient for Dark backgrounds */}
+                        <linearGradient id='brandGradVibrantDark' x1='0%' y1='0%' x2='100%' y2='0%'>
+                            <stop offset='0%' stopColor='#38BDF8' />
+                            <stop offset='50%' stopColor='#818CF8' />
+                            <stop offset='100%' stopColor='#C084FC' />
+                        </linearGradient>
+
+                        {/* Punchy Royal Blue to Violet Gradient for Light backgrounds */}
+                        <linearGradient id='brandGradVibrantLight' x1='0%' y1='0%' x2='100%' y2='0%'>
                             <stop offset='0%' stopColor='#2563EB' />
                             <stop offset='50%' stopColor='#4F46E5' />
                             <stop offset='100%' stopColor='#9333EA' />
@@ -27,7 +37,7 @@ const BrandLogo = ({ className = "h-10", showText = true, iconSize = "w-12 h-12"
                         cy="50" 
                         r="45" 
                         fill="none" 
-                        stroke="url(#brandGradVibrant)" 
+                        stroke={`url(#${brandGradId})`} 
                         strokeWidth="7.5" 
                     />
 
@@ -40,7 +50,7 @@ const BrandLogo = ({ className = "h-10", showText = true, iconSize = "w-12 h-12"
                             height="50" 
                             rx="6"
                             fill="url(#calGradSolid)" 
-                            stroke="#334155" 
+                            stroke={isDark ? "#475569" : "#334155"} 
                             strokeWidth="3.5" 
                         />
 
@@ -57,7 +67,7 @@ const BrandLogo = ({ className = "h-10", showText = true, iconSize = "w-12 h-12"
                             <rect x="28" y="40" width="8" height="8" rx="2" />
                             <rect x="40" y="40" width="8" height="8" rx="2" />
                             <rect x="52" y="40" width="8" height="8" rx="2" />
-                            <rect x="64" y="40" width="8" height="8" rx="2" fill="url(#brandGradVibrant)" /> {/* active day */}
+                            <rect x="64" y="40" width="8" height="8" rx="2" fill={`url(#${brandGradId})`} /> {/* active day */}
 
                             <rect x="28" y="52" width="8" height="8" rx="2" />
                             <rect x="40" y="52" width="8" height="8" rx="2" />
@@ -69,14 +79,14 @@ const BrandLogo = ({ className = "h-10", showText = true, iconSize = "w-12 h-12"
                         <path 
                             d="M10 50 H23 L32 18 L44 85 L56 24 L65 58 H85"
                             fill="none" 
-                            stroke="url(#brandGradVibrant)" 
+                            stroke={`url(#${brandGradId})`} 
                             strokeWidth="7.5" 
                             strokeLinecap="round" 
                             strokeLinejoin="round" 
                         />
 
                         {/* Pulse End Dot - Bold */}
-                        <circle cx="85" cy="50" r="5.5" fill="url(#brandGradVibrant)" />
+                        <circle cx="85" cy="50" r="5.5" fill={`url(#${brandGradId})`} />
                     </g>
                 </svg>
             </div>
@@ -84,11 +94,17 @@ const BrandLogo = ({ className = "h-10", showText = true, iconSize = "w-12 h-12"
             {/* Typography - Bold, Thick, Bright, and High Contrast */}
             {showText && (
                 <div className="flex flex-col text-left leading-none">
-                    <span className="text-2xl sm:text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#2563EB] via-[#4F46E5] to-[#9333EA] filter drop-shadow-xs">
-                        WorkPulse
-                    </span>
-                    <span className={`text-[12px] sm:text-[13px] font-black uppercase tracking-[0.28em] mt-1 ${
-                        textTheme === 'dark' ? 'text-slate-300' : 'text-slate-700'
+                    {isDark ? (
+                        <span className="text-2xl sm:text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#38BDF8] via-[#818CF8] to-[#C084FC] filter drop-shadow-sm">
+                            WorkPulse
+                        </span>
+                    ) : (
+                        <span className="text-2xl sm:text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#2563EB] via-[#4F46E5] to-[#9333EA] filter drop-shadow-xs">
+                            WorkPulse
+                        </span>
+                    )}
+                    <span className={`text-[11px] sm:text-[12px] font-black uppercase tracking-[0.28em] mt-1 ${
+                        isDark ? 'text-slate-200' : 'text-slate-700'
                     }`}>
                         MANAGEMENT
                     </span>

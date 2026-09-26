@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward, FiCheckCircle } from 'react-icons/fi';
+import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward, FiCheckCircle, FiShield } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -118,7 +118,14 @@ export default function Settings() {
                     description: 'API key used to display Google Maps on-duty routes and location details',
                     type: 'text',
                     placeholder: 'Enter Google Maps API Key'
-                },
+                }
+            ]
+        },
+        {
+            category: 'Session & Inactivity Configuration',
+            description: 'Manage user session duration, inactivity timeouts, and automatic logout warnings',
+            icon: <FiShield className="text-indigo-600" />,
+            settings: [
                 {
                     key: 'session_timeout',
                     label: 'Session Timeout',
@@ -524,7 +531,7 @@ export default function Settings() {
     }
 
     return (
-        <div className="p-6 max-w-6xl mx-auto">
+        <div className="p-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex items-center gap-3 mb-8">
                 <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl text-white shadow-lg">
@@ -537,9 +544,9 @@ export default function Settings() {
             </div>
 
             {/* Grid Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
                 {/* Left Sidebar: Vertical Tabs */}
-                <div className="flex flex-col gap-1 bg-white p-2 rounded-xl border border-gray-200 shadow-sm md:col-span-1">
+                <div className="flex flex-col gap-1 bg-white p-2 rounded-xl border border-gray-200 shadow-sm md:col-span-5 lg:col-span-4">
                     {settingsConfig.map((category, index) => (
                         <button
                             key={index}
@@ -550,13 +557,13 @@ export default function Settings() {
                                 }`}
                         >
                             <span className="flex-shrink-0">{category.icon}</span>
-                            <span className="truncate">{category.category}</span>
+                            <span className="truncate" title={category.category}>{category.category}</span>
                         </button>
                     ))}
                 </div>
 
                 {/* Right Area: Active Category Card */}
-                <div className="md:col-span-3 relative min-h-[400px]">
+                <div className="md:col-span-7 lg:col-span-8 relative min-h-[400px]">
                     {loading && (
                         <ModernLoader size="container" message="Fetching settings..." fullScreen={false} />
                     )}

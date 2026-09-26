@@ -61,6 +61,9 @@ const OnboardEmployee = () => {
         abis_access: false,
         send_welcome_email: true,
         date_of_joining: '',
+        allocate_leaves: true,
+        casual_leave_days: 6,
+        sick_leave_days: 6,
 
         // Personal
         birthplace: '',
@@ -176,7 +179,12 @@ const OnboardEmployee = () => {
             if (savedDraft) {
                 const { formData: savedForm, educations: savedEdu, experiences: savedExp, familyMembers: savedFam } = JSON.parse(savedDraft);
                 if (savedForm) {
-                    setFormData(savedForm);
+                    setFormData({
+                        ...savedForm,
+                        allocate_leaves: savedForm.allocate_leaves !== undefined ? savedForm.allocate_leaves : true,
+                        casual_leave_days: savedForm.casual_leave_days !== undefined ? savedForm.casual_leave_days : 6,
+                        sick_leave_days: savedForm.sick_leave_days !== undefined ? savedForm.sick_leave_days : 6
+                    });
                     if (savedForm.date_of_birth) {
                         setDobDisplay(formatDateForInput(savedForm.date_of_birth));
                     }
@@ -671,6 +679,10 @@ const OnboardEmployee = () => {
             Object.keys(formData).forEach(key => {
                 if (key === 'password' && id && !formData[key]) {
                     // Skip password in Edit Mode if it is empty
+                } else if (key === 'casual_leave_days') {
+                    uploadPayload.append('casual_leave_days', formData.allocate_leaves ? (parseInt(formData.casual_leave_days) || 6) : 0);
+                } else if (key === 'sick_leave_days') {
+                    uploadPayload.append('sick_leave_days', formData.allocate_leaves ? (parseInt(formData.sick_leave_days) || 6) : 0);
                 } else {
                     uploadPayload.append(key, formData[key]);
                 }
@@ -1164,23 +1176,95 @@ const OnboardEmployee = () => {
                                                 </div>
                                             </div>
 
-                                            {!id && onboardingMode === 'manual' && (
-                                                <div className="flex items-center gap-3 bg-slate-50/80 p-4 rounded-xl border border-slate-100 mt-2 md:col-span-3">
-                                                    <input
-                                                        type="checkbox"
-                                                        name="send_welcome_email"
-                                                        id="send_welcome_email"
-                                                        checked={formData.send_welcome_email}
-                                                        onChange={handleInputChange}
-                                                        className="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
-                                                    />
-                                                    <div>
-                                                        <label htmlFor="send_welcome_email" className="block text-xs font-bold text-slate-700 uppercase tracking-wider cursor-pointer">
-                                                            Send Welcome Email with Temporary Password
-                                                        </label>
-                                                        <p className="text-[10px] text-slate-400 mt-0.5">Automatically emails credentials and profile completion links to the employee.</p>
+                                             {!id && onboardingMode === 'manual' && (
+                                                <>
+                                                    <div className="flex items-center gap-3 bg-slate-50/80 p-4 rounded-xl border border-slate-100 mt-2 md:col-span-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            name="send_welcome_email"
+                                                            id="send_welcome_email"
+                                                            checked={formData.send_welcome_email}
+                                                            onChange={handleInputChange}
+                                                            className="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                                        />
+                                                        <div>
+                                                            <label htmlFor="send_welcome_email" className="block text-xs font-bold text-slate-700 uppercase tracking-wider cursor-pointer">
+                                                                Send Welcome Email with Temporary Password
+                                                            </label>
+                                                            <p className="text-[10px] text-slate-400 mt-0.5">Automatically emails credentials and profile completion links to the employee.</p>
+                                                        </div>
                                                     </div>
-                                                </div>
+
+                                                    {/* Leave Allocation Option */}
+                                                    <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-100 mt-2 md:col-span-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <label htmlFor="allocate_leaves" className="flex items-center gap-3 cursor-pointer select-none">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    name="allocate_leaves"
+                                                                    id="allocate_leaves"
+                                                                    checked={formData.allocate_leaves}
+                                                                    onChange={handleInputChange}
+                                                                    className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
+                                                                />
+                                                                <div>
+                                                                    <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                                                        Allocate Initial Leaves
+                                                                    </span>
+                                                                    <p className="text-[10px] text-slate-400 mt-0.5">
+                                                                        Allocate Casual Leave and Sick Leave upon onboarding. Default is 6 days each.
+                                                                    </p>
+                                                                </div>
+                                                            </label>
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full shrink-0">
+                                                                6 + 6 Days
+                                                            </span>
+                                                        </div>
+
+                                                        {formData.allocate_leaves && (
+                                                            <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 space-y-3 mt-3 animate-in fade-in duration-150">
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                                    <div>
+                                                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                                                            Casual Leave
+                                                                        </label>
+                                                                        <div className="relative">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                max="365"
+                                                                                name="casual_leave_days"
+                                                                                value={formData.casual_leave_days}
+                                                                                onChange={handleInputChange}
+                                                                                className="w-full pl-3.5 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
+                                                                                placeholder="6"
+                                                                            />
+                                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">days</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                                                            Sick Leave
+                                                                        </label>
+                                                                        <div className="relative">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                max="365"
+                                                                                name="sick_leave_days"
+                                                                                value={formData.sick_leave_days}
+                                                                                onChange={handleInputChange}
+                                                                                className="w-full pl-3.5 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:border-indigo-500 text-sm"
+                                                                                placeholder="6"
+                                                                            />
+                                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">days</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </>
                                             )}
                                         </>
                                     )}

@@ -242,7 +242,7 @@ const Sidebar = () => {
             <div className="p-4 pb-6 flex items-center justify-between">
                 {!isCollapsed && (
                     <Link to={isSelfService ? "/my-requests" : "/"} className="hover:opacity-90 transition-opacity block flex-1">
-                        <BrandLogo />
+                        <BrandLogo textTheme="dark" />
                     </Link>
                 )}
                 <button

@@ -382,7 +382,7 @@ const Login = () => {
                             {/* Work Email / Username Field */}
                             <div>
                                 <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                                    Work Email Address
+                                    Work Email Address / Username
                                 </label>
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-600 transition">
@@ -390,14 +390,13 @@ const Login = () => {
                                     </div>
                                     <input
                                         id="email"
-                                        type="email"
-                                        inputMode="email"
+                                        type="text"
                                         autoComplete="username email"
                                         autoCapitalize="none"
                                         spellCheck="false"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="name@company.com"
+                                        placeholder="name@company.com or username"
                                         required
                                         className="w-full pl-10 pr-4 py-3 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-600 transition shadow-xs"
                                     />

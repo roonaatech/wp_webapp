@@ -193,7 +193,7 @@ const ServiceAccounts = () => {
 
         // Basic validation
         if (!formData.name.trim()) return toast.error('Name is required');
-        if (!formData.email.trim()) return toast.error('Email is required');
+        if (!formData.email.trim()) return toast.error('Username is required');
         if (!editingAccount && !formData.password) return toast.error('Password is required');
         if (!formData.role_id) return toast.error('Please assign a role');
 
@@ -415,18 +415,21 @@ const ServiceAccounts = () => {
                                 />
                             </div>
 
-                            {/* Email */}
+                            {/* Username / Email */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Email Address (Login Username) *
+                                    Username / Email *
                                 </label>
                                 <input
-                                    type="email"
-                                    placeholder="e.g., kiosk-service@abis.com"
+                                    type="text"
+                                    placeholder="e.g., front-desk, kiosk_01, or kiosk@abis.com"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 font-mono"
                                 />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Can be any username or identifier (does not need to be an email address).
+                                </p>
                             </div>
 
                             {/* Password */}

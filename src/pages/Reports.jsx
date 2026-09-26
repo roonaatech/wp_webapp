@@ -509,27 +509,6 @@ const Reports = () => {
                         </p>
                     </div>
 
-                    {/* Summary Stats moved to Page Info due to pagination */}
-                    <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="text-sm text-gray-500">
-                            <span className="font-medium text-gray-700">Total Records Found:</span> {totalItems}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium text-gray-700">Rows per page:</label>
-                            <select
-                                value={limit}
-                                onChange={handleLimitChange}
-                                className="px-2 py-1 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500"
-                            >
-                                <option value={5}>5</option>
-                                <option value={10}>10</option>
-                                <option value={25}>25</option>
-                                <option value={50}>50</option>
-                                <option value={100}>100</option>
-                            </select>
-                        </div>
-                    </div>
 
                     {/* Filters */}
                     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
@@ -838,9 +817,23 @@ const Reports = () => {
 
                     {/* Pagination Controls */}
                     {reports.length > 0 && (
-                        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 mt-4 rounded-b-lg">
-                            <div className="text-sm text-gray-600 flex flex-wrap items-center gap-2">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50 mt-4 rounded-b-lg">
+                            <div className="text-sm text-gray-600 flex flex-wrap items-center gap-3">
                                 <span>Showing page {page} of {totalPages} ({totalItems} total records)</span>
+                                <div className="flex items-center gap-2 pl-3 border-l border-gray-300">
+                                    <label className="text-sm font-medium text-gray-700">Rows per page:</label>
+                                    <select
+                                        value={limit}
+                                        onChange={handleLimitChange}
+                                        className="px-2 py-1 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
+                                    >
+                                        <option value={5}>5</option>
+                                        <option value={10}>10</option>
+                                        <option value={25}>25</option>
+                                        <option value={50}>50</option>
+                                        <option value={100}>100</option>
+                                    </select>
+                                </div>
                             </div>
                             <div className="flex gap-2 items-center">
                                 {/* Previous Button */}
