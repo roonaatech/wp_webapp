@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.13.1](https://github.com/roonaatech/wp_webapp/compare/v2.13.0...v2.13.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* add setHeaderInfo to PageHeaderContext and update ViewEmployeeProfile to handle header updates ([e6cd00e](https://github.com/roonaatech/wp_webapp/commit/e6cd00e2f8d5d8a622be5257ed8e8164f2f7e354))
+
 ## [2.13.0](https://github.com/roonaatech/wp_webapp/compare/v2.12.30...v2.13.0) (2026-09-26)
 
 
