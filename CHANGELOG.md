@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.12.30](https://github.com/roonaatech/wp_webapp/compare/v2.12.29...v2.12.30) (2026-09-26)
+
+
+### Features
+
+* add initial leave allocation options to employee onboarding ([ce94a0b](https://github.com/roonaatech/wp_webapp/commit/ce94a0bb374f00997981909d8901568e198b6aeb))
+
 ### [2.12.29](https://github.com/roonaatech/wp_webapp/compare/v2.12.28...v2.12.29) (2026-09-25)
 
 
