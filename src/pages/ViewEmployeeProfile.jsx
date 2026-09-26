@@ -62,18 +62,19 @@ const ViewEmployeeProfile = () => {
     const [employee, setEmployee] = useState(null);
     const [loading, setLoading] = useState(true);
     const [roles, setRoles] = useState([]);
-    const { setHeaderInfo } = usePageHeader();
+    const { setCustomHeader, setHeaderInfo } = usePageHeader();
+    const updateHeader = setCustomHeader || setHeaderInfo;
 
     useEffect(() => {
-        if (employee && employee.firstname) {
+        if (employee && employee.firstname && typeof updateHeader === 'function') {
             const roleObj = roles.find(r => r.id === employee.role);
             const roleName = roleObj ? roleObj.display_name : 'Staff';
-            setHeaderInfo({
+            updateHeader({
                 title: `${employee.firstname} ${employee.lastname}`,
                 subtitle: `${roleName} • ${employee.email || 'Employee Profile'}`
             });
         }
-    }, [employee, roles, setHeaderInfo]);
+    }, [employee, roles, updateHeader]);
     const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
     const [managers, setManagers] = useState([]);
     const [approvalForm, setApprovalForm] = useState({

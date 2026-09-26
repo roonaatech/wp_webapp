@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 const PageHeaderContext = createContext({
     customHeader: null,
     setCustomHeader: () => {},
+    setHeaderInfo: () => {},
 });
 
 export const PageHeaderProvider = ({ children }) => {
@@ -15,8 +16,10 @@ export const PageHeaderProvider = ({ children }) => {
         setCustomHeader(null);
     }, [location.pathname]);
 
+    const setHeaderInfo = setCustomHeader;
+
     return (
-        <PageHeaderContext.Provider value={{ customHeader, setCustomHeader }}>
+        <PageHeaderContext.Provider value={{ customHeader, setCustomHeader, setHeaderInfo }}>
             {children}
         </PageHeaderContext.Provider>
     );
