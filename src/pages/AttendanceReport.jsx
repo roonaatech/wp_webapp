@@ -142,6 +142,14 @@ const AttendanceReport = () => {
                 if (res.data?.map) {
                     const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
                     const updated = { ...existingSettings, ...res.data.map };
+                    if (updated.office_start_time && updated.office_end_time) {
+                        const [sh, sm] = updated.office_start_time.split(':').map(Number);
+                        const [eh, em] = updated.office_end_time.split(':').map(Number);
+                        const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+                        if (diff > 0) {
+                            updated.attendance_compliance_hours = String(Math.round((diff / 60) * 100) / 100);
+                        }
+                    }
                     localStorage.setItem('settings', JSON.stringify(updated));
                     setSettingsVersion(v => v + 1);
                 }

@@ -147,16 +147,16 @@ const ManualAttendance = () => {
                 const res = await axios.get(`${API_BASE_URL}/api/settings`, {
                     headers: { 'x-access-token': token }
                 });
-                if (res.data?.map?.attendance_compliance_hours) {
-                    const parsed = parseFloat(res.data.map.attendance_compliance_hours);
-                    if (!isNaN(parsed) && parsed > 0) {
-                        setComplianceHours(parsed);
-                    }
-                } else if (res.data?.map?.office_start_time && res.data?.map?.office_end_time) {
+                if (res.data?.map?.office_start_time && res.data?.map?.office_end_time) {
                     const [sh, sm] = res.data.map.office_start_time.split(':').map(Number);
                     const [eh, em] = res.data.map.office_end_time.split(':').map(Number);
                     const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
                     if (diff > 0) setComplianceHours(Math.round((diff / 60) * 100) / 100);
+                } else if (res.data?.map?.attendance_compliance_hours) {
+                    const parsed = parseFloat(res.data.map.attendance_compliance_hours);
+                    if (!isNaN(parsed) && parsed > 0) {
+                        setComplianceHours(parsed);
+                    }
                 }
                 if (res.data?.map?.office_start_time) {
                     setDefaultStartTime(res.data.map.office_start_time);
