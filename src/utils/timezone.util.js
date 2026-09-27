@@ -55,14 +55,16 @@ export const mirrorToTimezone = (absoluteDate, timezone) => {
         const p = {};
         parts.forEach(part => { p[part.type] = part.value; });
 
+        const safeHour = parseInt(p.hour, 10) % 24;
+
         // Construct a Date object whose local time represents the numbers from the target timezone
         return new Date(
-            parseInt(p.year),
-            parseInt(p.month) - 1,
-            parseInt(p.day),
-            parseInt(p.hour),
-            parseInt(p.minute),
-            parseInt(p.second)
+            parseInt(p.year, 10),
+            parseInt(p.month, 10) - 1,
+            parseInt(p.day, 10),
+            safeHour,
+            parseInt(p.minute, 10),
+            parseInt(p.second, 10)
         );
     } catch (e) {
         console.error('Error mirroring date:', e);
