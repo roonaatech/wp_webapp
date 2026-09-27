@@ -15,7 +15,9 @@ import {
     LuArrowRight,
     LuSparkles,
     LuShieldCheck,
-    LuShieldAlert
+    LuShieldAlert,
+    LuSmile,
+    LuBan
 } from "react-icons/lu";
 import { fetchRoles, canAccessWebApp, isSelfServiceOnly, canAccessAttendancePortal } from '../utils/roleUtils';
 import { getOrCreateDeviceId, getDeviceName, isMobileClient, getMobileDeviceMetadata } from '../utils/deviceFingerprint';
@@ -599,8 +601,9 @@ const Login = () => {
                                 </p>
 
                                 <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-left text-xs text-slate-600 space-y-1.5 mb-5">
-                                    <p className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">
-                                        👉 Next Steps:
+                                    <p className="font-bold text-slate-800 text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                                        <LuArrowRight className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                        <span>Next Steps:</span>
                                     </p>
                                     <ol className="list-decimal list-inside space-y-1 text-[11px] leading-relaxed text-slate-600 pl-1">
                                         <li>Check your inbox (and spam folder) for the password.</li>
@@ -630,7 +633,7 @@ const Login = () => {
                 <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
                     <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-slate-100">
                         <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-5 ring-4 ring-indigo-50">
-                            <span className="text-3xl">👋</span>
+                            <LuSmile className="w-8 h-8 text-indigo-600" />
                         </div>
                         <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Welcome to WorkPulse!</h3>
                         <p className="text-slate-500 mb-6 leading-relaxed text-xs sm:text-sm">
@@ -653,7 +656,7 @@ const Login = () => {
                 <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
                     <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-slate-100">
                         <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-5">
-                            <span className="text-3xl">🚫</span>
+                            <LuBan className="w-8 h-8 text-rose-600" />
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-2">Account Inactive</h3>
                         <p className="text-slate-500 mb-6 leading-relaxed text-xs sm:text-sm">
@@ -676,7 +679,7 @@ const Login = () => {
                 <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
                     <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform transition-all animate-modal-in border border-slate-100">
                         <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5">
-                            <span className="text-3xl">🔒</span>
+                            <LuLock className="w-8 h-8 text-amber-700" />
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-2">Access Restricted</h3>
                         <p className="text-slate-500 mb-6 leading-relaxed text-xs sm:text-sm">

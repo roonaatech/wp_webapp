@@ -32,12 +32,12 @@ import {
 } from 'react-icons/lu';
 
 const REASON_OPTIONS = [
-    { value: 'Work From Home', label: '🏠 Work From Home (WFH)' },
-    { value: 'Missed Punch', label: '⏱️ Missed / Forgot to Punch' },
-    { value: 'On-Duty Regularization', label: '🚗 On-Duty / Client Visit' },
-    { value: 'Biometric / Kiosk Issue', label: '📱 Biometric / Kiosk Issue' },
-    { value: 'Late Punch Regularization', label: '⏳ Half-Day / Late Regularization' },
-    { value: 'Other', label: '📝 Other (Specify in Notes)' }
+    { value: 'Work From Home', label: 'Work From Home (WFH)' },
+    { value: 'Missed Punch', label: 'Missed / Forgot to Punch' },
+    { value: 'On-Duty Regularization', label: 'On-Duty / Client Visit' },
+    { value: 'Biometric / Kiosk Issue', label: 'Biometric / Kiosk Issue' },
+    { value: 'Late Punch Regularization', label: 'Half-Day / Late Regularization' },
+    { value: 'Other', label: 'Other (Specify in Notes)' }
 ];
 
 const ManualAttendance = () => {
@@ -259,7 +259,7 @@ const ManualAttendance = () => {
                     toast(
                         (t) => (
                             <div className="flex items-start gap-3 py-0.5">
-                                <span className="text-xl shrink-0">⏳</span>
+                                <LuClock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                                 <div className="text-xs">
                                     <p className="font-bold text-amber-950">
                                         Leave Pending Approval ({count})
@@ -817,7 +817,7 @@ const ManualAttendance = () => {
                                     <option value="all">All Records ({missedItems.length})</option>
                                     <option value="ACTION_REQUIRED">Action Required ({actionableCount})</option>
                                     {onPendingLeaveCount > 0 && (
-                                        <option value="PENDING_LEAVE">⏳ Leave Pending Approval ({onPendingLeaveCount})</option>
+                                        <option value="PENDING_LEAVE">Leave Pending Approval ({onPendingLeaveCount})</option>
                                     )}
                                     <option value="ON_LEAVE">On Leave ({onFullDayLeaveCount})</option>
                                     <option value="MISSING_ALL">Missed Both / No Punch</option>

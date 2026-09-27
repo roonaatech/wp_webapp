@@ -3,7 +3,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from './ModernLoader';
 import { getCurrentInAppTimezone, formatDateOnly, formatTimeOnly } from '../utils/timezone.util';
-import { FiPlusCircle, FiMinusCircle, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiPlusCircle, FiMinusCircle, FiChevronLeft, FiChevronRight, FiDownload, FiAlertTriangle, FiDollarSign, FiCalendar, FiClock, FiTarget, FiFileText, FiCheck, FiX } from 'react-icons/fi';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { getComplianceHours } from '../utils/attendanceConfig';
@@ -24,8 +24,6 @@ const MonthlySummaryReport = () => {
     const [sortConfig, setSortConfig] = useState({ key: 'firstname', direction: 'asc' });
     const [expandedRows, setExpandedRows] = useState({});
     const [expandedTab, setExpandedTab] = useState({});
-    const [attPage, setAttPage] = useState({});
-    const [attLimit, setAttLimit] = useState(15);
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
@@ -682,7 +680,8 @@ const MonthlySummaryReport = () => {
                     >
                         <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
                         <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
-                        📥 Export
+                        <FiDownload className="w-3.5 h-3.5 mr-1" />
+                        <span>Export</span>
                     </button>
                 </div>
             </div>
@@ -725,8 +724,9 @@ const MonthlySummaryReport = () => {
             )}
 
             {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
-                    <p className="text-red-800 font-medium text-sm">⚠️ {error}</p>
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-2">
+                    <FiAlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                    <p className="text-red-800 font-medium text-sm">{error}</p>
                 </div>
             )}
 
@@ -825,13 +825,42 @@ const MonthlySummaryReport = () => {
                                             {expandedRows[s.staff_id] && (() => {
                                                 const attSessions = s.attendance_records || (s.records?.find(r => r.type === 'Attendance')?.sessions) || [];
                                                 const otherRecords = (s.records || []).filter(r => r.type !== 'Attendance');
-                                                const staffAttPage = attPage[s.staff_id] || 1;
-                                                const totalAttSessions = attSessions.length;
-                                                const totalAttPages = Math.max(1, Math.ceil(totalAttSessions / attLimit));
-                                                const safeAttPage = Math.min(Math.max(1, staffAttPage), totalAttPages);
-                                                const attStartIndex = (safeAttPage - 1) * attLimit;
-                                                const attEndIndex = Math.min(attStartIndex + attLimit, totalAttSessions);
-                                                const currentAttSessions = attSessions.slice(attStartIndex, attEndIndex);
+
+                                                // Map attendance sessions by date (YYYY-MM-DD)
+                                                const sessionsByDate = {};
+                                                attSessions.forEach(sess => {
+                                                    const d = sess.date ? (sess.date.includes('T') ? sess.date.split('T')[0] : sess.date) : (sess.check_in_time ? formatDateOnly(sess.check_in_time) : '');
+                                                    if (d) {
+                                                        if (!sessionsByDate[d]) sessionsByDate[d] = [];
+                                                        sessionsByDate[d].push(sess);
+                                                    }
+                                                });
+
+                                                // Combined daily list: Ensure all daily_breakdown days, plus any attendance sessions not in daily_breakdown
+                                                const dailyDates = new Set((s.daily_breakdown || []).map(d => d.date));
+                                                const extraDays = Object.keys(sessionsByDate)
+                                                    .filter(d => !dailyDates.has(d))
+                                                    .map(d => {
+                                                        const dayMins = (sessionsByDate[d] || []).reduce((sum, sess) => sum + (sess.work_minutes || 0), 0);
+                                                        return {
+                                                            date: d,
+                                                            type: 'Attendance',
+                                                            attendance_minutes: dayMins,
+                                                            onduty_minutes: 0,
+                                                            timeoff_requested_minutes: 0,
+                                                            timeoff_credited_minutes: 0,
+                                                            timeoff_excess_minutes: 0,
+                                                            effective_work_minutes: dayMins,
+                                                            leave_days: 0,
+                                                            leave_credited: 0,
+                                                            leave_excess: 0,
+                                                            is_compliant: dayMins >= (complianceHours * 60),
+                                                            compliant_day_value: dayMins >= (complianceHours * 60) ? 1.0 : 0.0,
+                                                            remarks: `${(sessionsByDate[d] || []).length} session(s) logged`
+                                                        };
+                                                    });
+                                                const combinedDays = [...(s.daily_breakdown || []), ...extraDays].sort((a, b) => (a.date > b.date ? 1 : -1));
+                                                const currentTab = (expandedTab[s.staff_id] || 'salary') === 'records' ? 'records' : 'salary';
 
                                                 return (
                                                     <tr>
@@ -840,8 +869,8 @@ const MonthlySummaryReport = () => {
                                                             {/* Executive Salary & Quota Summary Cards */}
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                                                 <div className="bg-white rounded-xl p-3.5 border border-emerald-200 shadow-2xs flex items-center gap-3">
-                                                                    <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-lg shrink-0">
-                                                                        💰
+                                                                    <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                                                        <FiDollarSign className="w-5 h-5 text-emerald-700" />
                                                                     </div>
                                                                     <div>
                                                                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Salary Consideration</div>
@@ -855,8 +884,8 @@ const MonthlySummaryReport = () => {
                                                                 </div>
 
                                                                 <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center gap-3">
-                                                                    <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center font-black text-lg shrink-0">
-                                                                        🏖️
+                                                                    <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                                                                        <FiCalendar className="w-5 h-5 text-orange-600" />
                                                                     </div>
                                                                     <div>
                                                                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Monthly Leave Quota</div>
@@ -870,8 +899,8 @@ const MonthlySummaryReport = () => {
                                                                 </div>
 
                                                                 <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center gap-3">
-                                                                    <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-black text-lg shrink-0">
-                                                                        ⏱️
+                                                                    <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                                                                        <FiClock className="w-5 h-5 text-purple-600" />
                                                                     </div>
                                                                     <div>
                                                                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Monthly Time-Off Quota</div>
@@ -885,8 +914,8 @@ const MonthlySummaryReport = () => {
                                                                 </div>
 
                                                                 <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center gap-3">
-                                                                    <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-lg shrink-0">
-                                                                        🎯
+                                                                    <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                                                                        <FiTarget className="w-5 h-5 text-indigo-600" />
                                                                     </div>
                                                                     <div>
                                                                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Daily Compliance Target</div>
@@ -900,53 +929,45 @@ const MonthlySummaryReport = () => {
                                                                 </div>
                                                             </div>
 
-                                                            {/* Sub-tab Switcher: Daily Salary Breakdown vs Attendance vs Leave, Time-off and On-duty Records */}
+                                                            {/* Sub-tab Switcher: Daily Breakdown & Attendance vs Leave, Time-off and On-duty Records */}
                                                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-2">
                                                                 <div className="flex items-center gap-2">
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => setTab(s.staff_id, 'salary')}
-                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                                                            (expandedTab[s.staff_id] || 'salary') === 'salary'
+                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                                                                            currentTab === 'salary'
                                                                                 ? 'bg-[#1e1b4b] text-white shadow-2xs'
                                                                                 : 'text-gray-600 hover:bg-gray-100'
                                                                         }`}
                                                                     >
-                                                                        📅 Daily Salary Breakdown ({s.daily_breakdown?.length || 0})
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => setTab(s.staff_id, 'attendance')}
-                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                                                            expandedTab[s.staff_id] === 'attendance'
-                                                                                ? 'bg-[#1e1b4b] text-white shadow-2xs'
-                                                                                : 'text-gray-600 hover:bg-gray-100'
-                                                                        }`}
-                                                                    >
-                                                                        ⏱️ Attendance ({attSessions.length})
+                                                                        <FiCalendar className="w-3.5 h-3.5" />
+                                                                        <span>Daily Breakdown & Attendance ({combinedDays.length})</span>
                                                                     </button>
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => setTab(s.staff_id, 'records')}
-                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                                                            expandedTab[s.staff_id] === 'records'
+                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                                                                            currentTab === 'records'
                                                                                 ? 'bg-[#1e1b4b] text-white shadow-2xs'
                                                                                 : 'text-gray-600 hover:bg-gray-100'
                                                                         }`}
                                                                     >
-                                                                        📋 Leave, Time-off and On-duty Records ({otherRecords.length})
+                                                                        <FiFileText className="w-3.5 h-3.5" />
+                                                                        <span>Leave, Time-off and On-duty Records ({otherRecords.length})</span>
                                                                     </button>
                                                                 </div>
                                                             </div>
 
-                                                            {/* Tab 1: Daily Salary Breakdown Table */}
-                                                            {(expandedTab[s.staff_id] || 'salary') === 'salary' && (
+                                                            {/* Tab 1: Combined Daily Breakdown & Attendance Table */}
+                                                            {currentTab === 'salary' && (
                                                                 <div className="rounded-xl overflow-hidden shadow-2xs border border-gray-200 bg-white">
                                                                     <table className="min-w-full divide-y divide-gray-100 text-xs">
                                                                         <thead className="bg-[#1e1b4b]/5 text-[10px] font-black text-gray-500 uppercase tracking-wider">
                                                                             <tr>
                                                                                 <th className="px-3 py-2.5 text-center w-10">#</th>
                                                                                 <th className="px-3 py-2.5 text-left">Date</th>
+                                                                                <th className="px-3 py-2.5 text-left">Check In / Out</th>
                                                                                 <th className="px-3 py-2.5 text-center">Type</th>
                                                                                 <th className="px-3 py-2.5 text-left">Components (Att / OD / TO)</th>
                                                                                 <th className="px-3 py-2.5 text-center">Effective Work</th>
@@ -955,313 +976,126 @@ const MonthlySummaryReport = () => {
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody className="divide-y divide-gray-50 bg-white">
-                                                                            {(!s.daily_breakdown || s.daily_breakdown.length === 0) ? (
+                                                                            {combinedDays.length === 0 ? (
                                                                                 <tr>
-                                                                                    <td colSpan={7} className="px-4 py-6 text-center text-gray-400 italic">
+                                                                                    <td colSpan={8} className="px-4 py-6 text-center text-gray-400 italic">
                                                                                         No logged activity found for this period
                                                                                     </td>
                                                                                 </tr>
                                                                             ) : (
-                                                                                s.daily_breakdown.map((day, dIdx) => (
-                                                                                    <tr key={dIdx} className="hover:bg-gray-50/50 transition-colors">
-                                                                                        <td className="px-3 py-2.5 text-center text-gray-400 font-mono text-[11px]">{dIdx + 1}</td>
-                                                                                        <td className="px-3 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
-                                                                                            {formatDateWithWeekday(day.date)}
-                                                                                        </td>
-                                                                                        <td className="px-3 py-2.5 text-center">
-                                                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                                                                                day.type === 'Leave'
-                                                                                                    ? 'bg-orange-50 text-orange-600 border-orange-100'
-                                                                                                    : day.type === 'Time-Off'
-                                                                                                    ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                                                                                    : day.type === 'On-Duty'
-                                                                                                    ? 'bg-sky-50 text-[#0ea5e9] border-sky-100'
-                                                                                                    : day.type === 'Combined'
-                                                                                                    ? 'bg-purple-50 text-purple-600 border-purple-100'
-                                                                                                    : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                                                                            }`}>
-                                                                                                {day.type}
-                                                                                            </span>
-                                                                                        </td>
-                                                                                        <td className="px-3 py-2.5 text-gray-700">
-                                                                                            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                                                                                                {day.attendance_minutes > 0 && (
-                                                                                                    <span className="font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
-                                                                                                        Att: {formatHours(0, day.attendance_minutes)}
-                                                                                                    </span>
+                                                                                combinedDays.map((day, dIdx) => {
+                                                                                    const daySessions = sessionsByDate[day.date] || [];
+                                                                                    return (
+                                                                                        <tr key={dIdx} className="hover:bg-gray-50/50 transition-colors">
+                                                                                            <td className="px-3 py-2.5 text-center text-gray-400 font-mono text-[11px]">{dIdx + 1}</td>
+                                                                                            <td className="px-3 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
+                                                                                                {formatDateWithWeekday(day.date)}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2.5 whitespace-nowrap">
+                                                                                                {daySessions.length === 0 ? (
+                                                                                                    <span className="text-gray-400 font-mono text-[11px]">—</span>
+                                                                                                ) : (
+                                                                                                    <div className="space-y-1">
+                                                                                                        {daySessions.map((sess, sIdx) => {
+                                                                                                            const checkIn = sess.check_in_time ? formatTimeOnly(sess.check_in_time) : (sess.check_in_time_str || '—');
+                                                                                                            const isCheckOutActive = !sess.check_out_time || sess.status === 'Active';
+                                                                                                            const checkOut = !isCheckOutActive 
+                                                                                                                ? formatTimeOnly(sess.check_out_time) 
+                                                                                                                : (sess.check_out_time ? formatTimeOnly(sess.check_out_time) : (sess.check_out_time_str && sess.check_out_time_str !== 'Active' ? sess.check_out_time_str : null));
+
+                                                                                                            return (
+                                                                                                                <div key={sess.id || sIdx} className="flex items-center gap-1.5 font-mono text-[11px]">
+                                                                                                                    <span className="font-semibold text-gray-800">{checkIn}</span>
+                                                                                                                    <span className="text-gray-400 font-sans">→</span>
+                                                                                                                    {checkOut ? (
+                                                                                                                        <span className="font-semibold text-gray-800">{checkOut}</span>
+                                                                                                                    ) : (
+                                                                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                                                                            Active
+                                                                                                                        </span>
+                                                                                                                    )}
+                                                                                                                </div>
+                                                                                                            );
+                                                                                                        })}
+                                                                                                    </div>
                                                                                                 )}
-                                                                                                {day.onduty_minutes > 0 && (
-                                                                                                    <span className="font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">
-                                                                                                        OD: {formatHours(0, day.onduty_minutes)}
-                                                                                                    </span>
-                                                                                                )}
-                                                                                                {day.timeoff_requested_minutes > 0 && (
-                                                                                                    <span className={`font-semibold px-1.5 py-0.5 rounded ${
-                                                                                                        day.timeoff_credited_minutes > 0 
-                                                                                                            ? 'text-purple-700 bg-purple-50' 
-                                                                                                            : 'text-gray-500 bg-gray-100 line-through'
-                                                                                                    }`}>
-                                                                                                        TO: {formatHours(0, day.timeoff_credited_minutes)}{day.timeoff_excess_minutes > 0 ? ` (+${formatHours(0, day.timeoff_excess_minutes)} uncredited)` : ''}
-                                                                                                    </span>
-                                                                                                )}
-                                                                                                {day.leave_days > 0 && (
-                                                                                                    <span className="font-semibold text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded">
-                                                                                                        Leave: {day.leave_days}d {day.leave_credited > 0 ? '(Paid)' : '(Unpaid)'}
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </td>
-                                                                                        <td className="px-3 py-2.5 text-center font-bold text-gray-800 whitespace-nowrap">
-                                                                                            {day.type === 'Leave' ? '—' : formatHours(0, day.effective_work_minutes)}
-                                                                                        </td>
-                                                                                        <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                                                                            {day.is_compliant ? (
-                                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                                                                                    ✓ Compliant (1 Day)
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2.5 text-center">
+                                                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                                                                                    day.type === 'Leave'
+                                                                                                        ? 'bg-orange-50 text-orange-600 border-orange-100'
+                                                                                                        : day.type === 'Time-Off'
+                                                                                                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                                                                                        : day.type === 'On-Duty'
+                                                                                                        ? 'bg-sky-50 text-[#0ea5e9] border-sky-100'
+                                                                                                        : day.type === 'Combined'
+                                                                                                        ? 'bg-purple-50 text-purple-600 border-purple-100'
+                                                                                                        : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                                                                                }`}>
+                                                                                                    {day.type}
                                                                                                 </span>
-                                                                                            ) : day.compliant_day_value > 0 ? (
-                                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
-                                                                                                    Partial ({day.compliant_day_value} Day)
-                                                                                                </span>
-                                                                                            ) : (
-                                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">
-                                                                                                    ✕ Non-Compliant
-                                                                                                </span>
-                                                                                            )}
-                                                                                        </td>
-                                                                                        <td className="px-3 py-2.5 text-gray-600 font-medium text-[11px]">
-                                                                                            {day.remarks}
-                                                                                        </td>
-                                                                                    </tr>
-                                                                                ))
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2.5 text-gray-700">
+                                                                                                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                                                                                    {day.attendance_minutes > 0 && (
+                                                                                                        <span className="font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                                                                                            Att: {formatHours(0, day.attendance_minutes)}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {day.onduty_minutes > 0 && (
+                                                                                                        <span className="font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">
+                                                                                                            OD: {formatHours(0, day.onduty_minutes)}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {day.timeoff_requested_minutes > 0 && (
+                                                                                                        <span className={`font-semibold px-1.5 py-0.5 rounded ${
+                                                                                                            day.timeoff_credited_minutes > 0 
+                                                                                                                ? 'text-purple-700 bg-purple-50' 
+                                                                                                                : 'text-gray-500 bg-gray-100 line-through'
+                                                                                                        }`}>
+                                                                                                            TO: {formatHours(0, day.timeoff_credited_minutes)}{day.timeoff_excess_minutes > 0 ? ` (+${formatHours(0, day.timeoff_excess_minutes)} uncredited)` : ''}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {day.leave_days > 0 && (
+                                                                                                        <span className="font-semibold text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded">
+                                                                                                            Leave: {day.leave_days}d {day.leave_credited > 0 ? '(Paid)' : '(Unpaid)'}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2.5 text-center font-bold text-gray-800 whitespace-nowrap">
+                                                                                                {day.type === 'Leave' ? '—' : formatHours(0, day.effective_work_minutes)}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                                                                                                {day.is_compliant ? (
+                                                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                                                                        <FiCheck className="w-3 h-3 text-emerald-700" /> Compliant (1 Day)
+                                                                                                    </span>
+                                                                                                ) : day.compliant_day_value > 0 ? (
+                                                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                                                                                                        Partial ({day.compliant_day_value} Day)
+                                                                                                    </span>
+                                                                                                ) : (
+                                                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">
+                                                                                                        <FiX className="w-3 h-3 text-rose-700" /> Non-Compliant
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2.5 text-gray-600 font-medium text-[11px]">
+                                                                                                {day.remarks}
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    );
+                                                                                })
                                                                             )}
                                                                         </tbody>
                                                                     </table>
                                                                 </div>
                                                             )}
 
-                                                            {/* Tab 2: Attendance Sessions Table */}
-                                                            {expandedTab[s.staff_id] === 'attendance' && (
-                                                                <div className="rounded-xl overflow-hidden shadow-2xs border border-gray-200 bg-white">
-                                                                    {/* Attendance Summary Strip */}
-                                                                    <div className="bg-emerald-50/50 border-b border-emerald-100/80 px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-[11px]">
-                                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                                                                            <div>
-                                                                                <span className="text-gray-400 font-medium">Present Days: </span>
-                                                                                <span className="font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded text-[10px]">
-                                                                                    {s.present_days} {s.present_days === 1 ? 'day' : 'days'}
-                                                                                </span>
-                                                                            </div>
-                                                                            {(() => {
-                                                                                const { compliantDays, nonCompliantDays, inProgressDays } = getModalComplianceDayCounts(attSessions, complianceHours);
-                                                                                return (
-                                                                                    <>
-                                                                                        <div className="h-3 w-px bg-emerald-200 hidden sm:block"></div>
-                                                                                        <div>
-                                                                                            <span className="text-gray-400 font-medium">Compliant Days: </span>
-                                                                                            <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full border border-emerald-200 text-[10px]">
-                                                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                                                                                                {compliantDays} {compliantDays === 1 ? 'day' : 'days'}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                        <div className="h-3 w-px bg-emerald-200 hidden sm:block"></div>
-                                                                                        <div>
-                                                                                            <span className="text-gray-400 font-medium">Non-Compliant: </span>
-                                                                                            <span className="inline-flex items-center gap-1 font-bold text-rose-800 bg-rose-100/80 px-1.5 py-0.5 rounded-full border border-rose-200 text-[10px]">
-                                                                                                <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                                                                                                {nonCompliantDays} {nonCompliantDays === 1 ? 'day' : 'days'}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                        {inProgressDays > 0 && (
-                                                                                            <>
-                                                                                                <div className="h-3 w-px bg-emerald-200 hidden sm:block"></div>
-                                                                                                <div>
-                                                                                                    <span className="text-gray-400 font-medium">In Progress: </span>
-                                                                                                    <span className="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded-full border border-amber-200 text-[10px]">
-                                                                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                                                                                        {inProgressDays} {inProgressDays === 1 ? 'day' : 'days'}
-                                                                                                    </span>
-                                                                                                </div>
-                                                                                            </>
-                                                                                        )}
-                                                                                    </>
-                                                                                );
-                                                                            })()}
-                                                                            <div className="h-3 w-px bg-emerald-200 hidden sm:block"></div>
-                                                                            <div>
-                                                                                <span className="text-gray-400 font-medium">Total Work: </span>
-                                                                                <span className="font-bold text-emerald-800">{formatHours(s.work_hours, s.work_minutes)}</span>
-                                                                            </div>
-                                                                            <div className="h-3 w-px bg-emerald-200 hidden sm:block"></div>
-                                                                            <div>
-                                                                                <span className="text-gray-400 font-medium">Avg Duration: </span>
-                                                                                <span className="font-bold text-emerald-800">
-                                                                                    {getModalAverageDuration(attSessions, s.present_days)}
-                                                                                    <span className="text-gray-400 font-normal text-[10px] ml-0.5">/day</span>
-                                                                                </span>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs shrink-0">
-                                                                            {attSessions.length} {attSessions.length === 1 ? 'Session' : 'Sessions'} Logged
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Attendance Sessions Table */}
-                                                                    <div className="overflow-x-auto">
-                                                                        <table className="min-w-full divide-y divide-gray-100 text-xs">
-                                                                            <thead className="bg-[#1e1b4b]/5 text-[10px] font-black text-gray-600 uppercase tracking-wider">
-                                                                                <tr>
-                                                                                    <th className="px-3 py-2.5 text-center w-10">#</th>
-                                                                                    <th className="px-4 py-2.5 text-left">Date</th>
-                                                                                    <th className="px-4 py-2.5 text-left">Check-In</th>
-                                                                                    <th className="px-4 py-2.5 text-left">Check-Out</th>
-                                                                                    <th className="px-4 py-2.5 text-left">Duration</th>
-                                                                                    <th className="px-4 py-2.5 text-left">Compliance</th>
-                                                                                    <th className="px-4 py-2.5 text-left">Terminal / Device</th>
-                                                                                    <th className="px-4 py-2.5 text-left">IP Address</th>
-                                                                                    <th className="px-3 py-2.5 text-center">Status</th>
-                                                                                </tr>
-                                                                            </thead>
-                                                                            <tbody className="divide-y divide-gray-50 bg-white">
-                                                                                {currentAttSessions.length === 0 ? (
-                                                                                    <tr>
-                                                                                        <td colSpan={9} className="px-4 py-6 text-center text-gray-400 italic">
-                                                                                            No attendance sessions recorded for this period
-                                                                                        </td>
-                                                                                    </tr>
-                                                                                ) : (
-                                                                                    currentAttSessions.map((sess, sIdx) => {
-                                                                                        const comp = getSessionCompliance(sess);
-                                                                                        return (
-                                                                                            <tr key={sess.id || (attStartIndex + sIdx)} className="hover:bg-emerald-50/30 transition-colors">
-                                                                                                <td className="px-3 py-2.5 text-center text-gray-400 font-mono text-[11px]">{attStartIndex + sIdx + 1}</td>
-                                                                                                <td className="px-4 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
-                                                                                                    {formatDateWithWeekday(sess.date)}
-                                                                                                </td>
-                                                                                                <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
-                                                                                                    {sess.check_in_time ? formatTimeOnly(sess.check_in_time) : (sess.check_in_time_str || '—')}
-                                                                                                </td>
-                                                                                                <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
-                                                                                                    {sess.check_out_time ? formatTimeOnly(sess.check_out_time) : (
-                                                                                                        <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                                                            Active
-                                                                                                        </span>
-                                                                                                    )}
-                                                                                                </td>
-                                                                                                <td className="px-4 py-2.5 font-black text-emerald-700 whitespace-nowrap">
-                                                                                                    {sess.formatted_duration || sess.duration}
-                                                                                                </td>
-                                                                                                <td className="px-4 py-2.5 whitespace-nowrap">
-                                                                                                    {comp.isActive ? (
-                                                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                                                                                            In Progress
-                                                                                                        </span>
-                                                                                                    ) : comp.isCompliant ? (
-                                                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                                                                            Compliant
-                                                                                                        </span>
-                                                                                                    ) : (
-                                                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
-                                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                                                                                                            Non-Compliant
-                                                                                                        </span>
-                                                                                                    )}
-                                                                                                </td>
-                                                                                                <td className="px-4 py-2.5 text-gray-600">
-                                                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-700 text-[11px] font-medium border border-gray-200">
-                                                                                                        {sess.phone_model || 'Web / Kiosk'}
-                                                                                                    </span>
-                                                                                                </td>
-                                                                                                <td className="px-4 py-2.5 font-mono text-gray-500 text-[11px] whitespace-nowrap">
-                                                                                                    {sess.ip_address || '—'}
-                                                                                                </td>
-                                                                                                <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                                                                                    {sess.status === 'Completed' ? (
-                                                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                                                            ✓ Done
-                                                                                                        </span>
-                                                                                                    ) : (
-                                                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                                                            • Active
-                                                                                                        </span>
-                                                                                                    )}
-                                                                                                </td>
-                                                                                            </tr>
-                                                                                        );
-                                                                                    })
-                                                                                )}
-                                                                            </tbody>
-                                                                        </table>
-                                                                    </div>
-
-                                                                    {/* Pagination footer if sessions exist */}
-                                                                    {totalAttSessions > 0 && (
-                                                                        <div className="bg-gray-50 border-t border-gray-100 px-4 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-600">
-                                                                            <div className="flex items-center gap-3">
-                                                                                <span>
-                                                                                    Showing <strong className="text-gray-900 font-bold">{attStartIndex + 1}</strong>–<strong className="text-gray-900 font-bold">{attEndIndex}</strong> of <strong className="text-gray-900 font-bold">{totalAttSessions}</strong> sessions
-                                                                                </span>
-                                                                                <div className="flex items-center gap-1.5 pl-3 border-l border-gray-200">
-                                                                                    <span className="text-gray-500 font-medium">Rows:</span>
-                                                                                    <select
-                                                                                        value={attLimit}
-                                                                                        onChange={(e) => {
-                                                                                            setAttLimit(Number(e.target.value));
-                                                                                            setAttPage(prev => ({ ...prev, [s.staff_id]: 1 }));
-                                                                                        }}
-                                                                                        className="px-2 py-0.5 bg-white border border-gray-300 rounded text-xs font-semibold text-gray-700 focus:outline-none cursor-pointer"
-                                                                                    >
-                                                                                        <option value={10}>10</option>
-                                                                                        <option value={15}>15</option>
-                                                                                        <option value={25}>25</option>
-                                                                                        <option value={50}>50</option>
-                                                                                    </select>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            {totalAttPages > 1 && (
-                                                                                <div className="flex items-center gap-1">
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => setAttPage(prev => ({ ...prev, [s.staff_id]: Math.max(1, safeAttPage - 1) }))}
-                                                                                        disabled={safeAttPage === 1}
-                                                                                        className="px-2 py-0.5 border border-gray-300 bg-white rounded text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                                                                                    >
-                                                                                        Previous
-                                                                                    </button>
-                                                                                    {Array.from({ length: totalAttPages }, (_, i) => i + 1).map((pg) => (
-                                                                                        <button
-                                                                                            key={pg}
-                                                                                            type="button"
-                                                                                            onClick={() => setAttPage(prev => ({ ...prev, [s.staff_id]: pg }))}
-                                                                                            className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold transition-all cursor-pointer ${
-                                                                                                pg === safeAttPage
-                                                                                                    ? 'bg-[#1e1b4b] text-white shadow-2xs'
-                                                                                                    : 'text-gray-700 bg-white hover:bg-gray-100 border border-gray-300'
-                                                                                            }`}
-                                                                                        >
-                                                                                            {pg}
-                                                                                        </button>
-                                                                                    ))}
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => setAttPage(prev => ({ ...prev, [s.staff_id]: Math.min(totalAttPages, safeAttPage + 1) }))}
-                                                                                        disabled={safeAttPage === totalAttPages}
-                                                                                        className="px-2 py-0.5 border border-gray-300 bg-white rounded text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                                                                                    >
-                                                                                        Next
-                                                                                    </button>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-
-                                                            {/* Tab 3: Leave, Time-off and On-duty Records Table */}
-                                                            {expandedTab[s.staff_id] === 'records' && (
+                                                            {/* Tab 2: Leave, Time-off and On-duty Records Table */}
+                                                            {currentTab === 'records' && (
                                                                 <div className="rounded-xl overflow-hidden shadow-2xs border border-gray-200 bg-white">
                                                                     <table className="min-w-full divide-y divide-gray-100">
                                                                         <thead className="bg-[#1e1b4b]/5">

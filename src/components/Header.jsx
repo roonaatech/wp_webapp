@@ -8,6 +8,7 @@ import { getRoleDisplayName, canApproveLeave, canApproveOnDuty, canManageUsers, 
 import { formatDateOnly } from '../utils/timezone.util';
 import ChangePasswordModal from './ChangePasswordModal';
 import { usePageHeader } from '../context/PageHeaderContext';
+import { LuSparkles, LuTriangleAlert, LuGift, LuAward, LuCalendar, LuZap, LuClipboardList, LuKeyRound, LuLogOut } from 'react-icons/lu';
 
 const getPageHeaderInfo = (pathname, user) => {
     const isAdmin = user?.role === 1 || user?.role_name === 'Admin' || user?.is_admin;
@@ -422,7 +423,7 @@ const Header = () => {
                                 <div className="max-h-96 overflow-y-auto py-1 divide-y divide-slate-50 dark:divide-slate-800/50">
                                     {pendingCount === 0 ? (
                                         <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-                                            <span className="text-2xl mb-2">✨</span>
+                                            <LuSparkles className="w-8 h-8 text-amber-400 mb-2" />
                                             <p className="text-xs font-bold text-slate-400">All caught up! No pending actions.</p>
                                         </div>
                                     ) : (
@@ -436,7 +437,9 @@ const Header = () => {
                                                     }}
                                                     className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer flex gap-3 items-start"
                                                 >
-                                                    <span className="text-lg bg-amber-50 dark:bg-amber-950/30 p-1.5 rounded-lg flex-shrink-0">⚠️</span>
+                                                    <span className="p-1.5 rounded-lg flex-shrink-0 bg-amber-50 dark:bg-amber-950/30 text-amber-500">
+                                                        <LuTriangleAlert className="w-5 h-5" />
+                                                    </span>
                                                     <div>
                                                         <p className="text-xs font-black text-slate-800 dark:text-slate-200">Incomplete Profiles</p>
                                                         <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
@@ -455,13 +458,15 @@ const Header = () => {
                                                     }}
                                                     className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer flex gap-3 items-start"
                                                 >
-                                                    <span className="text-lg bg-pink-50 dark:bg-pink-950/30 p-1.5 rounded-lg flex-shrink-0">🎂</span>
+                                                    <span className="p-1.5 rounded-lg flex-shrink-0 bg-pink-50 dark:bg-pink-950/30 text-pink-500">
+                                                        <LuGift className="w-5 h-5" />
+                                                    </span>
                                                     <div>
                                                         <p className="text-xs font-black text-slate-800 dark:text-slate-200">{notifications.birthdays.length} Birthday{notifications.birthdays.length > 1 ? 's' : ''} Today</p>
                                                         <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
                                                             {notifications.pendingWishCount > 0 
                                                                 ? `${notifications.pendingWishCount} wish${notifications.pendingWishCount > 1 ? 'es' : ''} still to send.` 
-                                                                : 'All wishes have been sent. 🎉'}
+                                                                : 'All wishes have been sent.'}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -476,13 +481,15 @@ const Header = () => {
                                                     }}
                                                     className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer flex gap-3 items-start"
                                                 >
-                                                    <span className="text-lg bg-teal-50 dark:bg-teal-950/30 p-1.5 rounded-lg flex-shrink-0">🏆</span>
+                                                    <span className="p-1.5 rounded-lg flex-shrink-0 bg-teal-50 dark:bg-teal-950/30 text-teal-600">
+                                                        <LuAward className="w-5 h-5" />
+                                                    </span>
                                                     <div>
                                                         <p className="text-xs font-black text-slate-800 dark:text-slate-200">{notifications.anniversaries.length} Work Anniversary{notifications.anniversaries.length > 1 ? 'ies' : ''} Today</p>
                                                         <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
                                                             {notifications.pendingAnniversaryWishCount > 0 
                                                                 ? `${notifications.pendingAnniversaryWishCount} wish${notifications.pendingAnniversaryWishCount > 1 ? 'es' : ''} still to send.` 
-                                                                : 'All wishes have been sent. 🎉'}
+                                                                : 'All wishes have been sent.'}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -498,7 +505,9 @@ const Header = () => {
                                                     }}
                                                     className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer flex gap-3 items-start"
                                                 >
-                                                    <span className="text-lg bg-blue-50 dark:bg-blue-950/30 p-1.5 rounded-lg flex-shrink-0">🌴</span>
+                                                    <span className="p-1.5 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-950/30 text-blue-500">
+                                                        <LuCalendar className="w-5 h-5" />
+                                                    </span>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex justify-between items-start gap-2">
                                                             <p className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">{item.name}</p>
@@ -524,7 +533,9 @@ const Header = () => {
                                                     }}
                                                     className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer flex gap-3 items-start"
                                                 >
-                                                    <span className="text-lg bg-teal-50 dark:bg-teal-950/30 p-1.5 rounded-lg flex-shrink-0">⚡</span>
+                                                    <span className="p-1.5 rounded-lg flex-shrink-0 bg-teal-50 dark:bg-teal-950/30 text-teal-600">
+                                                        <LuZap className="w-5 h-5" />
+                                                    </span>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex justify-between items-start gap-2">
                                                             <p className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">{item.name}</p>
@@ -587,7 +598,7 @@ const Header = () => {
                                     }}
                                     className="w-full text-left px-3 py-2.5 text-sm text-[var(--text-main)] hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-all flex items-center gap-3 font-medium"
                                 >
-                                    <span className="text-lg">📋</span>
+                                    <LuClipboardList className="w-5 h-5 text-blue-500" />
                                     <span>My Requests</span>
                                 </button>
 
@@ -600,7 +611,7 @@ const Header = () => {
                                         }}
                                         className="w-full text-left px-3 py-2.5 text-sm text-[var(--text-main)] hover:bg-purple-50 dark:hover:bg-purple-950/30 rounded-lg transition-all flex items-center gap-3 font-medium"
                                     >
-                                        <span className="text-lg">🔑</span>
+                                        <LuKeyRound className="w-5 h-5 text-purple-500" />
                                         <span>Change Password</span>
                                     </button>
                                 )}
@@ -618,7 +629,7 @@ const Header = () => {
                                         </>
                                     ) : (
                                         <>
-                                            <span className="text-lg">🚪</span>
+                                            <LuLogOut className="w-5 h-5 text-red-500" />
                                             <span>Sign Out</span>
                                         </>
                                     )}

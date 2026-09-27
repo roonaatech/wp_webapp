@@ -1,4 +1,5 @@
 import React from 'react';
+import { FiSlash } from 'react-icons/fi';
 import { Link, useLocation } from 'react-router-dom';
 
 const SessionExpired = () => {
@@ -44,7 +45,7 @@ const SessionExpired = () => {
         if (isInactive) {
             return (
                 <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-red-100">
-                    <span className="text-4xl">🚫</span>
+                    <FiSlash className="w-10 h-10 text-red-500" />
                 </div>
             );
         }

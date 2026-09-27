@@ -21,7 +21,8 @@ import {
     LuX,
     LuArrowUpRight,
     LuRotateCcw,
-    LuCheck
+    LuCheck,
+    LuDownload
 } from 'react-icons/lu';
 
 const Activities = () => {
@@ -530,9 +531,10 @@ const Activities = () => {
                 </button>
                 <button
                     onClick={handleExportCSV}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium inline-flex items-center gap-2"
                 >
-                    📥 Export CSV
+                    <LuDownload size={16} />
+                    <span>Export CSV</span>
                 </button>
             </div>
 

@@ -7,7 +7,7 @@ import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { hasAdminPermission, fetchRoles, canManageActiveOnDuty } from '../utils/roleUtils';
 import { formatInTimezone, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
 import TableSortIcon from '../components/TableSortIcon';
-import { FiRefreshCw } from 'react-icons/fi';
+import { FiRefreshCw, FiClock } from 'react-icons/fi';
 
 const ActiveOnDuty = () => {
     const navigate = useNavigate();
@@ -209,7 +209,7 @@ const ActiveOnDuty = () => {
                 )/* Localization: Overlay instead of full-page blur */}
                 {sortedRecords.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
-                        <div className="text-4xl mb-2">😴</div>
+                        <FiClock className="w-10 h-10 text-gray-300 mx-auto mb-2" />
                         <p className="text-lg">No active on-duty records</p>
                         <p className="text-sm text-gray-400 mt-1">
                             {searchTerm ? 'Try adjusting your search filters' : 'All employees are currently offline'}

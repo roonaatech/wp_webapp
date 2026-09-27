@@ -4,7 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
-import { LuMail, LuKeyRound, LuArrowLeft, LuCircleCheck, LuCircleAlert, LuShieldCheck } from 'react-icons/lu';
+import { LuMail, LuKeyRound, LuArrowLeft, LuCircleCheck, LuCircleAlert, LuShieldCheck, LuArrowRight } from 'react-icons/lu';
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
@@ -127,7 +127,8 @@ const ForgotPassword = () => {
 
                         <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left text-xs text-slate-600 space-y-2 mb-6">
                             <p className="font-bold text-slate-900 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
-                                👉 Next Steps:
+                                <LuArrowRight className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                <span>Next Steps:</span>
                             </p>
                             <ol className="list-decimal list-inside space-y-1 text-[11px] leading-relaxed pl-1 text-slate-600">
                                 <li>Check your inbox (and spam folder) for the temporary password.</li>

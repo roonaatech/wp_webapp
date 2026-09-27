@@ -2,6 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { LuQrCode } from 'react-icons/lu';
+import {
+    FiCalendar, FiX, FiSave, FiXCircle, FiEdit2, FiTrash2,
+    FiBriefcase, FiMapPin, FiFileText, FiFlag, FiClock, FiAlertTriangle
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName, canAccessWebApp } from '../utils/roleUtils';
@@ -1014,8 +1018,9 @@ const MyRequests = () => {
                             </div>
                             {leaveStartDate && leaveEndDate && (
                                 <div className="mt-3 px-3 py-2 bg-blue-50 rounded-xl space-y-2">
-                                    <p className="text-xs font-bold text-blue-600">
-                                        📅 {formatLeaveDuration(calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap) - (leaveHalfDay ? 0.5 : 0), { lowercase: true })} <span className="text-blue-400 font-medium">(Sundays excluded)</span>
+                                    <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 flex-wrap">
+                                        <FiCalendar className="w-3.5 h-3.5 shrink-0" />
+                                        <span>{formatLeaveDuration(calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap) - (leaveHalfDay ? 0.5 : 0), { lowercase: true })} <span className="text-blue-400 font-medium">(Sundays excluded)</span></span>
                                     </p>
                                     <label className="flex flex-row items-center gap-2 cursor-pointer mt-1 border-t border-blue-100 pt-2">
                                         <input
@@ -1096,7 +1101,7 @@ const MyRequests = () => {
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Editing Leave</span>
-                                                <button onClick={() => setEditingLeave(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600">✕ Cancel</button>
+                                                <button onClick={() => setEditingLeave(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
                                             </div>
                                             <select
                                                 value={editLeaveType}
@@ -1137,7 +1142,7 @@ const MyRequests = () => {
                                                 disabled={editLeaveSubmitting}
                                                 className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl text-xs shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
                                             >
-                                                {editLeaveSubmitting ? 'Saving...' : '💾 Save Changes'}
+                                                {editLeaveSubmitting ? 'Saving...' : <span className="flex items-center justify-center gap-1.5"><FiSave className="w-3.5 h-3.5" /> Save Changes</span>}
                                             </button>
                                         </div>
                                     ) : (
@@ -1147,26 +1152,29 @@ const MyRequests = () => {
                                                 <h4 className="text-sm font-bold text-gray-900">{leave.title || leave.leave_type}</h4>
                                                 <StatusBadge status={leave.status} />
                                             </div>
-                                            <p className="text-xs text-gray-500 mb-1">
-                                                📅 {formatDate(leave.start_date || leave.start)} → {formatDate(leave.end_date || leave.end)}
+                                            <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                                                <FiCalendar className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                                                <span>{formatDate(leave.start_date || leave.start)} → {formatDate(leave.end_date || leave.end)}</span>
                                             </p>
                                             {(leave.reason || leave.subtitle) && <p className="text-xs text-gray-400 italic">"{leave.subtitle || leave.reason}"</p>}
                                             {leave.rejection_reason && (
-                                                <p className="text-xs text-red-500 mt-1 font-medium">❌ {leave.rejection_reason}</p>
+                                                <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+                                                    <FiXCircle className="w-3.5 h-3.5 shrink-0" /> {leave.rejection_reason}
+                                                </p>
                                             )}
                                             {leave.status === 'Pending' && (
                                                 <div className="mt-2 flex items-center gap-3">
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); startEditLeave(leave); }}
-                                                        className="text-xs text-blue-500 font-bold hover:text-blue-700 transition-colors"
+                                                        className="text-xs text-blue-500 font-bold hover:text-blue-700 transition-colors flex items-center gap-1"
                                                     >
-                                                        ✏️ Edit
+                                                        <FiEdit2 className="w-3 h-3" /> Edit
                                                     </button>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleDeleteLeave(leave.id); }}
-                                                        className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors"
+                                                        className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors flex items-center gap-1"
                                                     >
-                                                        🗑️ Delete
+                                                        <FiTrash2 className="w-3 h-3" /> Delete
                                                     </button>
                                                 </div>
                                             )}
@@ -1193,21 +1201,21 @@ const MyRequests = () => {
                                     </div>
                                     <div className="space-y-3 bg-white/10 backdrop-blur-sm rounded-xl p-4">
                                         <div className="flex items-center gap-3">
-                                            <span className="text-lg">🏢</span>
+                                            <span className="text-white/80"><FiBriefcase className="w-5 h-5" /></span>
                                             <div>
                                                 <p className="text-[10px] text-white/60 font-semibold">Client</p>
                                                 <p className="text-sm font-bold">{odClientName}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <span className="text-lg">📍</span>
+                                            <span className="text-white/80"><FiMapPin className="w-5 h-5" /></span>
                                             <div>
                                                 <p className="text-[10px] text-white/60 font-semibold">Start Location</p>
                                                 <p className="text-sm font-bold">{odLocation}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <span className="text-lg">📝</span>
+                                            <span className="text-white/80"><FiFileText className="w-5 h-5" /></span>
                                             <div>
                                                 <p className="text-[10px] text-white/60 font-semibold">Purpose</p>
                                                 <p className="text-sm font-bold">{odPurpose}</p>
@@ -1237,7 +1245,7 @@ const MyRequests = () => {
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">End Location</label>
                                     <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg">🏁</span>
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><FiFlag className="w-5 h-5" /></span>
                                         <input
                                             type="text"
                                             value={odEndLocation}
@@ -1274,7 +1282,7 @@ const MyRequests = () => {
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Client Name</label>
                                     <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg">🏢</span>
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><FiBriefcase className="w-5 h-5" /></span>
                                         <input
                                             type="text"
                                             value={odClientName}
@@ -1288,7 +1296,7 @@ const MyRequests = () => {
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Start Location</label>
                                     <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg">📍</span>
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><FiMapPin className="w-5 h-5" /></span>
                                         <input
                                             type="text"
                                             value={odLocation}
@@ -1302,7 +1310,7 @@ const MyRequests = () => {
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Purpose of Visit</label>
                                     <div className="relative">
-                                        <span className="absolute left-4 top-3 text-lg">📝</span>
+                                        <span className="absolute left-4 top-3 text-gray-400"><FiFileText className="w-5 h-5" /></span>
                                         <textarea
                                             value={odPurpose}
                                             onChange={(e) => setOdPurpose(e.target.value)}
@@ -1367,22 +1375,22 @@ const MyRequests = () => {
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Editing On-Duty</span>
-                                                <button onClick={() => setEditingOnDuty(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600">✕ Cancel</button>
+                                                <button onClick={() => setEditingOnDuty(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
                                             </div>
                                             <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base">🏢</span>
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><FiBriefcase className="w-4 h-4" /></span>
                                                 <input type="text" value={editOdClient} onChange={(e) => setEditOdClient(e.target.value)} placeholder="Client Name" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
                                             </div>
                                             <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base">📍</span>
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><FiMapPin className="w-4 h-4" /></span>
                                                 <input type="text" value={editOdLocation} onChange={(e) => setEditOdLocation(e.target.value)} placeholder="Start Location" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
                                             </div>
                                             <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base">🏁</span>
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><FiFlag className="w-4 h-4" /></span>
                                                 <input type="text" value={editOdEndLocation} onChange={(e) => setEditOdEndLocation(e.target.value)} placeholder="End Location" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
                                             </div>
                                             <div className="relative">
-                                                <span className="absolute left-3 top-3 text-base">📝</span>
+                                                <span className="absolute left-3 top-3 text-gray-400"><FiFileText className="w-4 h-4" /></span>
                                                 <textarea value={editOdPurpose} onChange={(e) => setEditOdPurpose(e.target.value)} rows={2} placeholder="Purpose" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all resize-none" />
                                             </div>
                                             <button
@@ -1390,7 +1398,7 @@ const MyRequests = () => {
                                                 disabled={editOdSubmitting}
                                                 className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-xl text-xs shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
                                             >
-                                                {editOdSubmitting ? 'Saving...' : '💾 Save Changes'}
+                                                {editOdSubmitting ? 'Saving...' : <span className="flex items-center justify-center gap-1.5"><FiSave className="w-3.5 h-3.5" /> Save Changes</span>}
                                             </button>
                                         </div>
                                     ) : (
@@ -1400,26 +1408,29 @@ const MyRequests = () => {
                                                 <h4 className="text-sm font-bold text-gray-900">{od.title || `On-Duty: ${od.client_name || ''}`}</h4>
                                                 <StatusBadge status={od.status} />
                                             </div>
-                                            <p className="text-xs text-gray-500 mb-1">
-                                                📅 {formatDate(od.start_date || od.start)} {od.end_date || od.end ? `→ ${formatDate(od.end_date || od.end)}` : ''}
+                                            <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                                                <FiCalendar className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                                                <span>{formatDate(od.start_date || od.start)} {od.end_date || od.end ? `→ ${formatDate(od.end_date || od.end)}` : ''}</span>
                                             </p>
                                             {od.subtitle && <p className="text-xs text-gray-400 italic">"{od.subtitle}"</p>}
                                             {od.rejection_reason && (
-                                                <p className="text-xs text-red-500 mt-1 font-medium">❌ {od.rejection_reason}</p>
+                                                <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+                                                    <FiXCircle className="w-3.5 h-3.5 shrink-0" /> {od.rejection_reason}
+                                                </p>
                                             )}
                                             {od.status === 'Pending' && (
                                                 <div className="mt-2 flex items-center gap-3">
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); startEditOnDuty(od); }}
-                                                        className="text-xs text-purple-500 font-bold hover:text-purple-700 transition-colors"
+                                                        className="text-xs text-purple-500 font-bold hover:text-purple-700 transition-colors flex items-center gap-1"
                                                     >
-                                                        ✏️ Edit
+                                                        <FiEdit2 className="w-3 h-3" /> Edit
                                                     </button>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleDeleteOnDuty(od.id); }}
-                                                        className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors"
+                                                        className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors flex items-center gap-1"
                                                     >
-                                                        🗑️ Delete
+                                                        <FiTrash2 className="w-3 h-3" /> Delete
                                                     </button>
                                                 </div>
                                             )}
@@ -1484,8 +1495,8 @@ const MyRequests = () => {
                             </div>
                             {toStartTime && toEndTime && (
                                 <div className="mt-3 px-3 py-2 bg-teal-50 rounded-xl">
-                                    <p className="text-xs font-bold text-teal-600">
-                                        ⏳ Duration: {calcTimeOffDuration(toStartTime, toEndTime)}
+                                    <p className="text-xs font-bold text-teal-600 flex items-center gap-1.5">
+                                        <FiClock className="w-3.5 h-3.5 shrink-0" /> Duration: {calcTimeOffDuration(toStartTime, toEndTime)}
                                     </p>
                                 </div>
                             )}
@@ -1556,7 +1567,7 @@ const MyRequests = () => {
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Editing Time-Off</span>
-                                                <button onClick={() => setEditingTimeOff(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600">✕ Cancel</button>
+                                                <button onClick={() => setEditingTimeOff(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
                                             </div>
                                             <input type="date" value={editToDate} onChange={(e) => {
                                                 const val = e.target.value;
@@ -1573,7 +1584,7 @@ const MyRequests = () => {
                                                 disabled={editToSubmitting}
                                                 className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-xl text-xs shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
                                             >
-                                                {editToSubmitting ? 'Saving...' : '💾 Save Changes'}
+                                                {editToSubmitting ? 'Saving...' : <span className="flex items-center justify-center gap-1.5"><FiSave className="w-3.5 h-3.5" /> Save Changes</span>}
                                             </button>
                                         </div>
                                     ) : (
@@ -1583,26 +1594,29 @@ const MyRequests = () => {
                                                 <h4 className="text-sm font-bold text-gray-900">Time-Off {to.start_time && to.end_time && <span className="text-teal-600 font-bold">· {calcTimeOffDuration(to.start_time, to.end_time)}</span>}</h4>
                                                 <StatusBadge status={to.status} />
                                             </div>
-                                            <p className="text-xs text-gray-500 mb-1">
-                                                📅 {formatDate(to.date)} • {formatTime12(to.start_time)} - {formatTime12(to.end_time)}
+                                            <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                                                <FiCalendar className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                                                <span>{formatDate(to.date)} • {formatTime12(to.start_time)} - {formatTime12(to.end_time)}</span>
                                             </p>
                                             {to.reason && <p className="text-xs text-gray-400 italic">"{to.reason}"</p>}
                                             {to.rejection_reason && (
-                                                <p className="text-xs text-red-500 mt-1 font-medium">❌ {to.rejection_reason}</p>
+                                                <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+                                                    <FiXCircle className="w-3.5 h-3.5 shrink-0" /> {to.rejection_reason}
+                                                </p>
                                             )}
                                             {to.status === 'Pending' && (
                                                 <div className="mt-2 flex items-center gap-3">
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); startEditTimeOff(to); }}
-                                                        className="text-xs text-teal-500 font-bold hover:text-teal-700 transition-colors"
+                                                        className="text-xs text-teal-500 font-bold hover:text-teal-700 transition-colors flex items-center gap-1"
                                                     >
-                                                        ✏️ Edit
+                                                        <FiEdit2 className="w-3 h-3" /> Edit
                                                     </button>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleDeleteTimeOff(to.id); }}
-                                                        className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors"
+                                                        className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors flex items-center gap-1"
                                                     >
-                                                        🗑️ Delete
+                                                        <FiTrash2 className="w-3 h-3" /> Delete
                                                     </button>
                                                 </div>
                                             )}
@@ -1731,8 +1745,9 @@ const MyRequests = () => {
                             {/* Selected range preview */}
                             {tempCalStart && (
                                 <div className="mt-2 px-3 py-2 bg-blue-50 rounded-xl">
-                                    <p className="text-xs font-bold text-blue-600">
-                                        📅 {formatDate(tempCalStart)}{tempCalEnd ? ` → ${formatDate(tempCalEnd)} · ${calculateLeaveDaysExcludingSunday(tempCalStart, tempCalEnd, leaveDateStatusMap)} day(s)` : ' — pick end date'}
+                                    <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 flex-wrap">
+                                        <FiCalendar className="w-3.5 h-3.5 shrink-0" />
+                                        <span>{formatDate(tempCalStart)}{tempCalEnd ? ` → ${formatDate(tempCalEnd)} · ${calculateLeaveDaysExcludingSunday(tempCalStart, tempCalEnd, leaveDateStatusMap)} day(s)` : ' — pick end date'}</span>
                                     </p>
                                 </div>
                             )}
@@ -1853,8 +1868,8 @@ const MyRequests = () => {
                                 {/* Selected date preview */}
                                 {toDate && (
                                     <div className="mt-2 px-3 py-2 bg-teal-50 rounded-xl">
-                                        <p className="text-xs font-bold text-teal-600">
-                                            📅 {formatDate(toDate)}
+                                        <p className="text-xs font-bold text-teal-600 flex items-center gap-1.5">
+                                            <FiCalendar className="w-3.5 h-3.5 shrink-0" /> {formatDate(toDate)}
                                         </p>
                                     </div>
                                 )}
@@ -1942,7 +1957,7 @@ const MyRequests = () => {
                                     <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Details</div>
                                     {(selectedDetail.client_name || selectedDetail.title) && (
                                         <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-                                            <span className="text-base">🏢</span>
+                                            <span className="text-gray-400"><FiBriefcase className="w-4 h-4" /></span>
                                             <div>
                                                 <div className="text-[10px] text-gray-400 font-semibold uppercase">Client</div>
                                                 <div className="text-sm font-semibold text-gray-800">{selectedDetail.client_name || selectedDetail.title?.replace('On-Duty: ', '')}</div>
@@ -1951,7 +1966,7 @@ const MyRequests = () => {
                                     )}
                                     {selectedDetail.location && (
                                         <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-                                            <span className="text-base">📍</span>
+                                            <span className="text-gray-400"><FiMapPin className="w-4 h-4" /></span>
                                             <div>
                                                 <div className="text-[10px] text-gray-400 font-semibold uppercase">Location</div>
                                                 <div className="text-sm font-semibold text-gray-800">{selectedDetail.location}</div>
@@ -1960,7 +1975,7 @@ const MyRequests = () => {
                                     )}
                                     {selectedDetail.purpose && (
                                         <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-                                            <span className="text-base">📝</span>
+                                            <span className="text-gray-400"><FiFileText className="w-4 h-4" /></span>
                                             <div>
                                                 <div className="text-[10px] text-gray-400 font-semibold uppercase">Purpose</div>
                                                 <div className="text-sm font-semibold text-gray-800">{selectedDetail.purpose}</div>
@@ -2133,7 +2148,7 @@ const MyRequests = () => {
                             className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50 transition-all font-bold"
                             title="Close"
                         >
-                            ✕
+                            <FiX className="w-5 h-5" />
                         </button>
                         
                         <div className="flex flex-col items-center mb-6">
@@ -2149,7 +2164,7 @@ const MyRequests = () => {
                         {changePasswordError && (
                             <div className="bg-rose-50 border-l-4 border-rose-500 p-3.5 rounded-r-xl mb-4">
                                 <p className="text-rose-700 text-xs font-bold flex items-center gap-1.5">
-                                    ⚠️ {changePasswordError}
+                                    <FiAlertTriangle className="w-4 h-4 text-rose-600 shrink-0" /> {changePasswordError}
                                 </p>
                             </div>
                         )}

@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { FiPrinter, FiClipboard } from 'react-icons/fi';
 
 const ShowQRCode = () => {
     const printRef = useRef();
@@ -19,9 +20,10 @@ const ShowQRCode = () => {
             <div className="no-print mb-4 flex justify-end">
                 <button
                     onClick={handlePrint}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg shadow-md transition-colors"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg shadow-md transition-colors inline-flex items-center gap-2"
                 >
-                    🖨️ Print Poster
+                    <FiPrinter className="w-4 h-4" />
+                    <span>Print Poster</span>
                 </button>
             </div>
 
@@ -169,7 +171,10 @@ const ShowQRCode = () => {
 
                 {/* Instructions */}
                 <div className="bg-blue-50 border-l-4 border-blue-600 p-4 rounded mb-6 print:p-4 print:border-l-4 print:mb-5">
-                    <h3 className="font-bold text-gray-800 mb-2 print:text-base print:mb-2">📋 How to Use:</h3>
+                    <h3 className="font-bold text-gray-800 mb-2 print:text-base print:mb-2 flex items-center gap-2">
+                        <FiClipboard className="w-4 h-4 text-blue-600" />
+                        <span>How to Use:</span>
+                    </h3>
                     <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700 print:text-sm print:space-y-1">
                         <li>Open camera or QR app</li>
                         <li>Point at QR code</li>

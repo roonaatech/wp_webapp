@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuClock, LuCheck, LuX, LuChevronDown, LuChevronUp, LuSearch, LuFilter, LuArrowUpDown } from "react-icons/lu";
+import { LuClock, LuCheck, LuX, LuChevronDown, LuChevronUp, LuSearch, LuFilter, LuArrowUpDown, LuFileText, LuMapPin } from "react-icons/lu";
 import { FiRefreshCw } from "react-icons/fi";
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
@@ -1311,7 +1311,7 @@ const Approvals = () => {
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
                         <div className="p-6 bg-red-50 border-b border-red-200 text-red-900 flex justify-between items-center">
                             <h2 className="text-lg font-bold">Reject {rejectionModal.type === 'leave' ? 'Leave' : (rejectionModal.type === 'timeoff' ? 'Time-Off' : 'On-Duty')} Request</h2>
-                            <button onClick={() => setRejectionModal({ ...rejectionModal, show: false })} className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-colors text-red-600">✕</button>
+                            <button onClick={() => setRejectionModal({ ...rejectionModal, show: false })} className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-colors text-red-600"><LuX className="w-4 h-4" /></button>
                         </div>
                         <div className="p-6">
                             {rejectionModal.item && (
@@ -1372,7 +1372,7 @@ const Approvals = () => {
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
                         <div className="p-6 bg-[#2E5090] text-white flex justify-between items-center">
                             <h2 className="text-xl font-bold">Bulk Rejection</h2>
-                            <button onClick={() => setBulkRejectionModal({ ...bulkRejectionModal, show: false })} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">✕</button>
+                            <button onClick={() => setBulkRejectionModal({ ...bulkRejectionModal, show: false })} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"><LuX className="w-4 h-4" /></button>
                         </div>
                         <div className="p-6">
                             <p className="text-sm text-gray-500 font-medium mb-4">Provide a unified reason for rejecting all selected requests.</p>
@@ -1423,7 +1423,7 @@ const Approvals = () => {
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn border border-gray-200">
                         <div className="p-6 bg-[#2E5090] text-white flex justify-between items-center">
                             <h2 className="text-xl font-bold">Amend Reason</h2>
-                            <button onClick={() => setEditReasonModal({ ...editReasonModal, show: false })} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">✕</button>
+                            <button onClick={() => setEditReasonModal({ ...editReasonModal, show: false })} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"><LuX className="w-4 h-4" /></button>
                         </div>
                         <div className="p-6">
                             <p className="text-sm text-gray-500 font-medium mb-4">Modify the existing rejection reason for this record.</p>
@@ -1514,7 +1514,7 @@ const Approvals = () => {
 
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl font-bold shadow-inner border border-white/20">
-                                    {detailsModal.type === 'leave' ? '📄' : (detailsModal.type === 'timeoff' ? '⏱️' : '📍')}
+                                    {detailsModal.type === 'leave' ? <LuFileText className="w-6 h-6 text-white" /> : (detailsModal.type === 'timeoff' ? <LuClock className="w-6 h-6 text-white" /> : <LuMapPin className="w-6 h-6 text-white" />)}
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold">

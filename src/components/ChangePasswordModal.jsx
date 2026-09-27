@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FiKey, FiEye, FiEyeOff, FiCheck } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
@@ -79,8 +80,8 @@ const ChangePasswordModal = ({ onClose }) => {
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xl">
-                            🔑
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center text-white">
+                            <FiKey className="w-5 h-5 text-white" />
                         </div>
                         <div>
                             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Change Password</h2>
@@ -122,7 +123,7 @@ const ChangePasswordModal = ({ onClose }) => {
                                 onClick={() => setShowOldPassword(!showOldPassword)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                             >
-                                {showOldPassword ? '👁️' : '👁️‍🗨️'}
+                                {showOldPassword ? <FiEye className="w-5 h-5" /> : <FiEyeOff className="w-5 h-5" />}
                             </button>
                         </div>
                         {errors.oldPassword && (
@@ -153,7 +154,7 @@ const ChangePasswordModal = ({ onClose }) => {
                                 onClick={() => setShowNewPassword(!showNewPassword)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                             >
-                                {showNewPassword ? '👁️' : '👁️‍🗨️'}
+                                {showNewPassword ? <FiEye className="w-5 h-5" /> : <FiEyeOff className="w-5 h-5" />}
                             </button>
                         </div>
                         {errors.newPassword && (
@@ -189,7 +190,7 @@ const ChangePasswordModal = ({ onClose }) => {
                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                             >
-                                {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                                {showConfirmPassword ? <FiEye className="w-5 h-5" /> : <FiEyeOff className="w-5 h-5" />}
                             </button>
                         </div>
                         {errors.confirmPassword && (
@@ -220,7 +221,7 @@ const ChangePasswordModal = ({ onClose }) => {
                             ) : (
                                 <>
                                     <span>Update Password</span>
-                                    <span>✓</span>
+                                    <FiCheck className="w-4 h-4" />
                                 </>
                             )}
                         </button>

@@ -5,7 +5,7 @@ import { readApkVersion } from '../utils/apkVersionReader';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
-import { LuDownload, LuUpload, LuTrash2, LuEye, LuEyeOff, LuSmartphone, LuHistory } from "react-icons/lu";
+import { LuDownload, LuUpload, LuTrash2, LuEye, LuEyeOff, LuSmartphone, LuHistory, LuClock } from "react-icons/lu";
 import { hasAdminPermission } from '../utils/roleUtils';
 import { QRCodeCanvas as QRCode } from 'qrcode.react';
 import { formatInTimezone } from '../utils/timezone.util';
@@ -627,8 +627,9 @@ const ApkDistribution = () => {
                                                 </div>
                                                 <h3 className="font-bold text-white text-lg mb-1">My Requests</h3>
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${qrCountdown > 60 ? 'bg-green-500/20 text-green-300' : qrCountdown > 30 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>
-                                                        ⏱ Expires in {Math.floor(qrCountdown / 60)}:{String(qrCountdown % 60).padStart(2, '0')}
+                                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 ${qrCountdown > 60 ? 'bg-green-500/20 text-green-300' : qrCountdown > 30 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'}`}>
+                                                        <LuClock className="w-3.5 h-3.5" />
+                                                        <span>Expires in {Math.floor(qrCountdown / 60)}:{String(qrCountdown % 60).padStart(2, '0')}</span>
                                                     </span>
                                                 </div>
                                                 <p className="text-gray-400 text-xs px-4 mb-3">

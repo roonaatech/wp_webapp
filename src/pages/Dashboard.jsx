@@ -15,6 +15,12 @@ import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { canApproveLeave, canApproveOnDuty, canManageUsers, canViewBirthdays, canViewAnniversaries } from '../utils/roleUtils';
+import {
+    FiAlertTriangle, FiGift, FiSend, FiAward, FiCalendar, FiZap,
+    FiFileText, FiMapPin, FiClock, FiAlertCircle, FiRadio, FiSearch,
+    FiShield, FiSlash
+} from 'react-icons/fi';
+import { LuSparkles } from 'react-icons/lu';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
@@ -841,7 +847,7 @@ const Dashboard = () => {
                 {error && (
                     <div className="mb-8 bg-red-50 border-l-4 border-red-500 rounded-r-2xl p-4 shadow-sm">
                         <p className="text-red-800 font-semibold flex items-center gap-2">
-                            <span className="text-xl">⚠️</span> {error}
+                            <FiAlertTriangle className="w-5 h-5 text-red-600 shrink-0" /> {error}
                         </p>
                     </div>
                 )}
@@ -851,7 +857,7 @@ const Dashboard = () => {
                         <div className="flex items-start justify-between">
                             <div>
                                 <h3 className="text-xl font-black text-[#1e1b4b] mb-2 flex items-center gap-2 uppercase tracking-tighter">
-                                    <span className="animate-pulse text-[#0ea5e9]">●</span> Action Required: Incomplete Profiles
+                                    <span className="w-2.5 h-2.5 rounded-full bg-[#0ea5e9] animate-pulse inline-block"></span> Action Required: Incomplete Profiles
                                 </h3>
                                 <p className="text-gray-600 mb-4 font-medium text-sm">
                                     {incompleteProfiles.length} active user(s) have not been assigned a Role or Gender. They will be unable to log in until this is resolved.
@@ -864,7 +870,7 @@ const Dashboard = () => {
                                 </Link>
                             </div>
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#1e1b4b]/5">
-                                <span className="text-3xl">⚠️</span>
+                                <FiAlertTriangle className="w-8 h-8 text-amber-500" />
                             </div>
                         </div>
                     </div>
@@ -913,8 +919,8 @@ const Dashboard = () => {
 
                                             <div className="relative z-10 flex items-center justify-between gap-4">
                                                 <div className="min-w-0 flex items-center gap-4">
-                                                    <div className="birthday-float text-3xl flex-shrink-0 bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm border border-white/20 shadow-inner">
-                                                        🎂
+                                                    <div className="birthday-float flex-shrink-0 bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm border border-white/20 shadow-inner text-white">
+                                                        <FiGift className="w-8 h-8" />
                                                     </div>
                                                     <div>
                                                         <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-white">
@@ -933,7 +939,7 @@ const Dashboard = () => {
                                                     disabled={pendingWishCount === 0 || sendingWish !== null}
                                                     className="group flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-black uppercase tracking-widest text-rose-600 shadow-md shadow-pink-900/10 hover:shadow-pink-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-rose-50 active:scale-95 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white/60 disabled:shadow-none disabled:hover:translate-y-0"
                                                 >
-                                                    {sendingWish === 'all' ? 'Sending…' : '🎉 Send All Wishes'}
+                                                    {sendingWish === 'all' ? 'Sending…' : <span className="flex items-center gap-1.5"><FiSend className="w-4 h-4" /> Send All Wishes</span>}
                                                 </button>
                                             </div>
                                         </div>
@@ -981,7 +987,7 @@ const Dashboard = () => {
                                                                 </td>
                                                                 <td className="px-6 py-3.5 text-xs font-bold text-gray-700">
                                                                     <span className="flex items-center gap-2">
-                                                                        <span className="text-sm">🎈</span>
+                                                                        <LuSparkles className="w-4 h-4 text-pink-500 shrink-0" />
                                                                         <span>{person.day_month}</span>
                                                                         {person.turning_age && (
                                                                             <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full border border-pink-100">
@@ -1045,8 +1051,8 @@ const Dashboard = () => {
 
                                             <div className="relative z-10 flex items-center justify-between gap-4">
                                                 <div className="min-w-0 flex items-center gap-4">
-                                                    <div className="anniversary-float text-3xl flex-shrink-0 bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm border border-white/20 shadow-inner">
-                                                        🏆
+                                                    <div className="anniversary-float flex-shrink-0 bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm border border-white/20 shadow-inner text-white">
+                                                        <FiAward className="w-8 h-8" />
                                                     </div>
                                                     <div>
                                                         <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-white">
@@ -1065,7 +1071,7 @@ const Dashboard = () => {
                                                     disabled={pendingAnniversaryWishCount === 0 || sendingAnniversaryWish !== null}
                                                     className="group flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-black uppercase tracking-widest text-emerald-600 shadow-md shadow-emerald-900/10 hover:shadow-emerald-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-50 active:scale-95 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white/60 disabled:shadow-none disabled:hover:translate-y-0"
                                                 >
-                                                    {sendingAnniversaryWish === 'all' ? 'Sending…' : '🎉 Send All Wishes'}
+                                                    {sendingAnniversaryWish === 'all' ? 'Sending…' : <span className="flex items-center gap-1.5"><FiSend className="w-4 h-4" /> Send All Wishes</span>}
                                                 </button>
                                             </div>
                                         </div>
@@ -1113,7 +1119,7 @@ const Dashboard = () => {
                                                                 </td>
                                                                 <td className="px-6 py-3.5 text-xs font-bold text-gray-700">
                                                                     <span className="flex items-center gap-2">
-                                                                        <span className="text-sm">🌟</span>
+                                                                        <LuSparkles className="w-4 h-4 text-emerald-500 shrink-0" />
                                                                         <span>{person.day_month}</span>
                                                                         {person.years_of_service && (
                                                                             <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
@@ -1159,8 +1165,8 @@ const Dashboard = () => {
                                         <div className="flex items-center justify-between mb-5 relative z-10">
                                             <div>
                                                 <h2 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2.5">
-                                                    <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-base shadow-sm">
-                                                        🌴
+                                                    <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
+                                                        <FiCalendar className="w-4 h-4" />
                                                     </span>
                                                     Who's Out
                                                 </h2>
@@ -1190,7 +1196,7 @@ const Dashboard = () => {
                                                 <div className="space-y-2.5">
                                                     {onLeaveData.today.length === 0 ? (
                                                         <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
-                                                            <span className="text-xl mb-1.5">✨</span>
+                                                            <LuSparkles className="w-6 h-6 text-indigo-400 mb-1.5" />
                                                             <p className="text-xs font-bold text-gray-400">Everyone is in today</p>
                                                         </div>
                                                     ) : (
@@ -1227,7 +1233,7 @@ const Dashboard = () => {
                                                 <div className="space-y-2.5">
                                                     {onLeaveData.tomorrow.length === 0 ? (
                                                         <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
-                                                            <span className="text-xl mb-1.5">🌟</span>
+                                                            <LuSparkles className="w-6 h-6 text-amber-400 mb-1.5" />
                                                             <p className="text-xs font-bold text-gray-400">Everyone is in tomorrow</p>
                                                         </div>
                                                     ) : (
@@ -1258,8 +1264,8 @@ const Dashboard = () => {
                                 <div className="mb-12 animate-fadeInUp">
                                     <div className="flex items-center justify-between mb-6">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center text-xl shadow-sm">
-                                                ⚡
+                                            <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-sm">
+                                                <FiZap className="w-5 h-5" />
                                             </div>
                                             <div>
                                                 <h2 className="text-2xl font-black text-gray-900 tracking-tight">Pending Requests</h2>
@@ -1374,7 +1380,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Total Requests"
                                         value={stats.pendingLeaves + stats.approvedLeaves + stats.rejectedLeaves + stats.pendingTimeOff + stats.approvedTimeOff + stats.rejectedTimeOff}
-                                        icon="📄"
+                                        icon={<FiFileText className="w-5 h-5" />}
                                         color="text-[#1e1b4b]"
                                         footer="Engagement overview"
                                         gradient="bg-[#1e1b4b]"
@@ -1382,7 +1388,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Total On-Duty Logs"
                                         value={stats.pendingOnDuty + stats.approvedOnDuty + stats.rejectedOnDuty + stats.activeOnDuty}
-                                        icon="📍"
+                                        icon={<FiMapPin className="w-5 h-5" />}
                                         color="text-[#0ea5e9]"
                                         footer="Operational overview"
                                         gradient="bg-[#0ea5e9]"
@@ -1400,7 +1406,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Pending Review"
                                         value={stats.pendingLeaves}
-                                        icon="⏳"
+                                        icon={<FiClock className="w-5 h-5" />}
                                         color="text-orange-600"
                                         footer="Action Required"
                                         gradient="bg-gradient-to-br from-orange-400 to-amber-500"
@@ -1408,7 +1414,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Success Rate"
                                         value={stats.approvedLeaves}
-                                        icon="✨"
+                                        icon={<LuSparkles className="w-5 h-5" />}
                                         color="text-green-600"
                                         footer="Total approved"
                                         gradient="bg-gradient-to-br from-green-400 to-emerald-600"
@@ -1416,7 +1422,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Exceptions"
                                         value={stats.rejectedLeaves}
-                                        icon="🚨"
+                                        icon={<FiAlertCircle className="w-5 h-5" />}
                                         color="text-red-600"
                                         footer="Total rejected"
                                         gradient="bg-gradient-to-br from-red-400 to-rose-600"
@@ -1434,7 +1440,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Currently In Field"
                                         value={stats.activeOnDuty}
-                                        icon="🛰️"
+                                        icon={<FiRadio className="w-5 h-5" />}
                                         color="text-blue-600"
                                         footer="Live active status"
                                         gradient="bg-gradient-to-br from-blue-400 to-cyan-500"
@@ -1442,7 +1448,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Verification Queue"
                                         value={stats.pendingOnDuty}
-                                        icon="🔎"
+                                        icon={<FiSearch className="w-5 h-5" />}
                                         color="text-orange-600"
                                         footer="Pending checks"
                                         gradient="bg-gradient-to-br from-orange-400 to-amber-500"
@@ -1450,7 +1456,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Verified Tasks"
                                         value={stats.approvedOnDuty}
-                                        icon="🛡️"
+                                        icon={<FiShield className="w-5 h-5" />}
                                         color="text-green-600"
                                         footer="System confirmed"
                                         gradient="bg-gradient-to-br from-green-400 to-emerald-600"
@@ -1458,7 +1464,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Declined Tasks"
                                         value={stats.rejectedOnDuty}
-                                        icon="🚫"
+                                        icon={<FiSlash className="w-5 h-5" />}
                                         color="text-red-600"
                                         footer="Policy violation"
                                         gradient="bg-gradient-to-br from-red-400 to-rose-600"
@@ -1476,7 +1482,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Pending Review"
                                         value={stats.pendingTimeOff}
-                                        icon="⏳"
+                                        icon={<FiClock className="w-5 h-5" />}
                                         color="text-orange-600"
                                         footer="Action Required"
                                         gradient="bg-gradient-to-br from-orange-400 to-amber-500"
@@ -1484,7 +1490,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Approved"
                                         value={stats.approvedTimeOff}
-                                        icon="✨"
+                                        icon={<LuSparkles className="w-5 h-5" />}
                                         color="text-teal-600"
                                         footer="Total approved"
                                         gradient="bg-gradient-to-br from-teal-400 to-emerald-600"
@@ -1492,7 +1498,7 @@ const Dashboard = () => {
                                     <StatCard
                                         title="Rejected"
                                         value={stats.rejectedTimeOff}
-                                        icon="🚨"
+                                        icon={<FiAlertCircle className="w-5 h-5" />}
                                         color="text-red-600"
                                         footer="Total rejected"
                                         gradient="bg-gradient-to-br from-red-400 to-rose-600"
@@ -1776,7 +1782,7 @@ const Dashboard = () => {
 
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl font-bold shadow-inner border border-white/20">
-                                        {detailsModal.isLeave ? '📄' : (detailsModal.item.type === 'time_off' ? '⏱️' : '📍')}
+                                        {detailsModal.isLeave ? <FiFileText className="w-6 h-6 text-white" /> : (detailsModal.item.type === 'time_off' ? <FiClock className="w-6 h-6 text-white" /> : <FiMapPin className="w-6 h-6 text-white" />)}
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-bold">{detailsModal.isLeave ? 'Leave Request Details' : (detailsModal.item.type === 'time_off' ? 'Time-Off Details' : 'On-Duty Details')}</h2>

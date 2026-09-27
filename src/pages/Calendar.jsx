@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FiAlertTriangle, FiChevronDown } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
@@ -262,8 +263,9 @@ const Calendar = () => {
 
 
             {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                    <p className="text-red-800 font-medium">⚠️ {error}</p>
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
+                    <FiAlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                    <p className="text-red-800 font-medium">{error}</p>
                 </div>
             )}
 
@@ -524,7 +526,7 @@ const Calendar = () => {
                                                         </span>
                                                     )}
                                                     <span className={`text-gray-600 hover:text-gray-900 flex-shrink-0 inline-flex items-center justify-center w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                                                        ▼
+                                                        <FiChevronDown className="w-4 h-4" />
                                                     </span>
                                                 </div>
                                             </div>

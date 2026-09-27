@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuSmartphone, LuRefreshCw } from "react-icons/lu";
+import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuSmartphone, LuRefreshCw, LuX } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, isSuperAdmin } from '../utils/roleUtils';
 import { formatDateOnly, formatInTimezone, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
@@ -1204,7 +1204,7 @@ const ViewEmployeeProfile = () => {
                             className="absolute -top-12 right-0 bg-white/10 hover:bg-white/20 border border-white/20 text-white w-10 h-10 rounded-full flex items-center justify-center transition shadow-lg text-sm font-black"
                             title="Close preview"
                         >
-                            ✕
+                            <LuX className="w-5 h-5 text-white" />
                         </button>
                         <img
                             src={lightboxImage}

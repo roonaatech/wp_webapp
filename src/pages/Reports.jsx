@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiPlusCircle, FiMinusCircle, FiInfo } from 'react-icons/fi';
+import { FiPlusCircle, FiMinusCircle, FiInfo, FiBarChart2, FiFileText, FiAlertTriangle, FiDownload } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
@@ -477,17 +477,19 @@ const Reports = () => {
                     />
                     <button
                         onClick={() => setActiveTab('monthly')}
-                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none ${activeTab === 'monthly' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
+                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none inline-flex items-center justify-center gap-2 ${activeTab === 'monthly' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
                             }`}
                     >
-                        📊 Monthly Summary
+                        <FiBarChart2 className="w-4 h-4" />
+                        <span>Monthly Summary</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('detailed')}
-                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none ${activeTab === 'detailed' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
+                        className={`relative z-10 px-6 py-3 text-sm font-semibold capitalize tracking-wider transition-colors duration-300 w-56 text-center rounded-full focus:outline-none inline-flex items-center justify-center gap-2 ${activeTab === 'detailed' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
                             }`}
                     >
-                        📋 Detailed Reports
+                        <FiFileText className="w-4 h-4" />
+                        <span>Detailed Reports</span>
                     </button>
                 </div>
             </div>
@@ -499,8 +501,9 @@ const Reports = () => {
 
                     {/* Error Message */}
                     {error && (
-                        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                            <p className="text-red-800 font-medium">⚠️ {error}</p>
+                        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
+                            <FiAlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                            <p className="text-red-800 font-medium">{error}</p>
                         </div>
                     )}
 
@@ -642,7 +645,8 @@ const Reports = () => {
                                 >
                                     <div className="absolute inset-0 bg-[#1e1b4b] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out -z-10" />
                                     <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
-                                    📥 Export
+                                    <FiDownload className="w-3.5 h-3.5" />
+                                    <span>Export</span>
                                 </button>
                             </div>
                         </div>

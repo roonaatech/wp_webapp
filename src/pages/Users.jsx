@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
-import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiX, FiAlertTriangle, FiKey, FiLink, FiChevronDown, FiChevronRight, FiInfo, FiLock } from 'react-icons/fi';
+import { LuSparkles } from 'react-icons/lu';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -1312,7 +1313,7 @@ const Users = () => {
             {/* Error Message */}
             {error && (
                 <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                    <p className="text-red-800 font-medium">⚠️ {error}</p>
+                    <p className="text-red-800 font-medium flex items-center gap-1.5"><FiAlertTriangle className="w-4 h-4 shrink-0 text-red-600" /> {error}</p>
                 </div>
             )}
 
@@ -1633,8 +1634,8 @@ const Users = () => {
                                         className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors ${userTypeFilter === 'workpulse' ? 'bg-teal-50 border-l-2 border-teal-500' : 'hover:bg-teal-50'}`}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-lg">
-                                                🔑
+                                            <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-teal-700">
+                                                <FiKey className="w-4 h-4" />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="text-sm font-medium text-gray-900">WorkPulse Only</div>
@@ -1650,8 +1651,8 @@ const Users = () => {
                                         className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors ${userTypeFilter === 'external' ? 'bg-amber-50 border-l-2 border-amber-500' : 'hover:bg-amber-50'}`}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-lg">
-                                                🔗
+                                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700">
+                                                <FiLink className="w-4 h-4" />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="text-sm font-medium text-gray-900">External System</div>
@@ -1785,10 +1786,10 @@ const Users = () => {
                                             <td className="px-3 py-4 text-center">
                                                 <button
                                                     onClick={() => handleExpandUser(u.staffid)}
-                                                    className="p-1 hover:bg-blue-100 rounded transition-colors text-blue-600"
+                                                    className="p-1 hover:bg-blue-100 rounded transition-colors text-blue-600 flex items-center justify-center mx-auto"
                                                     title={expandedUserId === u.staffid ? "Collapse" : "Expand"}
                                                 >
-                                                    {expandedUserId === u.staffid ? '▼' : '▶'}
+                                                    {expandedUserId === u.staffid ? <FiChevronDown className="w-4 h-4" /> : <FiChevronRight className="w-4 h-4" />}
                                                 </button>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-600">
@@ -2527,7 +2528,7 @@ const Users = () => {
                                 </div>
                             ) : leaveModalError ? (
                                 <div className="bg-red-50 border border-red-200 rounded p-3">
-                                    <p className="text-red-800 text-sm font-medium">⚠️ {leaveModalError}</p>
+                                    <p className="text-red-800 text-sm font-medium flex items-center gap-1.5"><FiAlertTriangle className="w-4 h-4 shrink-0 text-red-600" /> {leaveModalError}</p>
                                 </div>
                             ) : (
                                 <>
@@ -2693,14 +2694,14 @@ const Users = () => {
                             <form onSubmit={handleSubmitUser} className="p-6 space-y-4">
                                 {formError && (
                                     <div className="bg-red-50 border border-red-200 rounded p-3">
-                                        <p className="text-red-800 text-sm font-medium">⚠️ {formError}</p>
+                                        <p className="text-red-800 text-sm font-medium flex items-center gap-1.5"><FiAlertTriangle className="w-4 h-4 shrink-0 text-red-600" /> {formError}</p>
                                     </div>
                                 )}
 
                                 {editingUserFromPhp && (
                                     <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
                                         <div className="flex items-start gap-3">
-                                            <div className="text-2xl flex-shrink-0">ℹ️</div>
+                                            <div className="flex-shrink-0 text-amber-600 pt-0.5"><FiInfo className="w-6 h-6" /></div>
                                             <div>
                                                 <h4 className="font-semibold text-amber-900 mb-1">User from ABiS System</h4>
                                                 <p className="text-sm text-amber-800">
@@ -2714,7 +2715,7 @@ const Users = () => {
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
                                         First Name {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
-                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
+                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited" className="text-gray-400"><FiLock className="w-3.5 h-3.5 inline" /></span>}
                                     </label>
                                     <input
                                         type="text"
@@ -2731,7 +2732,7 @@ const Users = () => {
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
                                         Last Name {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
-                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
+                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited" className="text-gray-400"><FiLock className="w-3.5 h-3.5 inline" /></span>}
                                     </label>
                                     <input
                                         type="text"
@@ -2748,7 +2749,7 @@ const Users = () => {
                                 <div>
                                     <label className="block text-base font-medium text-gray-700 mb-1 flex items-center gap-2">
                                         Email {!editingUserFromPhp && <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>}
-                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited">🔒</span>}
+                                        {editingUserFromPhp && <span title="This user is from ABiS and cannot be edited" className="text-gray-400"><FiLock className="w-3.5 h-3.5 inline" /></span>}
                                     </label>
                                     <input
                                         type="email"
@@ -2883,7 +2884,7 @@ const Users = () => {
                                             })()}
                                         </select>
                                         {formError && formError.includes('Reporting Manager') && (
-                                            <p className="text-xs text-red-600 mt-1">⚠️ This field is required</p>
+                                            <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><FiAlertTriangle className="w-3.5 h-3.5 shrink-0" /> This field is required</p>
                                         )}
                                     </div>
 
@@ -2983,7 +2984,7 @@ const Users = () => {
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
                         <div className="bg-gradient-to-r from-amber-600 to-amber-700 px-6 py-4">
-                            <h2 className="text-xl font-bold text-white">🔑 Reset Password</h2>
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2"><FiKey className="w-5 h-5" /> Reset Password</h2>
                         </div>
 
                         <form onSubmit={handleResetPasswordSubmit} className="p-6 space-y-4">
@@ -2995,7 +2996,7 @@ const Users = () => {
 
                             {resetPasswordError && (
                                 <div className="bg-red-50 border border-red-200 rounded p-3">
-                                    <p className="text-red-800 text-sm font-medium">⚠️ {resetPasswordError}</p>
+                                    <p className="text-red-800 text-sm font-medium flex items-center gap-1.5"><FiAlertTriangle className="w-4 h-4 shrink-0 text-red-600" /> {resetPasswordError}</p>
                                 </div>
                             )}
 
@@ -3007,7 +3008,7 @@ const Users = () => {
                                         onClick={generateAndSetPassword}
                                         className="text-xs font-bold text-amber-600 hover:text-amber-700 transition flex items-center gap-1 bg-amber-50 hover:bg-amber-100/80 px-2 py-1 rounded-md"
                                     >
-                                        ✨ Auto-Generate
+                                        <LuSparkles className="w-3.5 h-3.5" /> Auto-Generate
                                     </button>
                                 </div>
                                 <input

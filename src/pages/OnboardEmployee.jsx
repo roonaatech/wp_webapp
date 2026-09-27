@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuUser, LuContact, LuGraduationCap, LuCoins, LuFileUp, LuPlus, LuTrash2, LuSave, LuArrowLeft, LuShieldAlert, LuCamera, LuCalendar } from "react-icons/lu";
+import { LuUser, LuContact, LuGraduationCap, LuCoins, LuFileUp, LuPlus, LuTrash2, LuSave, LuArrowLeft, LuShieldAlert, LuCamera, LuCalendar, LuTriangleAlert, LuInfo } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { fetchRoles as fetchRolesUtil, getRoleById } from '../utils/roleUtils';
 import { getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, getCurrentInAppTimezone } from '../utils/timezone.util';
@@ -2187,7 +2187,7 @@ const OnboardEmployee = () => {
                             <form onSubmit={handleBulkUploadSubmit} className="space-y-6">
                                 {/* Instructions / Guidelines */}
                                 <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl text-xs text-blue-800 space-y-2">
-                                    <p className="font-bold flex items-center gap-1">ℹ️ Expected CSV Format & Headers:</p>
+                                    <p className="font-bold flex items-center gap-1.5"><LuInfo className="w-4 h-4 text-blue-600 shrink-0" /> Expected CSV Format & Headers:</p>
                                     <p>Ensure your CSV file contains a header row matching the fields below (case-insensitive):</p>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left border-collapse border border-blue-100/80 bg-white rounded-xl overflow-hidden mt-1 text-[11px] shadow-sm">
@@ -2344,7 +2344,8 @@ const OnboardEmployee = () => {
                                         <div className="max-h-[120px] overflow-y-auto px-4 py-3 text-xs space-y-1.5 text-red-700 font-semibold">
                                             {bulkUploadSummary.errors.map((err, idx) => (
                                                 <div key={idx} className="flex items-center gap-1.5">
-                                                    <span>⚠️</span> <span>{err}</span>
+                                                    <LuTriangleAlert className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                                                    <span>{err}</span>
                                                 </div>
                                             ))}
                                         </div>
