@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.13.5](https://github.com/roonaatech/wp_webapp/compare/v2.13.4...v2.13.5) (2026-09-27)
+
+
+### Features
+
+* support half-day leaves in manual attendance and robust time parsing for attendance edits ([232f249](https://github.com/roonaatech/wp_webapp/commit/232f249bc0f672ae447502e6338c26dcbd64d032))
+
 ### [2.13.4](https://github.com/roonaatech/wp_webapp/compare/v2.13.3...v2.13.4) (2026-09-27)
 
 
