@@ -3,7 +3,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from './ModernLoader';
 import { getCurrentInAppTimezone, formatDateOnly, formatTimeOnly } from '../utils/timezone.util';
-import { FiPlusCircle, FiMinusCircle, FiX, FiExternalLink, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiPlusCircle, FiMinusCircle, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { getComplianceHours } from '../utils/attendanceConfig';
@@ -24,29 +24,10 @@ const MonthlySummaryReport = () => {
     const [sortConfig, setSortConfig] = useState({ key: 'firstname', direction: 'asc' });
     const [expandedRows, setExpandedRows] = useState({});
     const [expandedTab, setExpandedTab] = useState({});
-    const [attendanceModalData, setAttendanceModalData] = useState(null);
-    const [modalPage, setModalPage] = useState(1);
-    const [modalLimit, setModalLimit] = useState(10);
+    const [attPage, setAttPage] = useState({});
+    const [attLimit, setAttLimit] = useState(15);
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-
-    // Reset modal page whenever a new modal is opened
-    useEffect(() => {
-        if (attendanceModalData) {
-            setModalPage(1);
-        }
-    }, [attendanceModalData]);
-
-    // Close attendance modal on Escape key
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (e.key === 'Escape' && attendanceModalData) {
-                setAttendanceModalData(null);
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [attendanceModalData]);
 
     const toggleRow = (staffId) => {
         setExpandedRows(prev => ({
@@ -841,10 +822,21 @@ const MonthlySummaryReport = () => {
                                                     )}
                                                 </td>
                                             </tr>
-                                            {expandedRows[s.staff_id] && (
-                                                <tr>
-                                                    <td colSpan={9} className="px-6 py-4 bg-[#f8fafc] border-b border-gray-100">
-                                                        <div className="space-y-4">
+                                            {expandedRows[s.staff_id] && (() => {
+                                                const attSessions = s.attendance_records || (s.records?.find(r => r.type === 'Attendance')?.sessions) || [];
+                                                const otherRecords = (s.records || []).filter(r => r.type !== 'Attendance');
+                                                const staffAttPage = attPage[s.staff_id] || 1;
+                                                const totalAttSessions = attSessions.length;
+                                                const totalAttPages = Math.max(1, Math.ceil(totalAttSessions / attLimit));
+                                                const safeAttPage = Math.min(Math.max(1, staffAttPage), totalAttPages);
+                                                const attStartIndex = (safeAttPage - 1) * attLimit;
+                                                const attEndIndex = Math.min(attStartIndex + attLimit, totalAttSessions);
+                                                const currentAttSessions = attSessions.slice(attStartIndex, attEndIndex);
+
+                                                return (
+                                                    <tr>
+                                                        <td colSpan={9} className="px-6 py-4 bg-[#f8fafc] border-b border-gray-100">
+                                                            <div className="space-y-4">
                                                             {/* Executive Salary & Quota Summary Cards */}
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                                                 <div className="bg-white rounded-xl p-3.5 border border-emerald-200 shadow-2xs flex items-center gap-3">
@@ -908,7 +900,7 @@ const MonthlySummaryReport = () => {
                                                                 </div>
                                                             </div>
 
-                                                            {/* Sub-tab Switcher: Daily Salary Breakdown vs Raw Records */}
+                                                            {/* Sub-tab Switcher: Daily Salary Breakdown vs Attendance vs Leave, Time-off and On-duty Records */}
                                                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-2">
                                                                 <div className="flex items-center gap-2">
                                                                     <button
@@ -924,6 +916,17 @@ const MonthlySummaryReport = () => {
                                                                     </button>
                                                                     <button
                                                                         type="button"
+                                                                        onClick={() => setTab(s.staff_id, 'attendance')}
+                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                                                            expandedTab[s.staff_id] === 'attendance'
+                                                                                ? 'bg-[#1e1b4b] text-white shadow-2xs'
+                                                                                : 'text-gray-600 hover:bg-gray-100'
+                                                                        }`}
+                                                                    >
+                                                                        ⏱️ Attendance ({attSessions.length})
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
                                                                         onClick={() => setTab(s.staff_id, 'records')}
                                                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                                                                             expandedTab[s.staff_id] === 'records'
@@ -931,29 +934,9 @@ const MonthlySummaryReport = () => {
                                                                                 : 'text-gray-600 hover:bg-gray-100'
                                                                         }`}
                                                                     >
-                                                                        📋 Activity Records ({s.records?.length || 0})
+                                                                        📋 Leave, Time-off and On-duty Records ({otherRecords.length})
                                                                     </button>
                                                                 </div>
-                                                                {(s.attendance_records?.length > 0 || (s.records?.find(r => r.type === 'Attendance')?.sessions?.length > 0)) && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            const sessions = s.attendance_records || (s.records?.find(r => r.type === 'Attendance')?.sessions) || [];
-                                                                            setAttendanceModalData({
-                                                                                employeeName: `${s.firstname || ''} ${s.lastname || ''}`.trim(),
-                                                                                email: s.email,
-                                                                                dateRange: period,
-                                                                                totalDuration: formatHours(s.work_hours, s.work_minutes),
-                                                                                presentDaysCount: s.present_days,
-                                                                                sessions
-                                                                            });
-                                                                        }}
-                                                                        className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 inline-flex items-center gap-1 transition-all cursor-pointer"
-                                                                    >
-                                                                        <span>View Attendance Sessions</span>
-                                                                        <FiExternalLink size={12} className="text-emerald-600" />
-                                                                    </button>
-                                                                )}
                                                             </div>
 
                                                             {/* Tab 1: Daily Salary Breakdown Table */}
@@ -1057,7 +1040,227 @@ const MonthlySummaryReport = () => {
                                                                 </div>
                                                             )}
 
-                                                            {/* Tab 2: Activity Records Table */}
+                                                            {/* Tab 2: Attendance Sessions Table */}
+                                                            {expandedTab[s.staff_id] === 'attendance' && (
+                                                                <div className="rounded-xl overflow-hidden shadow-2xs border border-gray-200 bg-white">
+                                                                    {/* Attendance Summary Strip */}
+                                                                    <div className="bg-emerald-50/50 border-b border-emerald-100/80 px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-[11px]">
+                                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                                                            <div>
+                                                                                <span className="text-gray-400 font-medium">Present Days: </span>
+                                                                                <span className="font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded text-[10px]">
+                                                                                    {s.present_days} {s.present_days === 1 ? 'day' : 'days'}
+                                                                                </span>
+                                                                            </div>
+                                                                            {(() => {
+                                                                                const { compliantDays, nonCompliantDays, inProgressDays } = getModalComplianceDayCounts(attSessions, complianceHours);
+                                                                                return (
+                                                                                    <>
+                                                                                        <div className="h-3 w-px bg-emerald-200 hidden sm:block"></div>
+                                                                                        <div>
+                                                                                            <span className="text-gray-400 font-medium">Compliant Days: </span>
+                                                                                            <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full border border-emerald-200 text-[10px]">
+                                                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                                                                                {compliantDays} {compliantDays === 1 ? 'day' : 'days'}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <div className="h-3 w-px bg-emerald-200 hidden sm:block"></div>
+                                                                                        <div>
+                                                                                            <span className="text-gray-400 font-medium">Non-Compliant: </span>
+                                                                                            <span className="inline-flex items-center gap-1 font-bold text-rose-800 bg-rose-100/80 px-1.5 py-0.5 rounded-full border border-rose-200 text-[10px]">
+                                                                                                <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                                                                                                {nonCompliantDays} {nonCompliantDays === 1 ? 'day' : 'days'}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        {inProgressDays > 0 && (
+                                                                                            <>
+                                                                                                <div className="h-3 w-px bg-emerald-200 hidden sm:block"></div>
+                                                                                                <div>
+                                                                                                    <span className="text-gray-400 font-medium">In Progress: </span>
+                                                                                                    <span className="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded-full border border-amber-200 text-[10px]">
+                                                                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                                                        {inProgressDays} {inProgressDays === 1 ? 'day' : 'days'}
+                                                                                                    </span>
+                                                                                                </div>
+                                                                                            </>
+                                                                                        )}
+                                                                                    </>
+                                                                                );
+                                                                            })()}
+                                                                            <div className="h-3 w-px bg-emerald-200 hidden sm:block"></div>
+                                                                            <div>
+                                                                                <span className="text-gray-400 font-medium">Total Work: </span>
+                                                                                <span className="font-bold text-emerald-800">{formatHours(s.work_hours, s.work_minutes)}</span>
+                                                                            </div>
+                                                                            <div className="h-3 w-px bg-emerald-200 hidden sm:block"></div>
+                                                                            <div>
+                                                                                <span className="text-gray-400 font-medium">Avg Duration: </span>
+                                                                                <span className="font-bold text-emerald-800">
+                                                                                    {getModalAverageDuration(attSessions, s.present_days)}
+                                                                                    <span className="text-gray-400 font-normal text-[10px] ml-0.5">/day</span>
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs shrink-0">
+                                                                            {attSessions.length} {attSessions.length === 1 ? 'Session' : 'Sessions'} Logged
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Attendance Sessions Table */}
+                                                                    <div className="overflow-x-auto">
+                                                                        <table className="min-w-full divide-y divide-gray-100 text-xs">
+                                                                            <thead className="bg-[#1e1b4b]/5 text-[10px] font-black text-gray-600 uppercase tracking-wider">
+                                                                                <tr>
+                                                                                    <th className="px-3 py-2.5 text-center w-10">#</th>
+                                                                                    <th className="px-4 py-2.5 text-left">Date</th>
+                                                                                    <th className="px-4 py-2.5 text-left">Check-In</th>
+                                                                                    <th className="px-4 py-2.5 text-left">Check-Out</th>
+                                                                                    <th className="px-4 py-2.5 text-left">Duration</th>
+                                                                                    <th className="px-4 py-2.5 text-left">Compliance</th>
+                                                                                    <th className="px-4 py-2.5 text-left">Terminal / Device</th>
+                                                                                    <th className="px-4 py-2.5 text-left">IP Address</th>
+                                                                                    <th className="px-3 py-2.5 text-center">Status</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody className="divide-y divide-gray-50 bg-white">
+                                                                                {currentAttSessions.length === 0 ? (
+                                                                                    <tr>
+                                                                                        <td colSpan={9} className="px-4 py-6 text-center text-gray-400 italic">
+                                                                                            No attendance sessions recorded for this period
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                ) : (
+                                                                                    currentAttSessions.map((sess, sIdx) => {
+                                                                                        const comp = getSessionCompliance(sess);
+                                                                                        return (
+                                                                                            <tr key={sess.id || (attStartIndex + sIdx)} className="hover:bg-emerald-50/30 transition-colors">
+                                                                                                <td className="px-3 py-2.5 text-center text-gray-400 font-mono text-[11px]">{attStartIndex + sIdx + 1}</td>
+                                                                                                <td className="px-4 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
+                                                                                                    {formatDateWithWeekday(sess.date)}
+                                                                                                </td>
+                                                                                                <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
+                                                                                                    {sess.check_in_time ? formatTimeOnly(sess.check_in_time) : (sess.check_in_time_str || '—')}
+                                                                                                </td>
+                                                                                                <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
+                                                                                                    {sess.check_out_time ? formatTimeOnly(sess.check_out_time) : (
+                                                                                                        <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                                                            Active
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </td>
+                                                                                                <td className="px-4 py-2.5 font-black text-emerald-700 whitespace-nowrap">
+                                                                                                    {sess.formatted_duration || sess.duration}
+                                                                                                </td>
+                                                                                                <td className="px-4 py-2.5 whitespace-nowrap">
+                                                                                                    {comp.isActive ? (
+                                                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                                                            In Progress
+                                                                                                        </span>
+                                                                                                    ) : comp.isCompliant ? (
+                                                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                                                            Compliant
+                                                                                                        </span>
+                                                                                                    ) : (
+                                                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                                                                                            Non-Compliant
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </td>
+                                                                                                <td className="px-4 py-2.5 text-gray-600">
+                                                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-700 text-[11px] font-medium border border-gray-200">
+                                                                                                        {sess.phone_model || 'Web / Kiosk'}
+                                                                                                    </span>
+                                                                                                </td>
+                                                                                                <td className="px-4 py-2.5 font-mono text-gray-500 text-[11px] whitespace-nowrap">
+                                                                                                    {sess.ip_address || '—'}
+                                                                                                </td>
+                                                                                                <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                                                                                                    {sess.status === 'Completed' ? (
+                                                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                                                            ✓ Done
+                                                                                                        </span>
+                                                                                                    ) : (
+                                                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                                                            • Active
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </td>
+                                                                                            </tr>
+                                                                                        );
+                                                                                    })
+                                                                                )}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+
+                                                                    {/* Pagination footer if sessions exist */}
+                                                                    {totalAttSessions > 0 && (
+                                                                        <div className="bg-gray-50 border-t border-gray-100 px-4 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-600">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <span>
+                                                                                    Showing <strong className="text-gray-900 font-bold">{attStartIndex + 1}</strong>–<strong className="text-gray-900 font-bold">{attEndIndex}</strong> of <strong className="text-gray-900 font-bold">{totalAttSessions}</strong> sessions
+                                                                                </span>
+                                                                                <div className="flex items-center gap-1.5 pl-3 border-l border-gray-200">
+                                                                                    <span className="text-gray-500 font-medium">Rows:</span>
+                                                                                    <select
+                                                                                        value={attLimit}
+                                                                                        onChange={(e) => {
+                                                                                            setAttLimit(Number(e.target.value));
+                                                                                            setAttPage(prev => ({ ...prev, [s.staff_id]: 1 }));
+                                                                                        }}
+                                                                                        className="px-2 py-0.5 bg-white border border-gray-300 rounded text-xs font-semibold text-gray-700 focus:outline-none cursor-pointer"
+                                                                                    >
+                                                                                        <option value={10}>10</option>
+                                                                                        <option value={15}>15</option>
+                                                                                        <option value={25}>25</option>
+                                                                                        <option value={50}>50</option>
+                                                                                    </select>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {totalAttPages > 1 && (
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => setAttPage(prev => ({ ...prev, [s.staff_id]: Math.max(1, safeAttPage - 1) }))}
+                                                                                        disabled={safeAttPage === 1}
+                                                                                        className="px-2 py-0.5 border border-gray-300 bg-white rounded text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                                                                    >
+                                                                                        Previous
+                                                                                    </button>
+                                                                                    {Array.from({ length: totalAttPages }, (_, i) => i + 1).map((pg) => (
+                                                                                        <button
+                                                                                            key={pg}
+                                                                                            type="button"
+                                                                                            onClick={() => setAttPage(prev => ({ ...prev, [s.staff_id]: pg }))}
+                                                                                            className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold transition-all cursor-pointer ${
+                                                                                                pg === safeAttPage
+                                                                                                    ? 'bg-[#1e1b4b] text-white shadow-2xs'
+                                                                                                    : 'text-gray-700 bg-white hover:bg-gray-100 border border-gray-300'
+                                                                                            }`}
+                                                                                        >
+                                                                                            {pg}
+                                                                                        </button>
+                                                                                    ))}
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => setAttPage(prev => ({ ...prev, [s.staff_id]: Math.min(totalAttPages, safeAttPage + 1) }))}
+                                                                                        disabled={safeAttPage === totalAttPages}
+                                                                                        className="px-2 py-0.5 border border-gray-300 bg-white rounded text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                                                                    >
+                                                                                        Next
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Tab 3: Leave, Time-off and On-duty Records Table */}
                                                             {expandedTab[s.staff_id] === 'records' && (
                                                                 <div className="rounded-xl overflow-hidden shadow-2xs border border-gray-200 bg-white">
                                                                     <table className="min-w-full divide-y divide-gray-100">
@@ -1070,96 +1273,14 @@ const MonthlySummaryReport = () => {
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody className="divide-y divide-gray-50">
-                                                                            {(!s.records || s.records.length === 0) ? (
+                                                                            {otherRecords.length === 0 ? (
                                                                                 <tr>
-                                                                                    <td colSpan={4} className="px-4 py-4 text-center text-gray-400 italic text-xs">
-                                                                                        No activity records found
+                                                                                    <td colSpan={4} className="px-4 py-6 text-center text-gray-400 italic text-xs">
+                                                                                        No leave, time-off or on-duty records found
                                                                                     </td>
                                                                                 </tr>
                                                                             ) : (
-                                                                                s.records.map((rec, rIdx) => {
-                                                                                    if (rec.type === 'Attendance') {
-                                                                                        const sessions = rec.sessions || s.attendance_records || [];
-                                                                                        const presentDaysCount = rec.present_days !== undefined ? rec.present_days : s.present_days;
-                                                                                        const dateRangeStr = rec.start_date && rec.end_date
-                                                                                            ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
-                                                                                            : formatDateOnly(rec.date);
-
-                                                                                        const openModal = () => {
-                                                                                            setAttendanceModalData({
-                                                                                                employeeName: `${s.firstname || ''} ${s.lastname || ''}`.trim(),
-                                                                                                email: s.email,
-                                                                                                dateRange: dateRangeStr,
-                                                                                                totalDuration: rec.duration,
-                                                                                                presentDaysCount,
-                                                                                                sessions
-                                                                                            });
-                                                                                        };
-
-                                                                                        return (
-                                                                                            <tr
-                                                                                                key={`att-${rIdx}`}
-                                                                                                onClick={openModal}
-                                                                                                className="hover:bg-emerald-50/50 cursor-pointer transition-colors group"
-                                                                                                title="Click to view daily attendance sessions in popup"
-                                                                                            >
-                                                                                                <td className="px-4 py-2.5 align-middle">
-                                                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200">
-                                                                                                        Attendance
-                                                                                                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-200/90 text-emerald-950 text-[10px] font-black">
-                                                                                                            {presentDaysCount} {presentDaysCount === 1 ? 'day' : 'days'}
-                                                                                                        </span>
-                                                                                                    </span>
-                                                                                                </td>
-                                                                                                <td className="px-4 py-2.5 text-xs text-gray-700 font-semibold align-middle">
-                                                                                                    {dateRangeStr}
-                                                                                                </td>
-                                                                                                <td className="px-4 py-2.5 text-xs text-emerald-800 font-black align-middle">
-                                                                                                    <div>{rec.duration}</div>
-                                                                                                    {presentDaysCount > 1 && (
-                                                                                                        <div className="text-[10px] text-gray-400 font-medium">
-                                                                                                            Avg: {getModalAverageDuration(sessions, presentDaysCount)} / day
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                </td>
-                                                                                                <td className="px-4 py-2.5 text-xs text-gray-600 align-middle">
-                                                                                                    <div className="flex items-center justify-between gap-2">
-                                                                                                        <div className="flex flex-wrap items-center gap-2">
-                                                                                                            <span className="text-gray-600 font-medium">
-                                                                                                                {sessions.length} session(s) logged
-                                                                                                            </span>
-                                                                                                            {(() => {
-                                                                                                                const { compliantDays, nonCompliantDays } = getModalComplianceDayCounts(sessions, complianceHours);
-                                                                                                                return (
-                                                                                                                    <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px]">
-                                                                                                                        <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                                                                                                                            {compliantDays} Compliant
-                                                                                                                        </span>
-                                                                                                                        <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
-                                                                                                                            {nonCompliantDays} Non-Compliant
-                                                                                                                        </span>
-                                                                                                                    </span>
-                                                                                                                );
-                                                                                                            })()}
-                                                                                                        </div>
-                                                                                                        <button
-                                                                                                            type="button"
-                                                                                                            onClick={(e) => {
-                                                                                                                e.stopPropagation();
-                                                                                                                openModal();
-                                                                                                            }}
-                                                                                                            className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 hover:opacity-80 inline-flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
-                                                                                                            title="Open daily attendance popup"
-                                                                                                        >
-                                                                                                            <span>View Details</span>
-                                                                                                            <FiExternalLink size={12} className="text-emerald-600" />
-                                                                                                        </button>
-                                                                                                    </div>
-                                                                                                </td>
-                                                                                            </tr>
-                                                                                        );
-                                                                                    }
-
+                                                                                otherRecords.map((rec, rIdx) => {
                                                                                     return (
                                                                                         <tr key={rIdx} className="hover:bg-gray-50/50">
                                                                                             <td className="px-4 py-2 align-top">
@@ -1194,8 +1315,9 @@ const MonthlySummaryReport = () => {
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            )}
-                                        </React.Fragment>
+                                            );
+                                        })()}
+                                    </React.Fragment>
                                     ))}
                                     <tr className="bg-[#1e1b4b]/5 font-black">
                                         <td colSpan={4} className="px-4 py-3 text-sm text-[#1e1b4b] uppercase tracking-widest text-right">Total</td>
@@ -1303,321 +1425,6 @@ const MonthlySummaryReport = () => {
                     </>
                 )}
             </div>
-
-            {/* Attendance Details Popup Modal */}
-            {attendanceModalData && (
-                <div
-                    className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-fadeIn"
-                    onClick={() => setAttendanceModalData(null)}
-                >
-                    <div
-                        className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-6xl xl:max-w-7xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Header */}
-                        <div className="bg-gradient-to-r from-[#1e1b4b] via-indigo-950 to-slate-900 text-white px-5 py-3 sm:px-6 flex items-center justify-between gap-3">
-                            <div className="flex items-center flex-wrap gap-2.5 min-w-0">
-                                <div className="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full shrink-0">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
-                                        Daily Attendance Breakdown
-                                    </span>
-                                </div>
-                                <span className="text-white/30 hidden sm:inline">•</span>
-                                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
-                                    {attendanceModalData.employeeName}
-                                </h3>
-                                {attendanceModalData.email && (
-                                    <>
-                                        <span className="text-white/30 hidden sm:inline">•</span>
-                                        <span className="text-xs text-gray-300 truncate">
-                                            {attendanceModalData.email}
-                                        </span>
-                                    </>
-                                )}
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setAttendanceModalData(null)}
-                                className="p-1.5 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer shrink-0"
-                                title="Close"
-                            >
-                                <FiX size={18} />
-                            </button>
-                        </div>
-
-                        {/* Summary Badges Bar */}
-                        <div className="bg-emerald-50/50 border-b border-emerald-100/80 px-4 py-2 sm:px-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-[11px]">
-                            <div className="flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1">
-                                <div>
-                                    <span className="text-gray-400 font-medium">Period: </span>
-                                    <span className="font-semibold text-gray-800">{attendanceModalData.dateRange}</span>
-                                </div>
-                                <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
-                                <div>
-                                    <span className="text-gray-400 font-medium">Present: </span>
-                                    <span className="font-semibold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded text-[10px]">
-                                        {attendanceModalData.presentDaysCount} {attendanceModalData.presentDaysCount === 1 ? 'day' : 'days'}
-                                    </span>
-                                </div>
-                                {(() => {
-                                    const { compliantDays, nonCompliantDays, inProgressDays } = getModalComplianceDayCounts(attendanceModalData.sessions, complianceHours);
-                                    return (
-                                        <>
-                                            <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
-                                            <div>
-                                                <span className="text-gray-400 font-medium">Compliant: </span>
-                                                <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full border border-emerald-200 text-[10px]">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                                                    {compliantDays} {compliantDays === 1 ? 'day' : 'days'}
-                                                </span>
-                                            </div>
-                                            <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
-                                            <div>
-                                                <span className="text-gray-400 font-medium">Non-Compliant: </span>
-                                                <span className="inline-flex items-center gap-1 font-semibold text-rose-800 bg-rose-100/80 px-1.5 py-0.5 rounded-full border border-rose-200 text-[10px]">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                                                    {nonCompliantDays} {nonCompliantDays === 1 ? 'day' : 'days'}
-                                                </span>
-                                            </div>
-                                            {inProgressDays > 0 && (
-                                                <>
-                                                    <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
-                                                    <div>
-                                                        <span className="text-gray-400 font-medium">In Progress: </span>
-                                                        <span className="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded-full border border-amber-200 text-[10px]">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                                            {inProgressDays} {inProgressDays === 1 ? 'day' : 'days'}
-                                                        </span>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </>
-                                    );
-                                })()}
-                                <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
-                                <div>
-                                    <span className="text-gray-400 font-medium">Total: </span>
-                                    <span className="font-semibold text-emerald-800">{attendanceModalData.totalDuration}</span>
-                                </div>
-                                <div className="h-3 w-px bg-emerald-200/80 hidden sm:block"></div>
-                                <div>
-                                    <span className="text-gray-400 font-medium">Avg: </span>
-                                    <span className="font-semibold text-emerald-800">
-                                        {getModalAverageDuration(attendanceModalData.sessions, attendanceModalData.presentDaysCount)}
-                                        <span className="text-gray-400 font-normal text-[10px] ml-0.5">/day</span>
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs shrink-0">
-                                {attendanceModalData.sessions.length} {attendanceModalData.sessions.length === 1 ? 'Session' : 'Sessions'} Logged
-                            </div>
-                        </div>
-
-                        {/* Sessions Table & Pagination Calculations */}
-                        {(() => {
-                            const totalModalSessions = attendanceModalData.sessions?.length || 0;
-                            const totalModalPages = Math.max(1, Math.ceil(totalModalSessions / modalLimit));
-                            const safeModalPage = Math.min(Math.max(1, modalPage), totalModalPages);
-                            const startIndex = (safeModalPage - 1) * modalLimit;
-                            const endIndex = Math.min(startIndex + modalLimit, totalModalSessions);
-                            const currentModalSessions = (attendanceModalData.sessions || []).slice(startIndex, endIndex);
-
-                            return (
-                                <>
-                                    <div className="overflow-y-auto p-4 sm:p-6 flex-1">
-                                        {currentModalSessions && currentModalSessions.length > 0 ? (
-                                            <div className="rounded-xl border border-gray-200 overflow-x-auto shadow-2xs">
-                                                <table className="min-w-full divide-y divide-gray-100 text-xs">
-                                                    <thead className="bg-[#1e1b4b]/5 text-[10px] font-black text-gray-600 uppercase tracking-wider">
-                                                        <tr>
-                                                            <th className="px-3 py-3 text-center w-10">#</th>
-                                                            <th className="px-4 py-3 text-left">Date</th>
-                                                            <th className="px-4 py-3 text-left">Check-In</th>
-                                                            <th className="px-4 py-3 text-left">Check-Out</th>
-                                                            <th className="px-4 py-3 text-left">Duration</th>
-                                                            <th className="px-4 py-3 text-left">Compliance</th>
-                                                            <th className="px-4 py-3 text-left">Terminal / Device</th>
-                                                            <th className="px-4 py-3 text-left">IP Address</th>
-                                                            <th className="px-3 py-3 text-center">Status</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-gray-50 bg-white">
-                                                        {currentModalSessions.map((sess, sIdx) => (
-                                                            <tr key={sess.id || (startIndex + sIdx)} className="hover:bg-emerald-50/30 transition-colors">
-                                                                <td className="px-3 py-2.5 text-center text-gray-400 font-mono text-[11px]">{startIndex + sIdx + 1}</td>
-                                                                <td className="px-4 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
-                                                                    {formatDateWithWeekday(sess.date)}
-                                                                </td>
-                                                                <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
-                                                                    {sess.check_in_time ? formatTimeOnly(sess.check_in_time) : (sess.check_in_time_str || '—')}
-                                                                </td>
-                                                                <td className="px-4 py-2.5 font-mono text-gray-700 whitespace-nowrap">
-                                                                    {sess.check_out_time ? formatTimeOnly(sess.check_out_time) : (
-                                                                        <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                            Active
-                                                                        </span>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-4 py-2.5 font-black text-emerald-700 whitespace-nowrap">
-                                                                    {sess.formatted_duration || sess.duration}
-                                                                </td>
-                                                                <td className="px-4 py-2.5 whitespace-nowrap">
-                                                                    {(() => {
-                                                                        const comp = getSessionCompliance(sess);
-                                                                        if (comp.isActive) {
-                                                                            return (
-                                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                                                                    In Progress
-                                                                                </span>
-                                                                            );
-                                                                        }
-                                                                        return comp.isCompliant ? (
-                                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                                                Compliant
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
-                                                                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                                                                                Non-Compliant
-                                                                            </span>
-                                                                        );
-                                                                    })()}
-                                                                </td>
-                                                                <td className="px-4 py-2.5 text-gray-600">
-                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-700 text-[11px] font-medium border border-gray-200">
-                                                                        {sess.phone_model || 'Web / Kiosk'}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-4 py-2.5 font-mono text-gray-500 text-[11px] whitespace-nowrap">
-                                                                    {sess.ip_address || '—'}
-                                                                </td>
-                                                                <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                                                    {sess.status === 'Completed' ? (
-                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                            ✓ Done
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                            • Active
-                                                                        </span>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        ) : (
-                                            <div className="py-12 text-center text-gray-400">
-                                                <p className="text-sm font-medium">No session details recorded</p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Footer with Pagination */}
-                                    <div className="bg-gray-50 border-t border-gray-100 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
-                                        <div className="flex items-center gap-3 text-xs text-gray-600 order-2 sm:order-1">
-                                            <span>
-                                                Showing <strong className="text-gray-900 font-bold">{totalModalSessions > 0 ? startIndex + 1 : 0}</strong>–<strong className="text-gray-900 font-bold">{endIndex}</strong> of <strong className="text-gray-900 font-bold">{totalModalSessions}</strong> records
-                                            </span>
-                                            <div className="flex items-center gap-1.5 pl-3 border-l border-gray-200">
-                                                <span className="text-gray-500 font-medium">Rows:</span>
-                                                <select
-                                                    value={modalLimit}
-                                                    onChange={(e) => {
-                                                        setModalLimit(Number(e.target.value));
-                                                        setModalPage(1);
-                                                    }}
-                                                    className="px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
-                                                >
-                                                    <option value={5}>5</option>
-                                                    <option value={10}>10</option>
-                                                    <option value={15}>15</option>
-                                                    <option value={20}>20</option>
-                                                    <option value={50}>50</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-2 order-1 sm:order-2 w-full sm:w-auto justify-between sm:justify-end">
-                                            {totalModalPages > 1 && (
-                                                <div className="flex items-center gap-1">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setModalPage(p => Math.max(1, p - 1))}
-                                                        disabled={safeModalPage === 1}
-                                                        className="px-2.5 py-1 border border-gray-300 bg-white rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                                                    >
-                                                        Previous
-                                                    </button>
-
-                                                    {(() => {
-                                                        const pageButtons = [];
-                                                        const maxButtons = 5;
-                                                        if (totalModalPages <= maxButtons) {
-                                                            for (let i = 1; i <= totalModalPages; i++) pageButtons.push(i);
-                                                        } else {
-                                                            pageButtons.push(1);
-                                                            if (safeModalPage > 3) pageButtons.push('ellipsis-left');
-                                                            const start = Math.max(2, safeModalPage - 1);
-                                                            const end = Math.min(totalModalPages - 1, safeModalPage + 1);
-                                                            for (let i = start; i <= end; i++) {
-                                                                if (!pageButtons.includes(i)) pageButtons.push(i);
-                                                            }
-                                                            if (safeModalPage < totalModalPages - 2) pageButtons.push('ellipsis-right');
-                                                            if (!pageButtons.includes(totalModalPages)) pageButtons.push(totalModalPages);
-                                                        }
-
-                                                        return pageButtons.map((btn, idx) => {
-                                                            if (btn === 'ellipsis-left' || btn === 'ellipsis-right') {
-                                                                return <span key={`ell-${idx}`} className="px-1 text-gray-400 text-xs font-bold">...</span>;
-                                                            }
-                                                            const isActive = btn === safeModalPage;
-                                                            return (
-                                                                <button
-                                                                    key={btn}
-                                                                    type="button"
-                                                                    onClick={() => setModalPage(btn)}
-                                                                    className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
-                                                                        ? 'bg-[#1e1b4b] text-white shadow-xs'
-                                                                        : 'text-gray-700 bg-white hover:bg-gray-100 border border-gray-300'
-                                                                        }`}
-                                                                >
-                                                                    {btn}
-                                                                </button>
-                                                            );
-                                                        });
-                                                    })()}
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setModalPage(p => Math.min(totalModalPages, p + 1))}
-                                                        disabled={safeModalPage === totalModalPages}
-                                                        className="px-2.5 py-1 border border-gray-300 bg-white rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                                                    >
-                                                        Next
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            <button
-                                                type="button"
-                                                onClick={() => setAttendanceModalData(null)}
-                                                className="px-4 py-1.5 bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-100 text-xs font-bold transition-colors cursor-pointer shadow-2xs ml-1"
-                                            >
-                                                Close
-                                            </button>
-                                        </div>
-                                    </div>
-                                </>
-                            );
-                        })()}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
