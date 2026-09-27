@@ -18,13 +18,14 @@ import {
     LuClipboardPen,
     LuSettings,
     LuUserCog,
-    LuQrCode
+    LuQrCode,
+    LuCalendarPlus
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport, canManageServiceAccounts, isSelfServiceOnly } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canManageManualAttendance, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport, canManageServiceAccounts, isSelfServiceOnly } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -46,10 +47,11 @@ const Sidebar = () => {
     const canAccessAttendance = canAccessAttendancePortal(user.role);
     const canViewAttendanceReportPermission = canViewAttendanceReport(user.role);
     const canManageServiceAccountsPermission = canManageServiceAccounts(user.role);
+    const canManageManualAttendancePermission = canManageManualAttendance(user.role);
     // Show Management section only if the user has at least one item in it
     const hasAnyManagementPermission = canApprove || canManageActiveOnDutyPermission || canManageSchedulePermission || canAccessAttendance;
     // Show Staff section if user has staff management permission or service accounts permission
-    const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission || canManageServiceAccountsPermission;
+    const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission || canManageServiceAccountsPermission || canManageManualAttendancePermission;
     // Show Configurations section if user has any configuration permission
     const hasAnyConfigPermission = canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
@@ -332,6 +334,9 @@ const Sidebar = () => {
                         {canManageOnboardingPermission && (
                             <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
                         )}
+                        {canManageManualAttendancePermission && (
+                            <NavLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Attendance" />
+                        )}
                     </div>
                 )}
 
@@ -391,6 +396,9 @@ const Sidebar = () => {
                         )}
                         {canManageOnboardingPermission && (
                             <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
+                        )}
+                        {canManageManualAttendancePermission && (
+                            <NavLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Attendance" />
                         )}
                         {canManageLeaveTypes(user.role) && (
                             <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />

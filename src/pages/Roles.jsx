@@ -253,6 +253,12 @@ const GLOBAL_GROUPS = [
                 disabledFor: ['manager', 'employee']
             },
             {
+                key: 'can_manage_manual_attendance',
+                title: 'Manual Attendance / Regularization',
+                description: 'Add and regularize missed attendance or work from home logs for employees',
+                icon: LuCalendarCheck
+            },
+            {
                 key: 'can_view_birthdays',
                 title: 'View Staff Birthdays',
                 description: "Displays today's birthdays on dashboard and enables sending birthday greetings",
@@ -331,6 +337,9 @@ const getRolePermissionsList = (role) => {
     }
     if (role.can_manage_onboarding) {
         list.push({ label: 'Onboarding', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' });
+    }
+    if (role.can_manage_manual_attendance) {
+        list.push({ label: 'Manual Attendance', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' });
     }
     if (role.can_view_birthdays) {
         list.push({ label: 'Birthdays', color: 'bg-pink-50 text-pink-700 border-pink-200' });
@@ -536,6 +545,7 @@ const Roles = () => {
         // Global permissions - boolean
         can_manage_leave_types: false,
         can_manage_onboarding: false,
+        can_manage_manual_attendance: false,
         can_view_birthdays: false,
         can_view_anniversaries: false,
         can_access_webapp: false,
@@ -632,6 +642,7 @@ const Roles = () => {
                 // Global permissions
                 can_manage_leave_types: role.can_manage_leave_types,
                 can_manage_onboarding: role.can_manage_onboarding,
+                can_manage_manual_attendance: role.can_manage_manual_attendance || false,
                 can_view_birthdays: role.can_view_birthdays,
                 can_view_anniversaries: role.can_view_anniversaries || false,
                 can_access_webapp: role.can_access_webapp,
@@ -666,6 +677,7 @@ const Roles = () => {
                 // Global permissions
                 can_manage_leave_types: false,
                 can_manage_onboarding: false,
+                can_manage_manual_attendance: false,
                 can_view_birthdays: false,
                 can_view_anniversaries: false,
                 can_access_webapp: false,
@@ -801,6 +813,7 @@ const Roles = () => {
         formData.can_access_webapp,
         formData.can_access_attendance_portal,
         formData.can_manage_onboarding && formData.name !== 'manager' && formData.name !== 'employee',
+        formData.can_manage_manual_attendance,
         formData.can_view_birthdays,
         formData.can_view_anniversaries,
         formData.can_manage_roles,

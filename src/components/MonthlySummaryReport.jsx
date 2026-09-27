@@ -6,6 +6,7 @@ import { getCurrentInAppTimezone, formatDateOnly, formatTimeOnly } from '../util
 import { FiPlusCircle, FiMinusCircle, FiX, FiExternalLink, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { getComplianceHours } from '../utils/attendanceConfig';
 
 const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -83,17 +84,10 @@ const MonthlySummaryReport = () => {
     const years = [];
     for (let y = now.getFullYear(); y >= now.getFullYear() - 5; y--) years.push(y);
 
+    const [apiComplianceHours, setApiComplianceHours] = useState(null);
     const [, setSettingsVersion] = useState(0);
 
-    const complianceHours = (() => {
-        try {
-            const stored = JSON.parse(localStorage.getItem('settings') || '{}');
-            const val = parseFloat(stored.attendance_compliance_hours);
-            return (!isNaN(val) && val > 0) ? val : 8;
-        } catch (e) {
-            return 8;
-        }
-    })();
+    const complianceHours = apiComplianceHours || getComplianceHours();
 
     const getSessionCompliance = (sess, threshold = complianceHours) => {
         // Active session: currently checked in without checkout
@@ -220,6 +214,9 @@ const MonthlySummaryReport = () => {
             });
             setSummary(res.data.summary || []);
             setPeriod(res.data.period || '');
+            if (res.data.compliance_hours) {
+                setApiComplianceHours(parseFloat(res.data.compliance_hours));
+            }
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to fetch monthly summary');
             setSummary([]);
@@ -1014,7 +1011,7 @@ const MonthlySummaryReport = () => {
                     onClick={() => setAttendanceModalData(null)}
                 >
                     <div
-                        className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                        className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-6xl xl:max-w-7xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
@@ -1130,7 +1127,7 @@ const MonthlySummaryReport = () => {
                                 <>
                                     <div className="overflow-y-auto p-4 sm:p-6 flex-1">
                                         {currentModalSessions && currentModalSessions.length > 0 ? (
-                                            <div className="rounded-xl border border-gray-200 overflow-hidden shadow-2xs">
+                                            <div className="rounded-xl border border-gray-200 overflow-x-auto shadow-2xs">
                                                 <table className="min-w-full divide-y divide-gray-100 text-xs">
                                                     <thead className="bg-[#1e1b4b]/5 text-[10px] font-black text-gray-600 uppercase tracking-wider">
                                                         <tr>

@@ -154,6 +154,15 @@ export const canManageOnboarding = (roleId) => {
     return role.can_manage_onboarding == true;
 };
 
+/**
+ * Check if user can manage manual attendance regularization (global permission - boolean)
+ */
+export const canManageManualAttendance = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_manual_attendance == true;
+};
+
 
 /**
  * Check if user can approve leave requests (any level - subordinates or all)
@@ -645,6 +654,7 @@ export default {
     hasAdminPermission,
     canManageLeaveTypes,
     canManageOnboarding,
+    canManageManualAttendance,
     canApproveLeave,
     canApproveOnDuty,
     canApproveTimeOff,

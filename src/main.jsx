@@ -14,6 +14,7 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 });
 
+// WorkPulse Application Entry
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

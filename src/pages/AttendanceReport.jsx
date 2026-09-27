@@ -10,6 +10,7 @@ import { formatDateOnly, formatTimeOnly, formatInTimezone, getCurrentInAppTimezo
 import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet } from 'react-icons/lu';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { getComplianceHours } from '../utils/attendanceConfig';
 
 const AttendanceReport = () => {
     const navigate = useNavigate();
@@ -124,11 +125,32 @@ const AttendanceReport = () => {
     // Delete Confirmation Modal State
     const [deletingLogId, setDeletingLogId] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [apiComplianceHours, setApiComplianceHours] = useState(null);
     const [, setSettingsVersion] = useState(0);
 
     useEffect(() => {
         const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
         window.addEventListener('settingsLoaded', onSettingsLoaded);
+
+        const fetchSettings = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+                const res = await axios.get(`${API_BASE_URL}/api/settings`, {
+                    headers: { 'x-access-token': token }
+                });
+                if (res.data?.map) {
+                    const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
+                    const updated = { ...existingSettings, ...res.data.map };
+                    localStorage.setItem('settings', JSON.stringify(updated));
+                    setSettingsVersion(v => v + 1);
+                }
+            } catch (err) {
+                console.error('Error fetching settings in AttendanceReport:', err);
+            }
+        };
+        fetchSettings();
+
         return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
     }, []);
 
@@ -225,6 +247,9 @@ const AttendanceReport = () => {
             setLogs(response.data.reports || []);
             setTotalItems(response.data.totalItems || 0);
             setTotalPages(response.data.totalPages || 1);
+            if (response.data.compliance_hours) {
+                setApiComplianceHours(parseFloat(response.data.compliance_hours));
+            }
         } catch (err) {
             console.error('Error fetching attendance logs:', err);
             setError(err.response?.data?.message || err.message || 'Failed to retrieve attendance logs.');
@@ -306,15 +331,7 @@ const AttendanceReport = () => {
         return `${hours}h ${mins}m / day`;
     };
 
-    const complianceHours = (() => {
-        try {
-            const stored = JSON.parse(localStorage.getItem('settings') || '{}');
-            const val = parseFloat(stored.attendance_compliance_hours);
-            return (!isNaN(val) && val > 0) ? val : 8;
-        } catch (e) {
-            return 8;
-        }
-    })();
+    const complianceHours = apiComplianceHours || getComplianceHours();
 
     const getAttendanceCompliance = (checkInStr, checkOutStr, threshold = complianceHours) => {
         if (!checkInStr) {
@@ -921,7 +938,7 @@ const AttendanceReport = () => {
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-In</th>
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-Out</th>
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</th>
-                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Compliance</th>
+                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Compliance ({complianceHours}h)</th>
                                     {canManage && <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>}
                                 </tr>
                             </thead>
@@ -1287,11 +1304,11 @@ const AttendanceReport = () => {
                             <div className="hidden sm:flex items-center gap-2 ml-3 pl-3 border-l border-slate-200">
                                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                    {complianceSummary.compliantCount} Compliant
+                                    {complianceSummary.compliantCount} Compliant ({complianceHours}h+)
                                 </span>
                                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
                                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                                    {complianceSummary.nonCompliantCount} Non-Compliant
+                                    {complianceSummary.nonCompliantCount} Non-Compliant (&lt;{complianceHours}h)
                                 </span>
                                 {complianceSummary.inProgressCount > 0 && (
                                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">

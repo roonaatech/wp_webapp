@@ -34,6 +34,7 @@ import FirstTimeLoginFlow from './pages/FirstTimeLoginFlow';
 import CandidateOnboardingFlow from './pages/CandidateOnboardingFlow';
 import Attendance from './pages/Attendance';
 import AttendanceReport from './pages/AttendanceReport';
+import ManualAttendance from './pages/ManualAttendance';
 import ForgotPassword from './pages/ForgotPassword';
 import MyBadge from './pages/MyBadge';
 import { PageHeaderProvider } from './context/PageHeaderContext';
@@ -91,7 +92,14 @@ const GlobalInit = ({ children }) => {
         headers: { 'x-access-token': token }
       });
       if (response.data && response.data.map) {
-        localStorage.setItem('settings', JSON.stringify(response.data.map));
+        const map = { ...response.data.map };
+        if (!map.attendance_compliance_hours && map.office_start_time && map.office_end_time) {
+          const [sh, sm] = map.office_start_time.split(':').map(Number);
+          const [eh, em] = map.office_end_time.split(':').map(Number);
+          const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+          if (diff > 0) map.attendance_compliance_hours = String(Math.round((diff / 60) * 100) / 100);
+        }
+        localStorage.setItem('settings', JSON.stringify(map));
         // Dispatch event to notify components that settings are loaded
         window.dispatchEvent(new Event('settingsLoaded'));
       }
@@ -229,6 +237,7 @@ function App() {
             <Route path="/calendar" element={<ProtectedLayout><Calendar /></ProtectedLayout>} />
             <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
             <Route path="/attendance-report" element={<ProtectedLayout><AttendanceReport /></ProtectedLayout>} />
+            <Route path="/manual-attendance" element={<ProtectedLayout><ManualAttendance /></ProtectedLayout>} />
             <Route path="/activities" element={<ProtectedLayout><Activities /></ProtectedLayout>} />
             <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
             <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />

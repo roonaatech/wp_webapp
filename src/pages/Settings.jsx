@@ -8,6 +8,7 @@ import ModernLoader from '../components/ModernLoader';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { fetchRoles, getRoleById, canManageSystemSettings } from '../utils/roleUtils';
 import { TIMEZONE_OPTIONS } from '../utils/timezone.util';
+import { getAttendanceConfig } from '../utils/attendanceConfig';
 
 // Helper to parse "minute hour * * *" into { hour12, minute, ampm }
 const parseCronToTime = (cronStr) => {
@@ -41,6 +42,17 @@ const formatTimeToCron = (hour12, minute, ampm) => {
     return `${parseInt(minute, 10)} ${hour24} * * *`;
 };
 
+// Helper to calculate hours between two time strings "HH:mm"
+const calculateHoursBetween = (startTime, endTime) => {
+    if (!startTime || !endTime) return 0;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const startMin = sh * 60 + (sm || 0);
+    const endMin = eh * 60 + (em || 0);
+    const diff = endMin - startMin;
+    return diff > 0 ? Math.round((diff / 60) * 100) / 100 : 0;
+};
+
 export default function Settings() {
     const navigate = useNavigate();
     const [permissionChecked, setPermissionChecked] = useState(false);
@@ -70,7 +82,9 @@ export default function Settings() {
         google_maps_api_key: '',
         session_timeout: '168',
         inactivity_timeout: '5',
-        attendance_compliance_hours: '8'
+        attendance_compliance_hours: String(getAttendanceConfig().complianceHours),
+        office_start_time: getAttendanceConfig().startTime,
+        office_end_time: getAttendanceConfig().endTime
     });
 
     // Define settings configuration for easy expansion
@@ -167,15 +181,10 @@ export default function Settings() {
             icon: <FiCheckCircle className="text-emerald-600" />,
             settings: [
                 {
-                    key: 'attendance_compliance_hours',
-                    label: 'Daily Office Hours for Compliance',
-                    description: 'Minimum required hours an employee must be in office per day. Employees with hours below this threshold will be marked as Non-Compliant, while those meeting or exceeding it will be marked as Compliant.',
-                    type: 'number',
-                    min: 1,
-                    max: 24,
-                    step: 0.5,
-                    unit: 'hours',
-                    placeholder: '8'
+                    key: 'office_hours',
+                    label: 'Office Hours',
+                    description: 'Set the office start and end times. Daily compliance hours are auto-calculated from the difference. Employees with logged hours below this threshold will be marked Non-Compliant.',
+                    type: 'office-hours'
                 }
             ]
         },
@@ -373,13 +382,17 @@ export default function Settings() {
                 headers: { 'x-access-token': token }
             });
             if (response.data && response.data.map) {
+                const map = { ...response.data.map };
+                if (map.office_start_time && map.office_end_time) {
+                    map.attendance_compliance_hours = String(calculateHoursBetween(map.office_start_time, map.office_end_time));
+                }
                 setSettings(prev => ({
                     ...prev,
-                    ...response.data.map
+                    ...map
                 }));
                 // Sync all settings into localStorage
                 const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
-                const updated = { ...existingSettings, ...response.data.map };
+                const updated = { ...existingSettings, ...map };
                 localStorage.setItem('settings', JSON.stringify(updated));
                 window.dispatchEvent(new Event('settingsLoaded'));
             }
@@ -440,6 +453,47 @@ export default function Settings() {
         setSavingKey(key);
         try {
             const token = localStorage.getItem('token');
+
+            // For office-hours, save all three settings (start, end, compliance hours)
+            if (key === 'office_hours') {
+                const startTime = settings.office_start_time || '09:30';
+                const endTime = settings.office_end_time || '18:30';
+                const hours = calculateHoursBetween(startTime, endTime);
+
+                if (hours <= 0) {
+                    toast.error('End time must be after start time.');
+                    setSavingKey(null);
+                    return;
+                }
+                if (hours < 1) {
+                    toast.error('Office hours must be at least 1 hour.');
+                    setSavingKey(null);
+                    return;
+                }
+
+                // Save all three settings
+                await Promise.all([
+                    axios.post(`${API_BASE_URL}/api/settings`, { key: 'office_start_time', value: startTime, is_public: true, category: 'attendance' }, { headers: { 'x-access-token': token } }),
+                    axios.post(`${API_BASE_URL}/api/settings`, { key: 'office_end_time', value: endTime, is_public: true, category: 'attendance' }, { headers: { 'x-access-token': token } }),
+                    axios.post(`${API_BASE_URL}/api/settings`, { key: 'attendance_compliance_hours', value: String(hours), is_public: true, category: 'attendance' }, { headers: { 'x-access-token': token } })
+                ]);
+
+                // Update localStorage
+                const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
+                existingSettings.office_start_time = startTime;
+                existingSettings.office_end_time = endTime;
+                existingSettings.attendance_compliance_hours = String(hours);
+                localStorage.setItem('settings', JSON.stringify(existingSettings));
+                window.dispatchEvent(new Event('settingsLoaded'));
+
+                // Update local state
+                setSettings(prev => ({ ...prev, attendance_compliance_hours: String(hours) }));
+
+                toast.success('Office hours saved successfully');
+                setSavingKey(null);
+                return;
+            }
+
             await axios.post(`${API_BASE_URL}/api/settings`, {
                 key: key,
                 value: value
@@ -600,7 +654,48 @@ export default function Settings() {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className={`flex items-center gap-2 ${setting.type === 'multiselect' ? 'max-w-md' : 'max-w-xs'}`}>
-                                                        {setting.type === 'multiselect' ? (
+                                                        {setting.type === 'office-hours' ? (
+                                                            <div className="flex-1 space-y-3">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="flex-1">
+                                                                        <label className="block text-[11px] font-semibold text-gray-500 mb-1 uppercase tracking-wider">Start Time</label>
+                                                                        <input
+                                                                            type="time"
+                                                                            value={settings.office_start_time || '09:30'}
+                                                                            onChange={(e) => handleSettingChange('office_start_time', e.target.value)}
+                                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm font-medium"
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-gray-400 font-bold mt-5">→</span>
+                                                                    <div className="flex-1">
+                                                                        <label className="block text-[11px] font-semibold text-gray-500 mb-1 uppercase tracking-wider">End Time</label>
+                                                                        <input
+                                                                            type="time"
+                                                                            value={settings.office_end_time || '18:30'}
+                                                                            onChange={(e) => handleSettingChange('office_end_time', e.target.value)}
+                                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm font-medium"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                {(() => {
+                                                                    const hrs = calculateHoursBetween(
+                                                                        settings.office_start_time || '09:30',
+                                                                        settings.office_end_time || '18:30'
+                                                                    );
+                                                                    return (
+                                                                        <div className={`text-xs font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1.5 ${
+                                                                            hrs > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+                                                                        }`}>
+                                                                            <FiClock size={12} />
+                                                                            {hrs > 0
+                                                                                ? `Daily Compliance: ${hrs} hour${hrs !== 1 ? 's' : ''}`
+                                                                                : 'End time must be after start time'
+                                                                            }
+                                                                        </div>
+                                                                    );
+                                                                })()}
+                                                            </div>
+                                                        ) : setting.type === 'multiselect' ? (
                                                             <div className="flex-1">
                                                                 <MultiSelectDropdown
                                                                     options={roleOptions}

@@ -44,6 +44,12 @@ const getPageHeaderInfo = (pathname, user) => {
                     : 'Manage your team members and their leave balances'
         };
     }
+    if (path.startsWith('/manual-attendance')) {
+        return {
+            title: 'Manual Attendance',
+            subtitle: 'Add and regularize missed employee attendance or work from home logs'
+        };
+    }
     if (path.startsWith('/attendance-report')) {
         return {
             title: 'Attendance Review',
