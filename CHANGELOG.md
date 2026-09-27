@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.14.3](https://github.com/roonaatech/wp_webapp/compare/v2.14.2...v2.14.3) (2026-09-27)
+
+
+### Code Refactoring
+
+* replace emoji icons with Lucide React icon components across components and pages ([1ff5681](https://github.com/roonaatech/wp_webapp/commit/1ff5681ef862531fef202b2247734c2174007715))
+
 ### [2.14.2](https://github.com/roonaatech/wp_webapp/compare/v2.14.1...v2.14.2) (2026-09-27)
 
 
