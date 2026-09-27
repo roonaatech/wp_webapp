@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.14.2](https://github.com/roonaatech/wp_webapp/compare/v2.14.1...v2.14.2) (2026-09-27)
+
+
+### Code Refactoring
+
+* replace attendance sessions modal with a paginated sub-tab in MonthlySummaryReport ([cf5cf11](https://github.com/roonaatech/wp_webapp/commit/cf5cf11456f8f108c871dedcb37c2f3f5c942239))
+
 ### [2.14.1](https://github.com/roonaatech/wp_webapp/compare/v2.14.0...v2.14.1) (2026-09-27)
 
 ## [2.14.0](https://github.com/roonaatech/wp_webapp/compare/v2.13.5...v2.14.0) (2026-09-27)
