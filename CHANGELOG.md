@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.14.0](https://github.com/roonaatech/wp_webapp/compare/v2.13.5...v2.14.0) (2026-09-27)
+
+
+### Bug Fixes
+
+* **timezone:** safeguard mirrorToTimezone against hour 24 roll-forward at midnight ([2ee7f8c](https://github.com/roonaatech/wp_webapp/commit/2ee7f8c5c390f85c4042833d6b14988510eafb49))
+
+
+### Code Refactoring
+
+* streamline leave status and UI components across attendance views ([44dd65c](https://github.com/roonaatech/wp_webapp/commit/44dd65c4bdcfdf23624c65d6322421dcfbaa304a))
+
 ### [2.13.5](https://github.com/roonaatech/wp_webapp/compare/v2.13.4...v2.13.5) (2026-09-27)
 
 
