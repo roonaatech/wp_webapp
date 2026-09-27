@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.13.3](https://github.com/roonaatech/wp_webapp/compare/v2.13.2...v2.13.3) (2026-09-27)
+
+
+### Code Refactoring
+
+* prioritize office start and end times for compliance hours calculation and update default fallback to 9 hours ([0e41c59](https://github.com/roonaatech/wp_webapp/commit/0e41c59cdddb10ca0192106d50c99f933f2bd2ed))
+
 ### [2.13.2](https://github.com/roonaatech/wp_webapp/compare/v2.13.1...v2.13.2) (2026-09-27)
 
 
