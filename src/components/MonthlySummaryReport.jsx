@@ -23,6 +23,7 @@ const MonthlySummaryReport = () => {
     const [error, setError] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: 'firstname', direction: 'asc' });
     const [expandedRows, setExpandedRows] = useState({});
+    const [expandedTab, setExpandedTab] = useState({});
     const [attendanceModalData, setAttendanceModalData] = useState(null);
     const [modalPage, setModalPage] = useState(1);
     const [modalLimit, setModalLimit] = useState(10);
@@ -54,10 +55,10 @@ const MonthlySummaryReport = () => {
         }));
     };
 
-    const toggleInnerRow = (key) => {
-        setExpandedInnerRows(prev => ({
+    const setTab = (staffId, tab) => {
+        setExpandedTab(prev => ({
             ...prev,
-            [key]: !prev[key]
+            [staffId]: tab
         }));
     };
 
@@ -85,6 +86,8 @@ const MonthlySummaryReport = () => {
     for (let y = now.getFullYear(); y >= now.getFullYear() - 5; y--) years.push(y);
 
     const [apiComplianceHours, setApiComplianceHours] = useState(null);
+    const [apiAllowedLeave, setApiAllowedLeave] = useState(null);
+    const [apiAllowedTimeOff, setApiAllowedTimeOff] = useState(null);
     const [, setSettingsVersion] = useState(0);
 
     const complianceHours = apiComplianceHours || getComplianceHours();
@@ -217,6 +220,12 @@ const MonthlySummaryReport = () => {
             if (res.data.compliance_hours) {
                 setApiComplianceHours(parseFloat(res.data.compliance_hours));
             }
+            if (res.data.allowed_leave_per_month !== undefined) {
+                setApiAllowedLeave(parseFloat(res.data.allowed_leave_per_month));
+            }
+            if (res.data.allowed_time_off_per_month !== undefined) {
+                setApiAllowedTimeOff(parseFloat(res.data.allowed_time_off_per_month));
+            }
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to fetch monthly summary');
             setSummary([]);
@@ -266,10 +275,11 @@ const MonthlySummaryReport = () => {
     const totals = summary.reduce((acc, s) => ({
         present_days: acc.present_days + (s.present_days || 0),
         work_minutes: acc.work_minutes + (s.work_minutes || 0),
-        leave_days: acc.leave_days + (s.leave_days || 0),
+        leave_days: Math.round((acc.leave_days + (s.leave_days || 0)) * 10) / 10,
         timeoff_minutes: acc.timeoff_minutes + (s.timeoff_minutes || 0),
-        onduty_minutes: acc.onduty_minutes + (s.onduty_minutes || 0)
-    }), { present_days: 0, work_minutes: 0, leave_days: 0, timeoff_minutes: 0, onduty_minutes: 0 });
+        onduty_minutes: acc.onduty_minutes + (s.onduty_minutes || 0),
+        compliant_days: Math.round((acc.compliant_days + (s.compliant_days || 0)) * 10) / 10
+    }), { present_days: 0, work_minutes: 0, leave_days: 0, timeoff_minutes: 0, onduty_minutes: 0, compliant_days: 0 });
 
     const exportExcel = async () => {
         if (summary.length === 0) return;
@@ -307,12 +317,10 @@ const MonthlySummaryReport = () => {
                 { header: 'Employee Name', key: 'name', width: 25 },
                 { header: 'Email', key: 'email', width: 30 },
                 { header: 'Present Days', key: 'present', width: 15 },
-                { header: 'Compliant Days', key: 'compliant_days', width: 16 },
-                { header: 'Non-Compliant Days', key: 'non_compliant_days', width: 18 },
-                { header: 'Work Hours', key: 'work_hours', width: 15 },
                 { header: 'Leave Days', key: 'leave', width: 15 },
                 { header: 'Time-Off', key: 'timeoff', width: 15 },
-                { header: 'On-Duty', key: 'onduty', width: 15 }
+                { header: 'On-Duty', key: 'onduty', width: 15 },
+                { header: 'Compliant Days (Salary Days)', key: 'compliant_days', width: 26 }
             ];
 
             summarySheet.getRow(1).eachCell((cell) => {
@@ -351,27 +359,22 @@ const MonthlySummaryReport = () => {
             const dataToExport = sortedSummary.length > 0 ? sortedSummary : summary;
 
             let totalCompliantDays = 0;
-            let totalNonCompliantDays = 0;
 
             dataToExport.forEach((s) => {
                 const fullName = `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Employee';
                 s.sheetName = getUniqueSheetName(fullName, s.staff_id);
 
-                const attSessions = s.attendance_records || (s.records?.find(r => r.type === 'Attendance')?.sessions) || [];
-                const compCounts = getModalComplianceDayCounts(attSessions, complianceHours);
-                totalCompliantDays += compCounts.compliantDays;
-                totalNonCompliantDays += compCounts.nonCompliantDays;
+                const compDays = s.compliant_days !== undefined ? s.compliant_days : 0;
+                totalCompliantDays = Math.round((totalCompliantDays + compDays) * 10) / 10;
 
                 const row = summarySheet.addRow({
                     name: fullName,
                     email: s.email,
                     present: s.present_days || 0,
-                    compliant_days: compCounts.compliantDays,
-                    non_compliant_days: compCounts.nonCompliantDays,
-                    work_hours: formatHours(s.work_hours, s.work_minutes),
-                    leave: s.leave_days,
+                    leave: s.leave_days || 0,
                     timeoff: formatHours(s.timeoff_hours, s.timeoff_minutes),
-                    onduty: formatHours(s.onduty_hours, s.onduty_minutes)
+                    onduty: formatHours(s.onduty_hours, s.onduty_minutes),
+                    compliant_days: compDays
                 });
 
                 const nameCell = row.getCell(1);
@@ -387,14 +390,11 @@ const MonthlySummaryReport = () => {
 
                 row.eachCell((cell, colNumber) => {
                     cell.border = borderStyle;
-                    if ([3, 4, 5, 6, 7, 8, 9].includes(colNumber)) {
+                    if ([3, 4, 5, 6, 7].includes(colNumber)) {
                         cell.alignment = { vertical: 'middle', horizontal: 'center' };
                     }
-                    if (colNumber === 4 && compCounts.compliantDays > 0) {
+                    if (colNumber === 7 && compDays > 0) {
                         cell.font = { color: { argb: 'FF15803D' }, bold: true };
-                    }
-                    if (colNumber === 5 && compCounts.nonCompliantDays > 0) {
-                        cell.font = { color: { argb: 'FFBE123C' }, bold: true };
                     }
                 });
             });
@@ -403,22 +403,19 @@ const MonthlySummaryReport = () => {
                 name: 'TOTAL',
                 email: '',
                 present: totals.present_days,
-                compliant_days: totalCompliantDays,
-                non_compliant_days: totalNonCompliantDays,
-                work_hours: formatHours(0, totals.work_minutes),
                 leave: totals.leave_days,
                 timeoff: formatHours(0, totals.timeoff_minutes),
-                onduty: formatHours(0, totals.onduty_minutes)
+                onduty: formatHours(0, totals.onduty_minutes),
+                compliant_days: totals.compliant_days
             });
             totalRow.font = { bold: true };
             totalRow.eachCell((cell, colNumber) => {
                 cell.border = borderStyle;
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-                if ([3, 4, 5, 6, 7, 8, 9].includes(colNumber)) {
+                if ([3, 4, 5, 6, 7].includes(colNumber)) {
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 }
-                if (colNumber === 4) cell.font = { bold: true, color: { argb: 'FF15803D' } };
-                if (colNumber === 5) cell.font = { bold: true, color: { argb: 'FFBE123C' } };
+                if (colNumber === 7) cell.font = { bold: true, color: { argb: 'FF15803D' } };
             });
 
             // 2. Create Individual Sheets
@@ -437,32 +434,106 @@ const MonthlySummaryReport = () => {
                 backCell.font = { color: { argb: 'FF0563C1' }, underline: true, bold: true };
                 backCell.alignment = { vertical: 'middle', horizontal: 'left' };
 
-                sheet.mergeCells('A3:B3');
+                sheet.mergeCells('A3:C3');
                 sheet.getCell('A3').value = `Employee: ${s.firstname} ${s.lastname}`;
                 sheet.getCell('A3').font = { bold: true, size: 12, color: { argb: 'FF1E1B4B' } };
 
-                sheet.mergeCells('C3:D3');
-                sheet.getCell('C3').value = `Email: ${s.email}`;
-                sheet.getCell('C3').font = { color: { argb: 'FF4B5563' } };
+                sheet.mergeCells('D3:G3');
+                sheet.getCell('D3').value = `Email: ${s.email}`;
+                sheet.getCell('D3').font = { color: { argb: 'FF4B5563' } };
+
+                // Salary Consideration Executive Summary Banner
+                sheet.mergeCells('A4:I4');
+                const salBanner = sheet.getCell('A4');
+                const allowedLv = s.quota_summary?.allowed_leave_days ?? (apiAllowedLeave || 1);
+                const allowedTo = (s.quota_summary?.allowed_timeoff_minutes ?? ((apiAllowedTimeOff || 2) * 60)) / 60;
+                salBanner.value = `SALARY CONSIDERATION: ${s.compliant_days || 0} COMPLIANT DAYS (SALARY PAYABLE) | ${s.non_compliant_days || 0} NON-COMPLIANT DAYS | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed | Target: ${complianceHours}h/day`;
+                salBanner.font = { bold: true, color: { argb: 'FF065F46' }, size: 10 };
+                salBanner.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                salBanner.border = borderStyle;
+
+                sheet.columns = [
+                    { key: 'c1', width: 6 },
+                    { key: 'c2', width: 22 },
+                    { key: 'c3', width: 14 },
+                    { key: 'c4', width: 16 },
+                    { key: 'c5', width: 16 },
+                    { key: 'c6', width: 16 },
+                    { key: 'c7', width: 18 },
+                    { key: 'c8', width: 22 },
+                    { key: 'c9', width: 48 }
+                ];
+
+                let curRowIdx = 6;
+
+                // 1. Daily Salary & Compliance Breakdown Section
+                const dailyList = s.daily_breakdown || [];
+                if (dailyList.length > 0) {
+                    sheet.mergeCells(`A${curRowIdx}:I${curRowIdx}`);
+                    const secTitle = sheet.getCell(`A${curRowIdx}`);
+                    secTitle.value = `DAILY SALARY & COMPLIANCE BREAKDOWN (${s.compliant_days || 0} Days for Salary Processing)`;
+                    secTitle.font = { bold: true, color: { argb: 'FF1E1B4B' }, size: 10 };
+                    secTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
+                    secTitle.border = borderStyle;
+                    curRowIdx++;
+
+                    const dHeaders = ['#', 'Date', 'Type', 'Attendance Time', 'On-Duty Time', 'Time-Off (Req)', 'Time-Off (Credit)', 'Effective Work Time', 'Salary Status & Remarks'];
+                    const dRow = sheet.getRow(curRowIdx);
+                    dRow.values = dHeaders;
+                    dRow.eachCell(cell => {
+                        cell.fill = headerFill;
+                        cell.font = headerFont;
+                        cell.border = borderStyle;
+                        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    });
+                    curRowIdx++;
+
+                    dailyList.forEach((day, idx) => {
+                        const row = sheet.getRow(curRowIdx);
+                        const statusText = day.is_compliant 
+                            ? 'Compliant (1 Day)' 
+                            : (day.compliant_day_value > 0 ? `Partial (${day.compliant_day_value} Day)` : 'Non-Compliant (0 Days)');
+                        const fullRemark = `[${statusText}] ${day.remarks || ''}`;
+
+                        row.values = [
+                            idx + 1,
+                            formatDateWithWeekday(day.date),
+                            day.type,
+                            day.attendance_minutes > 0 ? formatHours(0, day.attendance_minutes) : '—',
+                            day.onduty_minutes > 0 ? formatHours(0, day.onduty_minutes) : '—',
+                            day.timeoff_requested_minutes > 0 ? formatHours(0, day.timeoff_requested_minutes) : '—',
+                            day.timeoff_credited_minutes > 0 ? formatHours(0, day.timeoff_credited_minutes) : '—',
+                            day.type === 'Leave' ? '—' : formatHours(0, day.effective_work_minutes),
+                            fullRemark
+                        ];
+
+                        row.eachCell((cell, colNumber) => {
+                            cell.border = borderStyle;
+                            cell.alignment = { vertical: 'middle', wrapText: true };
+                            if ([1, 2, 3, 4, 5, 6, 7, 8].includes(colNumber)) {
+                                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                            }
+                        });
+
+                        const statusCell = row.getCell(9);
+                        if (day.is_compliant) {
+                            statusCell.font = { color: { argb: 'FF15803D' }, bold: true };
+                        } else if (day.compliant_day_value > 0) {
+                            statusCell.font = { color: { argb: 'FFB45309' }, bold: true };
+                        } else {
+                            statusCell.font = { color: { argb: 'FFBE123C' } };
+                        }
+
+                        curRowIdx++;
+                    });
+
+                    curRowIdx++; // empty line spacing
+                }
 
                 const attSessions = s.attendance_records || (s.records?.find(r => r.type === 'Attendance')?.sessions) || [];
                 const otherRecords = (s.records || []).filter(r => r.type !== 'Attendance');
 
-                sheet.columns = [
-                    { key: 'c1', width: 6 },
-                    { key: 'c2', width: 24 },
-                    { key: 'c3', width: 14 },
-                    { key: 'c4', width: 14 },
-                    { key: 'c5', width: 16 },
-                    { key: 'c6', width: 16 },
-                    { key: 'c7', width: 30 },
-                    { key: 'c8', width: 18 },
-                    { key: 'c9', width: 14 }
-                ];
-
-                let curRowIdx = 5;
-
-                // 1. Attendance Sessions Section
+                // 2. Attendance Sessions Section
                 if (attSessions.length > 0) {
                     sheet.mergeCells(`A${curRowIdx}:I${curRowIdx}`);
                     const attTitle = sheet.getCell(`A${curRowIdx}`);
@@ -558,7 +629,7 @@ const MonthlySummaryReport = () => {
                         const typeCell = row.getCell(1);
                         typeCell.font = { bold: true };
                         if (rec.type === 'Leave') typeCell.font.color = { argb: 'FFEA580C' };
-                        else if (rec.type === 'Time-Off') typeCell.font.color = { argb: 'FF0F766E' };
+                        else if (rec.type === 'Time-Off') typeCell.font.color = { argb: 'FF7E22CE' };
                         else if (rec.type === 'On-Duty') typeCell.font.color = { argb: 'FF0284C7' };
                         curRowIdx++;
                     });
@@ -646,12 +717,12 @@ const MonthlySummaryReport = () => {
                         <div className="hidden xl:block h-4 w-px bg-gray-200" />
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Present Days:</span>
-                            <span className="text-base font-black text-emerald-600">{totals.present_days}</span>
+                            <span className="text-base font-black text-blue-600">{totals.present_days}</span>
                         </div>
                         <div className="hidden xl:block h-4 w-px bg-gray-200" />
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Work Hours:</span>
-                            <span className="text-base font-black text-indigo-600">{formatHours(0, totals.work_minutes)}</span>
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salary Processed Days:</span>
+                            <span className="text-base font-black text-emerald-700">{totals.compliant_days} {totals.compliant_days === 1 ? 'day' : 'days'}</span>
                         </div>
                         <div className="hidden xl:block h-4 w-px bg-gray-200" />
                         <div className="flex items-center gap-2">
@@ -661,7 +732,7 @@ const MonthlySummaryReport = () => {
                         <div className="hidden xl:block h-4 w-px bg-gray-200" />
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Approved Time-Off:</span>
-                            <span className="text-base font-black text-teal-600">{formatHours(0, totals.timeoff_minutes)}</span>
+                            <span className="text-base font-black text-purple-600">{formatHours(0, totals.timeoff_minutes)}</span>
                         </div>
                         <div className="hidden xl:block h-4 w-px bg-gray-200" />
                         <div className="flex items-center gap-2">
@@ -702,9 +773,6 @@ const MonthlySummaryReport = () => {
                                         <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('present_days')}>
                                             <span className="text-xs font-black text-white uppercase tracking-widest">Present Days<SortIcon col="present_days" /></span>
                                         </th>
-                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('work_minutes')}>
-                                            <span className="text-xs font-black text-white uppercase tracking-widest">Work Hours<SortIcon col="work_minutes" /></span>
-                                        </th>
                                         <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('leave_days')}>
                                             <span className="text-xs font-black text-white uppercase tracking-widest">Leave Days<SortIcon col="leave_days" /></span>
                                         </th>
@@ -713,6 +781,9 @@ const MonthlySummaryReport = () => {
                                         </th>
                                         <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('onduty_minutes')}>
                                             <span className="text-xs font-black text-white uppercase tracking-widest">On-Duty<SortIcon col="onduty_minutes" /></span>
+                                        </th>
+                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('compliant_days')} title="Days considered for salary processing">
+                                            <span className="text-xs font-black text-white uppercase tracking-widest">Compliant Days<SortIcon col="compliant_days" /></span>
                                         </th>
                                     </tr>
                                 </thead>
@@ -732,15 +803,8 @@ const MonthlySummaryReport = () => {
                                                 <td className="px-4 py-3 text-sm text-gray-500">{s.email}</td>
                                                 <td className="px-4 py-3 text-center">
                                                     {s.present_days > 0 ? (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-blue-50 text-blue-700 border border-blue-200">
                                                             {s.present_days} {s.present_days === 1 ? 'day' : 'days'}
-                                                        </span>
-                                                    ) : <span className="text-gray-300 text-xs">—</span>}
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    {s.work_minutes > 0 ? (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-600 border border-indigo-100">
-                                                            {formatHours(s.work_hours, s.work_minutes)}
                                                         </span>
                                                     ) : <span className="text-gray-300 text-xs">—</span>}
                                                 </td>
@@ -753,7 +817,7 @@ const MonthlySummaryReport = () => {
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
                                                     {s.timeoff_minutes > 0 ? (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-teal-50 text-teal-600 border border-teal-100">
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-purple-50 text-purple-700 border border-purple-200">
                                                             {formatHours(s.timeoff_hours, s.timeoff_minutes)}
                                                         </span>
                                                     ) : <span className="text-gray-300 text-xs">—</span>}
@@ -765,132 +829,368 @@ const MonthlySummaryReport = () => {
                                                         </span>
                                                     ) : <span className="text-gray-300 text-xs">—</span>}
                                                 </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {s.compliant_days > 0 ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs" title="Days considered for salary processing">
+                                                            {s.compliant_days} {s.compliant_days === 1 ? 'day' : 'days'}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-600 border border-rose-200">
+                                                            0 days
+                                                        </span>
+                                                    )}
+                                                </td>
                                             </tr>
-                                            {expandedRows[s.staff_id] && s.records && s.records.length > 0 && (
+                                            {expandedRows[s.staff_id] && (
                                                 <tr>
-                                                    <td colSpan={9} className="px-8 py-3 bg-[#f8fafc] border-b border-gray-100">
-                                                        <div className="rounded-xl overflow-hidden shadow-sm border border-gray-200 bg-white inline-block w-full">
-                                                            <table className="min-w-full divide-y divide-gray-100">
-                                                                <thead className="bg-[#1e1b4b]/5">
-                                                                    <tr>
-                                                                        <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/6">Type</th>
-                                                                        <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/4">Date</th>
-                                                                        <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/4">Duration</th>
-                                                                        <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Details</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody className="divide-y divide-gray-50">
-                                                                    {s.records.map((rec, rIdx) => {
-                                                                        if (rec.type === 'Attendance') {
-                                                                            const sessions = rec.sessions || s.attendance_records || [];
-                                                                            const presentDaysCount = rec.present_days !== undefined ? rec.present_days : s.present_days;
-                                                                            const dateRangeStr = rec.start_date && rec.end_date
-                                                                                ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
-                                                                                : formatDateOnly(rec.date);
+                                                    <td colSpan={9} className="px-6 py-4 bg-[#f8fafc] border-b border-gray-100">
+                                                        <div className="space-y-4">
+                                                            {/* Executive Salary & Quota Summary Cards */}
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                                                <div className="bg-white rounded-xl p-3.5 border border-emerald-200 shadow-2xs flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-lg shrink-0">
+                                                                        💰
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Salary Consideration</div>
+                                                                        <div className="text-base font-black text-emerald-700">
+                                                                            {s.compliant_days ?? 0} {s.compliant_days === 1 ? 'Day' : 'Days'}
+                                                                        </div>
+                                                                        <div className="text-[10px] text-gray-500 font-medium">
+                                                                            {s.non_compliant_days ?? 0} Non-Compliant {s.non_compliant_days === 1 ? 'day' : 'days'}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
 
-                                                                            const openModal = () => {
-                                                                                setAttendanceModalData({
-                                                                                    employeeName: `${s.firstname || ''} ${s.lastname || ''}`.trim(),
-                                                                                    email: s.email,
-                                                                                    dateRange: dateRangeStr,
-                                                                                    totalDuration: rec.duration,
-                                                                                    presentDaysCount,
-                                                                                    sessions
-                                                                                });
-                                                                            };
+                                                                <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center font-black text-lg shrink-0">
+                                                                        🏖️
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Monthly Leave Quota</div>
+                                                                        <div className="text-sm font-bold text-gray-900">
+                                                                            {s.quota_summary?.credited_leave_days ?? s.leave_days} paid • {Math.max(0, (s.quota_summary?.used_leave_days || s.leave_days || 0) - (s.quota_summary?.credited_leave_days || 0))} unpaid
+                                                                        </div>
+                                                                        <div className="text-[10px] text-gray-500 font-medium">
+                                                                            {s.quota_summary?.allowed_leave_days ?? (apiAllowedLeave || 1)} {(s.quota_summary?.allowed_leave_days ?? 1) === 1 ? 'day' : 'days'} allowed
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
 
-                                                                            return (
-                                                                                <tr
-                                                                                    key={`att-${rIdx}`}
-                                                                                    onClick={openModal}
-                                                                                    className="hover:bg-emerald-50/50 cursor-pointer transition-colors group"
-                                                                                    title="Click to view daily attendance sessions in popup"
-                                                                                >
-                                                                                    <td className="px-4 py-2.5 align-middle">
-                                                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200">
-                                                                                            Attendance
-                                                                                            <span className="px-1.5 py-0.2 rounded-full bg-emerald-200/90 text-emerald-950 text-[10px] font-black">
-                                                                                                {presentDaysCount} {presentDaysCount === 1 ? 'day' : 'days'}
-                                                                                            </span>
-                                                                                        </span>
-                                                                                    </td>
-                                                                                    <td className="px-4 py-2.5 text-xs text-gray-700 font-semibold align-middle">
-                                                                                        {dateRangeStr}
-                                                                                    </td>
-                                                                                    <td className="px-4 py-2.5 text-xs text-emerald-800 font-black align-middle">
-                                                                                        <div>{rec.duration}</div>
-                                                                                        {presentDaysCount > 1 && (
-                                                                                            <div className="text-[10px] text-gray-400 font-medium">
-                                                                                                Avg: {getModalAverageDuration(sessions, presentDaysCount)} / day
-                                                                                            </div>
-                                                                                        )}
-                                                                                    </td>
-                                                                                    <td className="px-4 py-2.5 text-xs text-gray-600 align-middle">
-                                                                                        <div className="flex items-center justify-between gap-2">
-                                                                                            <div className="flex flex-wrap items-center gap-2">
-                                                                                                <span className="text-gray-600 font-medium">
-                                                                                                    {sessions.length} session(s) logged
-                                                                                                </span>
-                                                                                                {(() => {
-                                                                                                    const { compliantDays, nonCompliantDays } = getModalComplianceDayCounts(sessions, complianceHours);
-                                                                                                    return (
-                                                                                                        <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px]">
-                                                                                                            <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                                                                                                                {compliantDays} Compliant
-                                                                                                            </span>
-                                                                                                            <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
-                                                                                                                {nonCompliantDays} Non-Compliant
-                                                                                                            </span>
-                                                                                                        </span>
-                                                                                                    );
-                                                                                                })()}
-                                                                                            </div>
-                                                                                            <button
-                                                                                                type="button"
-                                                                                                onClick={(e) => {
-                                                                                                    e.stopPropagation();
-                                                                                                    openModal();
-                                                                                                }}
-                                                                                                className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 hover:opacity-80 inline-flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
-                                                                                                title="Open daily attendance popup"
-                                                                                            >
-                                                                                                <span>View Details</span>
-                                                                                                <FiExternalLink size={12} className="text-emerald-600" />
-                                                                                            </button>
-                                                                                        </div>
+                                                                <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-black text-lg shrink-0">
+                                                                        ⏱️
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Monthly Time-Off Quota</div>
+                                                                        <div className="text-sm font-bold text-gray-900">
+                                                                            {formatHours(0, s.quota_summary?.credited_timeoff_minutes ?? 0)} credited • {formatHours(0, Math.max(0, (s.quota_summary?.used_timeoff_minutes || s.timeoff_minutes || 0) - (s.quota_summary?.credited_timeoff_minutes || 0)))} excess
+                                                                        </div>
+                                                                        <div className="text-[10px] text-gray-500 font-medium">
+                                                                            {(s.quota_summary?.allowed_timeoff_minutes ?? ((apiAllowedTimeOff || 2) * 60)) / 60}h allowed
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-lg shrink-0">
+                                                                        🎯
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Daily Compliance Target</div>
+                                                                        <div className="text-sm font-bold text-gray-900">
+                                                                            {complianceHours}h / day required
+                                                                        </div>
+                                                                        <div className="text-[10px] text-gray-500 font-medium">
+                                                                            Att + OD + Credited Time-Off
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Sub-tab Switcher: Daily Salary Breakdown vs Raw Records */}
+                                                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setTab(s.staff_id, 'salary')}
+                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                                                            (expandedTab[s.staff_id] || 'salary') === 'salary'
+                                                                                ? 'bg-[#1e1b4b] text-white shadow-2xs'
+                                                                                : 'text-gray-600 hover:bg-gray-100'
+                                                                        }`}
+                                                                    >
+                                                                        📅 Daily Salary Breakdown ({s.daily_breakdown?.length || 0})
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setTab(s.staff_id, 'records')}
+                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                                                            expandedTab[s.staff_id] === 'records'
+                                                                                ? 'bg-[#1e1b4b] text-white shadow-2xs'
+                                                                                : 'text-gray-600 hover:bg-gray-100'
+                                                                        }`}
+                                                                    >
+                                                                        📋 Activity Records ({s.records?.length || 0})
+                                                                    </button>
+                                                                </div>
+                                                                {(s.attendance_records?.length > 0 || (s.records?.find(r => r.type === 'Attendance')?.sessions?.length > 0)) && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const sessions = s.attendance_records || (s.records?.find(r => r.type === 'Attendance')?.sessions) || [];
+                                                                            setAttendanceModalData({
+                                                                                employeeName: `${s.firstname || ''} ${s.lastname || ''}`.trim(),
+                                                                                email: s.email,
+                                                                                dateRange: period,
+                                                                                totalDuration: formatHours(s.work_hours, s.work_minutes),
+                                                                                presentDaysCount: s.present_days,
+                                                                                sessions
+                                                                            });
+                                                                        }}
+                                                                        className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 inline-flex items-center gap-1 transition-all cursor-pointer"
+                                                                    >
+                                                                        <span>View Attendance Sessions</span>
+                                                                        <FiExternalLink size={12} className="text-emerald-600" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Tab 1: Daily Salary Breakdown Table */}
+                                                            {(expandedTab[s.staff_id] || 'salary') === 'salary' && (
+                                                                <div className="rounded-xl overflow-hidden shadow-2xs border border-gray-200 bg-white">
+                                                                    <table className="min-w-full divide-y divide-gray-100 text-xs">
+                                                                        <thead className="bg-[#1e1b4b]/5 text-[10px] font-black text-gray-500 uppercase tracking-wider">
+                                                                            <tr>
+                                                                                <th className="px-3 py-2.5 text-center w-10">#</th>
+                                                                                <th className="px-3 py-2.5 text-left">Date</th>
+                                                                                <th className="px-3 py-2.5 text-center">Type</th>
+                                                                                <th className="px-3 py-2.5 text-left">Components (Att / OD / TO)</th>
+                                                                                <th className="px-3 py-2.5 text-center">Effective Work</th>
+                                                                                <th className="px-3 py-2.5 text-center">Salary Status</th>
+                                                                                <th className="px-3 py-2.5 text-left">Calculation & HR Remark</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody className="divide-y divide-gray-50 bg-white">
+                                                                            {(!s.daily_breakdown || s.daily_breakdown.length === 0) ? (
+                                                                                <tr>
+                                                                                    <td colSpan={7} className="px-4 py-6 text-center text-gray-400 italic">
+                                                                                        No logged activity found for this period
                                                                                     </td>
                                                                                 </tr>
-                                                                            );
-                                                                        }
+                                                                            ) : (
+                                                                                s.daily_breakdown.map((day, dIdx) => (
+                                                                                    <tr key={dIdx} className="hover:bg-gray-50/50 transition-colors">
+                                                                                        <td className="px-3 py-2.5 text-center text-gray-400 font-mono text-[11px]">{dIdx + 1}</td>
+                                                                                        <td className="px-3 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
+                                                                                            {formatDateWithWeekday(day.date)}
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2.5 text-center">
+                                                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                                                                                day.type === 'Leave'
+                                                                                                    ? 'bg-orange-50 text-orange-600 border-orange-100'
+                                                                                                    : day.type === 'Time-Off'
+                                                                                                    ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                                                                                    : day.type === 'On-Duty'
+                                                                                                    ? 'bg-sky-50 text-[#0ea5e9] border-sky-100'
+                                                                                                    : day.type === 'Combined'
+                                                                                                    ? 'bg-purple-50 text-purple-600 border-purple-100'
+                                                                                                    : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                                                                            }`}>
+                                                                                                {day.type}
+                                                                                            </span>
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2.5 text-gray-700">
+                                                                                            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                                                                                {day.attendance_minutes > 0 && (
+                                                                                                    <span className="font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                                                                                        Att: {formatHours(0, day.attendance_minutes)}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                                {day.onduty_minutes > 0 && (
+                                                                                                    <span className="font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">
+                                                                                                        OD: {formatHours(0, day.onduty_minutes)}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                                {day.timeoff_requested_minutes > 0 && (
+                                                                                                    <span className={`font-semibold px-1.5 py-0.5 rounded ${
+                                                                                                        day.timeoff_credited_minutes > 0 
+                                                                                                            ? 'text-purple-700 bg-purple-50' 
+                                                                                                            : 'text-gray-500 bg-gray-100 line-through'
+                                                                                                    }`}>
+                                                                                                        TO: {formatHours(0, day.timeoff_credited_minutes)}{day.timeoff_excess_minutes > 0 ? ` (+${formatHours(0, day.timeoff_excess_minutes)} uncredited)` : ''}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                                {day.leave_days > 0 && (
+                                                                                                    <span className="font-semibold text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded">
+                                                                                                        Leave: {day.leave_days}d {day.leave_credited > 0 ? '(Paid)' : '(Unpaid)'}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2.5 text-center font-bold text-gray-800 whitespace-nowrap">
+                                                                                            {day.type === 'Leave' ? '—' : formatHours(0, day.effective_work_minutes)}
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                                                                                            {day.is_compliant ? (
+                                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                                                                    ✓ Compliant (1 Day)
+                                                                                                </span>
+                                                                                            ) : day.compliant_day_value > 0 ? (
+                                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                                                                                                    Partial ({day.compliant_day_value} Day)
+                                                                                                </span>
+                                                                                            ) : (
+                                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">
+                                                                                                    ✕ Non-Compliant
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2.5 text-gray-600 font-medium text-[11px]">
+                                                                                            {day.remarks}
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                ))
+                                                                            )}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            )}
 
-                                                                        return (
-                                                                            <tr key={rIdx} className="hover:bg-gray-50/50">
-                                                                                <td className="px-4 py-2 align-top">
-                                                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${rec.type === 'Leave'
-                                                                                        ? 'bg-orange-50 text-orange-600 border-orange-100'
-                                                                                        : rec.type === 'Time-Off'
-                                                                                            ? 'bg-teal-50 text-teal-600 border-teal-100'
-                                                                                            : 'bg-sky-50 text-[#0ea5e9] border-sky-100'
-                                                                                        }`}>
-                                                                                        {rec.type}
-                                                                                    </span>
-                                                                                </td>
-                                                                                <td className="px-4 py-2 text-xs text-gray-600 font-medium align-top">
-                                                                                    {rec.type === 'Leave'
-                                                                                        ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
-                                                                                        : formatDateOnly(rec.date)}
-                                                                                </td>
-                                                                                <td className="px-4 py-2 text-xs text-gray-800 font-bold align-top">
-                                                                                    {rec.type === 'Leave'
-                                                                                        ? rec.duration
-                                                                                        : `${formatTimeOnly(rec.start_time)} to ${formatTimeOnly(rec.end_time)}${rec.duration.match(/\((.+)\)$/) ? ` (${rec.duration.match(/\((.+)\)$/)[1]})` : ""}`}
-                                                                                </td>
-                                                                                <td className="px-4 py-2 text-xs text-gray-600 align-top break-words">{rec.detail}</td>
+                                                            {/* Tab 2: Activity Records Table */}
+                                                            {expandedTab[s.staff_id] === 'records' && (
+                                                                <div className="rounded-xl overflow-hidden shadow-2xs border border-gray-200 bg-white">
+                                                                    <table className="min-w-full divide-y divide-gray-100">
+                                                                        <thead className="bg-[#1e1b4b]/5">
+                                                                            <tr>
+                                                                                <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/6">Type</th>
+                                                                                <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/4">Date</th>
+                                                                                <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest w-1/4">Duration</th>
+                                                                                <th className="px-4 py-2 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Details</th>
                                                                             </tr>
-                                                                        );
-                                                                    })}
-                                                                </tbody>
-                                                            </table>
+                                                                        </thead>
+                                                                        <tbody className="divide-y divide-gray-50">
+                                                                            {(!s.records || s.records.length === 0) ? (
+                                                                                <tr>
+                                                                                    <td colSpan={4} className="px-4 py-4 text-center text-gray-400 italic text-xs">
+                                                                                        No activity records found
+                                                                                    </td>
+                                                                                </tr>
+                                                                            ) : (
+                                                                                s.records.map((rec, rIdx) => {
+                                                                                    if (rec.type === 'Attendance') {
+                                                                                        const sessions = rec.sessions || s.attendance_records || [];
+                                                                                        const presentDaysCount = rec.present_days !== undefined ? rec.present_days : s.present_days;
+                                                                                        const dateRangeStr = rec.start_date && rec.end_date
+                                                                                            ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
+                                                                                            : formatDateOnly(rec.date);
+
+                                                                                        const openModal = () => {
+                                                                                            setAttendanceModalData({
+                                                                                                employeeName: `${s.firstname || ''} ${s.lastname || ''}`.trim(),
+                                                                                                email: s.email,
+                                                                                                dateRange: dateRangeStr,
+                                                                                                totalDuration: rec.duration,
+                                                                                                presentDaysCount,
+                                                                                                sessions
+                                                                                            });
+                                                                                        };
+
+                                                                                        return (
+                                                                                            <tr
+                                                                                                key={`att-${rIdx}`}
+                                                                                                onClick={openModal}
+                                                                                                className="hover:bg-emerald-50/50 cursor-pointer transition-colors group"
+                                                                                                title="Click to view daily attendance sessions in popup"
+                                                                                            >
+                                                                                                <td className="px-4 py-2.5 align-middle">
+                                                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200">
+                                                                                                        Attendance
+                                                                                                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-200/90 text-emerald-950 text-[10px] font-black">
+                                                                                                            {presentDaysCount} {presentDaysCount === 1 ? 'day' : 'days'}
+                                                                                                        </span>
+                                                                                                    </span>
+                                                                                                </td>
+                                                                                                <td className="px-4 py-2.5 text-xs text-gray-700 font-semibold align-middle">
+                                                                                                    {dateRangeStr}
+                                                                                                </td>
+                                                                                                <td className="px-4 py-2.5 text-xs text-emerald-800 font-black align-middle">
+                                                                                                    <div>{rec.duration}</div>
+                                                                                                    {presentDaysCount > 1 && (
+                                                                                                        <div className="text-[10px] text-gray-400 font-medium">
+                                                                                                            Avg: {getModalAverageDuration(sessions, presentDaysCount)} / day
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                </td>
+                                                                                                <td className="px-4 py-2.5 text-xs text-gray-600 align-middle">
+                                                                                                    <div className="flex items-center justify-between gap-2">
+                                                                                                        <div className="flex flex-wrap items-center gap-2">
+                                                                                                            <span className="text-gray-600 font-medium">
+                                                                                                                {sessions.length} session(s) logged
+                                                                                                            </span>
+                                                                                                            {(() => {
+                                                                                                                const { compliantDays, nonCompliantDays } = getModalComplianceDayCounts(sessions, complianceHours);
+                                                                                                                return (
+                                                                                                                    <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px]">
+                                                                                                                        <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                                                                                                            {compliantDays} Compliant
+                                                                                                                        </span>
+                                                                                                                        <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
+                                                                                                                            {nonCompliantDays} Non-Compliant
+                                                                                                                        </span>
+                                                                                                                    </span>
+                                                                                                                );
+                                                                                                            })()}
+                                                                                                        </div>
+                                                                                                        <button
+                                                                                                            type="button"
+                                                                                                            onClick={(e) => {
+                                                                                                                e.stopPropagation();
+                                                                                                                openModal();
+                                                                                                            }}
+                                                                                                            className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 hover:opacity-80 inline-flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
+                                                                                                            title="Open daily attendance popup"
+                                                                                                        >
+                                                                                                            <span>View Details</span>
+                                                                                                            <FiExternalLink size={12} className="text-emerald-600" />
+                                                                                                        </button>
+                                                                                                    </div>
+                                                                                                </td>
+                                                                                            </tr>
+                                                                                        );
+                                                                                    }
+
+                                                                                    return (
+                                                                                        <tr key={rIdx} className="hover:bg-gray-50/50">
+                                                                                            <td className="px-4 py-2 align-top">
+                                                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${rec.type === 'Leave'
+                                                                                                    ? 'bg-orange-50 text-orange-600 border-orange-100'
+                                                                                                    : rec.type === 'Time-Off'
+                                                                                                    ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                                                                                    : 'bg-sky-50 text-[#0ea5e9] border-sky-100'
+                                                                                                    }`}>
+                                                                                                    {rec.type}
+                                                                                                </span>
+                                                                                            </td>
+                                                                                            <td className="px-4 py-2 text-xs text-gray-600 font-medium align-top">
+                                                                                                {rec.type === 'Leave'
+                                                                                                    ? (rec.start_date === rec.end_date ? formatDateOnly(rec.start_date) : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`)
+                                                                                                    : formatDateOnly(rec.date)}
+                                                                                            </td>
+                                                                                            <td className="px-4 py-2 text-xs text-gray-800 font-bold align-top">
+                                                                                                {rec.type === 'Leave'
+                                                                                                    ? rec.duration
+                                                                                                    : `${formatTimeOnly(rec.start_time)} to ${formatTimeOnly(rec.end_time)}${rec.duration.match(/\((.+)\)$/) ? ` (${rec.duration.match(/\((.+)\)$/)[1]})` : ""}`}
+                                                                                            </td>
+                                                                                            <td className="px-4 py-2 text-xs text-gray-600 align-top break-words">{rec.detail}</td>
+                                                                                        </tr>
+                                                                                    );
+                                                                                })
+                                                                            )}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -899,11 +1199,11 @@ const MonthlySummaryReport = () => {
                                     ))}
                                     <tr className="bg-[#1e1b4b]/5 font-black">
                                         <td colSpan={4} className="px-4 py-3 text-sm text-[#1e1b4b] uppercase tracking-widest text-right">Total</td>
-                                        <td className="px-4 py-3 text-center text-sm text-emerald-600">{totals.present_days} {totals.present_days === 1 ? 'day' : 'days'}</td>
-                                        <td className="px-4 py-3 text-center text-sm text-indigo-600">{formatHours(0, totals.work_minutes)}</td>
+                                        <td className="px-4 py-3 text-center text-sm text-blue-600">{totals.present_days} {totals.present_days === 1 ? 'day' : 'days'}</td>
                                         <td className="px-4 py-3 text-center text-sm text-orange-600">{totals.leave_days} {totals.leave_days === 1 ? 'day' : 'days'}</td>
-                                        <td className="px-4 py-3 text-center text-sm text-teal-600">{formatHours(0, totals.timeoff_minutes)}</td>
+                                        <td className="px-4 py-3 text-center text-sm text-purple-600">{formatHours(0, totals.timeoff_minutes)}</td>
                                         <td className="px-4 py-3 text-center text-sm text-[#0ea5e9]">{formatHours(0, totals.onduty_minutes)}</td>
+                                        <td className="px-4 py-3 text-center text-sm text-emerald-700">{totals.compliant_days} {totals.compliant_days === 1 ? 'day' : 'days'}</td>
                                     </tr>
                                 </tbody>
                             </table>

@@ -36,14 +36,28 @@ export const getAttendanceConfig = (settingsMap = null) => {
             complianceHours = diff > 0 ? Math.round((diff / 60) * 100) / 100 : 9;
         }
 
+        let allowedLeavePerMonth = parseFloat(stored.allowed_leave_per_month);
+        if (isNaN(allowedLeavePerMonth) || allowedLeavePerMonth < 0) {
+            allowedLeavePerMonth = 1;
+        }
+
+        let allowedTimeOffPerMonth = parseFloat(stored.allowed_time_off_per_month);
+        if (isNaN(allowedTimeOffPerMonth) || allowedTimeOffPerMonth < 0) {
+            allowedTimeOffPerMonth = 2;
+        }
+
         return {
             complianceHours,
+            allowedLeavePerMonth,
+            allowedTimeOffPerMonth,
             startTime,
             endTime
         };
     } catch (e) {
         return {
             complianceHours: 9,
+            allowedLeavePerMonth: 1,
+            allowedTimeOffPerMonth: 2,
             startTime: '09:30',
             endTime: '18:30'
         };
@@ -52,4 +66,12 @@ export const getAttendanceConfig = (settingsMap = null) => {
 
 export const getComplianceHours = (settingsMap = null) => {
     return getAttendanceConfig(settingsMap).complianceHours;
+};
+
+export const getAllowedLeavePerMonth = (settingsMap = null) => {
+    return getAttendanceConfig(settingsMap).allowedLeavePerMonth;
+};
+
+export const getAllowedTimeOffPerMonth = (settingsMap = null) => {
+    return getAttendanceConfig(settingsMap).allowedTimeOffPerMonth;
 };

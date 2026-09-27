@@ -66,8 +66,10 @@ export default function Settings() {
     // Settings State - organized by category
     const [settings, setSettings] = useState({
         max_time_off_hours: '',
+        allowed_time_off_per_month: '2',
         application_timezone: 'America/Chicago',
         leave_past_days_allowed: '0',
+        allowed_leave_per_month: '1',
         enable_pending_request_reminders: 'true',
         pending_request_reminder_days: '3',
         pending_request_reminder_schedule: '0 8 * * *',
@@ -203,6 +205,17 @@ export default function Settings() {
                     step: 0.5,
                     unit: 'hours',
                     placeholder: '4'
+                },
+                {
+                    key: 'allowed_time_off_per_month',
+                    label: 'Allowed Time-Off Per Month',
+                    description: 'Monthly time-off hours allowed to be credited towards daily attendance compliance for salary calculation (default: 2 hours)',
+                    type: 'number',
+                    min: 0,
+                    max: 100,
+                    step: 0.5,
+                    unit: 'hours',
+                    placeholder: '2'
                 }
             ]
         },
@@ -221,6 +234,17 @@ export default function Settings() {
                     step: 1,
                     unit: 'days',
                     placeholder: '0'
+                },
+                {
+                    key: 'allowed_leave_per_month',
+                    label: 'Allowed Leave Per Month',
+                    description: 'Monthly paid leave quota allowed for salary calculation and compliance (default: 1 day)',
+                    type: 'number',
+                    min: 0,
+                    max: 31,
+                    step: 0.5,
+                    unit: 'days',
+                    placeholder: '1'
                 }
             ]
         },

@@ -50,10 +50,10 @@ const Sidebar = () => {
     const canManageManualAttendancePermission = canManageManualAttendance(user.role);
     // Show Management section only if the user has at least one item in it
     const hasAnyManagementPermission = canApprove || canManageActiveOnDutyPermission || canManageSchedulePermission || canAccessAttendance;
-    // Show Staff section if user has staff management permission or service accounts permission
-    const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission || canManageServiceAccountsPermission || canManageManualAttendancePermission;
+    // Show Staff section if user has staff management permission
+    const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission || canManageManualAttendancePermission;
     // Show Configurations section if user has any configuration permission
-    const hasAnyConfigPermission = canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission;
+    const hasAnyConfigPermission = canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission || canManageServiceAccountsPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -62,7 +62,7 @@ const Sidebar = () => {
     });
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(() => {
-        return location.pathname === '/email-settings' || location.pathname === '/settings';
+        return location.pathname === '/email-settings' || location.pathname === '/settings' || location.pathname === '/service-accounts';
     });
     const [isSettingsFullyOpen, setIsSettingsFullyOpen] = useState(isSettingsOpen);
 
@@ -93,7 +93,7 @@ const Sidebar = () => {
 
     // Constructively open settings menu if user navigates to a sub-page
     useEffect(() => {
-        if (location.pathname === '/email-settings' || location.pathname === '/settings') {
+        if (location.pathname === '/email-settings' || location.pathname === '/settings' || location.pathname === '/service-accounts') {
             setIsSettingsOpen(true);
         }
     }, [location.pathname]);
@@ -328,9 +328,6 @@ const Sidebar = () => {
                         {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
                         )}
-                        {canManageServiceAccountsPermission && (
-                            <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" />
-                        )}
                         {canManageOnboardingPermission && (
                             <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
                         )}
@@ -354,7 +351,7 @@ const Sidebar = () => {
                         )}
 
                         {/* Nested Settings Menu */}
-                        {(canManageEmailPermission || canManageSystemPermission) && (
+                        {(canManageEmailPermission || canManageSystemPermission || canManageServiceAccountsPermission) && (
                             <div>
                                 <button
                                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
@@ -370,7 +367,7 @@ const Sidebar = () => {
                                     </span>
                                 </button>
 
-                                <div className={`transition-all duration-300 ${isSettingsFullyOpen ? 'overflow-visible' : 'overflow-hidden'} ${isSettingsOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                <div className={`transition-all duration-300 ${isSettingsFullyOpen ? 'overflow-visible' : 'overflow-hidden'} ${isSettingsOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'}`}>
                                     {/* Email Settings */}
                                     {canManageEmailPermission && (
                                         <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" indent={true} />
@@ -378,6 +375,10 @@ const Sidebar = () => {
                                     {/* System Settings */}
                                     {canManageSystemPermission && (
                                         <NavLink to="/settings" icon={<LuSettings />} label="System Settings" indent={true} />
+                                    )}
+                                    {/* Service Accounts */}
+                                    {canManageServiceAccountsPermission && (
+                                        <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" indent={true} />
                                     )}
                                 </div>
                             </div>
@@ -390,9 +391,6 @@ const Sidebar = () => {
                     <div className="space-y-2">
                         {canAccessUsersPermission && (
                             <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
-                        )}
-                        {canManageServiceAccountsPermission && (
-                            <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" />
                         )}
                         {canManageOnboardingPermission && (
                             <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
@@ -412,6 +410,9 @@ const Sidebar = () => {
                         )}
                         {canManageSystemPermission && (
                             <NavLink to="/settings" icon={<LuSettings />} label="System Settings" />
+                        )}
+                        {canManageServiceAccountsPermission && (
+                            <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" />
                         )}
                     </div>
                 )}
