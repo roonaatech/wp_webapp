@@ -174,7 +174,17 @@ const Reports = () => {
         const end = parseAppTimezone(checkOut);
         if (!start || !end) return '-';
 
-        const diffMs = end.getTime() - start.getTime();
+        let diffMs = end.getTime() - start.getTime();
+        if (diffMs <= 0) {
+            const inMins = start.getHours() * 60 + start.getMinutes();
+            const outMins = end.getHours() * 60 + end.getMinutes();
+            if (outMins > inMins) {
+                diffMs = (outMins - inMins) * 60 * 1000;
+            } else {
+                return '-';
+            }
+        }
+
         const diffMins = Math.floor(diffMs / 60000);
         const hours = Math.floor(diffMins / 60);
         const mins = diffMins % 60;

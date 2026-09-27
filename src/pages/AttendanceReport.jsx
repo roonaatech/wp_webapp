@@ -6,7 +6,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
 import { fetchRoles, canViewAttendanceReport, canManageAttendance, canEditAttendance, canDeleteAttendance } from '../utils/roleUtils';
-import { formatDateOnly, formatTimeOnly, formatInTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
+import { formatDateOnly, formatTimeOnly, formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet } from 'react-icons/lu';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -272,9 +272,23 @@ const AttendanceReport = () => {
         if (!checkOutStr) return 'Active Check-In';
 
         try {
-            const checkIn = new Date(checkInStr);
-            const checkOut = new Date(checkOutStr);
-            const diffMs = checkOut.getTime() - checkIn.getTime();
+            const checkIn = parseAppTimezone(checkInStr);
+            const checkOut = parseAppTimezone(checkOutStr);
+            if (!checkIn || !checkOut || isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+                return '-';
+            }
+
+            let diffMs = checkOut.getTime() - checkIn.getTime();
+            if (diffMs <= 0) {
+                // Self-healing fallback: if checkIn and checkOut have mismatched dates
+                // but the time-of-day indicates checkout is later than checkin on this log
+                const inMins = checkIn.getHours() * 60 + checkIn.getMinutes();
+                const outMins = checkOut.getHours() * 60 + checkOut.getMinutes();
+                if (outMins > inMins) {
+                    diffMs = (outMins - inMins) * 60 * 1000;
+                }
+            }
+
             if (diffMs <= 0) return '-';
 
             const diffMins = Math.floor(diffMs / 60000);
@@ -293,8 +307,19 @@ const AttendanceReport = () => {
         let hasActive = false;
         userLogs.forEach(log => {
             if (log.check_in_time && log.check_out_time) {
-                const diff = new Date(log.check_out_time).getTime() - new Date(log.check_in_time).getTime();
-                if (diff > 0) totalMs += diff;
+                const checkIn = parseAppTimezone(log.check_in_time);
+                const checkOut = parseAppTimezone(log.check_out_time);
+                if (checkIn && checkOut && !isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime())) {
+                    let diff = checkOut.getTime() - checkIn.getTime();
+                    if (diff <= 0) {
+                        const inMins = checkIn.getHours() * 60 + checkIn.getMinutes();
+                        const outMins = checkOut.getHours() * 60 + checkOut.getMinutes();
+                        if (outMins > inMins) {
+                            diff = (outMins - inMins) * 60 * 1000;
+                        }
+                    }
+                    if (diff > 0) totalMs += diff;
+                }
             } else if (log.check_in_time && !log.check_out_time) {
                 hasActive = true;
             }
@@ -322,11 +347,26 @@ const AttendanceReport = () => {
         userLogs.forEach(log => {
             if (log.date) uniqueDates.add(log.date);
             if (log.check_in_time && log.check_out_time) {
-                const diff = new Date(log.check_out_time).getTime() - new Date(log.check_in_time).getTime();
-                if (diff > 0) totalMs += diff;
+                const checkIn = parseAppTimezone(log.check_in_time);
+                const checkOut = parseAppTimezone(log.check_out_time);
+                if (checkIn && checkOut && !isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime())) {
+                    let diff = checkOut.getTime() - checkIn.getTime();
+                    if (diff <= 0) {
+                        const inMins = checkIn.getHours() * 60 + checkIn.getMinutes();
+                        const outMins = checkOut.getHours() * 60 + checkOut.getMinutes();
+                        if (outMins > inMins) {
+                            diff = (outMins - inMins) * 60 * 1000;
+                        }
+                    }
+                    if (diff > 0) totalMs += diff;
+                }
             } else if (log.check_in_time && !log.check_out_time) {
-                const diff = new Date().getTime() - new Date(log.check_in_time).getTime();
-                if (diff > 0) totalMs += diff;
+                const checkIn = parseAppTimezone(log.check_in_time);
+                if (checkIn && !isNaN(checkIn.getTime())) {
+                    const nowInApp = getCurrentInAppTimezone().full;
+                    const diff = nowInApp.getTime() - checkIn.getTime();
+                    if (diff > 0) totalMs += diff;
+                }
             }
         });
 
@@ -357,9 +397,22 @@ const AttendanceReport = () => {
         }
 
         try {
-            const checkIn = new Date(checkInStr);
-            const checkOut = new Date(checkOutStr);
-            const diffMs = checkOut.getTime() - checkIn.getTime();
+            const checkIn = parseAppTimezone(checkInStr);
+            const checkOut = parseAppTimezone(checkOutStr);
+            if (!checkIn || !checkOut || isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+                return { isCompliant: false, isActive: false, hours: 0, label: 'Non-Compliant' };
+            }
+
+            let diffMs = checkOut.getTime() - checkIn.getTime();
+            if (diffMs <= 0) {
+                // Self-healing fallback
+                const inMins = checkIn.getHours() * 60 + checkIn.getMinutes();
+                const outMins = checkOut.getHours() * 60 + checkOut.getMinutes();
+                if (outMins > inMins) {
+                    diffMs = (outMins - inMins) * 60 * 1000;
+                }
+            }
+
             if (diffMs <= 0) return { isCompliant: false, isActive: false, hours: 0, label: 'Non-Compliant' };
 
             const hours = diffMs / (1000 * 60 * 60);
@@ -383,8 +436,19 @@ const AttendanceReport = () => {
             if (!dayTotals[d]) dayTotals[d] = 0;
             let mins = 0;
             if (log.check_in_time && log.check_out_time) {
-                const diffMs = new Date(log.check_out_time).getTime() - new Date(log.check_in_time).getTime();
-                if (diffMs > 0) mins = Math.floor(diffMs / 60000);
+                const checkIn = parseAppTimezone(log.check_in_time);
+                const checkOut = parseAppTimezone(log.check_out_time);
+                if (checkIn && checkOut && !isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime())) {
+                    let diffMs = checkOut.getTime() - checkIn.getTime();
+                    if (diffMs <= 0) {
+                        const inMins = checkIn.getHours() * 60 + checkIn.getMinutes();
+                        const outMins = checkOut.getHours() * 60 + checkOut.getMinutes();
+                        if (outMins > inMins) {
+                            diffMs = (outMins - inMins) * 60 * 1000;
+                        }
+                    }
+                    if (diffMs > 0) mins = Math.floor(diffMs / 60000);
+                }
             } else if (log.check_in_time && !log.check_out_time) {
                 activeDays.add(d);
             }
@@ -702,11 +766,13 @@ const AttendanceReport = () => {
         setEditingLog(log);
         setEditDate(log.date);
         
-        // Parse check-in time
+        // Parse check-in time safely into local HH:mm
         if (log.check_in_time) {
-            const timePart = log.check_in_time.split(' ')[1]; // "09:30:15"
-            if (timePart) {
-                setEditCheckInTime(timePart.substring(0, 5)); // "09:30"
+            const checkInDate = parseAppTimezone(log.check_in_time);
+            if (checkInDate && !isNaN(checkInDate.getTime())) {
+                const hh = String(checkInDate.getHours()).padStart(2, '0');
+                const mm = String(checkInDate.getMinutes()).padStart(2, '0');
+                setEditCheckInTime(`${hh}:${mm}`);
             } else {
                 setEditCheckInTime('');
             }
@@ -714,11 +780,13 @@ const AttendanceReport = () => {
             setEditCheckInTime('');
         }
 
-        // Parse check-out time
+        // Parse check-out time safely into local HH:mm
         if (log.check_out_time) {
-            const timePart = log.check_out_time.split(' ')[1];
-            if (timePart) {
-                setEditCheckOutTime(timePart.substring(0, 5)); // "17:45"
+            const checkOutDate = parseAppTimezone(log.check_out_time);
+            if (checkOutDate && !isNaN(checkOutDate.getTime())) {
+                const hh = String(checkOutDate.getHours()).padStart(2, '0');
+                const mm = String(checkOutDate.getMinutes()).padStart(2, '0');
+                setEditCheckOutTime(`${hh}:${mm}`);
             } else {
                 setEditCheckOutTime('');
             }
@@ -733,14 +801,28 @@ const AttendanceReport = () => {
 
         // Date and check-in time are captured via facial recognition and are locked;
         // only the check-out time can be edited (e.g. to close out a forgotten checkout).
+        const targetDate = editingLog.date || editDate;
         const nowInApp = getCurrentInAppTimezone().full;
-        const [y, mo, d] = editDate.split('-').map(Number);
+        const [y, mo, d] = targetDate.split('-').map(Number);
 
         if (editCheckOutTime) {
-            const [h, m] = editCheckOutTime.split(':').map(Number);
-            if (new Date(y, mo - 1, d, h, m, 0).getTime() > nowInApp.getTime()) {
+            const [outH, outM] = editCheckOutTime.split(':').map(Number);
+            const checkOutDateTime = new Date(y, mo - 1, d, outH, outM, 0);
+
+            // Block future check-outs
+            if (checkOutDateTime.getTime() > nowInApp.getTime()) {
                 toast.error("Check-out time cannot be in the future.");
                 return;
+            }
+
+            // Validate that check-out is after check-in
+            if (editCheckInTime) {
+                const [inH, inM] = editCheckInTime.split(':').map(Number);
+                const checkInDateTime = new Date(y, mo - 1, d, inH, inM, 0);
+                if (checkOutDateTime.getTime() <= checkInDateTime.getTime()) {
+                    toast.error("Check-out time must be after check-in time.");
+                    return;
+                }
             }
         }
 
@@ -749,14 +831,14 @@ const AttendanceReport = () => {
             const token = localStorage.getItem('token');
 
             const payload = {
-                check_out_time: editCheckOutTime ? `${editDate} ${editCheckOutTime}:00` : null
+                check_out_time: editCheckOutTime ? `${targetDate} ${editCheckOutTime}:00` : null
             };
 
             const res = await axios.put(`${API_BASE_URL}/api/admin/attendance-logs/${editingLog.id}`, payload, {
                 headers: { 'x-access-token': token }
             });
 
-            if (res.data.success) {
+            if (res.data?.success || res.status === 200) {
                 toast.success("Attendance log updated successfully.");
                 setEditingLog(null);
                 fetchAttendanceLogs(); // Refresh the list!
