@@ -795,6 +795,46 @@ const AttendanceReport = () => {
         }
     };
 
+    // Helper to parse time strings (HH:mm, HH:mm:ss, or 12h with AM/PM) into 24-hour parts
+    const parseTimeTo24Hour = (timeStr, referenceInTime = null) => {
+        if (!timeStr) return null;
+        const str = String(timeStr).trim();
+        const match = str.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+        if (!match) return null;
+
+        let hh = parseInt(match[1], 10);
+        const mm = parseInt(match[2], 10);
+        const ss = parseInt(match[3] || '0', 10);
+        const ampm = match[4]?.toUpperCase();
+
+        if (ampm === 'PM' && hh < 12) {
+            hh += 12;
+        } else if (ampm === 'AM' && hh === 12) {
+            hh = 0;
+        } else if (!ampm && hh <= 12 && referenceInTime) {
+            // Auto-detect PM when checkout hour is smaller than morning check-in hour (e.g. In: 09:30, Out: 06:30 -> 18:30)
+            const inMatch = String(referenceInTime).match(/(\d{1,2}):(\d{2})/);
+            if (inMatch) {
+                const inH = parseInt(inMatch[1], 10);
+                if (inH >= 7 && hh < inH && hh + 12 < 24) {
+                    hh += 12;
+                }
+            }
+        }
+
+        const padH = String(hh).padStart(2, '0');
+        const padM = String(mm).padStart(2, '0');
+        const padS = String(ss).padStart(2, '0');
+
+        return {
+            hour: hh,
+            minute: mm,
+            second: ss,
+            time24: `${padH}:${padM}:${padS}`,
+            hhmm: `${padH}:${padM}`
+        };
+    };
+
     const handleSaveEdit = async (e) => {
         e.preventDefault();
         if (!editingLog) return;
@@ -805,9 +845,17 @@ const AttendanceReport = () => {
         const nowInApp = getCurrentInAppTimezone().full;
         const [y, mo, d] = targetDate.split('-').map(Number);
 
+        let normalizedCheckOutTime = null;
+
         if (editCheckOutTime) {
-            const [outH, outM] = editCheckOutTime.split(':').map(Number);
-            const checkOutDateTime = new Date(y, mo - 1, d, outH, outM, 0);
+            const parsedOut = parseTimeTo24Hour(editCheckOutTime, editCheckInTime);
+            if (!parsedOut) {
+                toast.error("Invalid check-out time format.");
+                return;
+            }
+
+            normalizedCheckOutTime = parsedOut.time24;
+            const checkOutDateTime = new Date(y, mo - 1, d, parsedOut.hour, parsedOut.minute, parsedOut.second);
 
             // Block future check-outs
             if (checkOutDateTime.getTime() > nowInApp.getTime()) {
@@ -817,11 +865,13 @@ const AttendanceReport = () => {
 
             // Validate that check-out is after check-in
             if (editCheckInTime) {
-                const [inH, inM] = editCheckInTime.split(':').map(Number);
-                const checkInDateTime = new Date(y, mo - 1, d, inH, inM, 0);
-                if (checkOutDateTime.getTime() <= checkInDateTime.getTime()) {
-                    toast.error("Check-out time must be after check-in time.");
-                    return;
+                const parsedIn = parseTimeTo24Hour(editCheckInTime);
+                if (parsedIn) {
+                    const checkInDateTime = new Date(y, mo - 1, d, parsedIn.hour, parsedIn.minute, parsedIn.second);
+                    if (checkOutDateTime.getTime() <= checkInDateTime.getTime()) {
+                        toast.error("Check-out time must be after check-in time.");
+                        return;
+                    }
                 }
             }
         }
@@ -831,7 +881,7 @@ const AttendanceReport = () => {
             const token = localStorage.getItem('token');
 
             const payload = {
-                check_out_time: editCheckOutTime ? `${targetDate} ${editCheckOutTime}:00` : null
+                check_out_time: normalizedCheckOutTime ? `${targetDate} ${normalizedCheckOutTime}` : null
             };
 
             const res = await axios.put(`${API_BASE_URL}/api/admin/attendance-logs/${editingLog.id}`, payload, {

@@ -243,6 +243,7 @@ const ManualAttendance = () => {
                         employee_name: item.employee_name,
                         date: item.date,
                         leave_type: item.leave_info.leave_type,
+                        is_half_day: item.leave_info.is_half_day === true || item.leave_info.is_half_day === 1,
                         reason: item.leave_info.reason
                     }));
 
@@ -355,26 +356,31 @@ const ManualAttendance = () => {
     const isItemApprovedLeave = (item) => Boolean(item?.leave_info && (item.leave_info.is_approved || item.leave_info.status === 'Approved'));
     // Helper to check if item is pending leave
     const isItemPendingLeave = (item) => Boolean(item?.leave_info && (item.leave_info.is_pending || item.leave_info.status === 'Pending'));
+    // Helper to check if item is half-day leave
+    const isItemHalfDayLeave = (item) => Boolean(item?.leave_info && (item.leave_info.is_half_day === true || item.leave_info.is_half_day === 1));
+    // Helper to check if item is on full-day leave (approved or pending approval)
+    const isItemFullDayLeave = (item) => Boolean(item?.leave_info && !isItemHalfDayLeave(item));
 
-    // Counts for actionable items vs approved leaves vs pending leaves
+    // Counts for actionable items vs approved leaves vs pending leaves vs full-day leaves
     const onApprovedLeaveCount = useMemo(() => missedItems.filter(i => isItemApprovedLeave(i)).length, [missedItems]);
     const onPendingLeaveCount = useMemo(() => missedItems.filter(i => isItemPendingLeave(i)).length, [missedItems]);
-    const actionableCount = useMemo(() => missedItems.filter(i => !isItemApprovedLeave(i)).length, [missedItems]);
+    const onFullDayLeaveCount = useMemo(() => missedItems.filter(i => isItemFullDayLeave(i)).length, [missedItems]);
+    const actionableCount = useMemo(() => missedItems.filter(i => !isItemFullDayLeave(i)).length, [missedItems]);
 
     // Filter displayed items by statusFilter
     const filteredMissedItems = useMemo(() => {
         if (statusFilter === 'all') return missedItems;
-        if (statusFilter === 'ACTION_REQUIRED') return missedItems.filter(item => !isItemApprovedLeave(item));
+        if (statusFilter === 'ACTION_REQUIRED') return missedItems.filter(item => !isItemFullDayLeave(item));
         if (statusFilter === 'PENDING_LEAVE') return missedItems.filter(item => isItemPendingLeave(item));
-        if (statusFilter === 'ON_LEAVE') return missedItems.filter(item => isItemApprovedLeave(item));
+        if (statusFilter === 'ON_LEAVE') return missedItems.filter(item => isItemFullDayLeave(item) || isItemApprovedLeave(item));
         if (statusFilter === 'MISSING_ALL') return missedItems.filter(item => item.missed_type === 'MISSING_ALL' && !item.leave_info);
         if (statusFilter === 'MISSING_CHECKOUT') return missedItems.filter(item => item.missed_type === 'MISSING_CHECKOUT' && !item.leave_info);
         return missedItems.filter(item => item.missed_type === statusFilter);
     }, [missedItems, statusFilter]);
 
-    // Actionable filtered items (excluding employees on approved leave)
+    // Actionable filtered items (excluding employees on full-day leave)
     const actionableFilteredItems = useMemo(() => {
-        return filteredMissedItems.filter(item => !isItemApprovedLeave(item));
+        return filteredMissedItems.filter(item => !isItemFullDayLeave(item));
     }, [filteredMissedItems]);
 
     // Selection Handlers - Only actionable items can be selected
@@ -391,7 +397,7 @@ const ManualAttendance = () => {
 
     const handleToggleRow = (id) => {
         const item = missedItems.find(i => i.id === id);
-        if (isItemApprovedLeave(item)) return; // Do not allow selecting employees on approved leave
+        if (isItemFullDayLeave(item)) return; // Do not allow selecting employees on full-day leave
         const next = new Set(selectedIds);
         if (next.has(id)) {
             next.delete(id);
@@ -452,7 +458,7 @@ const ManualAttendance = () => {
         const outTime = calculateEndTime(defaultStartTime, complianceHours);
 
         setMissedItems(prev => prev.map(item => {
-            if (selectedIds.has(item.id) && !isItemApprovedLeave(item)) {
+            if (selectedIds.has(item.id) && !isItemFullDayLeave(item)) {
                 return {
                     ...item,
                     in_time: defaultStartTime,
@@ -468,7 +474,7 @@ const ManualAttendance = () => {
 
     // Bulk Action: Submit Selected Records
     const handleSaveSelected = async () => {
-        const selectedList = missedItems.filter(i => selectedIds.has(i.id) && !isItemApprovedLeave(i));
+        const selectedList = missedItems.filter(i => selectedIds.has(i.id) && !isItemFullDayLeave(i));
 
         if (selectedList.length === 0) {
             toast.error("Please select at least one employee to regularize.");
@@ -524,8 +530,10 @@ const ManualAttendance = () => {
 
     // Single Row Save
     const handleSaveSingleRow = async (item) => {
-        if (isItemApprovedLeave(item)) {
-            toast.error(`${item.employee_name} is on approved leave. Attendance update not required.`);
+        if (isItemFullDayLeave(item)) {
+            const leaveType = item.leave_info?.leave_type || 'Leave';
+            const leaveStatus = isItemApprovedLeave(item) ? 'Approved' : 'Pending Approval';
+            toast.error(`${item.employee_name} is on full-day leave (${leaveType}, ${leaveStatus}). Attendance update is not allowed.`);
             return;
         }
         if (!item.in_time || !item.out_time) {
@@ -812,7 +820,7 @@ const ManualAttendance = () => {
                                     {onPendingLeaveCount > 0 && (
                                         <option value="PENDING_LEAVE">⏳ Leave Pending Approval ({onPendingLeaveCount})</option>
                                     )}
-                                    <option value="ON_LEAVE">On Approved Leave ({onApprovedLeaveCount})</option>
+                                    <option value="ON_LEAVE">On Leave ({onFullDayLeaveCount})</option>
                                     <option value="MISSING_ALL">Missed Both / No Punch</option>
                                     <option value="MISSING_CHECKOUT">Missed Check-Out Only</option>
                                 </select>
@@ -1054,6 +1062,8 @@ const ManualAttendance = () => {
                                             const isSelected = selectedIds.has(item.id);
                                             const isApprovedLeave = isItemApprovedLeave(item);
                                             const isPendingLeave = isItemPendingLeave(item);
+                                            const isHalfDayLeave = isItemHalfDayLeave(item);
+                                            const isFullDayLeave = isItemFullDayLeave(item);
                                             const dur = getDurationMeta(item.in_time, item.out_time);
                                             const isRowSubmitting = submittingRowId === item.id;
 
@@ -1072,10 +1082,12 @@ const ManualAttendance = () => {
                                                 >
                                                     {/* Checkbox */}
                                                     <td className="p-3.5 pl-4 text-center">
-                                                        {isApprovedLeave ? (
+                                                        {isFullDayLeave ? (
                                                             <span
                                                                 className="text-slate-300 font-bold text-xs select-none block text-center"
-                                                                title="Employee is on approved leave — not available for update"
+                                                                title={isApprovedLeave 
+                                                                    ? "Employee is on approved full-day leave — update not allowed" 
+                                                                    : "Employee is on full-day leave (Pending Approval) — update not allowed"}
                                                             >
                                                                 —
                                                             </span>
@@ -1123,10 +1135,20 @@ const ManualAttendance = () => {
                                                     {/* Missed Status */}
                                                     <td className="p-3.5">
                                                         {isApprovedLeave ? (
-                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                                                                <span>On Leave: {item.leave_info.leave_type || 'Approved Leave'}</span>
-                                                            </span>
+                                                            <div className="space-y-1">
+                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                                                                    <span>On Leave: {item.leave_info.leave_type || 'Approved Leave'}</span>
+                                                                </span>
+                                                                <div className="flex items-center gap-1 text-[10px] text-purple-600 font-medium pl-0.5">
+                                                                    <span>{isHalfDayLeave ? 'Half Day' : 'Full Day'}</span>
+                                                                    {item.leave_info.reason && (
+                                                                        <span className="text-purple-500 truncate max-w-[120px]" title={item.leave_info.reason}>
+                                                                            &bull; {item.leave_info.reason}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
                                                         ) : isPendingLeave ? (
                                                             <div className="space-y-1">
                                                                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 whitespace-nowrap shadow-2xs">
@@ -1135,6 +1157,9 @@ const ManualAttendance = () => {
                                                                 </span>
                                                                 <div className="flex items-center gap-1 text-[10px] text-amber-700 font-semibold pl-0.5">
                                                                     <span>{item.leave_info.leave_type}</span>
+                                                                    <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200 font-bold">
+                                                                        {isHalfDayLeave ? 'Half Day' : 'Full Day'}
+                                                                    </span>
                                                                     {item.leave_info.reason && (
                                                                         <span className="text-amber-600 truncate max-w-[120px]" title={item.leave_info.reason}>
                                                                             ({item.leave_info.reason})
@@ -1158,28 +1183,41 @@ const ManualAttendance = () => {
                                                         )}
                                                     </td>
 
-                                                    {/* If on approved leave: do not show update controls, just show leave info message */}
-                                                    {isApprovedLeave ? (
+                                                    {/* If on full-day leave (approved or pending): do not show update controls, show leave info message */}
+                                                    {isFullDayLeave ? (
                                                         <td colSpan={6} className="p-3.5 pr-4">
-                                                            <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2 rounded-xl bg-purple-50/70 border border-purple-200/80 text-purple-900">
+                                                            <div className={`flex flex-wrap items-center justify-between gap-3 px-3.5 py-2 rounded-xl border ${
+                                                                isApprovedLeave 
+                                                                    ? 'bg-purple-50/70 border-purple-200/80 text-purple-900' 
+                                                                    : 'bg-amber-50/80 border-amber-200/90 text-amber-950'
+                                                            }`}>
                                                                 <div className="flex items-center gap-2.5 min-w-0">
-                                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 whitespace-nowrap">
+                                                                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold whitespace-nowrap border ${
+                                                                        isApprovedLeave
+                                                                            ? 'bg-purple-100 text-purple-800 border-purple-300'
+                                                                            : 'bg-amber-100 text-amber-900 border-amber-300'
+                                                                    }`}>
                                                                         <LuCalendarOff className="text-xs" />
-                                                                        {item.leave_info.leave_type || 'Approved Leave'}
+                                                                        {item.leave_info.leave_type || (isApprovedLeave ? 'Approved Leave' : 'Leave Request')}
+                                                                        <span className="text-[10px] font-medium opacity-85">
+                                                                            ({isApprovedLeave ? 'Approved Full Day' : 'Pending Full Day'})
+                                                                        </span>
                                                                     </span>
                                                                     {item.leave_info.reason ? (
-                                                                        <span className="text-xs text-purple-700 italic truncate max-w-md" title={item.leave_info.reason}>
+                                                                        <span className={`text-xs italic truncate max-w-md ${isApprovedLeave ? 'text-purple-700' : 'text-amber-800'}`} title={item.leave_info.reason}>
                                                                             Reason: "{item.leave_info.reason}"
                                                                         </span>
                                                                     ) : (
-                                                                        <span className="text-xs text-purple-600 font-medium">
-                                                                            Approved Leave
+                                                                        <span className={`text-xs font-medium ${isApprovedLeave ? 'text-purple-600' : 'text-amber-700'}`}>
+                                                                            {isApprovedLeave ? 'Approved Leave' : 'Pending Approval'}
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-600 bg-white/90 px-2.5 py-1 rounded-lg border border-purple-200 shrink-0 shadow-2xs">
-                                                                    <LuInfo className="text-xs text-purple-500" />
-                                                                    On Leave &bull; Attendance update not required
+                                                                <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold bg-white/95 px-2.5 py-1 rounded-lg shrink-0 shadow-2xs border ${
+                                                                    isApprovedLeave ? 'text-purple-700 border-purple-200' : 'text-amber-800 border-amber-200'
+                                                                }`}>
+                                                                    <LuInfo className={`text-xs ${isApprovedLeave ? 'text-purple-500' : 'text-amber-600'}`} />
+                                                                    {isApprovedLeave ? 'Full-Day Leave • Attendance update not required' : 'Full-Day Leave Pending Approval • Update disabled'}
                                                                 </span>
                                                             </div>
                                                         </td>
