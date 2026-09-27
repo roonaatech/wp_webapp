@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.13.2](https://github.com/roonaatech/wp_webapp/compare/v2.13.1...v2.13.2) (2026-09-27)
+
+
+### Features
+
+* add manual attendance support and dynamic office compliance hours configuration ([40935a5](https://github.com/roonaatech/wp_webapp/commit/40935a55649726be0bacd681a9f929a37d032fc5))
+
 ### [2.13.1](https://github.com/roonaatech/wp_webapp/compare/v2.13.0...v2.13.1) (2026-09-26)
 
 
