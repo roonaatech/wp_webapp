@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.13.4](https://github.com/roonaatech/wp_webapp/compare/v2.13.3...v2.13.4) (2026-09-27)
+
+
+### Bug Fixes
+
+* **attendance:** use parseAppTimezone and add self-healing duration & compliance calculations ([ad43aa1](https://github.com/roonaatech/wp_webapp/commit/ad43aa1d8b209fed3c84a02223f83e17617e0395))
+
 ### [2.13.3](https://github.com/roonaatech/wp_webapp/compare/v2.13.2...v2.13.3) (2026-09-27)
 
 
