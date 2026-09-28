@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.14.6](https://github.com/roonaatech/wp_webapp/compare/v2.14.5...v2.14.6) (2026-09-28)
+
+
+### Features
+
+* implement granular attendance edit and delete permissions for subordinates and all users ([6bae75e](https://github.com/roonaatech/wp_webapp/commit/6bae75e5e57eb62440964677b2d6cdbbff2bf2d2))
+
 ### [2.14.5](https://github.com/roonaatech/wp_webapp/compare/v2.14.4...v2.14.5) (2026-09-28)
 
 
