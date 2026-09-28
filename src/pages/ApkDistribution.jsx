@@ -224,11 +224,29 @@ const ApkDistribution = () => {
 
                 // Check if this version already exists (check all versions, not just current page)
                 const existingVersion = allVersions.find(apk => apk.version === fullVersion);
+                const parseBuildNumber = (v) => {
+                    const parts = String(v || '').split('+');
+                    return parts[1] ? parseInt(parts[1], 10) : 0;
+                };
+                const latestBuild = latestApk ? parseBuildNumber(latestApk.version) : 0;
+                const newBuild = apkInfo.versionCode ? parseInt(apkInfo.versionCode, 10) : parseBuildNumber(fullVersion);
+
                 if (existingVersion) {
                     setDuplicateVersionModal({ show: true, version: fullVersion });
                     setVersion('');
                     setVersionAutoDetected(false);
                     // Reset file input
+                    const fileInput = document.getElementById('apkFileInput');
+                    if (fileInput) fileInput.value = '';
+                    setFile(null);
+                } else if (latestBuild > 0 && newBuild > 0 && newBuild <= latestBuild) {
+                    setLowerVersionModal({
+                        show: true,
+                        version: fullVersion,
+                        currentLatest: latestApk.version
+                    });
+                    setVersion('');
+                    setVersionAutoDetected(false);
                     const fileInput = document.getElementById('apkFileInput');
                     if (fileInput) fileInput.value = '';
                     setFile(null);
