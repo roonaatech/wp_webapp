@@ -11,6 +11,37 @@ import { QRCodeCanvas as QRCode } from 'qrcode.react';
 import { formatInTimezone } from '../utils/timezone.util';
 
 
+const compareVersions = (v1, v2) => {
+    if (!v1 || !v2) return 0;
+    const parseVersion = (v) => {
+        const [versionPart, buildPart] = String(v).trim().split('+');
+        return {
+            version: (versionPart || '0').trim(),
+            build: buildPart ? parseInt(buildPart.trim(), 10) : 0
+        };
+    };
+
+    const parsed1 = parseVersion(v1);
+    const parsed2 = parseVersion(v2);
+
+    const parts1 = parsed1.version.split('.').map(n => parseInt(n, 10) || 0);
+    const parts2 = parsed2.version.split('.').map(n => parseInt(n, 10) || 0);
+
+    const maxLength = Math.max(parts1.length, parts2.length);
+    while (parts1.length < maxLength) parts1.push(0);
+    while (parts2.length < maxLength) parts2.push(0);
+
+    for (let i = 0; i < maxLength; i++) {
+        if (parts1[i] > parts2[i]) return 1;
+        if (parts1[i] < parts2[i]) return -1;
+    }
+
+    if (parsed1.build > parsed2.build) return 1;
+    if (parsed1.build < parsed2.build) return -1;
+
+    return 0;
+};
+
 const ApkDistribution = () => {
     const [latestApk, setLatestApk] = useState(null);
     const [apkList, setApkList] = useState([]);
@@ -224,12 +255,6 @@ const ApkDistribution = () => {
 
                 // Check if this version already exists (check all versions, not just current page)
                 const existingVersion = allVersions.find(apk => apk.version === fullVersion);
-                const parseBuildNumber = (v) => {
-                    const parts = String(v || '').split('+');
-                    return parts[1] ? parseInt(parts[1], 10) : 0;
-                };
-                const latestBuild = latestApk ? parseBuildNumber(latestApk.version) : 0;
-                const newBuild = apkInfo.versionCode ? parseInt(apkInfo.versionCode, 10) : parseBuildNumber(fullVersion);
 
                 if (existingVersion) {
                     setDuplicateVersionModal({ show: true, version: fullVersion });
@@ -239,7 +264,7 @@ const ApkDistribution = () => {
                     const fileInput = document.getElementById('apkFileInput');
                     if (fileInput) fileInput.value = '';
                     setFile(null);
-                } else if (latestBuild > 0 && newBuild > 0 && newBuild <= latestBuild) {
+                } else if (latestApk && compareVersions(fullVersion, latestApk.version) < 0) {
                     setLowerVersionModal({
                         show: true,
                         version: fullVersion,
