@@ -11,6 +11,7 @@ import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName, canAccessWebApp } from '../utils/roleUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { formatLeaveDuration } from '../utils/dateUtils';
+import { getAttendanceConfig } from '../utils/attendanceConfig';
 
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
@@ -139,6 +140,10 @@ const MyRequests = () => {
         const s = JSON.parse(localStorage.getItem('settings') || '{}');
         return parseInt(s.leave_past_days_allowed || '0') || 0;
     });
+    const [officeHours, setOfficeHours] = useState(() => {
+        const config = getAttendanceConfig();
+        return { startTime: config.startTime || '09:30', endTime: config.endTime || '18:30' };
+    });
 
     // ── Edit State ──
     const [editingLeave, setEditingLeave] = useState(null);
@@ -242,22 +247,36 @@ const MyRequests = () => {
 
     // Handle settingsLoaded event to refresh timezone/settings context
     useEffect(() => {
+        const s = JSON.parse(localStorage.getItem('settings') || '{}');
+        setLeavePastDaysAllowed(parseInt(s.leave_past_days_allowed || '0') || 0);
+        const config = getAttendanceConfig(s);
+        setOfficeHours({ startTime: config.startTime || '09:30', endTime: config.endTime || '18:30' });
+
         const handleSettingsUpdate = () => {
-            const s = JSON.parse(localStorage.getItem('settings') || '{}');
-            setLeavePastDaysAllowed(parseInt(s.leave_past_days_allowed || '0') || 0);
+            const updated = JSON.parse(localStorage.getItem('settings') || '{}');
+            setLeavePastDaysAllowed(parseInt(updated.leave_past_days_allowed || '0') || 0);
+            const updatedConfig = getAttendanceConfig(updated);
+            setOfficeHours({ startTime: updatedConfig.startTime || '09:30', endTime: updatedConfig.endTime || '18:30' });
         };
         window.addEventListener('settingsLoaded', handleSettingsUpdate);
         return () => window.removeEventListener('settingsLoaded', handleSettingsUpdate);
     }, []);
 
-    // Auto-initialize Time-Off form with current app time
+    // Auto-initialize Time-Off form with current app time (within office hours)
     useEffect(() => {
         if (activeTab === 'timeoff' && activeView === 'apply') {
             const nowInApp = getCurrentInAppTimezone();
             if (!toDate) setToDate(nowInApp.date);
-            if (!toStartTime) setToStartTime(nowInApp.time);
+            if (!toStartTime) {
+                const currTime = nowInApp.time;
+                if (currTime < officeHours.startTime || currTime >= officeHours.endTime) {
+                    setToStartTime(officeHours.startTime);
+                } else {
+                    setToStartTime(currTime);
+                }
+            }
         }
-    }, [activeTab, activeView, toDate, toStartTime]);
+    }, [activeTab, activeView, toDate, toStartTime, officeHours]);
 
     // ─── Submit Handlers ───────────────────────────────────
     const handleLeaveSubmit = async (e) => {
@@ -373,6 +392,19 @@ const MyRequests = () => {
             toast.error('End time must be after start time');
             return;
         }
+
+        // Validate strictly within office hours
+        if (officeHours.startTime && officeHours.endTime) {
+            if (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime) {
+                toast.error(`Start time must be within office hours (${formatTime12(officeHours.startTime)} - ${formatTime12(officeHours.endTime)})`);
+                return;
+            }
+            if (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime) {
+                toast.error(`End time must be within office hours (${formatTime12(officeHours.startTime)} - ${formatTime12(officeHours.endTime)})`);
+                return;
+            }
+        }
+
         setToSubmitting(true);
         try {
             await axios.post(`${API_BASE_URL}/api/timeoff/apply`, {
@@ -535,6 +567,19 @@ const MyRequests = () => {
             toast.error('End time must be after start time');
             return;
         }
+
+        // Validate strictly within office hours
+        if (officeHours.startTime && officeHours.endTime) {
+            if (editToStart < officeHours.startTime || editToStart >= officeHours.endTime) {
+                toast.error(`Start time must be within office hours (${formatTime12(officeHours.startTime)} - ${formatTime12(officeHours.endTime)})`);
+                return;
+            }
+            if (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime) {
+                toast.error(`End time must be within office hours (${formatTime12(officeHours.startTime)} - ${formatTime12(officeHours.endTime)})`);
+                return;
+            }
+        }
+
         setEditToSubmitting(true);
         try {
             await axios.put(`${API_BASE_URL}/api/timeoff/${id}`, {
@@ -1464,36 +1509,69 @@ const MyRequests = () => {
 
                         {/* Time Selection */}
                         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Time Range</label>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Time Range</label>
+                                <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                                    <FiClock className="w-3 h-3 text-teal-600" /> Office Hours: {formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}
+                                </span>
+                            </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-[10px] text-gray-400 font-semibold mb-1 block">Start Time</label>
                                     <input
                                         type="time"
+                                        min={officeHours.startTime}
+                                        max={officeHours.endTime}
                                         value={toStartTime}
                                         onChange={(e) => {
-                                            setToStartTime(e.target.value);
-                                            // Auto-set end time to +2 hours if not set
-                                            if (!toEndTime && e.target.value) {
-                                                const [h, m] = e.target.value.split(':');
-                                                const endH = (parseInt(h) + 2) % 24;
-                                                setToEndTime(`${String(endH).padStart(2, '0')}:${m}`);
+                                            const val = e.target.value;
+                                            setToStartTime(val);
+                                            // Auto-set end time to +2 hours or office end time
+                                            if (val && (!toEndTime || toEndTime <= val)) {
+                                                const [h, m] = val.split(':').map(Number);
+                                                let endMin = h * 60 + (m || 0) + 120;
+                                                const [ohEndH, ohEndM] = officeHours.endTime.split(':').map(Number);
+                                                const officeEndMin = ohEndH * 60 + (ohEndM || 0);
+                                                if (endMin > officeEndMin) {
+                                                    endMin = officeEndMin;
+                                                }
+                                                const resH = String(Math.floor(endMin / 60)).padStart(2, '0');
+                                                const resM = String(endMin % 60).padStart(2, '0');
+                                                setToEndTime(`${resH}:${resM}`);
                                             }
                                         }}
-                                        className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
+                                        className={`w-full px-3 py-3 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
+                                            toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)
+                                                ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500/30'
+                                                : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                        }`}
                                     />
                                 </div>
                                 <div>
                                     <label className="text-[10px] text-gray-400 font-semibold mb-1 block">End Time</label>
                                     <input
                                         type="time"
+                                        min={toStartTime || officeHours.startTime}
+                                        max={officeHours.endTime}
                                         value={toEndTime}
                                         onChange={(e) => setToEndTime(e.target.value)}
-                                        className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
+                                        className={`w-full px-3 py-3 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
+                                            toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)
+                                                ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500/30'
+                                                : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                        }`}
                                     />
                                 </div>
                             </div>
-                            {toStartTime && toEndTime && (
+                            {/* Validation warning if out of bounds */}
+                            {((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) ||
+                              (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime))) && (
+                                <div className="mt-2.5 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-semibold">
+                                    <FiAlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                                    <span>Time-off must be within office hours ({formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}). Any time beyond is not allowed.</span>
+                                </div>
+                            )}
+                            {toStartTime && toEndTime && !((toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime) || (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)) && (
                                 <div className="mt-3 px-3 py-2 bg-teal-50 rounded-xl">
                                     <p className="text-xs font-bold text-teal-600 flex items-center gap-1.5">
                                         <FiClock className="w-3.5 h-3.5 shrink-0" /> Duration: {calcTimeOffDuration(toStartTime, toEndTime)}
@@ -1517,7 +1595,7 @@ const MyRequests = () => {
                         {/* Submit */}
                         <button
                             type="submit"
-                            disabled={toSubmitting}
+                            disabled={toSubmitting || Boolean((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) || (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)))}
                             className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                         >
                             {toSubmitting ? (
@@ -1574,14 +1652,54 @@ const MyRequests = () => {
                                                 if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
                                                 setEditToDate(val);
                                             }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <input type="time" value={editToStart} onChange={(e) => setEditToStart(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
-                                                <input type="time" value={editToEnd} onChange={(e) => setEditToEnd(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
+                                            <div className="space-y-1.5">
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-400 font-semibold mb-0.5 block">Start Time</label>
+                                                        <input
+                                                            type="time"
+                                                            min={officeHours.startTime}
+                                                            max={officeHours.endTime}
+                                                            value={editToStart}
+                                                            onChange={(e) => setEditToStart(e.target.value)}
+                                                            className={`w-full px-3 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
+                                                                editToStart && (editToStart < officeHours.startTime || editToStart >= officeHours.endTime)
+                                                                    ? 'border-rose-400 bg-rose-50/50'
+                                                                    : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                                            }`}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-400 font-semibold mb-0.5 block">End Time</label>
+                                                        <input
+                                                            type="time"
+                                                            min={editToStart || officeHours.startTime}
+                                                            max={officeHours.endTime}
+                                                            value={editToEnd}
+                                                            onChange={(e) => setEditToEnd(e.target.value)}
+                                                            className={`w-full px-3 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
+                                                                editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime)
+                                                                    ? 'border-rose-400 bg-rose-50/50'
+                                                                    : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                                            }`}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between text-[10px] text-gray-500">
+                                                    <span>Office Hours: {formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}</span>
+                                                </div>
+                                                {((editToStart && (editToStart < officeHours.startTime || editToStart >= officeHours.endTime)) ||
+                                                  (editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime))) && (
+                                                    <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-1.5 text-rose-700 text-xs font-semibold">
+                                                        <FiAlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                                                        <span>Time-off must be within office hours ({formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}).</span>
+                                                    </div>
+                                                )}
                                             </div>
                                             <textarea value={editToReason} onChange={(e) => setEditToReason(e.target.value)} rows={2} placeholder="Reason" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all resize-none" />
                                             <button
                                                 onClick={() => handleEditTimeOff(to.id)}
-                                                disabled={editToSubmitting}
+                                                disabled={editToSubmitting || Boolean((editToStart && (editToStart < officeHours.startTime || editToStart >= officeHours.endTime)) || (editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime)))}
                                                 className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-xl text-xs shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
                                             >
                                                 {editToSubmitting ? 'Saving...' : <span className="flex items-center justify-center gap-1.5"><FiSave className="w-3.5 h-3.5" /> Save Changes</span>}
