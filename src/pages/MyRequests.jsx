@@ -134,6 +134,9 @@ const MyRequests = () => {
     const [toSubmitting, setToSubmitting] = useState(false);
     const [myTimeOffs, setMyTimeOffs] = useState([]);
     const [timeOffLoading, setTimeOffLoading] = useState(false);
+    const [isCurrentlyCheckedInToday, setIsCurrentlyCheckedInToday] = useState(false);
+    const [hasAttendanceToday, setHasAttendanceToday] = useState(false);
+    const [attendedDates, setAttendedDates] = useState(new Set());
 
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [leavePastDaysAllowed, setLeavePastDaysAllowed] = useState(() => {
@@ -230,11 +233,34 @@ const MyRequests = () => {
         finally { setTimeOffLoading(false); }
     }, []);
 
+    const fetchTodayAttendance = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_BASE_URL}/api/attendance/today`, { headers });
+            setIsCurrentlyCheckedInToday(Boolean(res.data?.checkedIn));
+            setHasAttendanceToday(Boolean(res.data?.hasCheckIn));
+        } catch (e) {
+            console.error('Failed to fetch today attendance status', e);
+        }
+    }, []);
+
+    const fetchAttendedDates = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_BASE_URL}/api/attendance/my-attended-dates`, { headers });
+            if (res.data?.attendedDates) {
+                setAttendedDates(new Set(res.data.attendedDates));
+            }
+        } catch (e) {
+            console.error('Failed to fetch attended dates', e);
+        }
+    }, []);
+
     useEffect(() => {
         if (!token) { navigate('/login'); return; }
         fetchLeaveTypes();
         fetchActiveOnDuty();
         fetchMyLeaves(); // needed for calendar status colors
+        fetchTodayAttendance();
+        fetchAttendedDates();
     }, []);
 
     useEffect(() => {
@@ -278,11 +304,41 @@ const MyRequests = () => {
         }
     }, [activeTab, activeView, toDate, toStartTime, officeHours]);
 
+    // ─── Attendance / Conflict Helpers ───────────────────
+    const getLeaveAttendedDateConflict = useCallback(() => {
+        if (!leaveStartDate || !leaveEndDate) return null;
+        const [sY, sM, sD] = leaveStartDate.split('-').map(Number);
+        const [eY, eM, eD] = leaveEndDate.split('-').map(Number);
+        let curr = new Date(sY, sM - 1, sD);
+        const end = new Date(eY, eM - 1, eD);
+        while (curr <= end) {
+            const y = curr.getFullYear();
+            const m = String(curr.getMonth() + 1).padStart(2, '0');
+            const d = String(curr.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${m}-${d}`;
+            if (attendedDates.has(dateStr)) {
+                return dateStr;
+            }
+            if (dateStr === nowInApp.date && hasAttendanceToday) {
+                return dateStr;
+            }
+            curr.setDate(curr.getDate() + 1);
+        }
+        return null;
+    }, [leaveStartDate, leaveEndDate, attendedDates, hasAttendanceToday, nowInApp.date]);
+
+    const leaveAttendedConflictDate = getLeaveAttendedDateConflict();
+
     // ─── Submit Handlers ───────────────────────────────────
     const handleLeaveSubmit = async (e) => {
         e.preventDefault();
         if (!selectedLeaveType || !leaveStartDate || !leaveEndDate || !leaveReason.trim()) {
             toast.error('Please fill all fields');
+            return;
+        }
+        const conflictDate = getLeaveAttendedDateConflict();
+        if (conflictDate) {
+            toast.error(`Attendance check-in has already been recorded on ${formatDate(conflictDate)}. Leave cannot be applied for days on which attendance has been recorded.`);
             return;
         }
         setLeaveSubmitting(true);
@@ -385,6 +441,10 @@ const MyRequests = () => {
         e.preventDefault();
         if (!toDate || !toStartTime || !toEndTime || !toReason.trim()) {
             toast.error('Please fill all fields');
+            return;
+        }
+        if (toDate === nowInApp.date && isCurrentlyCheckedInToday) {
+            toast.error('You are currently checked in today. Time-off can only be applied after checking out for the day.');
             return;
         }
         // Validate end > start
@@ -502,6 +562,26 @@ const MyRequests = () => {
             toast.error('Please fill all fields');
             return;
         }
+        const [sY, sM, sD] = editLeaveStart.split('-').map(Number);
+        const [eY, eM, eD] = editLeaveEnd.split('-').map(Number);
+        let curr = new Date(sY, sM - 1, sD);
+        const end = new Date(eY, eM - 1, eD);
+        let conflictDate = null;
+        while (curr <= end) {
+            const y = curr.getFullYear();
+            const m = String(curr.getMonth() + 1).padStart(2, '0');
+            const d = String(curr.getDate()).padStart(2, '0');
+            const ds = `${y}-${m}-${d}`;
+            if (attendedDates.has(ds) || (ds === nowInApp.date && hasAttendanceToday)) {
+                conflictDate = ds;
+                break;
+            }
+            curr.setDate(curr.getDate() + 1);
+        }
+        if (conflictDate) {
+            toast.error(`Attendance check-in has already been recorded on ${formatDate(conflictDate)}. Leave cannot be applied for days on which attendance has been recorded.`);
+            return;
+        }
         setEditLeaveSubmitting(true);
         try {
             await axios.put(`${API_BASE_URL}/api/leave/${id}`, {
@@ -561,6 +641,10 @@ const MyRequests = () => {
     const handleEditTimeOff = async (id) => {
         if (!editToDate || !editToStart || !editToEnd || !editToReason.trim()) {
             toast.error('Please fill all fields');
+            return;
+        }
+        if (editToDate === nowInApp.date && isCurrentlyCheckedInToday) {
+            toast.error('You are currently checked in today. Time-off can only be applied after checking out for the day.');
             return;
         }
         if (editToEnd <= editToStart) {
@@ -721,8 +805,25 @@ const MyRequests = () => {
         setCalendarOpen(true);
     };
     const confirmCalendar = () => {
-        setLeaveStartDate(tempCalStart);
-        setLeaveEndDate(tempCalEnd || tempCalStart);
+        const start = tempCalStart;
+        const end = tempCalEnd || tempCalStart;
+        const [sY, sM, sD] = start.split('-').map(Number);
+        const [eY, eM, eD] = end.split('-').map(Number);
+        let curr = new Date(sY, sM - 1, sD);
+        const endD = new Date(eY, eM - 1, eD);
+        while (curr <= endD) {
+            const y = curr.getFullYear();
+            const m = String(curr.getMonth() + 1).padStart(2, '0');
+            const d = String(curr.getDate()).padStart(2, '0');
+            const ds = `${y}-${m}-${d}`;
+            if (attendedDates.has(ds) || (ds === today && hasAttendanceToday)) {
+                toast.error(`Attendance has already been recorded on ${formatDate(ds)}. Cannot apply leave for days with attendance.`);
+                return;
+            }
+            curr.setDate(curr.getDate() + 1);
+        }
+        setLeaveStartDate(start);
+        setLeaveEndDate(end);
         setCalendarOpen(false);
     };
     const cancelCalendar = () => {
@@ -762,6 +863,10 @@ const MyRequests = () => {
     const monthName = formatInTimezone(calendarMonth, null, { month: 'long', year: 'numeric', day: undefined, hour: undefined, minute: undefined });
 
     const handleCalendarDayClick = (dateStr) => {
+        if (attendedDates.has(dateStr) || (dateStr === today && hasAttendanceToday)) {
+            toast.error(`Attendance has already been recorded on ${formatDate(dateStr)}. Cannot apply leave for days with attendance.`);
+            return;
+        }
         if (rangeStep === 0) {
             setTempCalStart(dateStr);
             setTempCalEnd('');
@@ -772,6 +877,26 @@ const MyRequests = () => {
                 setTempCalEnd('');
                 setRangeStep(1);
             } else {
+                const [sY, sM, sD] = tempCalStart.split('-').map(Number);
+                const [eY, eM, eD] = dateStr.split('-').map(Number);
+                let curr = new Date(sY, sM - 1, sD);
+                const endD = new Date(eY, eM - 1, eD);
+                let conflictDate = null;
+                while (curr <= endD) {
+                    const y = curr.getFullYear();
+                    const m = String(curr.getMonth() + 1).padStart(2, '0');
+                    const d = String(curr.getDate()).padStart(2, '0');
+                    const ds = `${y}-${m}-${d}`;
+                    if (attendedDates.has(ds) || (ds === today && hasAttendanceToday)) {
+                        conflictDate = ds;
+                        break;
+                    }
+                    curr.setDate(curr.getDate() + 1);
+                }
+                if (conflictDate) {
+                    toast.error(`Attendance has already been recorded on ${formatDate(conflictDate)}. Selected range cannot include attended days.`);
+                    return;
+                }
                 setTempCalEnd(dateStr);
                 setRangeStep(0);
             }
@@ -1078,6 +1203,12 @@ const MyRequests = () => {
                                     </label>
                                 </div>
                             )}
+                            {leaveAttendedConflictDate && (
+                                <div className="mt-3 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-red-700">
+                                    <LuCircleAlert className="w-4 h-4 text-red-600 shrink-0" />
+                                    <span>Attendance check-in has already been recorded on {formatDate(leaveAttendedConflictDate)}. Leave cannot be applied for days on which attendance has been recorded.</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Reason */}
@@ -1095,7 +1226,7 @@ const MyRequests = () => {
                         {/* Submit */}
                         <button
                             type="submit"
-                            disabled={leaveSubmitting}
+                            disabled={leaveSubmitting || Boolean(leaveAttendedConflictDate)}
                             className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3 mt-4"
                         >
                             {leaveSubmitting ? (
@@ -1505,6 +1636,12 @@ const MyRequests = () => {
                                     </span>
                                 </div>
                             </div>
+                            {toDate === nowInApp.date && isCurrentlyCheckedInToday && (
+                                <div className="mt-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-800">
+                                    <LuCircleAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                                    <span>You are currently checked in today. Time-off can only be applied after checking out for the day.</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Time Selection */}
@@ -1595,7 +1732,7 @@ const MyRequests = () => {
                         {/* Submit */}
                         <button
                             type="submit"
-                            disabled={toSubmitting || Boolean((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) || (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)))}
+                            disabled={toSubmitting || Boolean(toDate === nowInApp.date && isCurrentlyCheckedInToday) || Boolean((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) || (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)))}
                             className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                         >
                             {toSubmitting ? (
@@ -1785,7 +1922,8 @@ const MyRequests = () => {
 
                                     const { day, dateStr, isSunday } = cell;
                                     const isPast = dateStr < minLeaveDate;
-                                    const disabled = isPast || isSunday;
+                                    const hasAttendance = attendedDates.has(dateStr) || (dateStr === today && hasAttendanceToday);
+                                    const disabled = isPast || isSunday || hasAttendance;
                                     const leaveStatus = leaveDateStatusMap[dateStr];
                                     const inRange = isInSelectedRange(dateStr);
                                     const isStart = isRangeStart(dateStr);
@@ -1797,7 +1935,12 @@ const MyRequests = () => {
                                     let ringClass = '';
 
                                     if (disabled) {
-                                        textClass = 'text-gray-300';
+                                        if (hasAttendance) {
+                                            textClass = 'text-rose-400 line-through';
+                                            bgClass = 'bg-rose-50/50';
+                                        } else {
+                                            textClass = 'text-gray-300';
+                                        }
                                     } else if (isStart || isEnd) {
                                         bgClass = 'bg-blue-600';
                                         textClass = 'text-white';
@@ -1824,6 +1967,7 @@ const MyRequests = () => {
                                             type="button"
                                             disabled={disabled}
                                             onClick={() => handleCalendarDayClick(dateStr)}
+                                            title={hasAttendance ? 'Attendance recorded - Leave not allowed' : ''}
                                             className={`h-10 w-full flex items-center justify-center text-xs font-semibold rounded-full transition-all
                                                 ${bgClass} ${textClass} ${ringClass}
                                                 ${!disabled && !inRange && !isStart && !isEnd ? 'hover:bg-blue-50' : ''} ${!disabled ? 'active:scale-95 cursor-pointer' : 'cursor-default'}
@@ -1837,7 +1981,7 @@ const MyRequests = () => {
                             </div>
 
                             {/* Legend */}
-                            <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                            <div className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-gray-100 flex-wrap">
                                 <div className="flex items-center gap-1.5">
                                     <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
                                     <span className="text-[10px] text-gray-500 font-semibold">Selected</span>
@@ -1849,6 +1993,10 @@ const MyRequests = () => {
                                 <div className="flex items-center gap-1.5">
                                     <span className="w-2.5 h-2.5 rounded-full bg-amber-200"></span>
                                     <span className="text-[10px] text-gray-500 font-semibold">Pending</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+                                    <span className="text-[10px] text-gray-500 font-semibold">Attended</span>
                                 </div>
                             </div>
 
