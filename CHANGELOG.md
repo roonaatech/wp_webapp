@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.14.4](https://github.com/roonaatech/wp_webapp/compare/v2.14.3...v2.14.4) (2026-09-28)
+
+
+### Features
+
+* add office hours validation and display constraints to time-off requests ([6e9a1df](https://github.com/roonaatech/wp_webapp/commit/6e9a1df87873f87ef34a653807c11e56d36adfab))
+
 ### [2.14.3](https://github.com/roonaatech/wp_webapp/compare/v2.14.2...v2.14.3) (2026-09-27)
 
 
