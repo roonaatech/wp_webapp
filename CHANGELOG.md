@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.14.7](https://github.com/roonaatech/wp_webapp/compare/v2.14.6...v2.14.7) (2026-09-28)
+
+
+### Features
+
+* prevent leave and time-off requests on dates with recorded attendance ([dc5dd38](https://github.com/roonaatech/wp_webapp/commit/dc5dd383718544dd2a0787b2d8f6fc8f61a57b12))
+
 ### [2.14.6](https://github.com/roonaatech/wp_webapp/compare/v2.14.5...v2.14.6) (2026-09-28)
 
 
