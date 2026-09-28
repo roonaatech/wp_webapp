@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.14.5](https://github.com/roonaatech/wp_webapp/compare/v2.14.4...v2.14.5) (2026-09-28)
+
+
+### Features
+
+* add validation and warning modal for lower version APK uploads ([e0aa641](https://github.com/roonaatech/wp_webapp/commit/e0aa6419434551a938cb1aa8a9a5b9122a919053))
+
 ### [2.14.4](https://github.com/roonaatech/wp_webapp/compare/v2.14.3...v2.14.4) (2026-09-28)
 
 
