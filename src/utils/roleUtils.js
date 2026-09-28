@@ -424,8 +424,10 @@ export const canViewAttendanceReportAll = (roleId) => {
 export const canEditAttendance = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_edit_attendance === 'subordinates' || role.can_edit_attendance === 'all' ||
-           role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
+    if (role.can_edit_attendance !== undefined && role.can_edit_attendance !== null) {
+        return role.can_edit_attendance === 'subordinates' || role.can_edit_attendance === 'all';
+    }
+    return role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
 };
 
 /**
@@ -434,7 +436,10 @@ export const canEditAttendance = (roleId) => {
 export const canEditAttendanceAll = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_edit_attendance === 'all' || role.can_manage_attendance === 'all';
+    if (role.can_edit_attendance !== undefined && role.can_edit_attendance !== null) {
+        return role.can_edit_attendance === 'all';
+    }
+    return role.can_manage_attendance === 'all';
 };
 
 /**
@@ -443,8 +448,10 @@ export const canEditAttendanceAll = (roleId) => {
 export const canDeleteAttendance = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_delete_attendance === 'subordinates' || role.can_delete_attendance === 'all' ||
-           role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
+    if (role.can_delete_attendance !== undefined && role.can_delete_attendance !== null) {
+        return role.can_delete_attendance === 'subordinates' || role.can_delete_attendance === 'all';
+    }
+    return role.can_manage_attendance === 'subordinates' || role.can_manage_attendance === 'all';
 };
 
 /**
@@ -453,7 +460,10 @@ export const canDeleteAttendance = (roleId) => {
 export const canDeleteAttendanceAll = (roleId) => {
     const role = getRoleById(roleId);
     if (!role) return false;
-    return role.can_delete_attendance === 'all' || role.can_manage_attendance === 'all';
+    if (role.can_delete_attendance !== undefined && role.can_delete_attendance !== null) {
+        return role.can_delete_attendance === 'all';
+    }
+    return role.can_manage_attendance === 'all';
 };
 
 /**
@@ -643,6 +653,11 @@ export const getRoleColor = (roleId) => {
 export const clearRolesCache = () => {
     rolesCache = null;
     rolesCacheTime = null;
+    try {
+        localStorage.removeItem('cachedRoles');
+    } catch (e) {
+        console.error('Error clearing cachedRoles from localStorage:', e);
+    }
 };
 
 export default {

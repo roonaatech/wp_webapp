@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
-import { fetchRoles, canViewAttendanceReport, canManageAttendance, canEditAttendance, canDeleteAttendance } from '../utils/roleUtils';
+import { fetchRoles, canViewAttendanceReport, canManageAttendance, canEditAttendance, canDeleteAttendance, canEditAttendanceAll, canDeleteAttendanceAll } from '../utils/roleUtils';
 import { formatDateOnly, formatTimeOnly, formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet } from 'react-icons/lu';
 import ExcelJS from 'exceljs';
@@ -181,7 +181,23 @@ const AttendanceReport = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const canEdit = canEditAttendance(user.role);
     const canDelete = canDeleteAttendance(user.role);
+    const canEditAll = canEditAttendanceAll(user.role);
+    const canDeleteAll = canDeleteAttendanceAll(user.role);
     const canManage = canEdit || canDelete;
+
+    const canDeleteLog = (staffId) => {
+        if (!canDelete) return false;
+        if (canDeleteAll) return true;
+        const targetStaff = users.find(u => (u.staffid || u.id) === staffId);
+        return targetStaff && parseInt(targetStaff.approving_manager_id) === parseInt(user.staffid || user.id);
+    };
+
+    const canEditLog = (staffId) => {
+        if (!canEdit) return false;
+        if (canEditAll) return true;
+        const targetStaff = users.find(u => (u.staffid || u.id) === staffId);
+        return targetStaff && parseInt(targetStaff.approving_manager_id) === parseInt(user.staffid || user.id);
+    };
 
     // 1. Check Permissions on Mount
     useEffect(() => {
@@ -1194,7 +1210,7 @@ const AttendanceReport = () => {
                                                     {canManage && (
                                                         <td className="px-4 py-2.5">
                                                             <div className="flex items-center gap-1.5">
-                                                                {canEdit && (
+                                                                {canEditLog(log.staff_id) && (
                                                                     <button
                                                                         onClick={() => handleEditClick(log)}
                                                                         className="p-2 bg-slate-50 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl transition shadow-sm font-semibold cursor-pointer"
@@ -1203,7 +1219,7 @@ const AttendanceReport = () => {
                                                                         <LuPencil size={14} />
                                                                     </button>
                                                                 )}
-                                                                {canDelete && (
+                                                                {canDeleteLog(log.staff_id) && (
                                                                     <button
                                                                         onClick={() => handleDeleteClick(log.id)}
                                                                         className="p-2 bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition shadow-sm font-semibold cursor-pointer"
@@ -1389,7 +1405,7 @@ const AttendanceReport = () => {
                                                                 {canManage && (
                                                                     <td className="px-4 py-2.5">
                                                                         <div className="flex items-center gap-2">
-                                                                            {canEdit && (
+                                                                            {canEditLog(log.staff_id) && (
                                                                                 <button
                                                                                     onClick={() => handleEditClick(log)}
                                                                                     className="p-2 bg-slate-50 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl transition shadow-sm cursor-pointer"
@@ -1398,7 +1414,7 @@ const AttendanceReport = () => {
                                                                                     <LuPencil size={13} />
                                                                                 </button>
                                                                             )}
-                                                                            {canDelete && (
+                                                                            {canDeleteLog(log.staff_id) && (
                                                                                 <button
                                                                                     onClick={() => handleDeleteClick(log.id)}
                                                                                     className="p-2 bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition shadow-sm cursor-pointer"

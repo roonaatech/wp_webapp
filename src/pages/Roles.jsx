@@ -834,6 +834,13 @@ const Roles = () => {
                 submissionData.can_manage_onboarding = false;
             }
 
+            // Keep legacy can_manage_attendance synchronized with granular edit/delete permissions
+            submissionData.can_manage_attendance = (submissionData.can_edit_attendance === 'all' || submissionData.can_delete_attendance === 'all')
+                ? 'all'
+                : (submissionData.can_edit_attendance === 'subordinates' || submissionData.can_delete_attendance === 'subordinates')
+                    ? 'subordinates'
+                    : 'none';
+
             if (editingRole) {
                 // Update existing role
                 await axios.put(
@@ -852,8 +859,9 @@ const Roles = () => {
                 toast.success('Role created successfully');
             }
 
-            // Clear the global roles cache so other pages pick up the change
+            // Clear and force-refresh the global roles cache so all pages immediately pick up changes
             clearRolesCache();
+            await fetchRolesUtil(true);
 
             fetchRoles();
             fetchStatistics();
