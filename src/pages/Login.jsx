@@ -66,6 +66,18 @@ const Login = () => {
         }
     }, [location.state]);
 
+    const normalizeWorkMode = (mode) => {
+        if (!mode) return 'Office';
+        const m = String(mode).trim().toLowerCase();
+        if (m === 'work from home' || m === 'wfh' || m === 'remote' || m === 'work_from_home') {
+            return 'Work from home';
+        }
+        if (m === 'hybrid') {
+            return 'Hybrid';
+        }
+        return 'Office';
+    };
+
     const processLoginSuccess = async (data) => {
         const user = {
             id: data.id,
@@ -76,7 +88,7 @@ const Login = () => {
             email: data.email,
             role: data.role,
             gender: data.gender,
-            work_mode: data.work_mode || 'Office',
+            work_mode: normalizeWorkMode(data.work_mode),
             hybrid_office_days: data.hybrid_office_days || [],
             isServiceAccount: data.isServiceAccount === true
         };

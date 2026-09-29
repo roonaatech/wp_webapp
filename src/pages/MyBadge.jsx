@@ -72,6 +72,8 @@ const MyBadge = () => {
     const [elapsedTime, setElapsedTime] = useState('');
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const rawLocalMode = (user?.work_mode === 'Regular' ? 'Office' : (user?.work_mode || '')).trim().toLowerCase();
+    const isLocalWfh = rawLocalMode === 'work from home' || rawLocalMode === 'wfh' || rawLocalMode === 'remote';
     const isMobile = isMobileClient();
     const isDesktopWithLayout = canAccessWebApp(user.role) && !isMobile;
 
@@ -127,17 +129,20 @@ const MyBadge = () => {
         if (isManual) setRefreshing(true);
 
         try {
+            const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
             const devMeta = await getMobileDeviceMetadata();
 
             const response = await axios.get(`${API_BASE_URL}/api/attendance/my-badge`, {
                 headers: { 
                     'x-access-token': token,
+                    'x-client-timezone': clientTimezone,
                     'x-is-mobile': devMeta.isMobile ? 'true' : 'false',
                     'x-device-id': devMeta.deviceId,
                     'x-device-name': devMeta.deviceName,
                     'x-device-model': devMeta.deviceModel || ''
                 },
                 params: {
+                    clientTimezone,
                     deviceId: devMeta.isMobile ? devMeta.deviceId : undefined,
                     deviceName: devMeta.isMobile ? devMeta.deviceName : undefined,
                     deviceModel: devMeta.isMobile ? devMeta.deviceModel : undefined
@@ -151,7 +156,7 @@ const MyBadge = () => {
                 setSecondsLeft(ROTATION_INTERVAL_SEC);
 
                 // Auto capture location on WFH days
-                if (response.data.isWfhDay) {
+                if (response.data.isWfhDay || isLocalWfh) {
                     captureLocation();
                 }
             } else {
@@ -179,7 +184,7 @@ const MyBadge = () => {
 
     // Countdown and auto-refresh timer ONLY for office QR badge (disabled on WFH days)
     useEffect(() => {
-        if (loading || isLocked || error || badgeData?.isWfhDay) return;
+        if (loading || isLocked || error || badgeData?.isWfhDay || isLocalWfh) return;
 
         timerRef.current = setInterval(() => {
             setSecondsLeft((prev) => {
@@ -194,11 +199,12 @@ const MyBadge = () => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [loading, isLocked, error, badgeData?.isWfhDay, fetchBadge]);
+    }, [loading, isLocked, error, badgeData?.isWfhDay, isLocalWfh, fetchBadge]);
 
     // Live elapsed timer for CHECKED_IN status on WFH days
     useEffect(() => {
-        if (!badgeData?.isWfhDay || badgeData?.todayStatus !== 'CHECKED_IN' || !badgeData?.checkInTime) {
+        const isWfh = badgeData?.isWfhDay || isLocalWfh;
+        if (!isWfh || badgeData?.todayStatus !== 'CHECKED_IN' || !badgeData?.checkInTime) {
             setElapsedTime('');
             return;
         }
@@ -256,17 +262,20 @@ const MyBadge = () => {
 
             const token = localStorage.getItem('token');
             const devMeta = await getMobileDeviceMetadata();
+            const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
             const payload = {
                 action,
                 latitude: lat,
                 longitude: lng,
+                clientTimezone,
                 notes: wfhNotes ? wfhNotes.trim() : undefined
             };
 
             const response = await axios.post(`${API_BASE_URL}/api/attendance/wfh-punch`, payload, {
                 headers: {
                     'x-access-token': token,
+                    'x-client-timezone': clientTimezone,
                     'x-is-mobile': devMeta.isMobile ? 'true' : 'false',
                     'x-device-id': devMeta.deviceId,
                     'x-device-name': devMeta.deviceName,
@@ -394,6 +403,11 @@ const MyBadge = () => {
     }
 
     const { employee, qrPayload, todayStatus, checkInTime, isWfhDay, workMode, todayDayOfWeek } = badgeData || {};
+
+    const rawBadgeMode = (workMode === 'Regular' ? 'Office' : (workMode || '')).trim().toLowerCase();
+    const isBadgeWfh = rawBadgeMode === 'work from home' || rawBadgeMode === 'wfh' || rawBadgeMode === 'remote';
+    const effectiveIsWfh = isLocalWfh || isBadgeWfh || Boolean(isWfhDay);
+
     const progressPercent = ((ROTATION_INTERVAL_SEC - secondsLeft) / ROTATION_INTERVAL_SEC) * 100;
 
     return (
@@ -439,7 +453,7 @@ const MyBadge = () => {
                 {/* Header Title */}
                 {!isDesktopWithLayout && (
                     <div className="text-center mb-5 max-w-sm w-full">
-                        {isWfhDay ? (
+                        {effectiveIsWfh ? (
                             <>
                                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-100 text-blue-900 text-xs font-bold mb-2 shadow-sm border border-blue-300">
                                     <LuHouse className="w-4 h-4 text-blue-700" />
@@ -469,7 +483,7 @@ const MyBadge = () => {
                 <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 transition-all">
                     
                     {/* Card Top Accent Banner */}
-                    <div className={`h-28 ${isWfhDay ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600' : 'bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600'} p-4 relative overflow-hidden`}>
+                    <div className={`h-28 ${effectiveIsWfh ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600' : 'bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600'} p-4 relative overflow-hidden`}>
                         <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
                         <div className="relative z-10 flex items-center justify-between text-white">
                             <div className="flex items-center gap-2">
@@ -479,9 +493,9 @@ const MyBadge = () => {
                                 <span className="font-bold text-sm tracking-wide">WorkPulse</span>
                             </div>
                             <div className="flex items-center gap-1.5 bg-black/20 backdrop-blur-md px-2.5 py-1 rounded-full text-[11px] font-medium border border-white/20">
-                                <span className={`w-2 h-2 rounded-full ${isWfhDay ? 'bg-sky-300' : 'bg-emerald-400'} animate-ping`} />
-                                <span className={`w-2 h-2 rounded-full ${isWfhDay ? 'bg-sky-300' : 'bg-emerald-400'} -ml-3.5`} />
-                                {isWfhDay ? 'Remote Punch' : 'Live Security'}
+                                <span className={`w-2 h-2 rounded-full ${effectiveIsWfh ? 'bg-sky-300' : 'bg-emerald-400'} animate-ping`} />
+                                <span className={`w-2 h-2 rounded-full ${effectiveIsWfh ? 'bg-sky-300' : 'bg-emerald-400'} -ml-3.5`} />
+                                {effectiveIsWfh ? 'Remote Punch' : 'Live Security'}
                             </div>
                         </div>
                     </div>
@@ -498,20 +512,20 @@ const MyBadge = () => {
                                         alt={employee.name}
                                         className="w-full h-full rounded-full object-cover"
                                         onError={(e) => {
-                                            e.target.style.display = 'none';
-                                            e.target.nextSibling.style.display = 'flex';
+                                             e.target.style.display = 'none';
+                                             e.target.nextSibling.style.display = 'flex';
                                         }}
                                     />
                                 ) : null}
                                 <div
-                                    className={`w-full h-full rounded-full ${isWfhDay ? 'bg-gradient-to-tr from-blue-500 to-indigo-500' : 'bg-gradient-to-tr from-emerald-500 to-teal-400'} text-white font-bold text-2xl items-center justify-center shadow-inner`}
+                                    className={`w-full h-full rounded-full ${effectiveIsWfh ? 'bg-gradient-to-tr from-blue-500 to-indigo-500' : 'bg-gradient-to-tr from-emerald-500 to-teal-400'} text-white font-bold text-2xl items-center justify-center shadow-inner`}
                                     style={{ display: employee?.avatarUrl ? 'none' : 'flex' }}
                                 >
                                     {employee?.name ? employee.name.charAt(0).toUpperCase() : <LuUser className="w-10 h-10" />}
                                 </div>
                             </div>
-                            <div className={`absolute bottom-1 right-1 w-6 h-6 rounded-full ${isWfhDay ? 'bg-blue-600' : 'bg-emerald-500'} text-white flex items-center justify-center shadow-md border-2 border-white text-[10px]`}>
-                                {isWfhDay ? <LuHouse className="w-3.5 h-3.5" /> : <LuSparkles className="w-3.5 h-3.5" />}
+                            <div className={`absolute bottom-1 right-1 w-6 h-6 rounded-full ${effectiveIsWfh ? 'bg-blue-600' : 'bg-emerald-500'} text-white flex items-center justify-center shadow-md border-2 border-white text-[10px]`}>
+                                {effectiveIsWfh ? <LuHouse className="w-3.5 h-3.5" /> : <LuSparkles className="w-3.5 h-3.5" />}
                             </div>
                         </div>
 
@@ -519,7 +533,7 @@ const MyBadge = () => {
                         <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
                             {employee?.name || 'Employee'}
                         </h2>
-                        <p className={`text-xs font-semibold ${isWfhDay ? 'text-blue-600' : 'text-emerald-600'} mt-0.5`}>
+                        <p className={`text-xs font-semibold ${effectiveIsWfh ? 'text-blue-600' : 'text-emerald-600'} mt-0.5`}>
                             {employee?.role || 'Staff Member'}
                         </p>
                         {employee?.department && (
@@ -557,7 +571,7 @@ const MyBadge = () => {
                         {/* ========================================================================= */}
                         {/* CONDITIONAL RENDER: WFH PUNCH vs OFFICE QR BADGE */}
                         {/* ========================================================================= */}
-                        {isWfhDay ? (
+                        {effectiveIsWfh ? (
                             /* ─── WFH PUNCH CARD VIEW (DO NOT SHOW QR CODE!) ─── */
                             <div className="mt-5 text-left">
                                 

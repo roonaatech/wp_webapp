@@ -66,6 +66,25 @@ const StatusBadge = ({ status }) => {
     );
 };
 
+// ─── Helper: Determine if user is authorized for WFH punch today ──────────
+const isUserWfhToday = (currentUser) => {
+    if (!currentUser) return false;
+    const mode = (currentUser.work_mode === 'Regular' ? 'Office' : (currentUser.work_mode || 'Office')).trim().toLowerCase();
+    if (mode === 'work from home' || mode === 'wfh' || mode === 'remote') {
+        return true;
+    }
+    if (mode === 'hybrid') {
+        const todayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
+        const officeDays = Array.isArray(currentUser.hybrid_office_days) ? currentUser.hybrid_office_days : [];
+        const isOfficeDay = officeDays.some(d => {
+            const dStr = String(d).trim().toLowerCase();
+            return dStr === todayStr || (dStr.length >= 3 && todayStr.startsWith(dStr)) || todayStr.startsWith(dStr);
+        });
+        return !isOfficeDay;
+    }
+    return false;
+};
+
 // ─── Main Component ───────────────────────────────────
 const MyRequests = () => {
     const navigate = useNavigate();
@@ -1021,19 +1040,7 @@ const MyRequests = () => {
                             </div>
                             <div className="flex items-center gap-2">
                                 {(() => {
-                                    const mode = user?.work_mode === 'Regular' ? 'Office' : (user?.work_mode || 'Office');
-                                    let isWfh = false;
-                                    if (mode === 'Work from home') {
-                                        isWfh = true;
-                                    } else if (mode === 'Hybrid') {
-                                        const todayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
-                                        const officeDays = Array.isArray(user?.hybrid_office_days) ? user.hybrid_office_days : [];
-                                        const isOfficeDay = officeDays.some(d => {
-                                            const dStr = String(d).trim().toLowerCase();
-                                            return dStr === todayStr || (dStr.length >= 3 && todayStr.startsWith(dStr)) || todayStr.startsWith(dStr);
-                                        });
-                                        isWfh = !isOfficeDay;
-                                    }
+                                    const isWfh = isUserWfhToday(user);
 
                                     return isWfh ? (
                                         <button
@@ -1086,19 +1093,7 @@ const MyRequests = () => {
                 ) : (
                     <div className="flex justify-end p-3 bg-white border-b border-slate-100">
                         {(() => {
-                            const mode = user?.work_mode === 'Regular' ? 'Office' : (user?.work_mode || 'Office');
-                            let isWfh = false;
-                            if (mode === 'Work from home') {
-                                isWfh = true;
-                            } else if (mode === 'Hybrid') {
-                                const todayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
-                                const officeDays = Array.isArray(user?.hybrid_office_days) ? user.hybrid_office_days : [];
-                                const isOfficeDay = officeDays.some(d => {
-                                    const dStr = String(d).trim().toLowerCase();
-                                    return dStr === todayStr || (dStr.length >= 3 && todayStr.startsWith(dStr)) || todayStr.startsWith(dStr);
-                                });
-                                isWfh = !isOfficeDay;
-                            }
+                            const isWfh = isUserWfhToday(user);
 
                             return isWfh ? (
                                 <button
@@ -1126,19 +1121,7 @@ const MyRequests = () => {
                 {/* ── Quick Smart Badge or WFH Punch Access Banner ── */}
                 <div className="px-4 pt-3 pb-1">
                     {(() => {
-                        const mode = user?.work_mode === 'Regular' ? 'Office' : (user?.work_mode || 'Office');
-                        let isWfh = false;
-                        if (mode === 'Work from home') {
-                            isWfh = true;
-                        } else if (mode === 'Hybrid') {
-                            const todayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
-                            const officeDays = Array.isArray(user?.hybrid_office_days) ? user.hybrid_office_days : [];
-                            const isOfficeDay = officeDays.some(d => {
-                                const dStr = String(d).trim().toLowerCase();
-                                return dStr === todayStr || (dStr.length >= 3 && todayStr.startsWith(dStr)) || todayStr.startsWith(dStr);
-                            });
-                            isWfh = !isOfficeDay;
-                        }
+                        const isWfh = isUserWfhToday(user);
 
                         return isWfh ? (
                             <div 
