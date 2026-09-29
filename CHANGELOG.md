@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.16.6](https://github.com/roonaatech/wp_webapp/compare/v2.16.5...v2.16.6) (2026-09-29)
+
+
+### Features
+
+* improve check-in timer accuracy, time parsing, and optimistic state updates in MyBadge ([98a8a5e](https://github.com/roonaatech/wp_webapp/commit/98a8a5e557dbb764d7703e6350d267b548e12682))
+
+
+### Code Refactoring
+
+* import useMemo hook in MyBadge page ([335a9a8](https://github.com/roonaatech/wp_webapp/commit/335a9a8d609b4dfbd5f89429cd82a9db97e6d2ad))
+
 ### [2.16.5](https://github.com/roonaatech/wp_webapp/compare/v2.16.4...v2.16.5) (2026-09-29)
 
 
