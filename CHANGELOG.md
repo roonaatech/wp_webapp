@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.16.5](https://github.com/roonaatech/wp_webapp/compare/v2.16.4...v2.16.5) (2026-09-29)
+
+
+### Features
+
+* add 2-phase GPS geolocation fallback and improve iOS location permission guidance UI ([775ca03](https://github.com/roonaatech/wp_webapp/commit/775ca03d28412e10e7365f20091b361e685b179e))
+
 ### [2.16.4](https://github.com/roonaatech/wp_webapp/compare/v2.16.3...v2.16.4) (2026-09-29)
 
 
