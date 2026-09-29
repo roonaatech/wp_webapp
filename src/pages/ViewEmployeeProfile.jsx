@@ -126,7 +126,7 @@ const ViewEmployeeProfile = () => {
         allocate_leaves: true,
         casual_leave_days: 6,
         sick_leave_days: 6,
-        work_mode: 'Regular',
+        work_mode: 'Office',
         hybrid_office_days: []
     });
     const [approvalErrors, setApprovalErrors] = useState({});
@@ -180,7 +180,7 @@ const ViewEmployeeProfile = () => {
                 role: response.data.role || '',
                 approving_manager_id: response.data.approving_manager_id || '',
                 abis_access: response.data.abis_access || false,
-                work_mode: response.data.work_mode || 'Regular',
+                work_mode: response.data.work_mode === 'Regular' ? 'Office' : (response.data.work_mode || 'Office'),
                 hybrid_office_days: days,
                 date_of_joining: response.data.profile_info?.date_of_joining || '',
                 allocate_leaves: true,
@@ -335,7 +335,7 @@ const ViewEmployeeProfile = () => {
                     allocate_leaves: approvalForm.allocate_leaves,
                     casual_leave_days: approvalForm.allocate_leaves ? parseInt(approvalForm.casual_leave_days || 6) : 0,
                     sick_leave_days: approvalForm.allocate_leaves ? parseInt(approvalForm.sick_leave_days || 6) : 0,
-                    work_mode: approvalForm.work_mode || 'Regular',
+                    work_mode: approvalForm.work_mode || 'Office',
                     hybrid_office_days: approvalForm.work_mode === 'Hybrid' ? (approvalForm.hybrid_office_days || []) : null
                 },
                 {
@@ -508,7 +508,7 @@ const ViewEmployeeProfile = () => {
                                 </span>
                             )}
                             {(() => {
-                                const mode = employee.work_mode || 'Regular';
+                                const mode = (employee.work_mode === 'Regular' ? 'Office' : employee.work_mode) || 'Office';
                                 let days = employee.hybrid_office_days;
                                 if (typeof days === 'string') {
                                     try { days = JSON.parse(days); } catch { days = []; }
@@ -532,7 +532,7 @@ const ViewEmployeeProfile = () => {
                                 }
                                 return (
                                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                                        <LuBuilding2 className="w-3 h-3" /> Regular
+                                        <LuBuilding2 className="w-3 h-3" /> Office
                                     </span>
                                 );
                             })()}
@@ -1174,11 +1174,12 @@ const ViewEmployeeProfile = () => {
                                 </label>
                                 <div className="grid grid-cols-3 gap-2.5">
                                     {[
-                                        { value: 'Regular', label: 'Regular', icon: <LuBuilding2 className="w-4 h-4" /> },
+                                        { value: 'Office', label: 'Office', icon: <LuBuilding2 className="w-4 h-4" /> },
                                         { value: 'Work from home', label: 'Work from home', icon: <LuHouse className="w-4 h-4" /> },
                                         { value: 'Hybrid', label: 'Hybrid', icon: <LuBriefcase className="w-4 h-4" /> }
                                     ].map((mode) => {
-                                        const isSelected = (approvalForm.work_mode || 'Regular') === mode.value;
+                                        const currentMode = (approvalForm.work_mode === 'Regular' ? 'Office' : approvalForm.work_mode) || 'Office';
+                                        const isSelected = currentMode === mode.value;
                                         return (
                                             <button
                                                 key={mode.value}

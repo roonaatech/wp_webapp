@@ -64,7 +64,7 @@ const OnboardEmployee = () => {
         allocate_leaves: true,
         casual_leave_days: 6,
         sick_leave_days: 6,
-        work_mode: 'Regular',
+        work_mode: 'Office',
         hybrid_office_days: [],
 
         // Personal
@@ -255,7 +255,7 @@ const OnboardEmployee = () => {
                 approving_manager_id: emp.approving_manager_id || '',
                 gender: emp.gender || '',
                 abis_access: emp.abis_access || false,
-                work_mode: emp.work_mode || 'Regular',
+                work_mode: emp.work_mode === 'Regular' ? 'Office' : (emp.work_mode || 'Office'),
                 hybrid_office_days: Array.isArray(emp.hybrid_office_days) ? emp.hybrid_office_days : (typeof emp.hybrid_office_days === 'string' ? JSON.parse(emp.hybrid_office_days || '[]') : []),
                 date_of_joining: profile.date_of_joining || '',
 
@@ -1168,11 +1168,12 @@ const OnboardEmployee = () => {
                                                 </label>
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                     {[
-                                                        { value: 'Regular', label: 'Regular', desc: 'In Office', icon: <LuBuilding2 className="w-5 h-5" /> },
+                                                        { value: 'Office', label: 'Office', desc: 'In Office', icon: <LuBuilding2 className="w-5 h-5" /> },
                                                         { value: 'Work from home', label: 'Work from home', desc: 'Remote', icon: <LuHouse className="w-5 h-5" /> },
                                                         { value: 'Hybrid', label: 'Hybrid', desc: 'Office & Remote', icon: <LuBriefcase className="w-5 h-5" /> }
                                                     ].map((mode) => {
-                                                        const isSelected = (formData.work_mode || 'Regular') === mode.value;
+                                                        const currentMode = (formData.work_mode === 'Regular' ? 'Office' : formData.work_mode) || 'Office';
+                                                        const isSelected = currentMode === mode.value;
                                                         return (
                                                             <button
                                                                 key={mode.value}

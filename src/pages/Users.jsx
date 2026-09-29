@@ -303,7 +303,7 @@ const Users = () => {
         role: '4',
         approving_manager_id: '',
         gender: '',
-        work_mode: 'Regular',
+        work_mode: 'Office',
         hybrid_office_days: []
     });
     const [formError, setFormError] = useState(null);
@@ -690,7 +690,7 @@ const Users = () => {
             role: '4',
             approving_manager_id: '',
             gender: '',
-            work_mode: 'Regular',
+            work_mode: 'Office',
             hybrid_office_days: []
         });
     };
@@ -710,7 +710,7 @@ const Users = () => {
             role: '4',
             approving_manager_id: '',
             gender: '',
-            work_mode: 'Regular',
+            work_mode: 'Office',
             hybrid_office_days: []
         });
     };
@@ -740,7 +740,7 @@ const Users = () => {
             role: editUser.role ? String(editUser.role) : '4', // Default to Employee (4) if role is missing/null
             approving_manager_id: editUser.approving_manager_id || '',
             gender: editUser.gender || '',
-            work_mode: editUser.work_mode || 'Regular',
+            work_mode: editUser.work_mode === 'Regular' ? 'Office' : (editUser.work_mode || 'Office'),
             hybrid_office_days: days
         });
     };
@@ -816,7 +816,7 @@ const Users = () => {
     };
 
     const renderWorkModeBadge = (u) => {
-        const mode = u.work_mode || 'Regular';
+        const mode = (u.work_mode === 'Regular' ? 'Office' : u.work_mode) || 'Office';
         let days = u.hybrid_office_days;
         if (typeof days === 'string') {
             try { days = JSON.parse(days); } catch { days = []; }
@@ -850,7 +850,7 @@ const Users = () => {
         return (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                 <LuBuilding2 className="w-3.5 h-3.5" />
-                Regular
+                Office
             </span>
         );
     };
@@ -988,7 +988,7 @@ const Users = () => {
                 secondary_email: formData.secondary_email?.trim() || null,
                 role: roleNum, // Must be an integer
                 gender: formData.gender,
-                work_mode: formData.work_mode || 'Regular',
+                work_mode: formData.work_mode || 'Office',
                 hybrid_office_days: formData.work_mode === 'Hybrid' ? (formData.hybrid_office_days || []) : null
             };
 
@@ -1227,8 +1227,8 @@ const Users = () => {
                 bValue = b.role;
                 break;
             case 'work_mode':
-                aValue = (a.work_mode || 'Regular').toLowerCase();
-                bValue = (b.work_mode || 'Regular').toLowerCase();
+                aValue = (a.work_mode === 'Regular' ? 'Office' : a.work_mode || 'Office').toLowerCase();
+                bValue = (b.work_mode === 'Regular' ? 'Office' : b.work_mode || 'Office').toLowerCase();
                 break;
             case 'status':
                 aValue = a.active ? 1 : 0;
@@ -3019,11 +3019,12 @@ const Users = () => {
                                     </label>
                                     <div className="grid grid-cols-3 gap-3">
                                         {[
-                                            { value: 'Regular', label: 'Regular', desc: 'In Office', icon: <LuBuilding2 className="w-5 h-5" /> },
+                                            { value: 'Office', label: 'Office', desc: 'In Office', icon: <LuBuilding2 className="w-5 h-5" /> },
                                             { value: 'Work from home', label: 'Work from home', desc: 'Remote', icon: <LuHouse className="w-5 h-5" /> },
                                             { value: 'Hybrid', label: 'Hybrid', desc: 'Office & Remote', icon: <LuBriefcase className="w-5 h-5" /> }
                                         ].map((mode) => {
-                                            const isSelected = (formData.work_mode || 'Regular') === mode.value;
+                                            const currentMode = (formData.work_mode === 'Regular' ? 'Office' : formData.work_mode) || 'Office';
+                                            const isSelected = currentMode === mode.value;
                                             return (
                                                 <button
                                                     key={mode.value}
