@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuSmartphone, LuRefreshCw, LuX } from "react-icons/lu";
+import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuSmartphone, LuRefreshCw, LuX, LuHouse, LuBriefcase } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, isSuperAdmin } from '../utils/roleUtils';
 import { formatDateOnly, formatInTimezone, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
@@ -56,6 +56,46 @@ const calculateExperience = (dateOfJoining) => {
     }
 };
 
+const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_SHORT_MAP = {
+    'monday': 'M',
+    'tuesday': 'Tu',
+    'wednesday': 'W',
+    'thursday': 'Th',
+    'friday': 'F',
+    'saturday': 'Sa',
+    'sunday': 'Su',
+    'mon': 'M',
+    'tue': 'Tu',
+    'wed': 'W',
+    'thu': 'Th',
+    'fri': 'F',
+    'sat': 'Sa',
+    'sun': 'Su',
+    'm': 'M',
+    'tu': 'Tu',
+    'w': 'W',
+    'th': 'Th',
+    'f': 'F',
+    'sa': 'Sa',
+    'su': 'Su'
+};
+
+const formatHybridDays = (days) => {
+    if (!days) return '';
+    let arr = days;
+    if (typeof arr === 'string') {
+        try { arr = JSON.parse(arr); } catch { arr = []; }
+    }
+    if (!Array.isArray(arr) || arr.length === 0) return '';
+    const sorted = [...arr].sort((a, b) => {
+        const idxA = DAY_ORDER.findIndex(d => d.toLowerCase() === String(a).toLowerCase());
+        const idxB = DAY_ORDER.findIndex(d => d.toLowerCase() === String(b).toLowerCase());
+        return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+    });
+    return sorted.map(d => DAY_SHORT_MAP[String(d).toLowerCase()] || d).join(', ');
+};
+
 const ViewEmployeeProfile = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -85,7 +125,9 @@ const ViewEmployeeProfile = () => {
         date_of_joining: '',
         allocate_leaves: true,
         casual_leave_days: 6,
-        sick_leave_days: 6
+        sick_leave_days: 6,
+        work_mode: 'Regular',
+        hybrid_office_days: []
     });
     const [approvalErrors, setApprovalErrors] = useState({});
     const [approving, setApproving] = useState(false);
@@ -126,12 +168,20 @@ const ViewEmployeeProfile = () => {
             const response = await axios.get(`${API_BASE_URL}/api/onboarding/employee/${id}`, {
                 headers: { 'x-access-token': token }
             });
+            let days = response.data.hybrid_office_days;
+            if (typeof days === 'string') {
+                try { days = JSON.parse(days); } catch { days = []; }
+            }
+            if (!Array.isArray(days)) days = [];
+
             setEmployee(response.data);
             setApprovalForm({
                 email: '',
                 role: response.data.role || '',
                 approving_manager_id: response.data.approving_manager_id || '',
                 abis_access: response.data.abis_access || false,
+                work_mode: response.data.work_mode || 'Regular',
+                hybrid_office_days: days,
                 date_of_joining: response.data.profile_info?.date_of_joining || '',
                 allocate_leaves: true,
                 casual_leave_days: 6,
@@ -266,6 +316,10 @@ const ViewEmployeeProfile = () => {
             setApprovalErrors(prev => ({ ...prev, date_of_joining: 'Date of joining is required.' }));
             return;
         }
+        if (approvalForm.work_mode === 'Hybrid' && (!approvalForm.hybrid_office_days || approvalForm.hybrid_office_days.length === 0)) {
+            setApprovalErrors(prev => ({ ...prev, hybrid_office_days: 'Please select at least one in-office day for Hybrid work mode.' }));
+            return;
+        }
 
         setApproving(true);
         const token = localStorage.getItem('token');
@@ -280,7 +334,9 @@ const ViewEmployeeProfile = () => {
                     date_of_joining: approvalForm.date_of_joining,
                     allocate_leaves: approvalForm.allocate_leaves,
                     casual_leave_days: approvalForm.allocate_leaves ? parseInt(approvalForm.casual_leave_days || 6) : 0,
-                    sick_leave_days: approvalForm.allocate_leaves ? parseInt(approvalForm.sick_leave_days || 6) : 0
+                    sick_leave_days: approvalForm.allocate_leaves ? parseInt(approvalForm.sick_leave_days || 6) : 0,
+                    work_mode: approvalForm.work_mode || 'Regular',
+                    hybrid_office_days: approvalForm.work_mode === 'Hybrid' ? (approvalForm.hybrid_office_days || []) : null
                 },
                 {
                     headers: { 'x-access-token': token }
@@ -451,6 +507,35 @@ const ViewEmployeeProfile = () => {
                                     ABIS Enabled
                                 </span>
                             )}
+                            {(() => {
+                                const mode = employee.work_mode || 'Regular';
+                                let days = employee.hybrid_office_days;
+                                if (typeof days === 'string') {
+                                    try { days = JSON.parse(days); } catch { days = []; }
+                                }
+                                if (!Array.isArray(days)) days = [];
+
+                                if (mode === 'Work from home') {
+                                    return (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100" title="Work from home">
+                                            <LuHouse className="w-3 h-3" /> WFH
+                                        </span>
+                                    );
+                                }
+                                if (mode === 'Hybrid') {
+                                    const shortDays = formatHybridDays(days);
+                                    return (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100" title={days.length > 0 ? `Office: ${days.join(', ')}` : ''}>
+                                            <LuBriefcase className="w-3 h-3" /> Hybrid {shortDays ? `(${shortDays})` : ''}
+                                        </span>
+                                    );
+                                }
+                                return (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                        <LuBuilding2 className="w-3 h-3" /> Regular
+                                    </span>
+                                );
+                            })()}
                         </div>
                         <p className="text-slate-500 font-medium text-sm mt-1">
                             {roleName} • {employee.email}
@@ -1081,6 +1166,114 @@ const ViewEmployeeProfile = () => {
                                 </div>
                                 {approvalErrors.date_of_joining && <p className="text-xs text-rose-500 mt-1 font-bold">{approvalErrors.date_of_joining}</p>}
                             </div>
+
+                            {/* Work Mode Selection */}
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                                    Work Mode <span className="text-rose-500">*</span>
+                                </label>
+                                <div className="grid grid-cols-3 gap-2.5">
+                                    {[
+                                        { value: 'Regular', label: 'Regular', icon: <LuBuilding2 className="w-4 h-4" /> },
+                                        { value: 'Work from home', label: 'Work from home', icon: <LuHouse className="w-4 h-4" /> },
+                                        { value: 'Hybrid', label: 'Hybrid', icon: <LuBriefcase className="w-4 h-4" /> }
+                                    ].map((mode) => {
+                                        const isSelected = (approvalForm.work_mode || 'Regular') === mode.value;
+                                        return (
+                                            <button
+                                                key={mode.value}
+                                                type="button"
+                                                onClick={() => setApprovalForm(prev => ({ ...prev, work_mode: mode.value }))}
+                                                className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
+                                                    isSelected
+                                                        ? 'border-indigo-600 bg-indigo-50/70 text-indigo-950 font-bold shadow-sm ring-1 ring-indigo-500/30'
+                                                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                                }`}
+                                            >
+                                                <div className={`p-1.5 rounded-lg mb-1 ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                                    {mode.icon}
+                                                </div>
+                                                <span className="text-[11px] leading-tight font-bold">{mode.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Hybrid In-Office Days Multi-Select */}
+                            {approvalForm.work_mode === 'Hybrid' && (
+                                <div className="bg-indigo-50/40 border border-indigo-100 rounded-xl p-3.5 space-y-2.5">
+                                    <div className="flex items-center justify-between flex-wrap gap-2">
+                                        <div>
+                                            <label className="block text-xs font-black text-indigo-950 uppercase tracking-wider">
+                                                In-Office Days (Monday to Saturday) <span className="text-rose-500">*</span>
+                                            </label>
+                                            <p className="text-[10px] text-slate-400">
+                                                Days employee is required to come to the office
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-[11px]">
+                                            <button
+                                                type="button"
+                                                onClick={() => setApprovalForm(prev => ({ ...prev, hybrid_office_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }))}
+                                                className="px-2 py-0.5 rounded text-[10px] font-bold bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                            >
+                                                Mon-Fri
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setApprovalForm(prev => ({ ...prev, hybrid_office_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] }))}
+                                                className="px-2 py-0.5 rounded text-[10px] font-bold bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                            >
+                                                Mon-Sat
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setApprovalForm(prev => ({ ...prev, hybrid_office_days: [] }))}
+                                                className="px-2 py-0.5 rounded text-[10px] font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => {
+                                            const isSelected = (approvalForm.hybrid_office_days || []).includes(day);
+                                            return (
+                                                <button
+                                                    key={day}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setApprovalForm(prev => {
+                                                            const current = prev.hybrid_office_days || [];
+                                                            const next = current.includes(day)
+                                                                ? current.filter(d => d !== day)
+                                                                : [...current, day];
+                                                            return { ...prev, hybrid_office_days: next };
+                                                        });
+                                                    }}
+                                                    className={`px-1.5 py-1.5 rounded-lg text-xs font-bold border transition-all flex flex-col items-center justify-center ${
+                                                        isSelected
+                                                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                                            : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300'
+                                                    }`}
+                                                >
+                                                    <span>{day.slice(0, 3)}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {approvalErrors.hybrid_office_days && (
+                                        <p className="text-xs text-rose-500 font-bold">{approvalErrors.hybrid_office_days}</p>
+                                    )}
+                                    {approvalForm.hybrid_office_days && approvalForm.hybrid_office_days.length > 0 && (
+                                        <p className="text-[11px] text-indigo-900 font-medium">
+                                            Office days ({approvalForm.hybrid_office_days.length} days/week): <span className="font-bold">{approvalForm.hybrid_office_days.join(', ')}</span>
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="flex items-center gap-3 py-1">
                                 <input

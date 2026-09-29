@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuUser, LuContact, LuGraduationCap, LuCoins, LuFileUp, LuPlus, LuTrash2, LuSave, LuArrowLeft, LuShieldAlert, LuCamera, LuCalendar, LuTriangleAlert, LuInfo } from "react-icons/lu";
+import { LuUser, LuContact, LuGraduationCap, LuCoins, LuFileUp, LuPlus, LuTrash2, LuSave, LuArrowLeft, LuShieldAlert, LuCamera, LuCalendar, LuTriangleAlert, LuInfo, LuBuilding2, LuHouse, LuBriefcase } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { fetchRoles as fetchRolesUtil, getRoleById } from '../utils/roleUtils';
 import { getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, getCurrentInAppTimezone } from '../utils/timezone.util';
@@ -64,6 +64,8 @@ const OnboardEmployee = () => {
         allocate_leaves: true,
         casual_leave_days: 6,
         sick_leave_days: 6,
+        work_mode: 'Regular',
+        hybrid_office_days: [],
 
         // Personal
         birthplace: '',
@@ -253,6 +255,8 @@ const OnboardEmployee = () => {
                 approving_manager_id: emp.approving_manager_id || '',
                 gender: emp.gender || '',
                 abis_access: emp.abis_access || false,
+                work_mode: emp.work_mode || 'Regular',
+                hybrid_office_days: Array.isArray(emp.hybrid_office_days) ? emp.hybrid_office_days : (typeof emp.hybrid_office_days === 'string' ? JSON.parse(emp.hybrid_office_days || '[]') : []),
                 date_of_joining: profile.date_of_joining || '',
 
                 birthplace: profile.birthplace || '',
@@ -545,6 +549,12 @@ const OnboardEmployee = () => {
             } else {
                 delete newErrors.date_of_joining;
             }
+
+            if (formData.work_mode === 'Hybrid' && (!formData.hybrid_office_days || formData.hybrid_office_days.length === 0)) {
+                newErrors.hybrid_office_days = 'Please select at least one in-office day for Hybrid work mode';
+            } else {
+                delete newErrors.hybrid_office_days;
+            }
         }
 
         setErrors(newErrors);
@@ -564,10 +574,10 @@ const OnboardEmployee = () => {
             return isValid;
         }
         if (tabId === 'system') {
-            const isValid = !newErrors.email && !newErrors.password && !newErrors.role && !newErrors.approving_manager_id && !newErrors.date_of_joining;
+            const isValid = !newErrors.email && !newErrors.password && !newErrors.role && !newErrors.approving_manager_id && !newErrors.date_of_joining && !newErrors.hybrid_office_days;
             if (!isValid) {
                 setTimeout(() => {
-                    const firstErrorField = ['email', 'password', 'role', 'approving_manager_id', 'date_of_joining'].find(
+                    const firstErrorField = ['email', 'password', 'role', 'approving_manager_id', 'date_of_joining', 'hybrid_office_days'].find(
                         field => newErrors[field]
                     );
                     if (firstErrorField) {
@@ -631,6 +641,9 @@ const OnboardEmployee = () => {
         if (!formData.date_of_joining) {
             newErrors.date_of_joining = 'Date of joining is required';
         }
+        if (formData.work_mode === 'Hybrid' && (!formData.hybrid_office_days || formData.hybrid_office_days.length === 0)) {
+            newErrors.hybrid_office_days = 'Please select at least one in-office day for Hybrid work mode';
+        }
 
         setErrors(newErrors);
         return newErrors;
@@ -654,10 +667,10 @@ const OnboardEmployee = () => {
                             document.querySelector(`[name="${firstErrorField}"]`)?.focus();
                         }
                     }, 100);
-                } else if (validationErrors.email || validationErrors.password || validationErrors.role || validationErrors.approving_manager_id || validationErrors.date_of_joining) {
+                } else if (validationErrors.email || validationErrors.password || validationErrors.role || validationErrors.approving_manager_id || validationErrors.date_of_joining || validationErrors.hybrid_office_days) {
                     setActiveTab('system');
                     setTimeout(() => {
-                        const firstErrorField = ['email', 'password', 'role', 'approving_manager_id', 'date_of_joining'].find(
+                        const firstErrorField = ['email', 'password', 'role', 'approving_manager_id', 'date_of_joining', 'hybrid_office_days'].find(
                             field => validationErrors[field]
                         );
                         if (firstErrorField) {
@@ -683,6 +696,8 @@ const OnboardEmployee = () => {
                     uploadPayload.append('casual_leave_days', formData.allocate_leaves ? (parseInt(formData.casual_leave_days) || 6) : 0);
                 } else if (key === 'sick_leave_days') {
                     uploadPayload.append('sick_leave_days', formData.allocate_leaves ? (parseInt(formData.sick_leave_days) || 6) : 0);
+                } else if (key === 'hybrid_office_days') {
+                    uploadPayload.append('hybrid_office_days', JSON.stringify(formData.work_mode === 'Hybrid' ? (formData.hybrid_office_days || []) : []));
                 } else {
                     uploadPayload.append(key, formData[key]);
                 }
@@ -1145,6 +1160,119 @@ const OnboardEmployee = () => {
                                                 </div>
                                                 {errors.date_of_joining && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.date_of_joining}</p>}
                                             </div>
+
+                                            {/* Work Mode Selection */}
+                                            <div className="md:col-span-3 pt-2">
+                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                                                    Work Mode <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>
+                                                </label>
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                    {[
+                                                        { value: 'Regular', label: 'Regular', desc: 'In Office', icon: <LuBuilding2 className="w-5 h-5" /> },
+                                                        { value: 'Work from home', label: 'Work from home', desc: 'Remote', icon: <LuHouse className="w-5 h-5" /> },
+                                                        { value: 'Hybrid', label: 'Hybrid', desc: 'Office & Remote', icon: <LuBriefcase className="w-5 h-5" /> }
+                                                    ].map((mode) => {
+                                                        const isSelected = (formData.work_mode || 'Regular') === mode.value;
+                                                        return (
+                                                            <button
+                                                                key={mode.value}
+                                                                type="button"
+                                                                onClick={() => setFormData(prev => ({ ...prev, work_mode: mode.value }))}
+                                                                className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                                                                    isSelected
+                                                                        ? 'border-indigo-600 bg-indigo-50/70 text-indigo-950 shadow-sm ring-2 ring-indigo-500/20'
+                                                                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                                }`}
+                                                            >
+                                                                <div className={`p-2.5 rounded-xl ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                                    {mode.icon}
+                                                                </div>
+                                                                <div>
+                                                                    <span className="block text-xs font-bold text-slate-800">{mode.label}</span>
+                                                                    <span className="text-[10px] text-slate-400">{mode.desc}</span>
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            {/* Hybrid In-Office Days Multi-Select */}
+                                            {formData.work_mode === 'Hybrid' && (
+                                                <div className="md:col-span-3 bg-indigo-50/40 border border-indigo-100 rounded-2xl p-4 space-y-3">
+                                                    <div className="flex items-center justify-between flex-wrap gap-2">
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider">
+                                                                In-Office Days (Monday to Saturday) <span className="text-red-500 font-bold">*</span>
+                                                            </label>
+                                                            <p className="text-[11px] text-slate-500">
+                                                                Select what days in the week the employee should be coming to the office
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-xs">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setFormData(prev => ({ ...prev, hybrid_office_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }))}
+                                                                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition-colors shadow-sm"
+                                                            >
+                                                                Mon - Fri
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setFormData(prev => ({ ...prev, hybrid_office_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] }))}
+                                                                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition-colors shadow-sm"
+                                                            >
+                                                                Mon - Sat
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setFormData(prev => ({ ...prev, hybrid_office_days: [] }))}
+                                                                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+                                                            >
+                                                                Clear
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => {
+                                                            const isSelected = (formData.hybrid_office_days || []).includes(day);
+                                                            return (
+                                                                <button
+                                                                    key={day}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setFormData(prev => {
+                                                                            const current = prev.hybrid_office_days || [];
+                                                                            const next = current.includes(day)
+                                                                                ? current.filter(d => d !== day)
+                                                                                : [...current, day];
+                                                                            return { ...prev, hybrid_office_days: next };
+                                                                        });
+                                                                    }}
+                                                                    className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1 ${
+                                                                        isSelected
+                                                                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                                                            : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/30'
+                                                                    }`}
+                                                                >
+                                                                    <span>{day.slice(0, 3)}</span>
+                                                                    <span className="text-[10px] font-normal opacity-80">{day}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+
+                                                    {errors.hybrid_office_days && (
+                                                        <p className="text-red-500 text-xs font-semibold">{errors.hybrid_office_days}</p>
+                                                    )}
+                                                    {formData.hybrid_office_days && formData.hybrid_office_days.length > 0 && (
+                                                        <p className="text-xs text-indigo-900 font-medium">
+                                                            Office days ({formData.hybrid_office_days.length} days/week): <span className="font-bold">{formData.hybrid_office_days.join(', ')}</span>
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
 
                                             <div className="flex items-center gap-3 bg-slate-50/80 p-4 rounded-xl border border-slate-100 mt-4 md:col-span-3">
                                                 <input

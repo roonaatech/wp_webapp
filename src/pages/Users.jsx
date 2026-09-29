@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { FiEdit2, FiTrash2, FiPlus, FiX, FiAlertTriangle, FiKey, FiLink, FiChevronDown, FiChevronRight, FiInfo, FiLock } from 'react-icons/fi';
-import { LuSparkles } from 'react-icons/lu';
+import { LuSparkles, LuBuilding2, LuHouse, LuBriefcase, LuCalendar, LuCheck } from 'react-icons/lu';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -302,7 +302,9 @@ const Users = () => {
         confirmPassword: '',
         role: '4',
         approving_manager_id: '',
-        gender: ''
+        gender: '',
+        work_mode: 'Regular',
+        hybrid_office_days: []
     });
     const [formError, setFormError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
@@ -687,7 +689,9 @@ const Users = () => {
             confirmPassword: '',
             role: '4',
             approving_manager_id: '',
-            gender: ''
+            gender: '',
+            work_mode: 'Regular',
+            hybrid_office_days: []
         });
     };
 
@@ -705,7 +709,9 @@ const Users = () => {
             confirmPassword: '',
             role: '4',
             approving_manager_id: '',
-            gender: ''
+            gender: '',
+            work_mode: 'Regular',
+            hybrid_office_days: []
         });
     };
 
@@ -717,6 +723,13 @@ const Users = () => {
         setEditingUserFromPhp(!!editUser.userid); // True if userid exists (from PHP app)
         setFormError(null);
         console.log('Setting role in form to:', editUser.role, 'Type:', typeof editUser.role);
+
+        let days = editUser.hybrid_office_days;
+        if (typeof days === 'string') {
+            try { days = JSON.parse(days); } catch { days = []; }
+        }
+        if (!Array.isArray(days)) days = [];
+
         setFormData({
             firstname: editUser.firstname,
             lastname: editUser.lastname,
@@ -726,8 +739,120 @@ const Users = () => {
             confirmPassword: '',
             role: editUser.role ? String(editUser.role) : '4', // Default to Employee (4) if role is missing/null
             approving_manager_id: editUser.approving_manager_id || '',
-            gender: editUser.gender || ''
+            gender: editUser.gender || '',
+            work_mode: editUser.work_mode || 'Regular',
+            hybrid_office_days: days
         });
+    };
+
+    const toggleHybridDay = (day) => {
+        setFormData(prev => {
+            const currentDays = prev.hybrid_office_days || [];
+            const exists = currentDays.includes(day);
+            const newDays = exists ? currentDays.filter(d => d !== day) : [...currentDays, day];
+            return { ...prev, hybrid_office_days: newDays };
+        });
+    };
+
+    const selectMonToFri = () => {
+        setFormData(prev => ({
+            ...prev,
+            hybrid_office_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+        }));
+    };
+
+    const selectAllDays = () => {
+        setFormData(prev => ({
+            ...prev,
+            hybrid_office_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        }));
+    };
+
+    const clearDays = () => {
+        setFormData(prev => ({
+            ...prev,
+            hybrid_office_days: []
+        }));
+    };
+
+    const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const DAY_SHORT_MAP = {
+        'monday': 'M',
+        'tuesday': 'Tu',
+        'wednesday': 'W',
+        'thursday': 'Th',
+        'friday': 'F',
+        'saturday': 'Sa',
+        'sunday': 'Su',
+        'mon': 'M',
+        'tue': 'Tu',
+        'wed': 'W',
+        'thu': 'Th',
+        'fri': 'F',
+        'sat': 'Sa',
+        'sun': 'Su',
+        'm': 'M',
+        'tu': 'Tu',
+        'w': 'W',
+        'th': 'Th',
+        'f': 'F',
+        'sa': 'Sa',
+        'su': 'Su'
+    };
+
+    const formatHybridDays = (days) => {
+        if (!days) return '';
+        let arr = days;
+        if (typeof arr === 'string') {
+            try { arr = JSON.parse(arr); } catch { arr = []; }
+        }
+        if (!Array.isArray(arr) || arr.length === 0) return '';
+        const sorted = [...arr].sort((a, b) => {
+            const idxA = DAY_ORDER.findIndex(d => d.toLowerCase() === String(a).toLowerCase());
+            const idxB = DAY_ORDER.findIndex(d => d.toLowerCase() === String(b).toLowerCase());
+            return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+        });
+        return sorted.map(d => DAY_SHORT_MAP[String(d).toLowerCase()] || d).join(', ');
+    };
+
+    const renderWorkModeBadge = (u) => {
+        const mode = u.work_mode || 'Regular';
+        let days = u.hybrid_office_days;
+        if (typeof days === 'string') {
+            try { days = JSON.parse(days); } catch { days = []; }
+        }
+        if (!Array.isArray(days)) days = [];
+
+        if (mode === 'Work from home') {
+            return (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Work from home">
+                    <LuHouse className="w-3.5 h-3.5" />
+                    WFH
+                </span>
+            );
+        }
+        if (mode === 'Hybrid') {
+            const shortDays = formatHybridDays(days);
+            return (
+                <div className="flex flex-col gap-0.5">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 w-fit">
+                        <LuBriefcase className="w-3.5 h-3.5" />
+                        Hybrid
+                    </span>
+                    {shortDays && (
+                        <span className="text-[11px] font-semibold text-slate-500 pl-0.5" title={days.length > 0 ? `Office: ${days.join(', ')}` : ''}>
+                            {shortDays}
+                        </span>
+                    )}
+                </div>
+            );
+        }
+        return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                <LuBuilding2 className="w-3.5 h-3.5" />
+                Regular
+            </span>
+        );
     };
 
     const handleExpandChart = (user) => {
@@ -846,6 +971,11 @@ const Users = () => {
             return;
         }
 
+        if (formData.work_mode === 'Hybrid' && (!formData.hybrid_office_days || formData.hybrid_office_days.length === 0)) {
+            setFormError('Please select at least one day in week (Monday to Saturday) for Hybrid in-office work.');
+            return;
+        }
+
         setSubmitting(true);
         try {
             const token = localStorage.getItem('token');
@@ -857,7 +987,9 @@ const Users = () => {
                 email: formData.email.trim(),
                 secondary_email: formData.secondary_email?.trim() || null,
                 role: roleNum, // Must be an integer
-                gender: formData.gender
+                gender: formData.gender,
+                work_mode: formData.work_mode || 'Regular',
+                hybrid_office_days: formData.work_mode === 'Hybrid' ? (formData.hybrid_office_days || []) : null
             };
 
             // Only include password if provided
@@ -1094,6 +1226,10 @@ const Users = () => {
                 aValue = a.role;
                 bValue = b.role;
                 break;
+            case 'work_mode':
+                aValue = (a.work_mode || 'Regular').toLowerCase();
+                bValue = (b.work_mode || 'Regular').toLowerCase();
+                break;
             case 'status':
                 aValue = a.active ? 1 : 0;
                 bValue = b.active ? 1 : 0;
@@ -1111,11 +1247,6 @@ const Users = () => {
                 bValue = resolveName(b.approving_manager_id).toLowerCase();
                 break;
             }
-            case 'last_login':
-                // nulls sort to end regardless of direction
-                aValue = a.last_login ? new Date(a.last_login).getTime() : (sortDirection === 'asc' ? Infinity : -Infinity);
-                bValue = b.last_login ? new Date(b.last_login).getTime() : (sortDirection === 'asc' ? Infinity : -Infinity);
-                break;
             default:
                 return 0;
         }
@@ -1748,6 +1879,15 @@ const Users = () => {
                                 </th>
                                 <th
                                     className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
+                                    onClick={() => handleSort('work_mode')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Work Mode
+                                        <TableSortIcon column="work_mode" sortConfig={{ key: sortField, direction: sortDirection }} />
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
                                     onClick={() => handleSort('reporting')}
                                 >
                                     <div className="flex items-center gap-1">
@@ -1762,15 +1902,6 @@ const Users = () => {
                                     <div className="flex items-center gap-1">
                                         Status
                                         <TableSortIcon column="status" sortConfig={{ key: sortField, direction: sortDirection }} />
-                                    </div>
-                                </th>
-                                <th
-                                    className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
-                                    onClick={() => handleSort('last_login')}
-                                >
-                                    <div className="flex items-center gap-1">
-                                        Last Login
-                                        <TableSortIcon column="last_login" sortConfig={{ key: sortField, direction: sortDirection }} />
                                     </div>
                                 </th>
                                 {canManageUsers && (
@@ -1835,6 +1966,9 @@ const Users = () => {
                                                     {getRoleName(u.role)}
                                                 </span>
                                             </td>
+                                            <td className="px-6 py-4">
+                                                {renderWorkModeBadge(u)}
+                                            </td>
                                             <td className="px-6 py-4 text-sm text-gray-700 font-medium">
                                                 {getManagerName(u.approving_manager_id)}
                                             </td>
@@ -1859,32 +1993,6 @@ const Users = () => {
                                                         {u.active ? 'Active' : 'InActive'}
                                                     </span>
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {u.last_login ? (
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <span className="text-xs font-medium text-gray-700">
-                                                            {(() => {
-                                                                const loginDate = parseAppTimezone(u.last_login);
-                                                                if (!loginDate) return '—';
-                                                                const diff = Date.now() - loginDate.getTime();
-                                                                const mins = Math.floor(diff / 60000);
-                                                                const hrs = Math.floor(mins / 60);
-                                                                const days = Math.floor(hrs / 24);
-                                                                if (mins < 1) return 'Just now';
-                                                                if (mins < 60) return `${mins}m ago`;
-                                                                if (hrs < 24) return `${hrs}h ago`;
-                                                                if (days < 7) return `${days}d ago`;
-                                                                return formatInTimezone(u.last_login);
-                                                            })()}
-                                                        </span>
-                                                        <span className="text-[10px] text-gray-400">
-                                                            {formatInTimezone(u.last_login)}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-gray-400 italic">Never</span>
-                                                )}
                                             </td>
                                             {canManageUsers && (
                                                 <td className="px-6 py-4">
@@ -2411,7 +2519,7 @@ const Users = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={canManageUsers ? 7 : 6} className="px-6 py-8 text-center text-gray-500">
+                                    <td colSpan={canManageUsers ? 9 : 8} className="px-6 py-8 text-center text-gray-500">
                                         No users found
                                     </td>
                                 </tr>
@@ -2887,6 +2995,110 @@ const Users = () => {
                                             <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><FiAlertTriangle className="w-3.5 h-3.5 shrink-0" /> This field is required</p>
                                         )}
                                     </div>
+
+                                {/* Work Mode Selection */}
+                                <div>
+                                    <label className="block text-base font-medium text-gray-700 mb-1.5">
+                                        Work Mode <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>
+                                    </label>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {[
+                                            { value: 'Regular', label: 'Regular', desc: 'In Office', icon: <LuBuilding2 className="w-5 h-5" /> },
+                                            { value: 'Work from home', label: 'Work from home', desc: 'Remote', icon: <LuHouse className="w-5 h-5" /> },
+                                            { value: 'Hybrid', label: 'Hybrid', desc: 'Office & Remote', icon: <LuBriefcase className="w-5 h-5" /> }
+                                        ].map((mode) => {
+                                            const isSelected = (formData.work_mode || 'Regular') === mode.value;
+                                            return (
+                                                <button
+                                                    key={mode.value}
+                                                    type="button"
+                                                    onClick={() => setFormData(prev => ({ ...prev, work_mode: mode.value }))}
+                                                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
+                                                        isSelected
+                                                            ? 'border-blue-600 bg-blue-50/70 text-blue-900 shadow-sm ring-2 ring-blue-500/20'
+                                                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    <div className={`p-2 rounded-lg mb-1.5 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                                        {mode.icon}
+                                                    </div>
+                                                    <span className="text-xs font-bold leading-tight">{mode.label}</span>
+                                                    <span className="text-[10px] text-gray-400 mt-0.5">{mode.desc}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Hybrid In-Office Days Multi-Select (Monday to Saturday) */}
+                                {formData.work_mode === 'Hybrid' && (
+                                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 space-y-3">
+                                        <div className="flex items-center justify-between flex-wrap gap-2">
+                                            <div>
+                                                <label className="block text-xs font-black text-indigo-950 uppercase tracking-wider">
+                                                    In-Office Days (Monday to Saturday) <span className="text-red-500">*</span>
+                                                </label>
+                                                <p className="text-[11px] text-gray-500">
+                                                    Select the days employee should be coming to office
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-xs">
+                                                <button
+                                                    type="button"
+                                                    onClick={selectMonToFri}
+                                                    className="px-2 py-0.5 rounded text-[11px] font-semibold bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition-colors"
+                                                >
+                                                    Mon - Fri
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={selectAllDays}
+                                                    className="px-2 py-0.5 rounded text-[11px] font-semibold bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition-colors"
+                                                >
+                                                    Mon - Sat
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={clearDays}
+                                                    className="px-2 py-0.5 rounded text-[11px] font-semibold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                                                >
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => {
+                                                const isSelected = (formData.hybrid_office_days || []).includes(day);
+                                                return (
+                                                    <button
+                                                        key={day}
+                                                        type="button"
+                                                        onClick={() => toggleHybridDay(day)}
+                                                        className={`px-2 py-2 rounded-lg text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1 ${
+                                                            isSelected
+                                                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                                                                : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50/30'
+                                                        }`}
+                                                    >
+                                                        <span>{day.slice(0, 3)}</span>
+                                                        <span className="text-[9px] font-normal opacity-80">{day}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {(!formData.hybrid_office_days || formData.hybrid_office_days.length === 0) ? (
+                                            <p className="text-xs text-rose-500 font-semibold flex items-center gap-1">
+                                                <FiAlertTriangle className="w-3.5 h-3.5" /> Please select at least one day in week.
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-indigo-900 font-medium">
+                                                Office days ({formData.hybrid_office_days.length} days/week): <span className="font-bold">{formData.hybrid_office_days.join(', ')}</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Only show password fields for new users */}
                                 {!editingUserId && (
