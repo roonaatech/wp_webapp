@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.16.0](https://github.com/roonaatech/wp_webapp/compare/v2.15.4...v2.16.0) (2026-09-29)
+
+
+### Features
+
+* add hybrid work mode support and attendance punch source filtering ([d660b0a](https://github.com/roonaatech/wp_webapp/commit/d660b0ad223b1364dd1c67104209f111ed3098dc))
+
 ### [2.15.4](https://github.com/roonaatech/wp_webapp/compare/v2.15.3...v2.15.4) (2026-09-29)
 
 
