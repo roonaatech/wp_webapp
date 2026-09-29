@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.15.4](https://github.com/roonaatech/wp_webapp/compare/v2.15.3...v2.15.4) (2026-09-29)
+
+
+### Code Refactoring
+
+* rename Regular work mode option to Office across components ([671f3f6](https://github.com/roonaatech/wp_webapp/commit/671f3f66ac47d4393518c725dd560df3b2ff0fdd))
+
 ### [2.15.3](https://github.com/roonaatech/wp_webapp/compare/v2.15.2...v2.15.3) (2026-09-29)
 
 
