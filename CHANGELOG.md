@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.15.2](https://github.com/roonaatech/wp_webapp/compare/v2.15.1...v2.15.2) (2026-09-29)
+
+
+### Features
+
+* display error message and stack trace in ErrorBoundary component ([31f2e26](https://github.com/roonaatech/wp_webapp/commit/31f2e26c45354fe1c5f002d3d7c144b9f57dfd2b))
+
 ### [2.15.1](https://github.com/roonaatech/wp_webapp/compare/v2.15.0...v2.15.1) (2026-09-29)
 
 
