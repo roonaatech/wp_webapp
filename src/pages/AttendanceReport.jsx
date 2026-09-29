@@ -121,6 +121,7 @@ const AttendanceReport = () => {
     const [editDate, setEditDate] = useState('');
     const [editCheckInTime, setEditCheckInTime] = useState('');
     const [editCheckOutTime, setEditCheckOutTime] = useState('');
+    const [editCheckOutError, setEditCheckOutError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     // Delete Confirmation Modal State
@@ -869,7 +870,7 @@ const AttendanceReport = () => {
         if (editCheckOutTime) {
             const parsedOut = parseTimeTo24Hour(editCheckOutTime, editCheckInTime);
             if (!parsedOut) {
-                toast.error("Invalid check-out time format.");
+                setEditCheckOutError('Invalid check-out time format.');
                 return;
             }
 
@@ -878,7 +879,7 @@ const AttendanceReport = () => {
 
             // Block future check-outs
             if (checkOutDateTime.getTime() > nowInApp.getTime()) {
-                toast.error("Check-out time cannot be in the future.");
+                setEditCheckOutError('Check-out time cannot be in the future.');
                 return;
             }
 
@@ -888,7 +889,7 @@ const AttendanceReport = () => {
                 if (parsedIn) {
                     const checkInDateTime = new Date(y, mo - 1, d, parsedIn.hour, parsedIn.minute, parsedIn.second);
                     if (checkOutDateTime.getTime() <= checkInDateTime.getTime()) {
-                        toast.error("Check-out time must be after check-in time.");
+                        setEditCheckOutError('Check-out time must be after check-in time.');
                         return;
                     }
                 }
@@ -1612,15 +1613,31 @@ const AttendanceReport = () => {
                                 <div className="flex gap-2">
                                     <input
                                         type="time"
-                                        max={isEditDateToday ? nowInApp.time : undefined}
                                         value={editCheckOutTime}
-                                        onChange={(e) => setEditCheckOutTime(e.target.value)}
-                                        className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition w-full"
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setEditCheckOutTime(val);
+                                            // Inline real-time validation
+                                            if (val && isEditDateToday) {
+                                                const [h, m] = val.split(':').map(Number);
+                                                const [nh, nm] = nowInApp.time.split(':').map(Number);
+                                                if (h > nh || (h === nh && m > nm)) {
+                                                    setEditCheckOutError('Check-out time cannot be in the future.');
+                                                    return;
+                                                }
+                                            }
+                                            setEditCheckOutError('');
+                                        }}
+                                        className={`bg-slate-50 border rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 transition w-full ${
+                                            editCheckOutError
+                                                ? 'border-rose-400 focus:ring-rose-400'
+                                                : 'border-slate-200 focus:ring-indigo-500'
+                                        }`}
                                     />
                                     {editCheckOutTime && (
                                         <button
                                             type="button"
-                                            onClick={() => setEditCheckOutTime('')}
+                                            onClick={() => { setEditCheckOutTime(''); setEditCheckOutError(''); }}
                                             className="px-3 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50 text-xs font-bold transition"
                                             title="Clear checkout time (Currently checked in)"
                                         >
@@ -1628,7 +1645,14 @@ const AttendanceReport = () => {
                                         </button>
                                     )}
                                 </div>
-                                <p className="text-[10px] text-slate-400">Leave checkout blank if the employee is still active today.</p>
+                                {editCheckOutError ? (
+                                    <p className="text-[11px] text-rose-500 font-semibold flex items-center gap-1 mt-0.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                                        {editCheckOutError}
+                                    </p>
+                                ) : (
+                                    <p className="text-[10px] text-slate-400">Leave checkout blank if the employee is still active today.</p>
+                                )}
                             </div>
 
                             <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
