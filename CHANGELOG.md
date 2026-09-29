@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.16.1](https://github.com/roonaatech/wp_webapp/compare/v2.16.0...v2.16.1) (2026-09-29)
+
+
+### Code Refactoring
+
+* wrap captureLocation in a Promise and fetch fresh GPS coordinates for WFH punch ([6ddeaff](https://github.com/roonaatech/wp_webapp/commit/6ddeafff6dea4f5cc9e32dee0e84e3791d0bb518))
+
 ## [2.16.0](https://github.com/roonaatech/wp_webapp/compare/v2.15.4...v2.16.0) (2026-09-29)
 
 
