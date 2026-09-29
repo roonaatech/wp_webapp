@@ -20,6 +20,7 @@ import {
     LuCake,
     LuAward,
     LuActivity,
+    LuLayoutDashboard,
     LuChartColumn,
     LuCheck,
     LuX,
@@ -221,6 +222,12 @@ const GLOBAL_GROUPS = [
                 icon: LuGlobe
             },
             {
+                key: 'can_view_dashboard',
+                title: 'Access Dashboard Items',
+                description: 'Allows staff members with this role to view dashboard metric cards, charts, approvals, and activity widgets. If disabled, a blank dashboard is displayed.',
+                icon: LuLayoutDashboard
+            },
+            {
                 key: 'can_access_attendance_portal',
                 title: 'Access Kiosk Attendance Terminal',
                 description: 'Permits opening and operating the front desk kiosk QR scanner terminal to capture employee attendance',
@@ -331,6 +338,9 @@ const getRolePermissionsList = (role) => {
     // Global Permissions
     if (role.can_access_webapp) {
         list.push({ label: 'Web App', color: 'bg-teal-50 text-teal-700 border-teal-200' });
+    }
+    if (role.can_view_dashboard) {
+        list.push({ label: 'Dashboard Items', color: 'bg-sky-50 text-sky-700 border-sky-200' });
     }
     if (role.can_access_attendance_portal) {
         list.push({ label: 'Kiosk Scanner', color: 'bg-amber-50 text-amber-700 border-amber-200' });
@@ -549,6 +559,7 @@ const Roles = () => {
         can_view_birthdays: false,
         can_view_anniversaries: false,
         can_access_webapp: false,
+        can_view_dashboard: false,
         can_manage_roles: false,
         can_manage_service_accounts: false,
         can_manage_email_settings: false,
@@ -646,6 +657,7 @@ const Roles = () => {
                 can_view_birthdays: role.can_view_birthdays,
                 can_view_anniversaries: role.can_view_anniversaries || false,
                 can_access_webapp: role.can_access_webapp,
+                can_view_dashboard: role.can_view_dashboard ?? false,
                 can_manage_roles: role.can_manage_roles,
                 can_manage_service_accounts: role.can_manage_service_accounts || false,
                 can_manage_email_settings: role.can_manage_email_settings,
@@ -681,6 +693,7 @@ const Roles = () => {
                 can_view_birthdays: false,
                 can_view_anniversaries: false,
                 can_access_webapp: false,
+                can_view_dashboard: false,
                 can_manage_roles: false,
                 can_manage_service_accounts: false,
                 can_manage_email_settings: false,
@@ -811,6 +824,7 @@ const Roles = () => {
 
     const activeGlobalCount = [
         formData.can_access_webapp,
+        formData.can_view_dashboard,
         formData.can_access_attendance_portal,
         formData.can_manage_onboarding && formData.name !== 'manager' && formData.name !== 'employee',
         formData.can_manage_manual_attendance,
@@ -862,6 +876,7 @@ const Roles = () => {
             // Clear and force-refresh the global roles cache so all pages immediately pick up changes
             clearRolesCache();
             await fetchRolesUtil(true);
+            window.dispatchEvent(new Event('rolesUpdated'));
 
             fetchRoles();
             fetchStatistics();
@@ -1362,7 +1377,7 @@ const Roles = () => {
                                     <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
                                         activeModalTab === 'global' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
                                     }`}>
-                                        {activeGlobalCount}/{formData.id === 1 || formData.id === 3 || !formData.id ? '11' : '10'}
+                                        {activeGlobalCount}/{formData.id === 1 || formData.id === 3 || !formData.id ? '12' : '11'}
                                     </span>
                                 </button>
                             </div>

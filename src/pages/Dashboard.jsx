@@ -14,13 +14,13 @@ import ModernLoader from '../components/ModernLoader';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
-import { canApproveLeave, canApproveOnDuty, canManageUsers, canViewBirthdays, canViewAnniversaries } from '../utils/roleUtils';
+import { canApproveLeave, canApproveOnDuty, canManageUsers, canViewBirthdays, canViewAnniversaries, canViewDashboard, fetchRoles } from '../utils/roleUtils';
 import {
     FiAlertTriangle, FiGift, FiSend, FiAward, FiCalendar, FiZap,
     FiFileText, FiMapPin, FiClock, FiAlertCircle, FiRadio, FiSearch,
     FiShield, FiSlash
 } from 'react-icons/fi';
-import { LuSparkles } from 'react-icons/lu';
+import { LuSparkles, LuLayoutDashboard } from 'react-icons/lu';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
@@ -165,41 +165,72 @@ const Dashboard = () => {
         }
     };
 
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const [hasDashboardPermission, setHasDashboardPermission] = useState(false);
+
     useEffect(() => {
-        console.log('Dashboard mounted');
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const initDashboard = async () => {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            try {
+                // Force-fetch fresh roles from backend to reflect permission changes immediately
+                await fetchRoles(true);
+                const allowed = canViewDashboard(user.role);
+                setHasDashboardPermission(allowed);
 
-        // Always fetch stats (it's protected by verifyToken only, so accessible to all logged-in users)
-        fetchDashboardStats();
+                if (allowed) {
+                    // Fetch stats and approval items only if role has permission
+                    fetchDashboardStats();
+                    fetchPendingApprovals();
 
-        // Conditionally fetch pending approvals
-        fetchPendingApprovals();
+                    if (canManageUsers(user.role)) {
+                        fetchIncompleteProfiles();
+                    }
+                    if (canApproveLeave(user.role)) {
+                        fetchOnLeaveData();
+                    }
+                    if (canViewBirthdays(user.role)) {
+                        fetchBirthdays();
+                    }
+                    if (canViewAnniversaries(user.role)) {
+                        fetchAnniversaries();
+                    }
+                } else {
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error('Error initializing dashboard permissions:', err);
+                setLoading(false);
+            } finally {
+                setPermissionChecked(true);
+            }
+        };
 
-        // Only fetch incomplete profiles if user has permission to manage users
-        if (canManageUsers(user.role)) {
-            fetchIncompleteProfiles();
-        }
+        initDashboard();
 
-        // Fetch on-leave status for managers/approvers
-        if (canApproveLeave(user.role)) {
-            fetchOnLeaveData();
-        }
+        const handleRolesUpdated = async () => {
+            try {
+                await fetchRoles(true);
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                const allowed = canViewDashboard(user.role);
+                setHasDashboardPermission(allowed);
+                if (!allowed) {
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error('Error refreshing roles on event:', err);
+            }
+        };
 
-        // Today's birthdays require the can_view_birthdays permission
-        if (canViewBirthdays(user.role)) {
-            fetchBirthdays();
-        }
-
-        // Today's work anniversaries require the can_view_anniversaries permission
-        if (canViewAnniversaries(user.role)) {
-            fetchAnniversaries();
-        }
+        window.addEventListener('rolesUpdated', handleRolesUpdated);
+        return () => window.removeEventListener('rolesUpdated', handleRolesUpdated);
     }, []);
 
     useEffect(() => {
-        // Fetch trend data when duration changes
-        fetchTrendData(trendDuration);
-    }, [trendDuration]);
+        // Fetch trend data when duration changes, only if user has dashboard permission
+        if (hasDashboardPermission) {
+            fetchTrendData(trendDuration);
+        }
+    }, [trendDuration, hasDashboardPermission]);
 
     const fetchIncompleteProfiles = async () => {
         try {
@@ -839,6 +870,32 @@ const Dashboard = () => {
             Rejected: stats.rejectedOnDuty
         }
     ];
+
+    if (!permissionChecked) {
+        return (
+            <div className="min-h-screen bg-[#F8FAFC]">
+                <ModernLoader size="page" message="Loading dashboard..." />
+            </div>
+        );
+    }
+
+    if (permissionChecked && !hasDashboardPermission) {
+        return (
+            <div className="min-h-screen bg-[#F8FAFC]">
+                <div className="max-w-7xl mx-auto px-6 py-12">
+                    <div className="rounded-3xl border border-dashed border-slate-200/90 bg-white/70 backdrop-blur-xs p-12 text-center max-w-lg mx-auto shadow-sm">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200/80 shadow-xs">
+                            <LuLayoutDashboard className="w-8 h-8 text-slate-400" />
+                        </div>
+                        <h2 className="text-xl font-black text-slate-800 tracking-tight mb-2">Dashboard</h2>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                            No dashboard items are configured for your role.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#F8FAFC]">

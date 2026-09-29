@@ -127,6 +127,27 @@ export const canAccessWebApp = (roleId) => {
 };
 
 /**
+ * Check if a role has permission to view dashboard items
+ * If false, the dashboard will be displayed completely blank
+ */
+export const canViewDashboard = (roleId) => {
+    const role = getRoleById(roleId);
+
+    if (!role) {
+        return false;
+    }
+
+    if (role.active === false) {
+        return false;
+    }
+
+    // Strict role permission check - respect the toggle state for all roles
+    return role.can_view_dashboard === true ||
+           role.can_view_dashboard === 1 ||
+           role.can_view_dashboard === 'true';
+};
+
+/**
  * Check if user has admin-level permissions
  * Based on can_manage_users permission being 'subordinates' or 'all'
  */
@@ -666,6 +687,7 @@ export default {
     getRoleById,
     getRoleDisplayName,
     canAccessWebApp,
+    canViewDashboard,
     hasAdminPermission,
     canManageLeaveTypes,
     canManageOnboarding,
