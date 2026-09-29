@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.14.8](https://github.com/roonaatech/wp_webapp/compare/v2.14.7...v2.14.8) (2026-09-29)
+
+
+### Features
+
+* add can_view_dashboard permission to restrict dashboard visibility ([5ac0c43](https://github.com/roonaatech/wp_webapp/commit/5ac0c437d625a1b709f5af28985472d6c102eedb))
+
+
+### Code Refactoring
+
+* extract compareVersions helper function for robust version validation ([8f3a10d](https://github.com/roonaatech/wp_webapp/commit/8f3a10d9bddf2fc4bf1681a611bf218af51a385c))
+
 ### [2.14.7](https://github.com/roonaatech/wp_webapp/compare/v2.14.6...v2.14.7) (2026-09-28)
 
 
