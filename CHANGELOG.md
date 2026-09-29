@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.15.3](https://github.com/roonaatech/wp_webapp/compare/v2.15.2...v2.15.3) (2026-09-29)
+
+
+### Features
+
+* add copy error details feature to ErrorBoundary and improve timezone handling ([5278466](https://github.com/roonaatech/wp_webapp/commit/5278466a2d07288abcfd2c273ac0b27ffc709e27))
+
 ### [2.15.2](https://github.com/roonaatech/wp_webapp/compare/v2.15.1...v2.15.2) (2026-09-29)
 
 
