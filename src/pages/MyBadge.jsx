@@ -491,7 +491,7 @@ const MyBadge = () => {
                                 </div>
                             </div>
                             <div className={`absolute bottom-1 right-1 w-6 h-6 rounded-full ${isWfhDay ? 'bg-blue-600' : 'bg-emerald-500'} text-white flex items-center justify-center shadow-md border-2 border-white text-[10px]`}>
-                                {isWfhDay ? <LuHome className="w-3.5 h-3.5" /> : <LuSparkles className="w-3.5 h-3.5" />}
+                                {isWfhDay ? <LuHouse className="w-3.5 h-3.5" /> : <LuSparkles className="w-3.5 h-3.5" />}
                             </div>
                         </div>
 

@@ -1106,7 +1106,7 @@ const MyRequests = () => {
                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
                                     title="WFH Attendance Check-In / Out"
                                 >
-                                    <LuHome className="w-4 h-4 text-white" />
+                                    <LuHouse className="w-4 h-4 text-white" />
                                     <span>WFH Punch</span>
                                 </button>
                             ) : (
@@ -1147,7 +1147,7 @@ const MyRequests = () => {
                             >
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
-                                        <LuHome className="w-5 h-5" />
+                                        <LuHouse className="w-5 h-5" />
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2">
