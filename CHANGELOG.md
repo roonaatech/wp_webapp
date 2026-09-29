@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.15.0](https://github.com/roonaatech/wp_webapp/compare/v2.14.8...v2.15.0) (2026-09-29)
+
+
+### Features
+
+* add employee work mode and hybrid office days selection ([74457a2](https://github.com/roonaatech/wp_webapp/commit/74457a25680a5309401a97edd379b42dfe288d51))
+
 ### [2.14.8](https://github.com/roonaatech/wp_webapp/compare/v2.14.7...v2.14.8) (2026-09-29)
 
 
