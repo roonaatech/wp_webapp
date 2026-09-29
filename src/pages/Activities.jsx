@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import { canViewActivities, fetchRoles } from '../utils/roleUtils';
@@ -239,7 +240,7 @@ const Activities = () => {
             window.URL.revokeObjectURL(url);
         } catch (err) {
             console.error('Error exporting CSV:', err);
-            alert('Failed to export activity logs');
+            toast.error('Failed to export activity logs');
         }
     };
 

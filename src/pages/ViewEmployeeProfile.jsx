@@ -135,6 +135,7 @@ const ViewEmployeeProfile = () => {
     const [lightboxImage, setLightboxImage] = useState('');
     const [resendingEmail, setResendingEmail] = useState(false);
     const [resettingDevice, setResettingDevice] = useState(false);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [dojDisplay, setDojDisplay] = useState('');
     const dojPickerRef = useRef(null);
 
@@ -222,11 +223,8 @@ const ViewEmployeeProfile = () => {
     };
 
     const handleResetDevice = async () => {
-        if (!window.confirm(`Are you sure you want to reset the mobile device binding for ${employee.firstname} ${employee.lastname}? This will allow them to bind a new mobile device on their next attendance.`)) {
-            return;
-        }
-
         setResettingDevice(true);
+        setShowResetConfirm(false);
         try {
             const token = localStorage.getItem('token');
             const res = await axios.post(`${API_BASE_URL}/api/admin/reset-employee-device/${employee.staffid}`, {
@@ -914,14 +912,33 @@ const ViewEmployeeProfile = () => {
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
-                                                        <button
-                                                            onClick={handleResetDevice}
-                                                            disabled={resettingDevice}
-                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition-colors disabled:opacity-50"
-                                                        >
-                                                            <LuRefreshCw className={`w-3.5 h-3.5 ${resettingDevice ? 'animate-spin' : ''}`} />
-                                                            {resettingDevice ? 'Resetting...' : 'Reset Device'}
-                                                        </button>
+                                                        {showResetConfirm ? (
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <span className="text-[11px] text-rose-600 font-semibold">Reset device binding?</span>
+                                                                <button
+                                                                    onClick={handleResetDevice}
+                                                                    disabled={resettingDevice}
+                                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors disabled:opacity-50"
+                                                                >
+                                                                    {resettingDevice ? 'Resetting...' : 'Yes, Reset'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setShowResetConfirm(false)}
+                                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => setShowResetConfirm(true)}
+                                                                disabled={resettingDevice}
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition-colors disabled:opacity-50"
+                                                            >
+                                                                <LuRefreshCw className={`w-3.5 h-3.5 ${resettingDevice ? 'animate-spin' : ''}`} />
+                                                                {resettingDevice ? 'Resetting...' : 'Reset Device'}
+                                                            </button>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             </tbody>

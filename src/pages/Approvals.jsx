@@ -418,7 +418,7 @@ const Approvals = () => {
 
     const handleBulkAction = (action) => {
         if (selectedItems.size === 0) {
-            alert('Please select at least one item');
+            toast.error('Please select at least one item');
             return;
         }
 

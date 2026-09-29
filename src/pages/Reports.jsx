@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { FiPlusCircle, FiMinusCircle, FiInfo, FiBarChart2, FiFileText, FiAlertTriangle, FiDownload } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
@@ -302,7 +303,7 @@ const Reports = () => {
 
             const exportData = response.data.reports || [];
             if (exportData.length === 0) {
-                alert('No data to export');
+                toast.error('No data to export');
                 return;
             }
 
@@ -412,7 +413,7 @@ const Reports = () => {
             window.URL.revokeObjectURL(url);
         } catch (err) {
             console.error('Export failed:', err);
-            alert('Failed to export data');
+            toast.error('Failed to export data');
         }
     };
 

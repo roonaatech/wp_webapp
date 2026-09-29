@@ -1741,8 +1741,6 @@ const MyRequests = () => {
                                     <label className="text-[10px] text-gray-400 font-semibold mb-1 block">Start Time</label>
                                     <input
                                         type="time"
-                                        min={officeHours.startTime}
-                                        max={officeHours.endTime}
                                         value={toStartTime}
                                         onChange={(e) => {
                                             const val = e.target.value;
@@ -1772,8 +1770,6 @@ const MyRequests = () => {
                                     <label className="text-[10px] text-gray-400 font-semibold mb-1 block">End Time</label>
                                     <input
                                         type="time"
-                                        min={toStartTime || officeHours.startTime}
-                                        max={officeHours.endTime}
                                         value={toEndTime}
                                         onChange={(e) => setToEndTime(e.target.value)}
                                         className={`w-full px-3 py-3 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
@@ -1879,8 +1875,6 @@ const MyRequests = () => {
                                                         <label className="text-[10px] text-gray-400 font-semibold mb-0.5 block">Start Time</label>
                                                         <input
                                                             type="time"
-                                                            min={officeHours.startTime}
-                                                            max={officeHours.endTime}
                                                             value={editToStart}
                                                             onChange={(e) => setEditToStart(e.target.value)}
                                                             className={`w-full px-3 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
@@ -1894,8 +1888,6 @@ const MyRequests = () => {
                                                         <label className="text-[10px] text-gray-400 font-semibold mb-0.5 block">End Time</label>
                                                         <input
                                                             type="time"
-                                                            min={editToStart || officeHours.startTime}
-                                                            max={officeHours.endTime}
                                                             value={editToEnd}
                                                             onChange={(e) => setEditToEnd(e.target.value)}
                                                             className={`w-full px-3 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
