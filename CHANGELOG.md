@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.16.7](https://github.com/roonaatech/wp_webapp/compare/v2.16.6...v2.16.7) (2026-09-29)
+
+
+### Features
+
+* add inline error validation for check-out time in AttendanceReport ([2567a04](https://github.com/roonaatech/wp_webapp/commit/2567a0452c875cd766c8f2486e59c040fb17bf10))
+
 ### [2.16.6](https://github.com/roonaatech/wp_webapp/compare/v2.16.5...v2.16.6) (2026-09-29)
 
 
