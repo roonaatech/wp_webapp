@@ -25,7 +25,11 @@ import {
     LuNavigation,
     LuLogIn,
     LuCheck,
-    LuFileText
+    LuFileText,
+    LuX,
+    LuChevronRight,
+    LuSettings,
+    LuCircleAlert
 } from 'react-icons/lu';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
@@ -34,6 +38,15 @@ import { canAccessWebApp } from '../utils/roleUtils';
 import { isMobileClient, getMobileDeviceMetadata } from '../utils/deviceFingerprint';
 
 const ROTATION_INTERVAL_SEC = 5;
+
+const getDetectedPlatform = () => {
+    if (typeof navigator === 'undefined') return 'ios';
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1);
+    if (isIOS) return 'ios';
+    if (/Android/i.test(ua)) return 'android';
+    return 'ios';
+};
 
 const MyBadge = () => {
     const navigate = useNavigate();
@@ -46,6 +59,11 @@ const MyBadge = () => {
     const [isDeviceViolation, setIsDeviceViolation] = useState(false);
     const [isMobileWebBlocked, setIsMobileWebBlocked] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+    // Detected device platform & location help state
+    const detectedPlatform = getDetectedPlatform();
+    const [helpPlatform, setHelpPlatform] = useState(detectedPlatform);
+    const [showLocationHelp, setShowLocationHelp] = useState(false);
     
     // WFH Punch Specific State
     const [wfhNotes, setWfhNotes] = useState('');
@@ -229,6 +247,8 @@ const MyBadge = () => {
                 } else {
                     const actionVerb = action === 'CHECK_IN' ? 'check in' : 'check out';
                     toast.error(`Location required: Please enable device location permissions in settings to ${actionVerb}.`);
+                    setHelpPlatform(detectedPlatform);
+                    setShowLocationHelp(true);
                     setPunchLoading(false);
                     return;
                 }
@@ -578,13 +598,43 @@ const MyBadge = () => {
                                             </span>
                                         </div>
                                     ) : location.error ? (
-                                        <p className="text-[11px] text-rose-500 font-medium leading-tight">
-                                            {location.error}
-                                        </p>
+                                        <div className="space-y-2">
+                                            <p className="text-[11px] text-rose-500 font-medium leading-tight">
+                                                {location.error}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setHelpPlatform(detectedPlatform);
+                                                    setShowLocationHelp(true);
+                                                }}
+                                                className="w-full py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl flex items-center justify-between border border-blue-200 transition-all active:scale-[0.98]"
+                                            >
+                                                <span className="flex items-center gap-1.5">
+                                                    <LuSmartphone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                                    <span>How to enable on {detectedPlatform === 'ios' ? 'iPhone (iOS)' : 'Android'}</span>
+                                                </span>
+                                                <span className="text-[11px] font-semibold text-blue-600 flex items-center gap-0.5">
+                                                    View Steps <LuChevronRight className="w-3 h-3" />
+                                                </span>
+                                            </button>
+                                        </div>
                                     ) : (
-                                        <p className="text-[11px] text-slate-400 italic">
-                                            {location.loading ? 'Acquiring GPS coordinates...' : 'Tap Refresh GPS to capture coordinates'}
-                                        </p>
+                                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                                            <span className="italic">
+                                                {location.loading ? 'Acquiring GPS coordinates...' : 'Tap Refresh GPS to capture coordinates'}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setHelpPlatform(detectedPlatform);
+                                                    setShowLocationHelp(true);
+                                                }}
+                                                className="text-blue-600 hover:text-blue-700 font-semibold underline text-[10px] ml-1 shrink-0"
+                                            >
+                                                Need help?
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
 
@@ -760,6 +810,205 @@ const MyBadge = () => {
                         </p>
                     </div>
                 </div>
+
+                {/* Location Permission Help Modal (iOS & Android) */}
+                {showLocationHelp && (
+                    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl p-5 max-w-md w-full shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col">
+                            {/* Header */}
+                            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                                        <LuMapPin className="w-5 h-5 text-blue-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                                            Enable Location Services
+                                        </h3>
+                                        <p className="text-[11px] text-slate-500 mt-0.5">
+                                            Required for Remote WFH Attendance Punch
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowLocationHelp(false)}
+                                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                                >
+                                    <LuX className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {/* Platform Selector Tabs */}
+                            <div className="flex bg-slate-100 p-1 rounded-2xl mt-4 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setHelpPlatform('ios')}
+                                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                        helpPlatform === 'ios'
+                                            ? 'bg-white text-blue-700 shadow-sm'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    <span>Apple iPhone (iOS)</span>
+                                    {detectedPlatform === 'ios' && (
+                                        <span className="text-[9px] bg-blue-100 text-blue-700 font-extrabold px-1.5 py-0.5 rounded-full">
+                                            Detected
+                                        </span>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setHelpPlatform('android')}
+                                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                        helpPlatform === 'android'
+                                            ? 'bg-white text-blue-700 shadow-sm'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    <span>Android Device</span>
+                                    {detectedPlatform === 'android' && (
+                                        <span className="text-[9px] bg-blue-100 text-blue-700 font-extrabold px-1.5 py-0.5 rounded-full">
+                                            Detected
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Scrollable Step List */}
+                            <div className="mt-4 space-y-3 overflow-y-auto pr-1 flex-1 text-left text-xs">
+                                {helpPlatform === 'ios' ? (
+                                    <>
+                                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
+                                                1
+                                            </span>
+                                            <div>
+                                                <p className="font-bold text-slate-800">Turn On iPhone Location</p>
+                                                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
+                                                    Open your phone's <strong>Settings ⚙️</strong> ➔ <strong>Privacy & Security</strong> ➔ <strong>Location Services</strong>. Toggle it <strong>ON</strong>.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
+                                                2
+                                            </span>
+                                            <div>
+                                                <p className="font-bold text-slate-800">Allow Browser Permission</p>
+                                                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
+                                                    In <strong>Location Services</strong>, scroll down to <strong>Safari Websites</strong> (or <strong>Chrome</strong>) ➔ Tap it and select <strong>"While Using the App"</strong> and turn on <strong>"Precise Location"</strong>.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
+                                                3
+                                            </span>
+                                            <div>
+                                                <p className="font-bold text-slate-800">Safari Website Settings</p>
+                                                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
+                                                    In Safari, tap the <strong>"aA"</strong> icon on the address bar ➔ Tap <strong>Website Settings</strong> ➔ Set <strong>Location</strong> to <strong>Allow</strong>.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
+                                                4
+                                            </span>
+                                            <div>
+                                                <p className="font-bold text-slate-800">Refresh & Punch</p>
+                                                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
+                                                    Return here and tap the button below to acquire your location coordinates.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
+                                                1
+                                            </span>
+                                            <div>
+                                                <p className="font-bold text-slate-800">Turn On Phone GPS</p>
+                                                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
+                                                    Swipe down from the top of your screen to open Quick Settings. Ensure the <strong>Location 📍</strong> icon is turned <strong>ON</strong>.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
+                                                2
+                                            </span>
+                                            <div>
+                                                <p className="font-bold text-slate-800">Allow Location in Chrome</p>
+                                                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
+                                                    Tap the <strong>Lock / Tune icon 🔒</strong> on the left side of the address bar ➔ Tap <strong>Permissions</strong> ➔ Set <strong>Location</strong> to <strong>Allow</strong>.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
+                                                3
+                                            </span>
+                                            <div>
+                                                <p className="font-bold text-slate-800">Chrome Site Settings (If blocked)</p>
+                                                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
+                                                    Tap Chrome <strong>Menu (⋮)</strong> ➔ <strong>Settings</strong> ➔ <strong>Site settings</strong> ➔ <strong>Location</strong> ➔ Remove WorkPulse from Blocked list.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
+                                                4
+                                            </span>
+                                            <div>
+                                                <p className="font-bold text-slate-800">Refresh & Punch</p>
+                                                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
+                                                    Return here and tap the button below to acquire your location coordinates.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="mt-4 pt-3 border-t border-slate-100 space-y-2 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        const loc = await captureLocation();
+                                        if (loc && loc.lat && loc.lng) {
+                                            toast.success('GPS coordinates acquired successfully!');
+                                            setShowLocationHelp(false);
+                                        } else {
+                                            toast.error('Location still not available. Please verify settings.');
+                                        }
+                                    }}
+                                    disabled={location.loading}
+                                    className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
+                                >
+                                    <LuRefreshCw className={`w-3.5 h-3.5 ${location.loading ? 'animate-spin' : ''}`} />
+                                    <span>{location.loading ? 'Acquiring GPS...' : 'Refresh GPS & Try Again'}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLocationHelp(false)}
+                                    className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs rounded-xl transition-colors"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             </main>
         </div>
