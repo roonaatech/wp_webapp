@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.16.2](https://github.com/roonaatech/wp_webapp/compare/v2.16.1...v2.16.2) (2026-09-29)
+
+
+### Code Refactoring
+
+* replace LuHome icon with LuHouse in MyBadge and MyRequests pages ([61193fa](https://github.com/roonaatech/wp_webapp/commit/61193faecbcc9775db64a76cb5851b17f7577a38))
+
 ### [2.16.1](https://github.com/roonaatech/wp_webapp/compare/v2.16.0...v2.16.1) (2026-09-29)
 
 
