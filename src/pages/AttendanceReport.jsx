@@ -23,6 +23,7 @@ const AttendanceReport = () => {
     const [datePreset, setDatePreset] = useState('today');
     const [startDate, setStartDate] = useState(defaultToday);
     const [endDate, setEndDate] = useState(defaultToday);
+    const [punchSource, setPunchSource] = useState('');
 
     const getDatePresetRange = (presetKey) => {
         const nowInApp = getCurrentInAppTimezone();
@@ -232,7 +233,7 @@ const AttendanceReport = () => {
         if (hasPermission) {
             fetchAttendanceLogs();
         }
-    }, [hasPermission, selectedUserId, startDate, endDate, page, limit]);
+    }, [hasPermission, selectedUserId, startDate, endDate, page, limit, punchSource]);
 
     const fetchUsersList = async () => {
         try {
@@ -260,7 +261,8 @@ const AttendanceReport = () => {
                 limit,
                 userId: selectedUserId,
                 startDate,
-                endDate
+                endDate,
+                punchSource: punchSource || undefined
             };
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/attendance-logs`, {
@@ -771,6 +773,7 @@ const AttendanceReport = () => {
 
     const handleClearFilters = () => {
         setSelectedUserId('');
+        setPunchSource('');
         const today = getCurrentInAppTimezone().date;
         setDatePreset('today');
         setStartDate(today);
@@ -1049,6 +1052,22 @@ const AttendanceReport = () => {
                         </>
                     )}
 
+                    {/* Punch Source Filter */}
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-[170px]">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Punch Source</label>
+                        <select
+                            value={punchSource}
+                            onChange={(e) => { setPunchSource(e.target.value); setPage(1); }}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
+                        >
+                            <option value="">All Sources</option>
+                            <option value="KIOSK_QR">🏢 Kiosk QR</option>
+                            <option value="MOBILE_WFH">🏠 Mobile WFH</option>
+                            <option value="WEB_WFH">💻 Web WFH</option>
+                            <option value="MANUAL">✏️ Manual Regularized</option>
+                        </select>
+                    </div>
+
                     {/* Clear Filters */}
                     <div className="flex items-end">
                         <button
@@ -1161,6 +1180,23 @@ const AttendanceReport = () => {
                                                         <p className="text-sm font-semibold text-slate-700">
                                                             {log.check_in_time ? formatTimeOnly(log.check_in_time) : '-'}
                                                         </p>
+                                                        {log.punch_source === 'MOBILE_WFH' ? (
+                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-0.5">
+                                                                🏠 WFH (Mob)
+                                                            </span>
+                                                        ) : log.punch_source === 'WEB_WFH' ? (
+                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 mt-0.5">
+                                                                💻 WFH (Web)
+                                                            </span>
+                                                        ) : log.punch_source === 'MANUAL' ? (
+                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 mt-0.5">
+                                                                ✏️ Manual
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-0.5">
+                                                                🏢 Kiosk QR
+                                                            </span>
+                                                        )}
                                                     </td>
 
                                                     {/* Check-Out */}
@@ -1363,6 +1399,23 @@ const AttendanceReport = () => {
                                                                     <p className="text-sm font-semibold text-slate-700">
                                                                         {log.check_in_time ? formatTimeOnly(log.check_in_time) : '-'}
                                                                     </p>
+                                                                    {log.punch_source === 'MOBILE_WFH' ? (
+                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-0.5">
+                                                                            🏠 WFH (Mob)
+                                                                        </span>
+                                                                    ) : log.punch_source === 'WEB_WFH' ? (
+                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 mt-0.5">
+                                                                            💻 WFH (Web)
+                                                                        </span>
+                                                                    ) : log.punch_source === 'MANUAL' ? (
+                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 mt-0.5">
+                                                                            ✏️ Manual
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-0.5">
+                                                                            🏢 Kiosk QR
+                                                                        </span>
+                                                                    )}
                                                                 </td>
                                                                 <td className="px-4 py-2.5">
                                                                     <p className="text-sm font-semibold text-slate-700">

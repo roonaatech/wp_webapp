@@ -1207,7 +1207,7 @@ const OnboardEmployee = () => {
                                                                 In-Office Days (Monday to Saturday) <span className="text-red-500 font-bold">*</span>
                                                             </label>
                                                             <p className="text-[11px] text-slate-500">
-                                                                Select what days in the week the employee should be coming to the office
+                                                                Scheduled office days. Hybrid employees can punch WFH remotely with GPS or scan QR badge in the office.
                                                             </p>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 text-xs">

@@ -76,6 +76,8 @@ const Login = () => {
             email: data.email,
             role: data.role,
             gender: data.gender,
+            work_mode: data.work_mode || 'Office',
+            hybrid_office_days: data.hybrid_office_days || [],
             isServiceAccount: data.isServiceAccount === true
         };
 

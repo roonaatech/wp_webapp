@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { LuQrCode, LuCircleAlert } from 'react-icons/lu';
+import { LuQrCode, LuCircleAlert, LuHouse } from 'react-icons/lu';
 import {
     FiCalendar, FiX, FiSave, FiXCircle, FiEdit2, FiTrash2,
     FiBriefcase, FiMapPin, FiFileText, FiFlag, FiClock, FiAlertTriangle
@@ -1020,15 +1020,43 @@ const MyRequests = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => navigate('/my-badge')}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all border border-emerald-300/40"
-                                    title="My Smart Attendance Badge"
-                                >
-                                    <LuQrCode className="w-4 h-4 text-white" />
-                                    <span className="hidden sm:inline">Smart Badge</span>
-                                    <span className="sm:hidden">Badge</span>
-                                </button>
+                                {(() => {
+                                    const mode = user?.work_mode === 'Regular' ? 'Office' : (user?.work_mode || 'Office');
+                                    let isWfh = false;
+                                    if (mode === 'Work from home') {
+                                        isWfh = true;
+                                    } else if (mode === 'Hybrid') {
+                                        const todayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
+                                        const officeDays = Array.isArray(user?.hybrid_office_days) ? user.hybrid_office_days : [];
+                                        const isOfficeDay = officeDays.some(d => {
+                                            const dStr = String(d).trim().toLowerCase();
+                                            return dStr === todayStr || (dStr.length >= 3 && todayStr.startsWith(dStr)) || todayStr.startsWith(dStr);
+                                        });
+                                        isWfh = !isOfficeDay;
+                                    }
+
+                                    return isWfh ? (
+                                        <button
+                                            onClick={() => navigate('/my-badge')}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all border border-blue-400/40"
+                                            title="WFH Attendance Check-In / Out"
+                                        >
+                                            <LuHouse className="w-4 h-4 text-white" />
+                                            <span className="hidden sm:inline">WFH Punch</span>
+                                            <span className="sm:hidden">Punch</span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => navigate('/my-badge')}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all border border-emerald-300/40"
+                                            title="My Smart Attendance Badge"
+                                        >
+                                            <LuQrCode className="w-4 h-4 text-white" />
+                                            <span className="hidden sm:inline">Smart Badge</span>
+                                            <span className="sm:hidden">Badge</span>
+                                        </button>
+                                    );
+                                })()}
                                 <button
                                     onClick={() => setShowChangePasswordModal(true)}
                                     className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-95 text-white/90 hover:text-white"
@@ -1057,42 +1085,111 @@ const MyRequests = () => {
                     </div>
                 ) : (
                     <div className="flex justify-end p-3 bg-white border-b border-slate-100">
-                        <button
-                            onClick={() => navigate('/my-badge')}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
-                            title="My Smart Attendance Badge"
-                        >
-                            <LuQrCode className="w-4 h-4 text-white" />
-                            <span>Smart Badge</span>
-                        </button>
+                        {(() => {
+                            const mode = user?.work_mode === 'Regular' ? 'Office' : (user?.work_mode || 'Office');
+                            let isWfh = false;
+                            if (mode === 'Work from home') {
+                                isWfh = true;
+                            } else if (mode === 'Hybrid') {
+                                const todayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
+                                const officeDays = Array.isArray(user?.hybrid_office_days) ? user.hybrid_office_days : [];
+                                const isOfficeDay = officeDays.some(d => {
+                                    const dStr = String(d).trim().toLowerCase();
+                                    return dStr === todayStr || (dStr.length >= 3 && todayStr.startsWith(dStr)) || todayStr.startsWith(dStr);
+                                });
+                                isWfh = !isOfficeDay;
+                            }
+
+                            return isWfh ? (
+                                <button
+                                    onClick={() => navigate('/my-badge')}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                                    title="WFH Attendance Check-In / Out"
+                                >
+                                    <LuHome className="w-4 h-4 text-white" />
+                                    <span>WFH Punch</span>
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => navigate('/my-badge')}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                                    title="My Smart Attendance Badge"
+                                >
+                                    <LuQrCode className="w-4 h-4 text-white" />
+                                    <span>Smart Badge</span>
+                                </button>
+                            );
+                        })()}
                     </div>
                 )}
 
-                {/* ── Quick Smart Badge Access Banner ── */}
+                {/* ── Quick Smart Badge or WFH Punch Access Banner ── */}
                 <div className="px-4 pt-3 pb-1">
-                    <div 
-                        onClick={() => navigate('/my-badge')}
-                        className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white rounded-2xl p-3.5 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between border border-emerald-400/30 group"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
-                                <LuQrCode className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h3 className="text-sm font-bold leading-tight">My Smart Attendance Badge</h3>
-                                    <span className="flex h-2 w-2 relative">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
-                                    </span>
+                    {(() => {
+                        const mode = user?.work_mode === 'Regular' ? 'Office' : (user?.work_mode || 'Office');
+                        let isWfh = false;
+                        if (mode === 'Work from home') {
+                            isWfh = true;
+                        } else if (mode === 'Hybrid') {
+                            const todayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
+                            const officeDays = Array.isArray(user?.hybrid_office_days) ? user.hybrid_office_days : [];
+                            const isOfficeDay = officeDays.some(d => {
+                                const dStr = String(d).trim().toLowerCase();
+                                return dStr === todayStr || (dStr.length >= 3 && todayStr.startsWith(dStr)) || todayStr.startsWith(dStr);
+                            });
+                            isWfh = !isOfficeDay;
+                        }
+
+                        return isWfh ? (
+                            <div 
+                                onClick={() => navigate('/my-badge')}
+                                className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-700 text-white rounded-2xl p-3.5 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between border border-blue-400/30 group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
+                                        <LuHome className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-sm font-bold leading-tight">WFH Attendance Punch</h3>
+                                            <span className="flex h-2 w-2 relative">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-300 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-200"></span>
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-sky-100 font-medium mt-0.5">Tap to Check-In or Check-Out remotely from home</p>
+                                    </div>
                                 </div>
-                                <p className="text-[11px] text-emerald-100 font-medium mt-0.5">Tap to show dynamic QR for kiosk terminal scan</p>
+                                <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white text-xs font-bold group-hover:translate-x-0.5 transition-transform">
+                                    →
+                                </div>
                             </div>
-                        </div>
-                        <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white text-xs font-bold group-hover:translate-x-0.5 transition-transform">
-                            →
-                        </div>
-                    </div>
+                        ) : (
+                            <div 
+                                onClick={() => navigate('/my-badge')}
+                                className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white rounded-2xl p-3.5 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between border border-emerald-400/30 group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
+                                        <LuQrCode className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-sm font-bold leading-tight">My Smart Attendance Badge</h3>
+                                            <span className="flex h-2 w-2 relative">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-emerald-100 font-medium mt-0.5">Tap to show dynamic QR for kiosk terminal scan</p>
+                                    </div>
+                                </div>
+                                <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white text-xs font-bold group-hover:translate-x-0.5 transition-transform">
+                                    →
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
 
             {/* ── Tab Selector ── */}

@@ -19,13 +19,19 @@ import {
     LuArrowLeft,
     LuLogOut,
     LuSmartphone,
-    LuExternalLink
+    LuExternalLink,
+    LuHouse,
+    LuMapPin,
+    LuNavigation,
+    LuLogIn,
+    LuCheck,
+    LuFileText
 } from 'react-icons/lu';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
 import ModernLoader from '../components/ModernLoader';
 import { canAccessWebApp } from '../utils/roleUtils';
-import { getOrCreateDeviceId, getDeviceName, isMobileClient, getMobileDeviceMetadata } from '../utils/deviceFingerprint';
+import { isMobileClient, getMobileDeviceMetadata } from '../utils/deviceFingerprint';
 
 const ROTATION_INTERVAL_SEC = 5;
 
@@ -40,12 +46,50 @@ const MyBadge = () => {
     const [isDeviceViolation, setIsDeviceViolation] = useState(false);
     const [isMobileWebBlocked, setIsMobileWebBlocked] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    // WFH Punch Specific State
+    const [wfhNotes, setWfhNotes] = useState('');
+    const [punchLoading, setPunchLoading] = useState(false);
+    const [location, setLocation] = useState({ lat: null, lng: null, accuracy: null, error: null, loading: false });
+    const [elapsedTime, setElapsedTime] = useState('');
 
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isMobile = isMobileClient();
     const isDesktopWithLayout = canAccessWebApp(user.role) && !isMobile;
 
     const timerRef = useRef(null);
+
+    // Capture GPS Geolocation for WFH punch
+    const captureLocation = useCallback(() => {
+        if (!navigator.geolocation) {
+            setLocation(prev => ({ ...prev, error: 'Geolocation is not supported by this browser.', loading: false }));
+            return;
+        }
+        setLocation(prev => ({ ...prev, loading: true, error: null }));
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setLocation({
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    accuracy: Math.round(pos.coords.accuracy),
+                    error: null,
+                    loading: false
+                });
+            },
+            (err) => {
+                let errorMsg = 'Could not determine GPS location.';
+                if (err.code === 1) {
+                    errorMsg = 'Location access denied. Please enable GPS permissions in browser settings.';
+                } else if (err.code === 2) {
+                    errorMsg = 'Position unavailable. Please ensure GPS is enabled.';
+                } else if (err.code === 3) {
+                    errorMsg = 'GPS location request timed out.';
+                }
+                setLocation(prev => ({ ...prev, loading: false, error: errorMsg }));
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }, []);
 
     const fetchBadge = useCallback(async (isManual = false) => {
         const token = localStorage.getItem('token');
@@ -80,6 +124,11 @@ const MyBadge = () => {
                 setError(null);
                 setIsDeviceViolation(false);
                 setSecondsLeft(ROTATION_INTERVAL_SEC);
+
+                // Auto capture location on WFH days
+                if (response.data.isWfhDay) {
+                    captureLocation();
+                }
             } else {
                 setError(response.data?.message || 'Failed to load attendance badge.');
             }
@@ -96,16 +145,16 @@ const MyBadge = () => {
             setLoading(false);
             if (isManual) setRefreshing(false);
         }
-    }, []);
+    }, [captureLocation]);
 
     // Initial fetch
     useEffect(() => {
         fetchBadge();
     }, [fetchBadge]);
 
-    // Countdown and auto-refresh timer
+    // Countdown and auto-refresh timer ONLY for office QR badge (disabled on WFH days)
     useEffect(() => {
-        if (loading || isLocked || error) return;
+        if (loading || isLocked || error || badgeData?.isWfhDay) return;
 
         timerRef.current = setInterval(() => {
             setSecondsLeft((prev) => {
@@ -120,15 +169,89 @@ const MyBadge = () => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [loading, isLocked, error, fetchBadge]);
+    }, [loading, isLocked, error, badgeData?.isWfhDay, fetchBadge]);
+
+    // Live elapsed timer for CHECKED_IN status on WFH days
+    useEffect(() => {
+        if (!badgeData?.isWfhDay || badgeData?.todayStatus !== 'CHECKED_IN' || !badgeData?.checkInTime) {
+            setElapsedTime('');
+            return;
+        }
+
+        const updateTimer = () => {
+            const timeRaw = badgeData?.badge?.checkInTime || badgeData?.checkInTime;
+            if (!timeRaw) return;
+
+            let startTime = new Date(timeRaw).getTime();
+            if (isNaN(startTime)) {
+                // If it's a formatted time string like "09:30 AM", fallback to today
+                const parts = timeRaw.split(' ');
+                if (parts.length >= 2) {
+                    const todayDate = new Date().toISOString().split('T')[0];
+                    startTime = new Date(`${todayDate} ${timeRaw}`).getTime();
+                }
+            }
+
+            if (!isNaN(startTime)) {
+                const now = Date.now();
+                const diffMs = Math.max(0, now - startTime);
+                const hrs = Math.floor(diffMs / 3600000);
+                const mins = Math.floor((diffMs % 3600000) / 60000);
+                const secs = Math.floor((diffMs % 60000) / 1000);
+                setElapsedTime(`${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+            }
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [badgeData?.isWfhDay, badgeData?.todayStatus, badgeData?.checkInTime, badgeData?.badge?.checkInTime]);
+
+    // Handle WFH Check-In / Check-Out Punch
+    const handleWfhPunch = async (action) => {
+        setPunchLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const devMeta = await getMobileDeviceMetadata();
+
+            const payload = {
+                action,
+                latitude: location.lat,
+                longitude: location.lng,
+                notes: wfhNotes ? wfhNotes.trim() : undefined
+            };
+
+            const response = await axios.post(`${API_BASE_URL}/api/attendance/wfh-punch`, payload, {
+                headers: {
+                    'x-access-token': token,
+                    'x-is-mobile': devMeta.isMobile ? 'true' : 'false',
+                    'x-device-id': devMeta.deviceId,
+                    'x-device-name': devMeta.deviceName,
+                    'x-device-model': devMeta.deviceModel || ''
+                }
+            });
+
+            if (response.data && response.data.success) {
+                toast.success(response.data.message || `${action === 'CHECK_IN' ? 'Check-In' : 'Check-Out'} successful!`);
+                setWfhNotes('');
+                fetchBadge(true);
+            } else {
+                toast.error(response.data?.message || 'Failed to record attendance punch.');
+            }
+        } catch (err) {
+            console.error('WFH punch error:', err);
+            const msg = err.response?.data?.message || 'Failed to record attendance punch.';
+            toast.error(msg);
+        } finally {
+            setPunchLoading(false);
+        }
+    };
 
     const handleUnlock = async () => {
-        // Optional WebAuthn / Biometric prompt if supported on mobile Safari / Chrome
         if (window.PublicKeyCredential && typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
             try {
                 const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
                 if (available) {
-                    // Quick confirmation challenge
                     setIsLocked(false);
                     toast.success('Badge unlocked!');
                     fetchBadge(true);
@@ -159,8 +282,8 @@ const MyBadge = () => {
         }
     };
 
-    // Desktop browser notice
-    if (!isMobile) {
+    // Desktop browser notice ONLY for Office workers who need kiosk scanning with phone
+    if (!isMobile && !badgeData?.isWfhDay) {
         return (
             <div className="min-h-[70vh] flex items-center justify-center p-6 bg-slate-100">
                 <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center border border-slate-200">
@@ -171,10 +294,10 @@ const MyBadge = () => {
                         <LuShieldCheck className="w-3.5 h-3.5" />
                         <span>Mobile Attendance Security</span>
                     </div>
-                    <h2 className="text-xl font-black text-slate-900 mb-2">Mobile Only Feature</h2>
+                    <h2 className="text-xl font-black text-slate-900 mb-2">Office Mode: Mobile Device Required</h2>
                     <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                        Smart Attendance Badges with dynamic rotating QR codes are presented at the kiosk terminal from your phone. 
-                        Please open the official <strong>WorkPulse Mobile App</strong> on your mobile device to view your attendance badge.
+                        Smart Attendance Badges with dynamic rotating QR codes must be presented at the office kiosk scanner from your bound mobile device. 
+                        Please open the official <strong>WorkPulse Mobile App</strong> or mobile browser on your registered phone.
                     </p>
                     <button
                         onClick={() => navigate(canAccessWebApp(user.role) ? '/' : '/my-requests')}
@@ -187,13 +310,12 @@ const MyBadge = () => {
         );
     }
 
-
     if (loading) {
         return (
             <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 bg-slate-100">
                 <ModernLoader />
                 <p className="mt-4 text-sm font-semibold text-slate-600 animate-pulse">
-                    Generating secure attendance badge...
+                    Loading attendance details...
                 </p>
             </div>
         );
@@ -228,7 +350,7 @@ const MyBadge = () => {
         );
     }
 
-    const { employee, qrPayload, todayStatus, checkInTime } = badgeData || {};
+    const { employee, qrPayload, todayStatus, checkInTime, isWfhDay, workMode, todayDayOfWeek } = badgeData || {};
     const progressPercent = ((ROTATION_INTERVAL_SEC - secondsLeft) / ROTATION_INTERVAL_SEC) * 100;
 
     return (
@@ -236,7 +358,7 @@ const MyBadge = () => {
             
             {/* Top Navigation Bar - ONLY for Mobile / Standalone self-service view */}
             {!isDesktopWithLayout && (
-                <header className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-30 safe-area-top shadow-lg">
+                <header className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white sticky top-0 z-30 safe-area-top shadow-lg">
                     <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
                         <button
                             onClick={() => navigate('/my-requests')}
@@ -270,196 +392,351 @@ const MyBadge = () => {
             )}
 
             <main className="w-full max-w-xl p-4 sm:p-6 flex flex-col items-center justify-center flex-1">
+                
                 {/* Header Title */}
                 {!isDesktopWithLayout && (
                     <div className="text-center mb-5 max-w-sm w-full">
-                        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold mb-2.5 shadow-sm border border-emerald-300">
-                            <LuShieldCheck className="w-4 h-4 text-emerald-700" />
-                            <span>Official Digital ID & Attendance Badge</span>
-                        </div>
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Smart Attendance Badge</h1>
-                        <p className="text-xs text-slate-600 font-medium mt-1">
-                            Hold this QR code in front of the office kiosk scanner
-                        </p>
+                        {isWfhDay ? (
+                            <>
+                                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-100 text-blue-900 text-xs font-bold mb-2 shadow-sm border border-blue-300">
+                                    <LuHouse className="w-4 h-4 text-blue-700" />
+                                    <span>{workMode === 'Hybrid' ? `Hybrid Mode: Remote (${todayDayOfWeek || 'Today'})` : 'Work From Home Mode'}</span>
+                                </div>
+                                <h1 className="text-2xl font-black text-slate-900 tracking-tight">WFH Attendance</h1>
+                                <p className="text-xs text-slate-600 font-medium mt-1">
+                                    Punch your attendance directly with bound device & GPS
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold mb-2.5 shadow-sm border border-emerald-300">
+                                    <LuShieldCheck className="w-4 h-4 text-emerald-700" />
+                                    <span>Official Digital ID & Attendance Badge</span>
+                                </div>
+                                <h1 className="text-2xl font-black text-slate-900 tracking-tight">Smart Attendance Badge</h1>
+                                <p className="text-xs text-slate-600 font-medium mt-1">
+                                    Hold this QR code in front of the office kiosk scanner
+                                </p>
+                            </>
+                        )}
                     </div>
                 )}
 
-            {/* Smart ID Card */}
-            <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 transition-all">
-                
-                {/* Card Top Accent Banner */}
-                <div className="h-28 bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 p-4 relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
-                    <div className="relative z-10 flex items-center justify-between text-white">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center p-1 border border-white/20">
-                                <BrandLogo showText={false} iconSize="w-6 h-6" />
-                            </div>
-                            <span className="font-bold text-sm tracking-wide">WorkPulse</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 bg-black/20 backdrop-blur-md px-2.5 py-1 rounded-full text-[11px] font-medium border border-white/20">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 -ml-3.5" />
-                            Live Security
-                        </div>
-                    </div>
-                </div>
-
-                {/* Profile Section */}
-                <div className="px-6 pt-0 pb-6 text-center relative">
+                {/* Main Card Container */}
+                <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 transition-all">
                     
-                    {/* Avatar with Circular Ring */}
-                    <div className="-mt-14 mb-3 inline-block relative">
-                        <div className="w-24 h-24 rounded-full p-1 bg-white shadow-xl mx-auto">
-                            {employee?.avatarUrl ? (
-                                <img
-                                    src={`${API_BASE_URL}/${employee.avatarUrl}`}
-                                    alt={employee.name}
-                                    className="w-full h-full rounded-full object-cover"
-                                    onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.nextSibling.style.display = 'flex';
-                                    }}
-                                />
-                            ) : null}
-                            <div
-                                className="w-full h-full rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-bold text-2xl items-center justify-center shadow-inner"
-                                style={{ display: employee?.avatarUrl ? 'none' : 'flex' }}
-                            >
-                                {employee?.name ? employee.name.charAt(0).toUpperCase() : <LuUser className="w-10 h-10" />}
-                            </div>
-                        </div>
-                        <div className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md border-2 border-white text-[10px]">
-                            <LuSparkles className="w-3.5 h-3.5" />
-                        </div>
-                    </div>
-
-                    {/* Employee Identity */}
-                    <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
-                        {employee?.name || 'Employee'}
-                    </h2>
-                    <p className="text-xs font-semibold text-emerald-600 mt-0.5">
-                        {employee?.role || 'Staff Member'}
-                    </p>
-                    {employee?.department && (
-                        <p className="text-[11px] text-gray-400 mt-0.5 flex items-center justify-center gap-1">
-                            <LuBuilding className="w-3 h-3" />
-                            {employee.department}
-                        </p>
-                    )}
-
-                    {/* Today's Status Badge */}
-                    <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-sm transition-all">
-                        {todayStatus === 'CHECKED_IN' ? (
-                            <span className="bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                Checked In {checkInTime ? `since ${checkInTime.split(' ')[1] || checkInTime}` : ''}
-                            </span>
-                        ) : todayStatus === 'COMPLETED' ? (
-                            <span className="bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1.5">
-                                <LuCircleCheck className="w-3.5 h-3.5 text-blue-600" />
-                                Attendance Completed for Today
-                            </span>
-                        ) : (
-                            <span className="bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1.5">
-                                <LuClock className="w-3.5 h-3.5 text-amber-600" />
-                                Not Checked In Yet
-                            </span>
-                        )}
-                    </div>
-
-                    {/* QR Code Container */}
-                    <div className="mt-5 p-4 rounded-2xl bg-gradient-to-b from-gray-50 to-gray-100/80 border border-gray-200 shadow-inner relative group">
-                        
-                        {isLocked ? (
-                            <div className="py-12 flex flex-col items-center justify-center">
-                                <div className="w-16 h-16 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center mb-3">
-                                    <LuLock className="w-8 h-8" />
+                    {/* Card Top Accent Banner */}
+                    <div className={`h-28 ${isWfhDay ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600' : 'bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600'} p-4 relative overflow-hidden`}>
+                        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
+                        <div className="relative z-10 flex items-center justify-between text-white">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center p-1 border border-white/20">
+                                    <BrandLogo showText={false} iconSize="w-6 h-6" />
                                 </div>
-                                <p className="text-sm font-bold text-gray-800">Badge Hidden</p>
-                                <p className="text-xs text-gray-500 mb-4">Tap unlock to display your dynamic QR</p>
-                                <button
-                                    onClick={handleUnlock}
-                                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                                <span className="font-bold text-sm tracking-wide">WorkPulse</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 bg-black/20 backdrop-blur-md px-2.5 py-1 rounded-full text-[11px] font-medium border border-white/20">
+                                <span className={`w-2 h-2 rounded-full ${isWfhDay ? 'bg-sky-300' : 'bg-emerald-400'} animate-ping`} />
+                                <span className={`w-2 h-2 rounded-full ${isWfhDay ? 'bg-sky-300' : 'bg-emerald-400'} -ml-3.5`} />
+                                {isWfhDay ? 'Remote Punch' : 'Live Security'}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Profile Section */}
+                    <div className="px-6 pt-0 pb-6 text-center relative">
+                        
+                        {/* Avatar with Circular Ring */}
+                        <div className="-mt-14 mb-3 inline-block relative">
+                            <div className="w-24 h-24 rounded-full p-1 bg-white shadow-xl mx-auto">
+                                {employee?.avatarUrl ? (
+                                    <img
+                                        src={`${API_BASE_URL}/${employee.avatarUrl}`}
+                                        alt={employee.name}
+                                        className="w-full h-full rounded-full object-cover"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                    />
+                                ) : null}
+                                <div
+                                    className={`w-full h-full rounded-full ${isWfhDay ? 'bg-gradient-to-tr from-blue-500 to-indigo-500' : 'bg-gradient-to-tr from-emerald-500 to-teal-400'} text-white font-bold text-2xl items-center justify-center shadow-inner`}
+                                    style={{ display: employee?.avatarUrl ? 'none' : 'flex' }}
                                 >
-                                    <LuLockOpen className="w-3.5 h-3.5" />
-                                    Unlock Badge
-                                </button>
+                                    {employee?.name ? employee.name.charAt(0).toUpperCase() : <LuUser className="w-10 h-10" />}
+                                </div>
+                            </div>
+                            <div className={`absolute bottom-1 right-1 w-6 h-6 rounded-full ${isWfhDay ? 'bg-blue-600' : 'bg-emerald-500'} text-white flex items-center justify-center shadow-md border-2 border-white text-[10px]`}>
+                                {isWfhDay ? <LuHome className="w-3.5 h-3.5" /> : <LuSparkles className="w-3.5 h-3.5" />}
+                            </div>
+                        </div>
+
+                        {/* Employee Identity */}
+                        <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
+                            {employee?.name || 'Employee'}
+                        </h2>
+                        <p className={`text-xs font-semibold ${isWfhDay ? 'text-blue-600' : 'text-emerald-600'} mt-0.5`}>
+                            {employee?.role || 'Staff Member'}
+                        </p>
+                        {employee?.department && (
+                            <p className="text-[11px] text-gray-400 mt-0.5 flex items-center justify-center gap-1">
+                                <LuBuilding className="w-3 h-3" />
+                                {employee.department}
+                            </p>
+                        )}
+
+                        {/* Today's Status Badge */}
+                        <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-sm transition-all">
+                            {todayStatus === 'CHECKED_IN' ? (
+                                <span className="bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                    Checked In {checkInTime ? `since ${checkInTime.split(' ')[1] || checkInTime}` : ''}
+                                </span>
+                            ) : todayStatus === 'COMPLETED' ? (
+                                <span className="bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1.5">
+                                    <LuCircleCheck className="w-3.5 h-3.5 text-blue-600" />
+                                    Attendance Completed for Today
+                                </span>
+                            ) : todayStatus === 'ON_LEAVE' ? (
+                                <span className="bg-purple-50 text-purple-700 border-purple-200 flex items-center gap-1.5">
+                                    <LuInfo className="w-3.5 h-3.5 text-purple-600" />
+                                    On Approved Leave Today
+                                </span>
+                            ) : (
+                                <span className="bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1.5">
+                                    <LuClock className="w-3.5 h-3.5 text-amber-600" />
+                                    Not Checked In Yet
+                                </span>
+                            )}
+                        </div>
+
+                        {/* ========================================================================= */}
+                        {/* CONDITIONAL RENDER: WFH PUNCH vs OFFICE QR BADGE */}
+                        {/* ========================================================================= */}
+                        {isWfhDay ? (
+                            /* ─── WFH PUNCH CARD VIEW (DO NOT SHOW QR CODE!) ─── */
+                            <div className="mt-5 text-left">
+                                
+                                {/* Live Stopwatch if Checked In */}
+                                {todayStatus === 'CHECKED_IN' && elapsedTime && (
+                                    <div className="mb-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-4 text-white text-center shadow-md">
+                                        <p className="text-[11px] uppercase tracking-wider text-emerald-100 font-bold">Session Duration</p>
+                                        <p className="text-3xl font-black tracking-tight mt-1 font-mono">{elapsedTime}</p>
+                                        <p className="text-[10px] text-emerald-100 mt-1">Check-in at {checkInTime}</p>
+                                    </div>
+                                )}
+
+                                {/* GPS Location Status Card */}
+                                <div className="mb-4 bg-slate-50 border border-slate-200 rounded-2xl p-3.5">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                            <LuMapPin className="w-3.5 h-3.5 text-blue-600" />
+                                            GPS Telemetry
+                                        </span>
+                                        <button
+                                            onClick={captureLocation}
+                                            disabled={location.loading}
+                                            className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                                        >
+                                            <LuRefreshCw className={`w-3 h-3 ${location.loading ? 'animate-spin' : ''}`} />
+                                            {location.loading ? 'Locating...' : 'Refresh GPS'}
+                                        </button>
+                                    </div>
+
+                                    {location.lat && location.lng ? (
+                                        <div className="flex items-center justify-between text-[11px] text-slate-600">
+                                            <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200">
+                                                {location.lat.toFixed(4)}°, {location.lng.toFixed(4)}°
+                                            </span>
+                                            <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                                                <LuCheck className="w-3.5 h-3.5" />
+                                                Acquired {location.accuracy ? `(±${location.accuracy}m)` : ''}
+                                            </span>
+                                        </div>
+                                    ) : location.error ? (
+                                        <p className="text-[11px] text-rose-500 font-medium leading-tight">
+                                            {location.error}
+                                        </p>
+                                    ) : (
+                                        <p className="text-[11px] text-slate-400 italic">
+                                            {location.loading ? 'Acquiring GPS coordinates...' : 'Tap Refresh GPS to capture coordinates'}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Optional Work Notes */}
+                                {todayStatus !== 'COMPLETED' && todayStatus !== 'ON_LEAVE' && (
+                                    <div className="mb-4">
+                                        <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                                            <LuFileText className="w-3.5 h-3.5 text-slate-500" />
+                                            Notes / Summary (Optional)
+                                        </label>
+                                        <textarea
+                                            value={wfhNotes}
+                                            onChange={(e) => setWfhNotes(e.target.value)}
+                                            rows={2}
+                                            placeholder={todayStatus === 'CHECKED_IN' ? 'End of day work summary...' : 'What are you focusing on today?...'}
+                                            className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none bg-slate-50/50"
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Main Action Punch Button */}
+                                {todayStatus === 'NOT_CHECKED_IN' ? (
+                                    <button
+                                        onClick={() => handleWfhPunch('CHECK_IN')}
+                                        disabled={punchLoading}
+                                        className="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98] text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                                    >
+                                        {punchLoading ? (
+                                            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                        ) : (
+                                            <>
+                                                <LuLogIn className="w-5 h-5" />
+                                                <span>Check In (WFH Punch)</span>
+                                            </>
+                                        )}
+                                    </button>
+                                ) : todayStatus === 'CHECKED_IN' ? (
+                                    <button
+                                        onClick={() => handleWfhPunch('CHECK_OUT')}
+                                        disabled={punchLoading}
+                                        className="w-full py-3.5 px-4 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 active:scale-[0.98] text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-rose-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                                    >
+                                        {punchLoading ? (
+                                            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                        ) : (
+                                            <>
+                                                <LuLogOut className="w-5 h-5" />
+                                                <span>Check Out (WFH Punch)</span>
+                                            </>
+                                        )}
+                                    </button>
+                                ) : todayStatus === 'COMPLETED' ? (
+                                    <div className="w-full py-3.5 px-4 bg-slate-100 text-slate-600 font-bold text-xs rounded-2xl text-center border border-slate-200">
+                                        Day's attendance completed & submitted for review
+                                    </div>
+                                ) : (
+                                    <div className="w-full py-3.5 px-4 bg-purple-50 text-purple-700 font-bold text-xs rounded-2xl text-center border border-purple-200">
+                                        You are on approved leave today
+                                    </div>
+                                )}
+
+                                {/* Security & Device Binding Info Note */}
+                                <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
+                                    <span className="flex items-center gap-1">
+                                        <LuSmartphone className="w-3.5 h-3.5 text-blue-600" />
+                                        Bound Mobile Hardware
+                                    </span>
+                                    <span className="text-emerald-700 font-semibold">
+                                        Verified
+                                    </span>
+                                </div>
                             </div>
                         ) : (
-                            <div className="flex flex-col items-center">
-                                {/* The Dynamic QR */}
-                                <div className="bg-white p-3.5 rounded-xl shadow-md border border-gray-100 relative">
-                                    {qrPayload ? (
-                                        <QRCodeSVG
-                                            value={qrPayload}
-                                            size={200}
-                                            level="M"
-                                            includeMargin={false}
-                                            className="w-48 h-48 sm:w-52 sm:h-52"
-                                        />
+                            /* ─── OFFICE QR BADGE VIEW (Only for Office days) ─── */
+                            <>
+                                {/* QR Code Container */}
+                                <div className="mt-5 p-4 rounded-2xl bg-gradient-to-b from-gray-50 to-gray-100/80 border border-gray-200 shadow-inner relative group">
+                                    
+                                    {isLocked ? (
+                                        <div className="py-12 flex flex-col items-center justify-center">
+                                            <div className="w-16 h-16 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center mb-3">
+                                                <LuLock className="w-8 h-8" />
+                                            </div>
+                                            <p className="text-sm font-bold text-gray-800">Badge Hidden</p>
+                                            <p className="text-xs text-gray-500 mb-4">Tap unlock to display your dynamic QR</p>
+                                            <button
+                                                onClick={handleUnlock}
+                                                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                                            >
+                                                <LuLockOpen className="w-3.5 h-3.5" />
+                                                Unlock Badge
+                                            </button>
+                                        </div>
                                     ) : (
-                                        <div className="w-48 h-48 flex items-center justify-center text-gray-400">
-                                            <LuQrCode className="w-16 h-16 animate-pulse" />
+                                        <div className="flex flex-col items-center">
+                                            {/* The Dynamic QR */}
+                                            <div className="bg-white p-3.5 rounded-xl shadow-md border border-gray-100 relative">
+                                                {qrPayload ? (
+                                                    <QRCodeSVG
+                                                        value={qrPayload}
+                                                        size={200}
+                                                        level="M"
+                                                        includeMargin={false}
+                                                        className="w-48 h-48 sm:w-52 sm:h-52"
+                                                    />
+                                                ) : (
+                                                    <div className="w-48 h-48 flex items-center justify-center text-gray-400">
+                                                        <LuQrCode className="w-16 h-16 animate-pulse" />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Rotation Progress Bar */}
+                                            <div className="w-full mt-4">
+                                                <div className="flex items-center justify-between text-[11px] font-medium text-gray-500 mb-1 px-1">
+                                                    <span className="flex items-center gap-1">
+                                                        <LuRefreshCw className={`w-3 h-3 text-emerald-600 ${refreshing ? 'animate-spin' : ''}`} />
+                                                        Rotates in <strong className="text-emerald-700">{secondsLeft}s</strong>
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400">Anti-Screenshot</span>
+                                                </div>
+                                                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-1000 ease-linear"
+                                                        style={{ width: `${100 - progressPercent}%` }}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Rotation Progress Bar */}
-                                <div className="w-full mt-4">
-                                    <div className="flex items-center justify-between text-[11px] font-medium text-gray-500 mb-1 px-1">
-                                        <span className="flex items-center gap-1">
-                                            <LuRefreshCw className={`w-3 h-3 text-emerald-600 ${refreshing ? 'animate-spin' : ''}`} />
-                                            Rotates in <strong className="text-emerald-700">{secondsLeft}s</strong>
-                                        </span>
-                                        <span className="text-[10px] text-gray-400">Anti-Screenshot</span>
-                                    </div>
-                                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-1000 ease-linear"
-                                            style={{ width: `${100 - progressPercent}%` }}
-                                        />
-                                    </div>
+                                {/* Bottom Controls */}
+                                <div className="mt-4 flex items-center justify-between gap-2">
+                                    <button
+                                        onClick={() => fetchBadge(true)}
+                                        disabled={refreshing}
+                                        className="flex-1 py-2 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+                                    >
+                                        <LuRefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                                        {refreshing ? 'Refreshing...' : 'Refresh QR'}
+                                    </button>
+                                    <button
+                                        onClick={() => setIsLocked(!isLocked)}
+                                        className="py-2 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                                        title={isLocked ? "Unlock Badge" : "Lock for Privacy"}
+                                    >
+                                        {isLocked ? <LuLockOpen className="w-3.5 h-3.5 text-emerald-600" /> : <LuLock className="w-3.5 h-3.5" />}
+                                        {isLocked ? "Unlock" : "Lock"}
+                                    </button>
                                 </div>
-                            </div>
+                            </>
                         )}
+
                     </div>
+                </div>
 
-                    {/* Bottom Controls */}
-                    <div className="mt-4 flex items-center justify-between gap-2">
-                        <button
-                            onClick={() => fetchBadge(true)}
-                            disabled={refreshing}
-                            className="flex-1 py-2 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
-                        >
-                            <LuRefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-                            {refreshing ? 'Refreshing...' : 'Refresh QR'}
-                        </button>
-                        <button
-                            onClick={() => setIsLocked(!isLocked)}
-                            className="py-2 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
-                            title={isLocked ? "Unlock Badge" : "Lock for Privacy"}
-                        >
-                            {isLocked ? <LuLockOpen className="w-3.5 h-3.5 text-emerald-600" /> : <LuLock className="w-3.5 h-3.5" />}
-                            {isLocked ? "Unlock" : "Lock"}
-                        </button>
+                {/* Quick Tips */}
+                <div className="mt-6 max-w-sm w-full bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-gray-200/60 shadow-sm text-xs text-gray-600 flex items-start gap-3">
+                    <div className={`w-7 h-7 rounded-lg ${isWfhDay ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                        <LuInfo className="w-4 h-4" />
                     </div>
-
+                    <div>
+                        <p className="font-semibold text-gray-900">
+                            {isWfhDay ? 'WFH Attendance Policy:' : 'How to Scan:'}
+                        </p>
+                        <p className="text-gray-500 mt-0.5">
+                            {isWfhDay ? (
+                                'Remote attendance punches are recorded directly to the cloud and verified with your device and GPS location. Check-outs are automatically routed to your reporting manager.'
+                            ) : (
+                                'Hold your phone screen facing the office terminal camera. The terminal will automatically beep and record your check-in or check-out in under 1 second.'
+                            )}
+                        </p>
+                    </div>
                 </div>
-            </div>
-
-            {/* Quick Tips */}
-            <div className="mt-6 max-w-sm w-full bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-gray-200/60 shadow-sm text-xs text-gray-600 flex items-start gap-3">
-                <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <LuInfo className="w-4 h-4" />
-                </div>
-                <div>
-                    <p className="font-semibold text-gray-900">How to Scan:</p>
-                    <p className="text-gray-500 mt-0.5">
-                        Hold your phone screen facing the office terminal camera. The terminal will automatically beep and record your check-in or check-out in under 1 second.
-                    </p>
-                </div>
-            </div>
 
             </main>
         </div>

@@ -74,6 +74,8 @@ const GlobalInit = ({ children }) => {
           lastname: exchangeRes.data.lastname || '',
           email: exchangeRes.data.email || '',
           role: exchangeRes.data.role,
+          work_mode: exchangeRes.data.work_mode || 'Office',
+          hybrid_office_days: exchangeRes.data.hybrid_office_days || [],
           can_access_attendance_portal: Boolean(exchangeRes.data.can_access_attendance_portal)
         };
         localStorage.setItem('user', JSON.stringify(verifiedUser));

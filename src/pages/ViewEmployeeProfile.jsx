@@ -1210,7 +1210,7 @@ const ViewEmployeeProfile = () => {
                                                 In-Office Days (Monday to Saturday) <span className="text-rose-500">*</span>
                                             </label>
                                             <p className="text-[10px] text-slate-400">
-                                                Days employee is required to come to the office
+                                                Scheduled office days. Hybrid employees can punch WFH remotely with GPS or scan QR badge in the office.
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-1 text-[11px]">
