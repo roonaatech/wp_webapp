@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { LuQrCode } from 'react-icons/lu';
+import { LuQrCode, LuCircleAlert } from 'react-icons/lu';
 import {
     FiCalendar, FiX, FiSave, FiXCircle, FiEdit2, FiTrash2,
     FiBriefcase, FiMapPin, FiFileText, FiFlag, FiClock, FiAlertTriangle
@@ -73,6 +73,10 @@ const MyRequests = () => {
     const token = localStorage.getItem('token');
     const isMobile = isMobileClient();
     const isDesktopWithLayout = canAccessWebApp(user.role) && !isMobile;
+
+    // App Timezone Context
+    const nowInApp = getCurrentInAppTimezone();
+    const today = nowInApp.date;
 
     // Tab State
     const [activeTab, setActiveTab] = useState('leave'); // 'leave' | 'onduty' | 'timeoff'
@@ -775,9 +779,6 @@ const MyRequests = () => {
         return `${minutes}m`;
     };
 
-    // Today's date in yyyy-mm-dd for min attribute - using app timezone
-    const today = getCurrentInAppTimezone().date;
-
     // Earliest selectable date for leave calendar — walks back N working days (Sundays not counted)
     const minLeaveDate = React.useMemo(() => {
         if (leavePastDaysAllowed <= 0) return today;
@@ -793,7 +794,7 @@ const MyRequests = () => {
 
     // ── Calendar Logic ──
     const [calendarOpen, setCalendarOpen] = useState(false);
-    const [calendarMonth, setCalendarMonth] = useState(getCurrentInAppTimezone().full);
+    const [calendarMonth, setCalendarMonth] = useState(nowInApp.full);
     const [rangeStep, setRangeStep] = useState(0); // 0 = pick start, 1 = pick end
     const [tempCalStart, setTempCalStart] = useState('');
     const [tempCalEnd, setTempCalEnd] = useState('');
@@ -858,11 +859,12 @@ const MyRequests = () => {
         return map;
     }, [myLeaves]);
 
-    const calendarYear = calendarMonth.getFullYear();
-    const calendarMon = calendarMonth.getMonth();
+    const safeCalMonth = calendarMonth instanceof Date && !isNaN(calendarMonth.getTime()) ? calendarMonth : new Date();
+    const calendarYear = safeCalMonth.getFullYear();
+    const calendarMon = safeCalMonth.getMonth();
     const daysInMonth = new Date(calendarYear, calendarMon + 1, 0).getDate();
     const firstDayOfWeek = new Date(calendarYear, calendarMon, 1).getDay(); // 0=Sun
-    const monthName = formatInTimezone(calendarMonth, null, { month: 'long', year: 'numeric', day: undefined, hour: undefined, minute: undefined });
+    const monthName = formatInTimezone(safeCalMonth, null, { month: 'long', year: 'numeric' });
 
     const handleCalendarDayClick = (dateStr) => {
         if (attendedDates.has(dateStr) || (dateStr === today && hasAttendanceToday)) {

@@ -100,9 +100,32 @@ class ErrorBoundary extends React.Component {
                                 border: '1px solid #fecaca',
                                 borderRadius: '12px',
                                 textAlign: 'left',
-                                maxHeight: '160px',
+                                maxHeight: '180px',
                                 overflowY: 'auto'
                             }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#991b1b', textTransform: 'uppercase' }}>
+                                        Diagnostic Info
+                                    </span>
+                                    <button
+                                        onClick={() => {
+                                            const txt = `${this.state.error?.name || 'Error'}: ${this.state.error?.message || this.state.error}\n${this.state.error?.stack || ''}`;
+                                            navigator.clipboard?.writeText(txt).catch(() => {});
+                                        }}
+                                        style={{
+                                            fontSize: '11px',
+                                            color: '#b91c1c',
+                                            background: '#fee2e2',
+                                            border: '1px solid #fca5a5',
+                                            borderRadius: '6px',
+                                            padding: '2px 8px',
+                                            cursor: 'pointer',
+                                            fontWeight: '600'
+                                        }}
+                                    >
+                                        Copy Details
+                                    </button>
+                                </div>
                                 <p style={{
                                     color: '#b91c1c',
                                     fontSize: '12px',
@@ -111,9 +134,9 @@ class ErrorBoundary extends React.Component {
                                     margin: '0 0 4px 0',
                                     wordBreak: 'break-word'
                                 }}>
-                                    {this.state.error.name}: {this.state.error.message}
+                                    {String(this.state.error?.name || 'Error')}: {String(this.state.error?.message || this.state.error || 'Unknown error')}
                                 </p>
-                                {this.state.error.stack && (
+                                {this.state.error?.stack && (
                                     <pre style={{
                                         color: '#7f1d1d',
                                         fontSize: '10px',
@@ -123,7 +146,7 @@ class ErrorBoundary extends React.Component {
                                         wordBreak: 'break-word',
                                         opacity: 0.8
                                     }}>
-                                        {this.state.error.stack.split('\n').slice(0, 4).join('\n')}
+                                        {String(this.state.error.stack).split('\n').slice(0, 5).join('\n')}
                                     </pre>
                                 )}
                             </div>

@@ -111,7 +111,11 @@ export const formatInTimezone = (date, timezone = null, customOptions = null) =>
 
         // If custom options are passed (like {month: 'short', day: 'numeric'}), just use Intl
         if (customOptions && Object.keys(customOptions).length > 0) {
-            return new Intl.DateTimeFormat('en-US', customOptions).format(mirrored);
+            const cleanOptions = {};
+            for (const [key, val] of Object.entries(customOptions)) {
+                if (val !== undefined) cleanOptions[key] = val;
+            }
+            return new Intl.DateTimeFormat('en-US', cleanOptions).format(mirrored);
         }
 
         const dateFmt = getAppDateFormat();
