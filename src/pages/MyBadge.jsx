@@ -79,7 +79,7 @@ const MyBadge = () => {
 
     const timerRef = useRef(null);
 
-    // Capture GPS Geolocation for WFH punch
+    // Capture GPS Geolocation for WFH punch with 2-phase fallback (High Accuracy GPS -> Network/Wi-Fi)
     const captureLocation = useCallback(() => {
         return new Promise((resolve) => {
             if (!navigator.geolocation) {
@@ -89,31 +89,54 @@ const MyBadge = () => {
                 return;
             }
             setLocation(prev => ({ ...prev, loading: true, error: null }));
+
+            const isIOS = getDetectedPlatform() === 'ios';
+
+            const handleSuccess = (pos) => {
+                const loc = {
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    accuracy: Math.round(pos.coords.accuracy),
+                    error: null,
+                    loading: false
+                };
+                setLocation(loc);
+                resolve(loc);
+            };
+
+            const handleError = (err) => {
+                let errorMsg = 'Could not determine GPS location.';
+                if (err.code === 1) {
+                    errorMsg = isIOS 
+                        ? 'Safari website permission needed: Tap the "aA" icon in the address bar ➔ Website Settings ➔ Location ➔ set to "Allow".'
+                        : 'Location access denied. Please enable site location permissions in browser settings.';
+                } else if (err.code === 2) {
+                    errorMsg = 'GPS position unavailable. Please ensure Wi-Fi or Cellular is active and tap Refresh GPS.';
+                } else if (err.code === 3) {
+                    errorMsg = 'GPS location request timed out. Please tap Refresh GPS to try again.';
+                }
+                setLocation(prev => ({ ...prev, lat: null, lng: null, loading: false, error: errorMsg }));
+                resolve(null);
+            };
+
+            // Phase 1: High Accuracy GPS (8 sec timeout)
             navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const loc = {
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude,
-                        accuracy: Math.round(pos.coords.accuracy),
-                        error: null,
-                        loading: false
-                    };
-                    setLocation(loc);
-                    resolve(loc);
-                },
-                (err) => {
-                    let errorMsg = 'Could not determine GPS location.';
-                    if (err.code === 1) {
-                        errorMsg = 'Location access denied. Please enable GPS permissions in browser settings.';
-                    } else if (err.code === 2) {
-                        errorMsg = 'Position unavailable. Please ensure GPS is enabled.';
-                    } else if (err.code === 3) {
-                        errorMsg = 'GPS location request timed out.';
+                handleSuccess,
+                (err1) => {
+                    // If error is code 2 (POSITION_UNAVAILABLE) or code 3 (TIMEOUT), fall back to standard accuracy
+                    if (err1.code === 2 || err1.code === 3) {
+                        console.warn('High-accuracy GPS unavailable indoors/timing out, attempting network fallback...', err1);
+                        navigator.geolocation.getCurrentPosition(
+                            handleSuccess,
+                            handleError,
+                            { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 }
+                        );
+                        return;
                     }
-                    setLocation(prev => ({ ...prev, lat: null, lng: null, loading: false, error: errorMsg }));
-                    resolve(null);
+                    // For code 1 (PERMISSION_DENIED), dispatch error immediately
+                    handleError(err1);
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
             );
         });
     }, []);
@@ -616,6 +639,22 @@ const MyBadge = () => {
                                             <p className="text-[11px] text-rose-500 font-medium leading-tight">
                                                 {location.error}
                                             </p>
+                                            {detectedPlatform === 'ios' && (
+                                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 text-left shadow-sm">
+                                                    <p className="font-bold flex items-center gap-1.5 text-amber-900 text-xs">
+                                                        <span>📍</span> Safari Per-Website Setting Required:
+                                                    </p>
+                                                    <p className="mt-1 text-[11px] text-amber-800 leading-relaxed font-medium">
+                                                        Even with iPhone Settings turned on, Safari requires permission for this specific site:
+                                                    </p>
+                                                    <ol className="list-decimal list-inside mt-1.5 space-y-1 text-amber-950 font-semibold text-[11px]">
+                                                        <li>In Safari, tap the <span className="px-1 py-0.5 bg-amber-100 rounded font-bold border border-amber-300">aA</span> icon in the address bar.</li>
+                                                        <li>Tap <strong>Website Settings</strong>.</li>
+                                                        <li>Change <strong>Location</strong> from "Deny" to <strong>"Allow"</strong>.</li>
+                                                        <li>Tap <strong>Done</strong>, then tap <strong>Refresh GPS</strong> above.</li>
+                                                    </ol>
+                                                </div>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => {
@@ -626,7 +665,7 @@ const MyBadge = () => {
                                             >
                                                 <span className="flex items-center gap-1.5">
                                                     <LuSmartphone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                                    <span>How to enable on {detectedPlatform === 'ios' ? 'iPhone (iOS)' : 'Android'}</span>
+                                                    <span>View Complete Setup Steps ({detectedPlatform === 'ios' ? 'iPhone' : 'Android'})</span>
                                                 </span>
                                                 <span className="text-[11px] font-semibold text-blue-600 flex items-center gap-0.5">
                                                     View Steps <LuChevronRight className="w-3 h-3" />
@@ -892,12 +931,24 @@ const MyBadge = () => {
                             <div className="mt-4 space-y-3 overflow-y-auto pr-1 flex-1 text-left text-xs">
                                 {helpPlatform === 'ios' ? (
                                     <>
+                                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl mb-2 text-left">
+                                            <div className="flex items-start gap-2">
+                                                <span className="text-base shrink-0 mt-0.5">💡</span>
+                                                <div>
+                                                    <p className="font-bold text-amber-900 text-xs">Why Safari says "Not Available":</p>
+                                                    <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed font-medium">
+                                                        Even when <em>Safari Websites</em> is set to <em>"While Using the App"</em>, Safari enforces a separate permission per website. Follow <strong>Step 3</strong> below to unblock this website!
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
                                             <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
                                                 1
                                             </span>
                                             <div>
-                                                <p className="font-bold text-slate-800">Turn On iPhone Location</p>
+                                                <p className="font-bold text-slate-800">Turn On iPhone Location (Done ✅)</p>
                                                 <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
                                                     Open your phone's <strong>Settings ⚙️</strong> ➔ <strong>Privacy & Security</strong> ➔ <strong>Location Services</strong>. Toggle it <strong>ON</strong>.
                                                 </p>
@@ -909,22 +960,31 @@ const MyBadge = () => {
                                                 2
                                             </span>
                                             <div>
-                                                <p className="font-bold text-slate-800">Allow Browser Permission</p>
+                                                <p className="font-bold text-slate-800">Safari Websites Setting (Done ✅)</p>
                                                 <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
-                                                    In <strong>Location Services</strong>, scroll down to <strong>Safari Websites</strong> (or <strong>Chrome</strong>) ➔ Tap it and select <strong>"While Using the App"</strong> and turn on <strong>"Precise Location"</strong>.
+                                                    In <strong>Location Services</strong>, scroll down to <strong>Safari Websites</strong> ➔ Set to <strong>"While Using the App"</strong> and turn on <strong>"Precise Location"</strong>.
                                                 </p>
                                             </div>
                                         </div>
 
-                                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-blue-50/80 border border-blue-200 ring-2 ring-blue-500/20">
                                             <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
                                                 3
                                             </span>
                                             <div>
-                                                <p className="font-bold text-slate-800">Safari Website Settings</p>
-                                                <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
-                                                    In Safari, tap the <strong>"aA"</strong> icon on the address bar ➔ Tap <strong>Website Settings</strong> ➔ Set <strong>Location</strong> to <strong>Allow</strong>.
+                                                <p className="font-bold text-blue-900 flex items-center gap-1.5">
+                                                    <span>Unblock Website in Safari</span>
+                                                    <span className="text-[10px] bg-blue-600 text-white font-black px-1.5 py-0.5 rounded-full">REQUIRED</span>
                                                 </p>
+                                                <p className="text-blue-800 text-[11px] mt-1 leading-relaxed font-medium">
+                                                    While on this webpage in Safari, look at the address bar at the bottom:
+                                                </p>
+                                                <ol className="list-decimal list-inside mt-1 space-y-0.5 text-blue-900 font-semibold text-[11px]">
+                                                    <li>Tap the <strong>"aA"</strong> icon on the address bar.</li>
+                                                    <li>Tap <strong>Website Settings</strong>.</li>
+                                                    <li>Tap <strong>Location</strong> ➔ select <strong>Allow</strong>.</li>
+                                                    <li>Tap <strong>Done</strong>.</li>
+                                                </ol>
                                             </div>
                                         </div>
 
@@ -933,9 +993,9 @@ const MyBadge = () => {
                                                 4
                                             </span>
                                             <div>
-                                                <p className="font-bold text-slate-800">Refresh & Punch</p>
+                                                <p className="font-bold text-slate-800">Tap "Refresh GPS"</p>
                                                 <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
-                                                    Return here and tap the button below to acquire your location coordinates.
+                                                    Return here and tap <strong>"Refresh GPS"</strong>. Safari will now provide your precise coordinates.
                                                 </p>
                                             </div>
                                         </div>
