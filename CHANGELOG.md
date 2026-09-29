@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.16.3](https://github.com/roonaatech/wp_webapp/compare/v2.16.2...v2.16.3) (2026-09-29)
+
+
+### Features
+
+* add location permission help modal with step-by-step instructions for iOS and Android ([e241d4e](https://github.com/roonaatech/wp_webapp/commit/e241d4e28b264eefb37e03576320b0d76c61f61d))
+
 ### [2.16.2](https://github.com/roonaatech/wp_webapp/compare/v2.16.1...v2.16.2) (2026-09-29)
 
 
