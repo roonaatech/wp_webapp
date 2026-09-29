@@ -12,6 +12,8 @@ import { getRoleDisplayName, canAccessWebApp } from '../utils/roleUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { formatLeaveDuration } from '../utils/dateUtils';
 import { getAttendanceConfig } from '../utils/attendanceConfig';
+import { isMobileClient } from '../utils/deviceFingerprint';
+import { safeGetStoredUser, safeGetStoredSettings } from '../utils/storageUtils';
 
 // ─── Helper Functions ───────────────────────────────────
 const formatDate = (dateStr) => {
@@ -67,9 +69,9 @@ const StatusBadge = ({ status }) => {
 // ─── Main Component ───────────────────────────────────
 const MyRequests = () => {
     const navigate = useNavigate();
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = safeGetStoredUser();
     const token = localStorage.getItem('token');
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobile = isMobileClient();
     const isDesktopWithLayout = canAccessWebApp(user.role) && !isMobile;
 
     // Tab State
@@ -140,7 +142,7 @@ const MyRequests = () => {
 
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [leavePastDaysAllowed, setLeavePastDaysAllowed] = useState(() => {
-        const s = JSON.parse(localStorage.getItem('settings') || '{}');
+        const s = safeGetStoredSettings();
         return parseInt(s.leave_past_days_allowed || '0') || 0;
     });
     const [officeHours, setOfficeHours] = useState(() => {
@@ -273,13 +275,13 @@ const MyRequests = () => {
 
     // Handle settingsLoaded event to refresh timezone/settings context
     useEffect(() => {
-        const s = JSON.parse(localStorage.getItem('settings') || '{}');
+        const s = safeGetStoredSettings();
         setLeavePastDaysAllowed(parseInt(s.leave_past_days_allowed || '0') || 0);
         const config = getAttendanceConfig(s);
         setOfficeHours({ startTime: config.startTime || '09:30', endTime: config.endTime || '18:30' });
 
         const handleSettingsUpdate = () => {
-            const updated = JSON.parse(localStorage.getItem('settings') || '{}');
+            const updated = safeGetStoredSettings();
             setLeavePastDaysAllowed(parseInt(updated.leave_past_days_allowed || '0') || 0);
             const updatedConfig = getAttendanceConfig(updated);
             setOfficeHours({ startTime: updatedConfig.startTime || '09:30', endTime: updatedConfig.endTime || '18:30' });

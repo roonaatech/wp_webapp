@@ -1,10 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/api.config';
-import { canAccessWebApp, hasAdminPermission, isSelfServiceOnly, getCachedRoles, canAccessAttendancePortal } from '../utils/roleUtils';
+import { canAccessWebApp, hasAdminPermission, isSelfServiceOnly, canAccessAttendancePortal } from '../utils/roleUtils';
+import { isMobileClient } from '../utils/deviceFingerprint';
+import { safeGetStoredUser } from '../utils/storageUtils';
+
+// Module-level token verification cache to avoid duplicate verification and flickering
+// when redirecting between routes (e.g. from / to /my-requests on mobile)
+let verifiedTokenCache = null;
+let verifiedTokenTime = 0;
+const TOKEN_VERIFY_CACHE_MS = 60 * 1000; // 60 seconds
+
+export const clearTokenVerificationCache = () => {
+    verifiedTokenCache = null;
+    verifiedTokenTime = 0;
+};
 
 const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false, skipProfileCheck = false }) => {
+    const location = useLocation();
+    // Normalize path by removing trailing slash (e.g. '/my-requests/' -> '/my-requests')
+    const rawPath = location.pathname || '';
+    const currentPath = rawPath.length > 1 ? rawPath.replace(/\/+$/, '') : rawPath;
+
     // Check if token or user is passed via URL query param (e.g. launched from mobile app kiosk)
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
@@ -14,32 +32,55 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
         if (urlUser) {
             try {
                 localStorage.setItem('user', decodeURIComponent(urlUser));
-            } catch (_) {}
+            } catch (_) {
+                localStorage.setItem('user', urlUser);
+            }
         }
         // Clean URL to not expose token in browser address bar
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    const [authState, setAuthState] = useState('checking'); // 'checking' | 'valid' | 'invalid'
     const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isAttendanceRoute = window.location.pathname === '/attendance' || window.location.pathname.startsWith('/attendance');
+    const user = safeGetStoredUser();
+    const isAttendanceRoute = currentPath === '/attendance' || currentPath.startsWith('/attendance/');
+
+    // Check if this token was recently verified (within last 60 seconds)
+    const isRecentlyVerified = Boolean(
+        token &&
+        token === verifiedTokenCache &&
+        (Date.now() - verifiedTokenTime < TOKEN_VERIFY_CACHE_MS)
+    );
+
+    const [authState, setAuthState] = useState(() => isRecentlyVerified ? 'valid' : 'checking');
 
     // Check if user is authenticated
     if (!token) {
         return <Navigate to="/login" replace />;
     }
 
-    // Validate token with the backend on mount
+    // Validate token with the backend on mount if not recently verified
     useEffect(() => {
+        if (isRecentlyVerified) {
+            setAuthState('valid');
+            return;
+        }
+
+        let isMounted = true;
         const validateToken = async () => {
             try {
-                // Lightweight request to verify token is still valid
+                // Lightweight request to verify token is still valid with an 8s timeout
                 await axios.get(`${API_BASE_URL}/api/leavetypes`, {
-                    headers: { 'x-access-token': token }
+                    headers: { 'x-access-token': token },
+                    timeout: 8000
                 });
-                setAuthState('valid');
+                if (isMounted) {
+                    verifiedTokenCache = token;
+                    verifiedTokenTime = Date.now();
+                    setAuthState('valid');
+                }
             } catch (err) {
+                if (!isMounted) return;
+
                 if (err.response?.status === 401) {
                     // Service accounts never time out: do not clear session or redirect to session-expired
                     if (user.isServiceAccount) {
@@ -47,17 +88,23 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
                         return;
                     }
                     // Token is invalid — clear and redirect
+                    clearTokenVerificationCache();
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
                     setAuthState('invalid');
                 } else {
-                    // Network error or other issue — allow access (don't lock out on network blips)
+                    // Network error, timeout or other issue — allow access using cached session
+                    // (don't lock out mobile users on shaky networks or background wakeup)
                     setAuthState('valid');
                 }
             }
         };
+
         validateToken();
-    }, [token]);
+        return () => {
+            isMounted = false;
+        };
+    }, [token, isRecentlyVerified]);
 
     // Show loading while checking
     if (authState === 'checking') {
@@ -89,11 +136,11 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
     // Service accounts gating checks
     if (user.isServiceAccount) {
         // Block access to self-service pages
-        if (window.location.pathname === '/my-requests' || window.location.pathname === '/verify-profile') {
+        if (currentPath === '/my-requests' || currentPath === '/my-badge' || currentPath === '/verify-profile') {
             return <Navigate to="/unauthorized" replace />;
         }
         // Redirect home page to attendance portal or unauthorized
-        if (window.location.pathname === '/') {
+        if (currentPath === '/') {
             if (canAccessAttendancePortal(user.role)) {
                 return <Navigate to="/attendance" replace />;
             } else {
@@ -103,22 +150,22 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
     }
 
     // Force all mobile users to my-requests (except /attendance which is used on common mobile kiosk devices)
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobileDevice && !skipWebAppCheck && !isAttendanceRoute) {
+    const isMobileDevice = isMobileClient();
+    if (isMobileDevice && !skipWebAppCheck && !isAttendanceRoute && currentPath !== '/my-requests') {
         return <Navigate to="/my-requests" replace />;
     }
 
-    // Skip permission checks for self-service routes like /my-requests
-    const isSelfServiceRoute = skipWebAppCheck || window.location.pathname === '/my-requests';
+    // Skip permission checks for self-service routes like /my-requests and /my-badge
+    const isSelfServiceRoute = skipWebAppCheck || currentPath === '/my-requests' || currentPath === '/my-badge';
     if (!isSelfServiceRoute) {
-        // 1. Gating: If user doesn't have webapp access at all, they shouldn't see dashboard pages
+        // 1. Gating: If user doesn't have webapp access at all, they belong in /my-requests
         if (!canAccessWebApp(user.role)) {
             return <Navigate to="/my-requests" replace />;
         }
 
         // 2. Navigation: If they ONLY have web access (no management permissions), 
         // they belong in /my-requests, not the main Dashboard pages
-        if (isSelfServiceOnly(user.role) && !user.isServiceAccount) {
+        if (isSelfServiceOnly(user.role) && !user.isServiceAccount && currentPath !== '/my-requests') {
             return <Navigate to="/my-requests" replace />;
         }
     }
@@ -127,10 +174,16 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
     if (requiredPermission === 'admin' && !hasAdminPermission(user.role)) {
         return (
             <div className="flex items-center justify-center h-screen bg-gray-50">
-                <div className="text-center">
+                <div className="text-center p-6">
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
                     <p className="text-gray-600 mb-4">You don't have permission to access this page.</p>
-                    <p className="text-sm text-gray-500">This feature requires user management permissions.</p>
+                    <p className="text-sm text-gray-500 mb-6">This feature requires user management permissions.</p>
+                    <button
+                        onClick={() => window.location.href = '/my-requests'}
+                        className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 shadow-sm transition-all"
+                    >
+                        Go to My Requests
+                    </button>
                 </div>
             </div>
         );
@@ -140,4 +193,5 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
 };
 
 export default ProtectedRoute;
+
 

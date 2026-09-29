@@ -41,6 +41,9 @@ import { PageHeaderProvider } from './context/PageHeaderContext';
 
 
 
+import { isMobileClient } from './utils/deviceFingerprint';
+import { safeGetStoredUser } from './utils/storageUtils';
+
 const GlobalInit = ({ children }) => {
   // Read QR params before useState so the initial value is correct on the very first render.
   // This prevents ProtectedRoute from executing (and redirecting to /login) before
@@ -62,7 +65,26 @@ const GlobalInit = ({ children }) => {
         });
         // Store the full session token so API calls don't expire after 60s
         localStorage.setItem('token', exchangeRes.data.accessToken);
-        localStorage.setItem('user', urlUser);
+
+        // Store clean, validated user object from backend response
+        const verifiedUser = {
+          id: exchangeRes.data.id,
+          staffid: exchangeRes.data.id,
+          firstname: exchangeRes.data.firstname || '',
+          lastname: exchangeRes.data.lastname || '',
+          email: exchangeRes.data.email || '',
+          role: exchangeRes.data.role,
+          can_access_attendance_portal: Boolean(exchangeRes.data.can_access_attendance_portal)
+        };
+        localStorage.setItem('user', JSON.stringify(verifiedUser));
+
+        if (exchangeRes.data.mustChangePassword) {
+          localStorage.setItem('mustChangePassword', 'true');
+        }
+        if (exchangeRes.data.mustCompleteDeclaration) {
+          localStorage.setItem('mustCompleteDeclaration', 'true');
+        }
+
         window.history.replaceState(null, '', window.location.pathname);
         setTokenValidated(true);
         // Fetch roles and settings after successful validation
@@ -165,8 +187,8 @@ const PublicOrProtectedLayout = ({ children }) => {
 };
 
 const SelfServiceLayout = ({ children }) => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const user = safeGetStoredUser();
+  const isMobile = isMobileClient();
   
   if (canAccessWebApp(user.role) && !isMobile) {
     return <ProtectedLayout>{children}</ProtectedLayout>;

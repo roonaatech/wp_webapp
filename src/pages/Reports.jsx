@@ -462,7 +462,25 @@ const Reports = () => {
         );
     }
 
-    if (!hasPermission) return null;
+    if (!hasPermission) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center p-8 bg-white rounded-2xl shadow-sm border border-slate-200 max-w-md mx-auto">
+                    <div className="w-14 h-14 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100">
+                        <FiAlertTriangle className="w-6 h-6" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">Access Restricted</h2>
+                    <p className="text-sm text-gray-500 mb-6">You don't have permission to view organizational reports.</p>
+                    <button
+                        onClick={() => navigate('/my-requests')}
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all"
+                    >
+                        Go to My Requests
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div>
