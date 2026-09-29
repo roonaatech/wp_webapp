@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.16.8](https://github.com/roonaatech/wp_webapp/compare/v2.16.7...v2.16.8) (2026-09-29)
+
+
+### Code Refactoring
+
+* replace alerts with toast notifications, add inline reset confirmation, and remove time input constraints ([bd80a3a](https://github.com/roonaatech/wp_webapp/commit/bd80a3a4dd0c048a26522e959610da9154169494))
+
 ### [2.16.7](https://github.com/roonaatech/wp_webapp/compare/v2.16.6...v2.16.7) (2026-09-29)
 
 
