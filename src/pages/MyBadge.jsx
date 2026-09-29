@@ -61,34 +61,41 @@ const MyBadge = () => {
 
     // Capture GPS Geolocation for WFH punch
     const captureLocation = useCallback(() => {
-        if (!navigator.geolocation) {
-            setLocation(prev => ({ ...prev, error: 'Geolocation is not supported by this browser.', loading: false }));
-            return;
-        }
-        setLocation(prev => ({ ...prev, loading: true, error: null }));
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                setLocation({
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude,
-                    accuracy: Math.round(pos.coords.accuracy),
-                    error: null,
-                    loading: false
-                });
-            },
-            (err) => {
-                let errorMsg = 'Could not determine GPS location.';
-                if (err.code === 1) {
-                    errorMsg = 'Location access denied. Please enable GPS permissions in browser settings.';
-                } else if (err.code === 2) {
-                    errorMsg = 'Position unavailable. Please ensure GPS is enabled.';
-                } else if (err.code === 3) {
-                    errorMsg = 'GPS location request timed out.';
-                }
-                setLocation(prev => ({ ...prev, loading: false, error: errorMsg }));
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) {
+                const errorMsg = 'Geolocation is not supported by this browser.';
+                setLocation(prev => ({ ...prev, error: errorMsg, loading: false }));
+                resolve(null);
+                return;
+            }
+            setLocation(prev => ({ ...prev, loading: true, error: null }));
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const loc = {
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                        accuracy: Math.round(pos.coords.accuracy),
+                        error: null,
+                        loading: false
+                    };
+                    setLocation(loc);
+                    resolve(loc);
+                },
+                (err) => {
+                    let errorMsg = 'Could not determine GPS location.';
+                    if (err.code === 1) {
+                        errorMsg = 'Location access denied. Please enable GPS permissions in browser settings.';
+                    } else if (err.code === 2) {
+                        errorMsg = 'Position unavailable. Please ensure GPS is enabled.';
+                    } else if (err.code === 3) {
+                        errorMsg = 'GPS location request timed out.';
+                    }
+                    setLocation(prev => ({ ...prev, lat: null, lng: null, loading: false, error: errorMsg }));
+                    resolve(null);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        });
     }, []);
 
     const fetchBadge = useCallback(async (isManual = false) => {
@@ -211,13 +218,29 @@ const MyBadge = () => {
     const handleWfhPunch = async (action) => {
         setPunchLoading(true);
         try {
+            let lat = location.lat;
+            let lng = location.lng;
+
+            if (!lat || !lng || (lat === 0 && lng === 0)) {
+                const freshLoc = await captureLocation();
+                if (freshLoc && freshLoc.lat && freshLoc.lng) {
+                    lat = freshLoc.lat;
+                    lng = freshLoc.lng;
+                } else {
+                    const actionVerb = action === 'CHECK_IN' ? 'check in' : 'check out';
+                    toast.error(`Location required: Please enable device location permissions in settings to ${actionVerb}.`);
+                    setPunchLoading(false);
+                    return;
+                }
+            }
+
             const token = localStorage.getItem('token');
             const devMeta = await getMobileDeviceMetadata();
 
             const payload = {
                 action,
-                latitude: location.lat,
-                longitude: location.lng,
+                latitude: lat,
+                longitude: lng,
                 notes: wfhNotes ? wfhNotes.trim() : undefined
             };
 
