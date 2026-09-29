@@ -88,9 +88,46 @@ class ErrorBoundary extends React.Component {
                         <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>
                             Something went wrong
                         </h2>
-                        <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', marginBottom: '24px' }}>
+                        <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', marginBottom: '16px' }}>
                             We encountered an issue while loading this page. Please try refreshing or returning to the portal.
                         </p>
+
+                        {this.state.error && (
+                            <div style={{
+                                marginBottom: '20px',
+                                padding: '12px 14px',
+                                background: '#fef2f2',
+                                border: '1px solid #fecaca',
+                                borderRadius: '12px',
+                                textAlign: 'left',
+                                maxHeight: '160px',
+                                overflowY: 'auto'
+                            }}>
+                                <p style={{
+                                    color: '#b91c1c',
+                                    fontSize: '12px',
+                                    fontFamily: 'SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                    fontWeight: '600',
+                                    margin: '0 0 4px 0',
+                                    wordBreak: 'break-word'
+                                }}>
+                                    {this.state.error.name}: {this.state.error.message}
+                                </p>
+                                {this.state.error.stack && (
+                                    <pre style={{
+                                        color: '#7f1d1d',
+                                        fontSize: '10px',
+                                        fontFamily: 'SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                        margin: 0,
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                        opacity: 0.8
+                                    }}>
+                                        {this.state.error.stack.split('\n').slice(0, 4).join('\n')}
+                                    </pre>
+                                )}
+                            </div>
+                        )}
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             <button
