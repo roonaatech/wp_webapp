@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.15.1](https://github.com/roonaatech/wp_webapp/compare/v2.15.0...v2.15.1) (2026-09-29)
+
+
+### Features
+
+* add error boundary, safe storage utilities, and informative access-restricted states ([f002a36](https://github.com/roonaatech/wp_webapp/commit/f002a369d7f7371098b09204ee5170ec329df38c))
+
 ## [2.15.0](https://github.com/roonaatech/wp_webapp/compare/v2.14.8...v2.15.0) (2026-09-29)
 
 
