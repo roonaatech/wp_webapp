@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.16.4](https://github.com/roonaatech/wp_webapp/compare/v2.16.3...v2.16.4) (2026-09-29)
+
+
+### Code Refactoring
+
+* extract work mode validation into helper functions and add client timezone to badge requests ([d771043](https://github.com/roonaatech/wp_webapp/commit/d771043efaaebb7b8525a842aa5845a2a42073da))
+
 ### [2.16.3](https://github.com/roonaatech/wp_webapp/compare/v2.16.2...v2.16.3) (2026-09-29)
 
 
