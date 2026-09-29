@@ -77,7 +77,30 @@ const MyBadge = () => {
     const isMobile = isMobileClient();
     const isDesktopWithLayout = canAccessWebApp(user.role) && !isMobile;
 
+    const rawBadgeMode = (badgeData?.workMode === 'Regular' ? 'Office' : (badgeData?.workMode || badgeData?.badge?.workMode || '')).trim().toLowerCase();
+    const isBadgeWfh = rawBadgeMode === 'work from home' || rawBadgeMode === 'wfh' || rawBadgeMode === 'remote';
+    const effectiveIsWfh = isLocalWfh || isBadgeWfh || Boolean(badgeData?.isWfhDay || badgeData?.badge?.isWfhDay);
+
     const timerRef = useRef(null);
+
+    // Formatted local check-in time for display (e.g. 03:27 PM)
+    const displayCheckInTime = useMemo(() => {
+        const iso = badgeData?.checkInIso || badgeData?.badge?.checkInIso;
+        if (iso) {
+            try {
+                const d = new Date(iso);
+                if (!isNaN(d.getTime())) {
+                    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                }
+            } catch (_) {}
+        }
+        const raw = badgeData?.checkInTime || badgeData?.badge?.checkInTime;
+        if (raw && typeof raw === 'string') {
+            const parts = raw.split(' ');
+            return parts.length > 1 ? parts[1] : raw;
+        }
+        return '';
+    }, [badgeData?.checkInIso, badgeData?.badge?.checkInIso, badgeData?.checkInTime, badgeData?.badge?.checkInTime]);
 
     // Capture GPS Geolocation for WFH punch with 2-phase fallback (High Accuracy GPS -> Network/Wi-Fi)
     const captureLocation = useCallback(() => {
@@ -224,42 +247,105 @@ const MyBadge = () => {
         };
     }, [loading, isLocked, error, badgeData?.isWfhDay, isLocalWfh, fetchBadge]);
 
-    // Live elapsed timer for CHECKED_IN status on WFH days
+    // Live elapsed timer for CHECKED_IN status
     useEffect(() => {
-        const isWfh = badgeData?.isWfhDay || isLocalWfh;
-        if (!isWfh || badgeData?.todayStatus !== 'CHECKED_IN' || !badgeData?.checkInTime) {
+        const isCheckedIn = (badgeData?.todayStatus === 'CHECKED_IN') || (badgeData?.badge?.todayStatus === 'CHECKED_IN');
+        if (!isCheckedIn) {
             setElapsedTime('');
             return;
         }
 
+        const parseStartTime = () => {
+            // Priority 1: Exact UTC ISO 8601 string (e.g. "2026-09-29T20:27:04.000Z")
+            const iso = badgeData?.checkInIso || badgeData?.badge?.checkInIso;
+            if (iso) {
+                const t = new Date(iso).getTime();
+                if (!isNaN(t) && t > 0) return t;
+            }
+
+            // Priority 2: checkInTime string
+            const raw = badgeData?.checkInTime || badgeData?.badge?.checkInTime;
+            if (!raw) return null;
+
+            // Safari ISO fix: "YYYY-MM-DD HH:mm:ss" -> replace space with 'T'
+            if (typeof raw === 'string' && raw.includes(' ')) {
+                const safariStr = raw.trim().replace(' ', 'T');
+                const t = new Date(safariStr).getTime();
+                if (!isNaN(t) && t <= Date.now() + 60000) return t;
+            }
+
+            // Safari slash fix: "YYYY/MM/DD HH:mm:ss"
+            if (typeof raw === 'string' && raw.includes('-')) {
+                const slashStr = raw.trim().replace(/-/g, '/');
+                const t = new Date(slashStr).getTime();
+                if (!isNaN(t) && t <= Date.now() + 60000) return t;
+            }
+
+            // Direct parse
+            const directT = new Date(raw).getTime();
+            if (!isNaN(directT) && directT <= Date.now() + 60000) {
+                return directT;
+            }
+
+            // Fallback for time-only strings like "03:27:04 PM" or "15:27:04"
+            if (typeof raw === 'string') {
+                const todayStr = new Date().toISOString().split('T')[0];
+                let t = new Date(`${todayStr} ${raw}`).getTime();
+                if (!isNaN(t)) return t;
+
+                t = new Date(`${todayStr}T${raw}`).getTime();
+                if (!isNaN(t)) return t;
+            }
+
+            return null;
+        };
+
         const updateTimer = () => {
-            const timeRaw = badgeData?.badge?.checkInTime || badgeData?.checkInTime;
-            if (!timeRaw) return;
-
-            let startTime = new Date(timeRaw).getTime();
-            if (isNaN(startTime)) {
-                // If it's a formatted time string like "09:30 AM", fallback to today
-                const parts = timeRaw.split(' ');
-                if (parts.length >= 2) {
-                    const todayDate = new Date().toISOString().split('T')[0];
-                    startTime = new Date(`${todayDate} ${timeRaw}`).getTime();
-                }
+            const startTime = parseStartTime();
+            if (!startTime) {
+                setElapsedTime('00:00:00');
+                return;
             }
 
-            if (!isNaN(startTime)) {
-                const now = Date.now();
-                const diffMs = Math.max(0, now - startTime);
-                const hrs = Math.floor(diffMs / 3600000);
-                const mins = Math.floor((diffMs % 3600000) / 60000);
-                const secs = Math.floor((diffMs % 60000) / 1000);
-                setElapsedTime(`${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+            const now = Date.now();
+            let diffMs = now - startTime;
+            if (diffMs < 0) {
+                diffMs = 0;
             }
+
+            const totalSecs = Math.floor(diffMs / 1000);
+            const hrs = Math.floor(totalSecs / 3600);
+            const mins = Math.floor((totalSecs % 3600) / 60);
+            const secs = totalSecs % 60;
+
+            const formatted = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            setElapsedTime(formatted);
         };
 
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
-        return () => clearInterval(interval);
-    }, [badgeData?.isWfhDay, badgeData?.todayStatus, badgeData?.checkInTime, badgeData?.badge?.checkInTime]);
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                updateTimer();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        window.addEventListener('focus', updateTimer);
+
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            window.removeEventListener('focus', updateTimer);
+        };
+    }, [
+        badgeData?.todayStatus,
+        badgeData?.badge?.todayStatus,
+        badgeData?.checkInIso,
+        badgeData?.badge?.checkInIso,
+        badgeData?.checkInTime,
+        badgeData?.badge?.checkInTime
+    ]);
 
     // Handle WFH Check-In / Check-Out Punch
     const handleWfhPunch = async (action) => {
@@ -309,6 +395,33 @@ const MyBadge = () => {
             if (response.data && response.data.success) {
                 toast.success(response.data.message || `${action === 'CHECK_IN' ? 'Check-In' : 'Check-Out'} successful!`);
                 setWfhNotes('');
+                if (action === 'CHECK_IN') {
+                    const checkInIso = response.data.checkInIso || new Date().toISOString();
+                    const checkInTime = response.data.checkInTime || response.data.time;
+                    setBadgeData(prev => ({
+                        ...(prev || {}),
+                        todayStatus: 'CHECKED_IN',
+                        checkInIso,
+                        checkInTime,
+                        badge: {
+                            ...(prev?.badge || {}),
+                            todayStatus: 'CHECKED_IN',
+                            checkInIso,
+                            checkInTime,
+                        }
+                    }));
+                } else {
+                    setBadgeData(prev => ({
+                        ...(prev || {}),
+                        todayStatus: 'COMPLETED',
+                        checkOutTime: response.data.checkOutTime || new Date().toISOString(),
+                        badge: {
+                            ...(prev?.badge || {}),
+                            todayStatus: 'COMPLETED',
+                            checkOutTime: response.data.checkOutTime || new Date().toISOString(),
+                        }
+                    }));
+                }
                 fetchBadge(true);
             } else {
                 toast.error(response.data?.message || 'Failed to record attendance punch.');
@@ -425,11 +538,7 @@ const MyBadge = () => {
         );
     }
 
-    const { employee, qrPayload, todayStatus, checkInTime, isWfhDay, workMode, todayDayOfWeek } = badgeData || {};
-
-    const rawBadgeMode = (workMode === 'Regular' ? 'Office' : (workMode || '')).trim().toLowerCase();
-    const isBadgeWfh = rawBadgeMode === 'work from home' || rawBadgeMode === 'wfh' || rawBadgeMode === 'remote';
-    const effectiveIsWfh = isLocalWfh || isBadgeWfh || Boolean(isWfhDay);
+    const { employee, qrPayload, todayStatus, checkInTime, checkInIso, isWfhDay, workMode, todayDayOfWeek } = badgeData || {};
 
     const progressPercent = ((ROTATION_INTERVAL_SEC - secondsLeft) / ROTATION_INTERVAL_SEC) * 100;
 
@@ -571,7 +680,7 @@ const MyBadge = () => {
                             {todayStatus === 'CHECKED_IN' ? (
                                 <span className="bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1.5">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                    Checked In {checkInTime ? `since ${checkInTime.split(' ')[1] || checkInTime}` : ''}
+                                    Checked In {displayCheckInTime ? `since ${displayCheckInTime}` : (checkInTime ? `since ${checkInTime.split(' ')[1] || checkInTime}` : '')}
                                 </span>
                             ) : todayStatus === 'COMPLETED' ? (
                                 <span className="bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1.5">
@@ -599,11 +708,15 @@ const MyBadge = () => {
                             <div className="mt-5 text-left">
                                 
                                 {/* Live Stopwatch if Checked In */}
-                                {todayStatus === 'CHECKED_IN' && elapsedTime && (
+                                {todayStatus === 'CHECKED_IN' && (
                                     <div className="mb-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-4 text-white text-center shadow-md">
                                         <p className="text-[11px] uppercase tracking-wider text-emerald-100 font-bold">Session Duration</p>
-                                        <p className="text-3xl font-black tracking-tight mt-1 font-mono">{elapsedTime}</p>
-                                        <p className="text-[10px] text-emerald-100 mt-1">Check-in at {checkInTime}</p>
+                                        <p className="text-3xl font-black tracking-tight mt-1 font-mono">{elapsedTime || '00:00:00'}</p>
+                                        {displayCheckInTime ? (
+                                            <p className="text-[10px] text-emerald-100 mt-1">Check-in at {displayCheckInTime}</p>
+                                        ) : checkInTime ? (
+                                            <p className="text-[10px] text-emerald-100 mt-1">Check-in at {checkInTime}</p>
+                                        ) : null}
                                     </div>
                                 )}
 
