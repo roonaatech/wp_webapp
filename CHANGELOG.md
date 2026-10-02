@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.1](https://github.com/roonaatech/wp_webapp/compare/v2.17.0...v2.17.1) (2026-10-02)
+
+
+### Features
+
+* add form validation and day-of-week support to holidays page ([41b60dd](https://github.com/roonaatech/wp_webapp/commit/41b60dd4ddf82bbe7f56b97fa09547c820ba9dc1))
+* add holiday tracking and display to monthly summary report ([d113eec](https://github.com/roonaatech/wp_webapp/commit/d113eec4d019cf1bbf7600d556afdeb6ebbd6b85))
+
 ## [2.17.0](https://github.com/roonaatech/wp_webapp/compare/v2.16.8...v2.17.0) (2026-10-02)
 
 
