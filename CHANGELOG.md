@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.3](https://github.com/roonaatech/wp_webapp/compare/v2.17.2...v2.17.3) (2026-10-02)
+
+
+### Code Refactoring
+
+* streamline attendance configuration logic and remove compliance settings banner ([afc157b](https://github.com/roonaatech/wp_webapp/commit/afc157b0a34515a4c97faf5025ff53ee728a3347))
+
 ### [2.17.2](https://github.com/roonaatech/wp_webapp/compare/v2.17.1...v2.17.2) (2026-10-02)
 
 
