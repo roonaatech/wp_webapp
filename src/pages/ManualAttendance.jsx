@@ -24,7 +24,6 @@ import {
     LuHistory,
     LuListFilter,
     LuX,
-    LuShieldCheck,
     LuBriefcase,
     LuCalendarCheck,
     LuCalendarOff,
@@ -77,27 +76,23 @@ const ManualAttendance = () => {
     // Compliance hours & timezone dynamically from settings
     const [complianceHours, setComplianceHours] = useState(() => getAttendanceConfig().complianceHours);
 
-    // Default office timings dynamically from settings
+    // Default office timings dynamically from settings (Attendance Configuration)
     const [defaultStartTime, setDefaultStartTime] = useState(() => getAttendanceConfig().startTime);
-    const [defaultEndTime2, setDefaultEndTime2] = useState(() => getAttendanceConfig().endTime);
+    const [defaultEndTime, setDefaultEndTime] = useState(() => getAttendanceConfig().endTime);
 
     // Helper to calculate end time given start time and hours
     const calculateEndTime = useCallback((startStr, hours) => {
         try {
-            if (!startStr) return '17:30';
+            if (!startStr) return defaultEndTime || getAttendanceConfig().endTime;
             const [h, m] = startStr.split(':').map(Number);
-            const totalMinutes = h * 60 + (m || 0) + Math.round(hours * 60);
+            const totalMinutes = h * 60 + (m || 0) + Math.round((hours || complianceHours) * 60);
             const endH = Math.floor(totalMinutes / 60) % 24;
             const endM = totalMinutes % 60;
             return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
         } catch (e) {
-            return '17:30';
+            return defaultEndTime || getAttendanceConfig().endTime;
         }
-    }, []);
-
-    const defaultEndTime = useMemo(() => {
-        return defaultEndTime2;
-    }, [defaultEndTime2]);
+    }, [defaultEndTime, complianceHours]);
 
     // Date Range Filters
     const nowInApp = getCurrentInAppTimezone();
@@ -131,11 +126,23 @@ const ManualAttendance = () => {
         staff_id: '',
         date: todayStr,
         check_in_time: defaultStartTime,
-        check_out_time: defaultEndTime2,
+        check_out_time: defaultEndTime,
         reason: 'Work From Home',
         notes: ''
     });
     const [savingModal, setSavingModal] = useState(false);
+
+    // Listen to settingsLoaded event when App.jsx fetches settings
+    useEffect(() => {
+        const handleSettingsLoaded = () => {
+            const config = getAttendanceConfig();
+            if (config.startTime) setDefaultStartTime(config.startTime);
+            if (config.endTime) setDefaultEndTime(config.endTime);
+            if (config.complianceHours) setComplianceHours(config.complianceHours);
+        };
+        window.addEventListener('settingsLoaded', handleSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', handleSettingsLoaded);
+    }, []);
 
     // Load system settings
     useEffect(() => {
@@ -146,23 +153,10 @@ const ManualAttendance = () => {
                 const res = await axios.get(`${API_BASE_URL}/api/settings`, {
                     headers: { 'x-access-token': token }
                 });
-                if (res.data?.map?.office_start_time && res.data?.map?.office_end_time) {
-                    const [sh, sm] = res.data.map.office_start_time.split(':').map(Number);
-                    const [eh, em] = res.data.map.office_end_time.split(':').map(Number);
-                    const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
-                    if (diff > 0) setComplianceHours(Math.round((diff / 60) * 100) / 100);
-                } else if (res.data?.map?.attendance_compliance_hours) {
-                    const parsed = parseFloat(res.data.map.attendance_compliance_hours);
-                    if (!isNaN(parsed) && parsed > 0) {
-                        setComplianceHours(parsed);
-                    }
-                }
-                if (res.data?.map?.office_start_time) {
-                    setDefaultStartTime(res.data.map.office_start_time);
-                }
-                if (res.data?.map?.office_end_time) {
-                    setDefaultEndTime2(res.data.map.office_end_time);
-                }
+                const config = getAttendanceConfig(res.data?.map);
+                if (config.startTime) setDefaultStartTime(config.startTime);
+                if (config.endTime) setDefaultEndTime(config.endTime);
+                if (config.complianceHours) setComplianceHours(config.complianceHours);
             } catch (err) {
                 console.error("Failed to load settings:", err);
             }
@@ -219,19 +213,27 @@ const ManualAttendance = () => {
                 }
             });
 
-            if (res.data && res.data.items) {
-                // Initialize editable row fields
-                const formatted = res.data.items.map(item => ({
-                    ...item,
-                    in_time: item.check_in_time || defaultStartTime,
-                    out_time: item.check_out_time || calculateEndTime(item.check_in_time || defaultStartTime, res.data.compliance_hours || complianceHours),
-                    row_reason: item.reason || 'Work From Home',
-                    row_notes: item.notes || ''
-                }));
-                setMissedItems(formatted);
-                setSelectedIds(new Set()); // reset selections
-                if (res.data.compliance_hours) {
-                    setComplianceHours(res.data.compliance_hours);
+            if (res.data) {
+                const configStart = res.data.default_check_in || defaultStartTime || getAttendanceConfig().startTime;
+                const configEnd = res.data.default_check_out || defaultEndTime || getAttendanceConfig().endTime;
+                const configHours = res.data.compliance_hours || complianceHours;
+
+                if (res.data.default_check_in) setDefaultStartTime(res.data.default_check_in);
+                if (res.data.default_check_out) setDefaultEndTime(res.data.default_check_out);
+                if (res.data.compliance_hours) setComplianceHours(res.data.compliance_hours);
+
+                let formatted = [];
+                if (res.data.items) {
+                    // Initialize editable row fields matching Attendance configuration from settings
+                    formatted = res.data.items.map(item => ({
+                        ...item,
+                        in_time: item.check_in_time || configStart,
+                        out_time: item.check_out_time || (item.existing_check_in_time ? calculateEndTime(item.existing_check_in_time, configHours) : configEnd),
+                        row_reason: item.reason || 'Work From Home',
+                        row_notes: item.notes || ''
+                    }));
+                    setMissedItems(formatted);
+                    setSelectedIds(new Set()); // reset selections
                 }
 
                 // Collect pending leaves from response or formatted items
@@ -292,7 +294,7 @@ const ManualAttendance = () => {
         } finally {
             setLoading(false);
         }
-    }, [hasPermission, startDate, endDate, searchTerm, defaultStartTime, calculateEndTime, complianceHours]);
+    }, [hasPermission, startDate, endDate, searchTerm, defaultStartTime, defaultEndTime, calculateEndTime, complianceHours]);
 
     // Fetch on filter changes
     useEffect(() => {
@@ -337,11 +339,13 @@ const ManualAttendance = () => {
     };
 
     const openAddModal = () => {
+        const effStart = defaultStartTime || getAttendanceConfig().startTime;
+        const effEnd = defaultEndTime || getAttendanceConfig().endTime;
         setModalData({
             staff_id: allStaffList[0]?.staffid || '',
             date: todayStr,
-            check_in_time: defaultStartTime,
-            check_out_time: defaultEndTime,
+            check_in_time: effStart,
+            check_out_time: effEnd,
             reason: 'Work From Home',
             notes: ''
         });
@@ -415,7 +419,11 @@ const ManualAttendance = () => {
 
             // If check_in time changed, auto-recalculate checkout time if user hasn't explicitly set it
             if (field === 'in_time' && value) {
-                updated.out_time = calculateEndTime(value, complianceHours);
+                if (value === defaultStartTime && defaultEndTime) {
+                    updated.out_time = defaultEndTime;
+                } else {
+                    updated.out_time = calculateEndTime(value, complianceHours);
+                }
             }
 
             return updated;
@@ -454,21 +462,22 @@ const ManualAttendance = () => {
             return;
         }
 
-        const outTime = calculateEndTime(defaultStartTime, complianceHours);
+        const effStart = defaultStartTime || getAttendanceConfig().startTime;
+        const effEnd = defaultEndTime || getAttendanceConfig().endTime;
 
         setMissedItems(prev => prev.map(item => {
             if (selectedIds.has(item.id) && !isItemFullDayLeave(item)) {
                 return {
                     ...item,
-                    in_time: defaultStartTime,
-                    out_time: outTime,
+                    in_time: effStart,
+                    out_time: effEnd,
                     row_reason: bulkReason || item.row_reason
                 };
             }
             return item;
         }));
 
-        toast.success(`Applied default office hours (${defaultStartTime} – ${outTime}, ${complianceHours}h) to ${selectedIds.size} employee(s).`);
+        toast.success(`Applied default office hours (${effStart} – ${effEnd}) to ${selectedIds.size} employee(s).`);
     };
 
     // Bulk Action: Submit Selected Records
@@ -718,68 +727,6 @@ const ManualAttendance = () => {
             {/* TAB 1: MISSED ATTENDANCE */}
             {activeTab === 'missed' && (
                 <div className="space-y-6">
-                    {/* Compliance & Settings Quick Banner */}
-                    <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 shadow-sm">
-                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                            <div className="flex items-start gap-3.5">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-200">
-                                    <LuShieldCheck className="text-xl" />
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-base font-bold text-slate-800">
-                                            Daily Office Hours for Compliance
-                                        </h3>
-                                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                            {complianceHours} Hours Required
-                                        </span>
-                                    </div>
-                                    <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                                        Configure default work hours to batch-apply for selected employees who worked from home or missed punching.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Default Timings Selector */}
-                            <div className="flex flex-wrap items-center gap-3 bg-white/80 backdrop-blur-sm p-2 rounded-xl border border-emerald-200/60 shadow-xs">
-                                <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 px-2">
-                                    <LuClock className="text-emerald-600" />
-                                    <span>Default Shift:</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <input
-                                        type="time"
-                                        value={defaultStartTime}
-                                        onChange={(e) => setDefaultStartTime(e.target.value)}
-                                        className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                        title="Shift Start Time"
-                                    />
-                                    <span className="text-slate-400 font-medium text-xs">to</span>
-                                    <input
-                                        type="time"
-                                        value={defaultEndTime}
-                                        onChange={(e) => setDefaultEndTime2(e.target.value)}
-                                        className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                        title="Shift End Time"
-                                    />
-                                </div>
-                                <button
-                                    onClick={handleApplyDefaultToSelected}
-                                    disabled={selectedIds.size === 0}
-                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                                        selectedIds.size > 0
-                                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs'
-                                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                    }`}
-                                    title={selectedIds.size > 0 ? "Apply to selected rows" : "Select employees in the table first"}
-                                >
-                                    <LuSparkles className="text-xs" />
-                                    <span>Apply to Selected ({selectedIds.size})</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Filter Bar */}
                     <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1458,7 +1405,9 @@ const ManualAttendance = () => {
                                             setModalData({
                                                 ...modalData,
                                                 check_in_time: inT,
-                                                check_out_time: calculateEndTime(inT, complianceHours)
+                                                check_out_time: (inT === defaultStartTime && defaultEndTime)
+                                                    ? defaultEndTime
+                                                    : calculateEndTime(inT, complianceHours)
                                             });
                                         }}
                                         required
@@ -1486,12 +1435,12 @@ const ManualAttendance = () => {
                                     type="button"
                                     onClick={() => setModalData({
                                         ...modalData,
-                                        check_in_time: defaultStartTime,
-                                        check_out_time: defaultEndTime
+                                        check_in_time: defaultStartTime || getAttendanceConfig().startTime,
+                                        check_out_time: defaultEndTime || getAttendanceConfig().endTime
                                     })}
                                     className="font-bold text-emerald-700 underline hover:text-emerald-900"
                                 >
-                                    Apply Compliance ({complianceHours}h)
+                                    Apply Default ({defaultStartTime || getAttendanceConfig().startTime} - {defaultEndTime || getAttendanceConfig().endTime})
                                 </button>
                             </div>
 
