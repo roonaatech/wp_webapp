@@ -85,6 +85,28 @@ const Approvals = () => {
     const [bulkRejectionModal, setBulkRejectionModal] = useState({ show: false, reason: '', action: '', showError: false });
     const [bulkProcessing, setBulkProcessing] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
+    const [holidaysMap, setHolidaysMap] = useState({});
+
+    useEffect(() => {
+        const fetchHolidays = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+                const res = await axios.get(`${API_BASE_URL}/api/holidays?status=1`, {
+                    headers: { 'x-access-token': token }
+                });
+                const map = {};
+                (res.data || []).forEach(h => {
+                    const dStr = (h.holiday_date || h.date)?.split('T')[0];
+                    if (dStr) map[dStr] = h.holiday_name || h.name;
+                });
+                setHolidaysMap(map);
+            } catch (e) {
+                console.error("Error fetching holidays in Approvals:", e);
+            }
+        };
+        fetchHolidays();
+    }, []);
 
     // Permission states
     const [userPermissions, setUserPermissions] = useState({
@@ -934,7 +956,7 @@ const Approvals = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-600">
-                                                        {formatLeaveDuration(calculateLeaveDays(req.start_date, req.end_date) - (req.is_half_day === true || req.is_half_day === 1 ? 0.5 : 0))}
+                                                        {formatLeaveDuration(calculateLeaveDays(req.start_date, req.end_date, holidaysMap) - (req.is_half_day === true || req.is_half_day === 1 ? 0.5 : 0))}
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <div className="text-sm text-gray-900">
@@ -1576,7 +1598,7 @@ const Approvals = () => {
                                     <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
                                     <p className="text-base font-semibold text-gray-900">
                                         {detailsModal.type === 'leave'
-                                            ? formatLeaveDuration(calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0))
+                                            ? formatLeaveDuration(calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date, holidaysMap) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0))
                                             : (detailsModal.type === 'timeoff'
                                                 ? calculateTimeOffDuration(detailsModal.item.start_time, detailsModal.item.end_time)
                                                 : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time))
@@ -1777,7 +1799,7 @@ const formatDateForModal = (item, type) => {
     if (type === 'leave' || item.type === 'leave') {
         const startFormatted = formatDateOnly(item.start_date);
         const endFormatted = formatDateOnly(item.end_date);
-        const daysCount = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
+        const daysCount = calculateLeaveDays(item.start_date, item.end_date, holidaysMap) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
         const daysText = formatLeaveDuration(daysCount, { lowercase: true });
 
         if (startFormatted !== endFormatted) {

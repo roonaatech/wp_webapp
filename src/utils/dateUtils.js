@@ -1,4 +1,4 @@
-export const calculateLeaveDays = (startDate, endDate) => {
+export const calculateLeaveDays = (startDate, endDate, holidaysMapOrSet = null) => {
     if (!startDate || !endDate) return 0;
 
     // Parse the date strings (YYYY-MM-DD) manually to avoid timezone issues
@@ -8,7 +8,7 @@ export const calculateLeaveDays = (startDate, endDate) => {
     const parseDate = (dateStr) => {
         if (typeof dateStr !== 'string') return new Date(dateStr);
         // Assuming YYYY-MM-DD format which is standard for input="date" and SQL DATE
-        const parts = dateStr.split('-');
+        const parts = dateStr.split('T')[0].split(' ')[0].split('-');
         if (parts.length === 3) {
             return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
         }
@@ -26,13 +26,25 @@ export const calculateLeaveDays = (startDate, endDate) => {
     // If start is after end, return 0
     if (start > end) return 0;
 
+    const isHoliday = (dateStr) => {
+        if (!holidaysMapOrSet) return false;
+        if (holidaysMapOrSet instanceof Set) return holidaysMapOrSet.has(dateStr);
+        if (holidaysMapOrSet instanceof Map) return holidaysMapOrSet.has(dateStr);
+        if (typeof holidaysMapOrSet === 'object') return Boolean(holidaysMapOrSet[dateStr]);
+        return false;
+    };
+
     let count = 0;
     const current = new Date(start);
 
     while (current <= end) {
-        // In JavaScript: Sunday = 0, Monday = 1, ..., Saturday = 6
-        // Exclude Sunday (0)
-        if (current.getDay() !== 0) {
+        const y = current.getFullYear();
+        const m = String(current.getMonth() + 1).padStart(2, '0');
+        const d = String(current.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+
+        // In JavaScript: Sunday = 0. Exclude Sunday and holidays
+        if (current.getDay() !== 0 && !isHoliday(dateStr)) {
             count++;
         }
         // Add 1 day

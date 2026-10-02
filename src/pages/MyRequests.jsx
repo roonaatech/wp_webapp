@@ -4,7 +4,7 @@ import axios from 'axios';
 import { LuQrCode, LuCircleAlert, LuHouse } from 'react-icons/lu';
 import {
     FiCalendar, FiX, FiSave, FiXCircle, FiEdit2, FiTrash2,
-    FiBriefcase, FiMapPin, FiFileText, FiFlag, FiClock, FiAlertTriangle
+    FiBriefcase, FiMapPin, FiFileText, FiFlag, FiClock, FiAlertTriangle, FiAlertCircle
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
@@ -27,7 +27,7 @@ const formatTime12 = (timeStr) => {
     return formatTimeOnly(timeStr);
 };
 
-const calculateLeaveDaysExcludingSunday = (start, end, excludeDatesMap = {}) => {
+const calculateLeaveDaysExcludingSunday = (start, end, excludeDatesMap = {}, holidayMap = {}) => {
     if (!start || !end) return 0;
     let count = 0;
 
@@ -40,7 +40,7 @@ const calculateLeaveDaysExcludingSunday = (start, end, excludeDatesMap = {}) => 
 
     while (current <= endDate) {
         const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-        if (current.getDay() !== 0 && !excludeDatesMap[dateStr]) count++;
+        if (current.getDay() !== 0 && !excludeDatesMap[dateStr] && !holidayMap[dateStr]) count++;
         current.setDate(current.getDate() + 1);
     }
     return count;
@@ -162,6 +162,7 @@ const MyRequests = () => {
     const [isCurrentlyCheckedInToday, setIsCurrentlyCheckedInToday] = useState(false);
     const [hasAttendanceToday, setHasAttendanceToday] = useState(false);
     const [attendedDates, setAttendedDates] = useState(new Set());
+    const [holidaysMap, setHolidaysMap] = useState({}); // dateStr -> holiday name
 
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [leavePastDaysAllowed, setLeavePastDaysAllowed] = useState(() => {
@@ -279,6 +280,23 @@ const MyRequests = () => {
         }
     }, []);
 
+    const fetchHolidays = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_BASE_URL}/api/holidays?status=1`, { headers });
+            const map = {};
+            (res.data || []).forEach(h => {
+                const dateVal = h.holiday_date || h.date;
+                if (dateVal) {
+                    const dStr = String(dateVal).split('T')[0];
+                    map[dStr] = h.holiday_name || h.name || 'Holiday';
+                }
+            });
+            setHolidaysMap(map);
+        } catch (e) {
+            console.error('Failed to fetch holidays', e);
+        }
+    }, []);
+
     useEffect(() => {
         if (!token) { navigate('/login'); return; }
         fetchLeaveTypes();
@@ -286,6 +304,7 @@ const MyRequests = () => {
         fetchMyLeaves(); // needed for calendar status colors
         fetchTodayAttendance();
         fetchAttendedDates();
+        fetchHolidays();
     }, []);
 
     useEffect(() => {
@@ -366,6 +385,19 @@ const MyRequests = () => {
             toast.error(`Attendance check-in has already been recorded on ${formatDate(conflictDate)}. Leave cannot be applied for days on which attendance has been recorded.`);
             return;
         }
+        if (holidaysMap[leaveStartDate]) {
+            toast.error(`Start date falls on a company holiday (${holidaysMap[leaveStartDate]}).`);
+            return;
+        }
+        if (holidaysMap[leaveEndDate]) {
+            toast.error(`End date falls on a company holiday (${holidaysMap[leaveEndDate]}).`);
+            return;
+        }
+        const effectiveLeaveDays = calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap, holidaysMap) - (leaveHalfDay ? 0.5 : 0);
+        if (effectiveLeaveDays <= 0) {
+            toast.error('Selected leave period consists only of holidays and/or Sundays.');
+            return;
+        }
         setLeaveSubmitting(true);
         try {
             await axios.post(`${API_BASE_URL}/api/leave/apply`, {
@@ -414,6 +446,11 @@ const MyRequests = () => {
         e.preventDefault();
         if (!odClientName.trim() || !odLocation.trim() || !odPurpose.trim()) {
             toast.error('Please fill all fields');
+            return;
+        }
+        const todayInApp = getCurrentInAppTimezone().date;
+        if (holidaysMap[todayInApp]) {
+            toast.error(`Today is a company holiday (${holidaysMap[todayInApp]}). On-duty visits cannot be started.`);
             return;
         }
         setOdSubmitting(true);
@@ -470,6 +507,10 @@ const MyRequests = () => {
         }
         if (toDate === nowInApp.date && isCurrentlyCheckedInToday) {
             toast.error('You are currently checked in today. Time-off can only be applied after checking out for the day.');
+            return;
+        }
+        if (holidaysMap[toDate]) {
+            toast.error(`Selected date is a company holiday (${holidaysMap[toDate]}). Time-off cannot be requested.`);
             return;
         }
         // Validate end > start
@@ -607,6 +648,14 @@ const MyRequests = () => {
             toast.error(`Attendance check-in has already been recorded on ${formatDate(conflictDate)}. Leave cannot be applied for days on which attendance has been recorded.`);
             return;
         }
+        if (holidaysMap[editLeaveStart]) {
+            toast.error(`Start date falls on a company holiday (${holidaysMap[editLeaveStart]}).`);
+            return;
+        }
+        if (holidaysMap[editLeaveEnd]) {
+            toast.error(`End date falls on a company holiday (${holidaysMap[editLeaveEnd]}).`);
+            return;
+        }
         setEditLeaveSubmitting(true);
         try {
             await axios.put(`${API_BASE_URL}/api/leave/${id}`, {
@@ -670,6 +719,10 @@ const MyRequests = () => {
         }
         if (editToDate === nowInApp.date && isCurrentlyCheckedInToday) {
             toast.error('You are currently checked in today. Time-off can only be applied after checking out for the day.');
+            return;
+        }
+        if (holidaysMap[editToDate]) {
+            toast.error(`Selected date is a company holiday (${holidaysMap[editToDate]}). Time-off cannot be requested.`);
             return;
         }
         if (editToEnd <= editToStart) {
@@ -798,7 +851,7 @@ const MyRequests = () => {
         return `${minutes}m`;
     };
 
-    // Earliest selectable date for leave calendar — walks back N working days (Sundays not counted)
+    // Earliest selectable date for leave calendar — walks back N working days (Sundays and holidays not counted)
     const minLeaveDate = React.useMemo(() => {
         if (leavePastDaysAllowed <= 0) return today;
         const [y, m, d] = today.split('-').map(Number);
@@ -806,10 +859,11 @@ const MyRequests = () => {
         let workingDaysBack = 0;
         while (workingDaysBack < leavePastDaysAllowed) {
             cursor.setDate(cursor.getDate() - 1);
-            if (cursor.getDay() !== 0) workingDaysBack++;
+            const cStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+            if (cursor.getDay() !== 0 && !holidaysMap[cStr]) workingDaysBack++;
         }
         return `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
-    }, [today, leavePastDaysAllowed]);
+    }, [today, leavePastDaysAllowed, holidaysMap]);
 
     // ── Calendar Logic ──
     const [calendarOpen, setCalendarOpen] = useState(false);
@@ -829,6 +883,19 @@ const MyRequests = () => {
     const confirmCalendar = () => {
         const start = tempCalStart;
         const end = tempCalEnd || tempCalStart;
+        if (holidaysMap[start]) {
+            toast.error(`Start date falls on a company holiday (${holidaysMap[start]}).`);
+            return;
+        }
+        if (holidaysMap[end]) {
+            toast.error(`End date falls on a company holiday (${holidaysMap[end]}).`);
+            return;
+        }
+        const effectiveWorkingDays = calculateLeaveDaysExcludingSunday(start, end, leaveDateStatusMap, holidaysMap);
+        if (effectiveWorkingDays <= 0) {
+            toast.error('Selected leave period consists only of holidays and/or Sundays.');
+            return;
+        }
         const [sY, sM, sD] = start.split('-').map(Number);
         const [eY, eM, eD] = end.split('-').map(Number);
         let curr = new Date(sY, sM - 1, sD);
@@ -941,7 +1008,8 @@ const MyRequests = () => {
     for (let d = 1; d <= daysInMonth; d++) {
         const dateObj = new Date(calendarYear, calendarMon, d);
         const dateStr = `${calendarYear}-${String(calendarMon + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        calendarDays.push({ day: d, dateStr, dateObj, isSunday: dateObj.getDay() === 0 });
+        const holidayName = holidaysMap[dateStr];
+        calendarDays.push({ day: d, dateStr, dateObj, isSunday: dateObj.getDay() === 0, isHoliday: Boolean(holidayName), holidayName });
     }
 
     const prevMonth = () => setCalendarMonth(new Date(calendarYear, calendarMon - 1, 1));
@@ -1274,8 +1342,14 @@ const MyRequests = () => {
                                 <div className="mt-3 px-3 py-2 bg-blue-50 rounded-xl space-y-2">
                                     <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 flex-wrap">
                                         <FiCalendar className="w-3.5 h-3.5 shrink-0" />
-                                        <span>{formatLeaveDuration(calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap) - (leaveHalfDay ? 0.5 : 0), { lowercase: true })} <span className="text-blue-400 font-medium">(Sundays excluded)</span></span>
+                                        <span>{formatLeaveDuration(calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap, holidaysMap) - (leaveHalfDay ? 0.5 : 0), { lowercase: true })} <span className="text-blue-400 font-medium">(Sundays & holidays excluded)</span></span>
                                     </p>
+                                    {(holidaysMap[leaveStartDate] || holidaysMap[leaveEndDate]) && (
+                                        <div className="text-[11px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                                            <FiAlertCircle className="w-3.5 h-3.5 shrink-0 text-purple-600" />
+                                            <span>Selected start/end date falls on a company holiday ({holidaysMap[leaveStartDate] || holidaysMap[leaveEndDate]}).</span>
+                                        </div>
+                                    )}
                                     <label className="flex flex-row items-center gap-2 cursor-pointer mt-1 border-t border-blue-100 pt-2">
                                         <input
                                             type="checkbox"
@@ -1376,12 +1450,20 @@ const MyRequests = () => {
                                             <div className="grid grid-cols-2 gap-2">
                                                 <input type="date" value={editLeaveStart} onChange={(e) => {
                                                     const val = e.target.value;
-                                                    if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
+                                                    if (val) {
+                                                        const [y, m, d] = val.split('-').map(Number);
+                                                        if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
+                                                        if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
+                                                    }
                                                     setEditLeaveStart(val);
                                                 }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
                                                 <input type="date" value={editLeaveEnd} min={editLeaveStart} onChange={(e) => {
                                                     const val = e.target.value;
-                                                    if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
+                                                    if (val) {
+                                                        const [y, m, d] = val.split('-').map(Number);
+                                                        if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
+                                                        if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
+                                                    }
                                                     setEditLeaveEnd(val);
                                                 }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
                                             </div>
@@ -1539,6 +1621,13 @@ const MyRequests = () => {
                             /* ── Start On-Duty Form ── */
                             <form onSubmit={handleStartOnDuty} className="space-y-4">
 
+                                {holidaysMap[today] && (
+                                    <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-purple-800 text-xs font-semibold flex items-center gap-2.5">
+                                        <FiAlertCircle className="w-5 h-5 flex-shrink-0 text-purple-600" />
+                                        <span>Today is a company holiday (<strong>{holidaysMap[today]}</strong>). On-duty visits cannot be started today.</span>
+                                    </div>
+                                )}
+
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Client Name</label>
                                     <div className="relative">
@@ -1583,7 +1672,7 @@ const MyRequests = () => {
 
                                 <button
                                     type="submit"
-                                    disabled={odSubmitting}
+                                    disabled={odSubmitting || Boolean(holidaysMap[today])}
                                     className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                                 >
                                     {odSubmitting ? (
@@ -1866,7 +1955,11 @@ const MyRequests = () => {
                                             </div>
                                             <input type="date" value={editToDate} onChange={(e) => {
                                                 const val = e.target.value;
-                                                if (val) { const [y, m, d] = val.split('-').map(Number); if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; } }
+                                                if (val) {
+                                                    const [y, m, d] = val.split('-').map(Number);
+                                                    if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
+                                                    if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
+                                                }
                                                 setEditToDate(val);
                                             }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
                                             <div className="space-y-1.5">
@@ -1996,10 +2089,10 @@ const MyRequests = () => {
                                 {calendarDays.map((cell, idx) => {
                                     if (!cell) return <div key={`empty-${idx}`} className="h-10"></div>;
 
-                                    const { day, dateStr, isSunday } = cell;
+                                    const { day, dateStr, isSunday, isHoliday, holidayName } = cell;
                                     const isPast = dateStr < minLeaveDate;
                                     const hasAttendance = attendedDates.has(dateStr) || (dateStr === today && hasAttendanceToday);
-                                    const disabled = isPast || isSunday || hasAttendance;
+                                    const disabled = isPast || isSunday || isHoliday || hasAttendance;
                                     const leaveStatus = leaveDateStatusMap[dateStr];
                                     const inRange = isInSelectedRange(dateStr);
                                     const isStart = isRangeStart(dateStr);
@@ -2014,6 +2107,9 @@ const MyRequests = () => {
                                         if (hasAttendance) {
                                             textClass = 'text-rose-400 line-through';
                                             bgClass = 'bg-rose-50/50';
+                                        } else if (isHoliday) {
+                                            textClass = 'text-purple-400 font-bold';
+                                            bgClass = 'bg-purple-50';
                                         } else {
                                             textClass = 'text-gray-300';
                                         }
@@ -2043,7 +2139,7 @@ const MyRequests = () => {
                                             type="button"
                                             disabled={disabled}
                                             onClick={() => handleCalendarDayClick(dateStr)}
-                                            title={hasAttendance ? 'Attendance recorded - Leave not allowed' : ''}
+                                            title={hasAttendance ? 'Attendance recorded - Leave not allowed' : isHoliday ? `Holiday: ${holidayName} (Disabled)` : isSunday ? 'Sunday (Disabled)' : ''}
                                             className={`h-10 w-full flex items-center justify-center text-xs font-semibold rounded-full transition-all
                                                 ${bgClass} ${textClass} ${ringClass}
                                                 ${!disabled && !inRange && !isStart && !isEnd ? 'hover:bg-blue-50' : ''} ${!disabled ? 'active:scale-95 cursor-pointer' : 'cursor-default'}
@@ -2071,6 +2167,10 @@ const MyRequests = () => {
                                     <span className="text-[10px] text-gray-500 font-semibold">Pending</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-purple-300"></span>
+                                    <span className="text-[10px] text-gray-500 font-semibold">Holiday (Disabled)</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
                                     <span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
                                     <span className="text-[10px] text-gray-500 font-semibold">Attended</span>
                                 </div>
@@ -2089,7 +2189,7 @@ const MyRequests = () => {
                                 <div className="mt-2 px-3 py-2 bg-blue-50 rounded-xl">
                                     <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 flex-wrap">
                                         <FiCalendar className="w-3.5 h-3.5 shrink-0" />
-                                        <span>{formatDate(tempCalStart)}{tempCalEnd ? ` → ${formatDate(tempCalEnd)} · ${calculateLeaveDaysExcludingSunday(tempCalStart, tempCalEnd, leaveDateStatusMap)} day(s)` : ' — pick end date'}</span>
+                                        <span>{formatDate(tempCalStart)}{tempCalEnd ? ` → ${formatDate(tempCalEnd)} · ${calculateLeaveDaysExcludingSunday(tempCalStart, tempCalEnd, leaveDateStatusMap, holidaysMap)} day(s)` : ' — pick end date'}</span>
                                     </p>
                                 </div>
                             )}
@@ -2121,7 +2221,8 @@ const MyRequests = () => {
                 for (let d = 1; d <= tDaysInMonth; d++) {
                     const dateObj = new Date(tYear, tMon, d);
                     const dateStr = `${tYear}-${String(tMon + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                    tDays.push({ day: d, dateStr, isSunday: dateObj.getDay() === 0 });
+                    const holidayName = holidaysMap[dateStr];
+                    tDays.push({ day: d, dateStr, isSunday: dateObj.getDay() === 0, isHoliday: Boolean(holidayName), holidayName });
                 }
 
                 return (
@@ -2159,9 +2260,9 @@ const MyRequests = () => {
                                     {tDays.map((cell, idx) => {
                                         if (!cell) return <div key={`to-empty-${idx}`} className="h-10"></div>;
 
-                                        const { day, dateStr, isSunday } = cell;
+                                        const { day, dateStr, isSunday, isHoliday, holidayName } = cell;
                                         const isPast = dateStr < today;
-                                        const disabled = isPast || isSunday;
+                                        const disabled = isPast || isSunday || isHoliday;
                                         const isSelected = dateStr === toDate;
                                         const isToday = dateStr === today;
 
@@ -2169,7 +2270,8 @@ const MyRequests = () => {
                                         let textClass = 'text-gray-800';
 
                                         if (disabled) {
-                                            textClass = isSunday ? 'text-red-300' : 'text-gray-300';
+                                            textClass = isHoliday ? 'text-purple-400 font-bold' : isSunday ? 'text-red-300' : 'text-gray-300';
+                                            bgClass = isHoliday ? 'bg-purple-50' : '';
                                         } else if (isSelected) {
                                             bgClass = 'bg-teal-600';
                                             textClass = 'text-white';
@@ -2180,7 +2282,11 @@ const MyRequests = () => {
                                                 key={dateStr}
                                                 type="button"
                                                 disabled={disabled}
-                                                onClick={() => setToDate(dateStr)}
+                                                title={isHoliday ? `Holiday: ${holidayName} (Disabled)` : isSunday ? 'Sunday (Disabled)' : ''}
+                                                onClick={() => {
+                                                    setToDate(dateStr);
+                                                    setToCalendarOpen(false);
+                                                }}
                                                 className={`h-10 w-full flex items-center justify-center text-xs font-semibold rounded-full transition-all
                                                     ${bgClass} ${textClass}
                                                     ${isToday && !isSelected ? 'ring-2 ring-teal-400 ring-offset-1' : ''}
@@ -2196,10 +2302,14 @@ const MyRequests = () => {
                                 </div>
 
                                 {/* Legend */}
-                                <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                                <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-100 flex-wrap">
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
                                         <span className="text-[10px] text-gray-500 font-semibold">Selected</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-purple-300"></span>
+                                        <span className="text-[10px] text-gray-500 font-semibold">Holiday (Disabled)</span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2.5 h-2.5 rounded-full bg-red-200"></span>
@@ -2287,8 +2397,8 @@ const MyRequests = () => {
                                 <div className="bg-indigo-50 rounded-xl p-3 flex items-center gap-2">
                                     <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     <span className="text-sm font-semibold text-indigo-700">
-                                        Duration: {formatLeaveDuration(calculateLeaveDaysExcludingSunday(selectedDetail.start_date || selectedDetail.start, selectedDetail.end_date || selectedDetail.end) - (selectedDetail.is_half_day === true || selectedDetail.is_half_day === 1 ? 0.5 : 0), { lowercase: true })}
-                                        <span className="text-xs font-normal text-indigo-400 ml-1">(excl. Sundays)</span>
+                                        Duration: {formatLeaveDuration(calculateLeaveDaysExcludingSunday(selectedDetail.start_date || selectedDetail.start, selectedDetail.end_date || selectedDetail.end, {}, holidaysMap) - (selectedDetail.is_half_day === true || selectedDetail.is_half_day === 1 ? 0.5 : 0), { lowercase: true })}
+                                        <span className="text-xs font-normal text-indigo-400 ml-1">(excl. Sundays & holidays)</span>
                                     </span>
                                 </div>
                             )}

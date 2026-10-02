@@ -235,12 +235,14 @@ const Calendar = () => {
                 hasLeave: false,
                 hasOnDuty: false,
                 hasTimeOff: false,
+                hasHoliday: false,
             };
         }
         acc[key].events.push(event);
         if (event.type === 'leave') acc[key].hasLeave = true;
         if (event.type === 'on_duty') acc[key].hasOnDuty = true;
         if (event.type === 'time_off') acc[key].hasTimeOff = true;
+        if (event.type === 'holiday') acc[key].hasHoliday = true;
         return acc;
     }, {});
 
@@ -298,6 +300,7 @@ const Calendar = () => {
                             <option value="leave">Leave</option>
                             <option value="on_duty">On-Duty</option>
                             <option value="time_off">Time-Off</option>
+                            <option value="holiday">Holiday</option>
                         </select>
                     </div>
                     <div>
@@ -373,10 +376,12 @@ const Calendar = () => {
                             const leaveCount = dayEvents.filter(e => e.type === 'leave').length;
                             const onDutyCount = dayEvents.filter(e => e.type === 'on_duty').length;
                             const timeOffCount = dayEvents.filter(e => e.type === 'time_off').length;
+                            const holidayCount = dayEvents.filter(e => e.type === 'holiday').length;
                             const isSelected = selectedDate === day;
                             const hasLeave = leaveCount > 0;
                             const hasOnDuty = onDutyCount > 0;
                             const hasTimeOff = timeOffCount > 0;
+                            const hasHoliday = holidayCount > 0;
 
                             let dayClasses = 'aspect-square rounded-lg border-2 p-2 text-left flex flex-col transition-all hover:border-gray-400';
                             let dayTextClasses = 'font-bold text-sm';
@@ -396,7 +401,10 @@ const Calendar = () => {
                                     bgColor = 'bg-blue-50';
                                     borderColor = 'border-blue-600';
                                 } else if (!isSunday) {
-                                    if ((hasLeave && hasOnDuty) || (hasLeave && hasTimeOff) || (hasOnDuty && hasTimeOff)) {
+                                    if (hasHoliday) {
+                                        bgColor = 'bg-purple-50';
+                                        borderColor = 'border-purple-300';
+                                    } else if ((hasLeave && hasOnDuty) || (hasLeave && hasTimeOff) || (hasOnDuty && hasTimeOff)) {
                                         bgColor = 'bg-purple-50';
                                         borderColor = 'border-purple-300';
                                     } else if (hasLeave) {
@@ -427,6 +435,12 @@ const Calendar = () => {
                                                 <span className={`text-xs font-semibold ${isToday ? 'text-white' : 'text-blue-700'}`}>{leaveCount}</span>
                                             </div>
                                         )}
+                                        {holidayCount > 0 && (
+                                            <div className="flex items-center gap-1">
+                                                <span className={`w-2 h-2 rounded-full ${isToday ? 'bg-white' : 'bg-purple-500'}`}></span>
+                                                <span className={`text-xs font-semibold ${isToday ? 'text-white' : 'text-purple-700'}`}>{holidayCount}</span>
+                                            </div>
+                                        )}
                                         {onDutyCount > 0 && (
                                             <div className="flex items-center gap-1">
                                                 <span className={`w-2 h-2 rounded-full ${isToday ? 'bg-white' : 'bg-green-500'}`}></span>
@@ -446,7 +460,7 @@ const Calendar = () => {
                     </div>
 
                     {/* Legend */}
-                    <div className="mt-6 pt-6 border-t border-gray-200 flex gap-6">
+                    <div className="mt-6 pt-6 border-t border-gray-200 flex gap-6 flex-wrap">
                         <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-blue-500"></span>
                             <span className="text-sm text-gray-700">Leave</span>
@@ -458,6 +472,10 @@ const Calendar = () => {
                         <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-orange-500"></span>
                             <span className="text-sm text-gray-700">Time-Off</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full bg-purple-500"></span>
+                            <span className="text-sm text-gray-700">Holiday</span>
                         </div>
                     </div>
                 </div>
@@ -510,6 +528,11 @@ const Calendar = () => {
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-2 flex-shrink-0">
+                                                    {data.hasHoliday && (
+                                                        <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-200 text-purple-800">
+                                                            Holiday
+                                                        </span>
+                                                    )}
                                                     {hasLeave && (
                                                         <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-200 text-blue-800">
                                                             Leave
@@ -547,6 +570,8 @@ const Calendar = () => {
                                                             statusBg = 'bg-green-200'; statusText = 'text-green-800';
                                                         } else if (event.type === 'time_off') {
                                                             statusBg = 'bg-orange-200'; statusText = 'text-orange-800';
+                                                        } else if (event.type === 'holiday') {
+                                                            statusBg = 'bg-purple-200'; statusText = 'text-purple-800';
                                                         }
                                                     } else if (event.status === 'Pending') {
                                                         statusBg = 'bg-yellow-200';
@@ -560,7 +585,7 @@ const Calendar = () => {
                                                         <div key={idx} className="bg-white p-2 rounded-md shadow-sm">
                                                             <div className="flex items-center justify-between">
                                                                 <p className="font-semibold text-xs text-gray-800 flex items-center gap-1.5">
-                                                                    {event.type === 'leave' ? `Leave: ${event.title}` : (event.type === 'time_off' ? 'Time-Off' : 'On-Duty')}
+                                                                    {event.type === 'leave' ? `Leave: ${event.title}` : (event.type === 'time_off' ? 'Time-Off' : (event.type === 'holiday' ? `Holiday: ${event.title}` : 'On-Duty'))}
                                                                     {event.type === 'leave' && (event.is_half_day === true || event.is_half_day === 1) && (
                                                                         <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-wide">
                                                                             Half Day

@@ -18,6 +18,7 @@ import Approvals from './pages/Approvals';
 import Reports from './pages/Reports';
 import Activities from './pages/Activities';
 import LeaveTypes from './pages/LeaveTypes';
+import Holidays from './pages/Holidays';
 import Roles from './pages/Roles';
 import Calendar from './pages/Calendar';
 import ActiveOnDuty from './pages/ActiveOnDuty';
@@ -264,6 +265,7 @@ function App() {
             <Route path="/manual-attendance" element={<ProtectedLayout><ManualAttendance /></ProtectedLayout>} />
             <Route path="/activities" element={<ProtectedLayout><Activities /></ProtectedLayout>} />
             <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
+            <Route path="/holidays" element={<ProtectedLayout><Holidays /></ProtectedLayout>} />
             <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
             <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
             <Route path="/email-settings" element={<ProtectedLayout><EmailSettings /></ProtectedLayout>} />

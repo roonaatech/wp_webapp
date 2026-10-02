@@ -19,13 +19,14 @@ import {
     LuSettings,
     LuUserCog,
     LuQrCode,
-    LuCalendarPlus
+    LuCalendarPlus,
+    LuCalendarHeart
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageOnboarding, canManageManualAttendance, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport, canManageServiceAccounts, isSelfServiceOnly } from '../utils/roleUtils';
+import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageHolidays, canManageOnboarding, canManageManualAttendance, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport, canManageServiceAccounts, isSelfServiceOnly } from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -53,9 +54,19 @@ const Sidebar = () => {
     // Show Staff section if user has staff management permission
     const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission || canManageManualAttendancePermission;
     // Show Configurations section if user has any configuration permission
-    const hasAnyConfigPermission = canManageLeaveTypes(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission || canManageServiceAccountsPermission;
+    const hasAnyConfigPermission = canManageLeaveTypes(user.role) || canManageHolidays(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission || canManageServiceAccountsPermission;
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
+    const [, setRoleVersion] = useState(0);
+
+    useEffect(() => {
+        const handleRolesUpdated = () => {
+            setRoleVersion(v => v + 1);
+        };
+        window.addEventListener('rolesUpdated', handleRolesUpdated);
+        return () => window.removeEventListener('rolesUpdated', handleRolesUpdated);
+    }, []);
+
     const [isCollapsed, setIsCollapsed] = useState(() => {
         const saved = localStorage.getItem('sidebarCollapsed');
         return saved ? JSON.parse(saved) : false;
@@ -345,6 +356,10 @@ const Sidebar = () => {
                         {canManageLeaveTypes(user.role) && (
                             <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
                         )}
+                        {/* Holidays */}
+                        {canManageHolidays(user.role) && (
+                            <NavLink to="/holidays" icon={<LuCalendarHeart />} label="Holidays" />
+                        )}
                         {/* Roles */}
                         {canManageRolesPermission && (
                             <NavLink to="/roles" icon={<LuShield />} label="Roles" />
@@ -400,6 +415,9 @@ const Sidebar = () => {
                         )}
                         {canManageLeaveTypes(user.role) && (
                             <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
+                        )}
+                        {canManageHolidays(user.role) && (
+                            <NavLink to="/holidays" icon={<LuCalendarHeart />} label="Holidays" />
                         )}
                         {canManageRolesPermission && (
                             <NavLink to="/roles" icon={<LuShield />} label="Roles" />

@@ -167,6 +167,15 @@ export const canManageLeaveTypes = (roleId) => {
 };
 
 /**
+ * Check if user can manage holidays (global permission - boolean)
+ */
+export const canManageHolidays = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_holidays == true;
+};
+
+/**
  * Check if user can manage onboarding processes (global permission - boolean)
  */
 export const canManageOnboarding = (roleId) => {
@@ -523,6 +532,7 @@ export const isSelfServiceOnly = (roleId) => {
         role.can_manage_schedule === 'subordinates' || role.can_manage_schedule === 'all' ||
         role.can_view_activities === 'subordinates' || role.can_view_activities === 'all' ||
         role.can_manage_leave_types == true ||
+        role.can_manage_holidays == true ||
         role.can_manage_roles == true ||
         role.can_manage_email_settings == true ||
         role.can_manage_system_settings === 'all' ||
@@ -690,6 +700,7 @@ export default {
     canViewDashboard,
     hasAdminPermission,
     canManageLeaveTypes,
+    canManageHolidays,
     canManageOnboarding,
     canManageManualAttendance,
     canApproveLeave,

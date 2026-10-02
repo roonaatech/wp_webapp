@@ -8,6 +8,7 @@ import {
     LuUserCheck,
     LuCalendar,
     LuCalendarCheck,
+    LuCalendarHeart,
     LuClock,
     LuFileCheck,
     LuFileText,
@@ -309,6 +310,12 @@ const GLOBAL_GROUPS = [
                 icon: LuCalendarCheck
             },
             {
+                key: 'can_manage_holidays',
+                title: 'Manage Company Holidays',
+                description: 'Add, edit, view, and configure annual company holidays and calendar observances',
+                icon: LuCalendarHeart
+            },
+            {
                 key: 'can_manage_service_accounts',
                 title: 'Manage Service Accounts',
                 description: 'Generate, rotate, and manage automated machine-to-machine API tokens',
@@ -362,6 +369,9 @@ const getRolePermissionsList = (role) => {
     }
     if (role.can_manage_leave_types) {
         list.push({ label: 'Leave Types', color: 'bg-purple-50 text-purple-700 border-purple-200' });
+    }
+    if (role.can_manage_holidays) {
+        list.push({ label: 'Holidays', color: 'bg-amber-50 text-amber-700 border-amber-200' });
     }
     if (role.can_manage_service_accounts) {
         list.push({ label: 'Service Accounts', color: 'bg-teal-50 text-teal-700 border-teal-200' });
@@ -554,6 +564,7 @@ const Roles = () => {
         can_view_activities: 'none',
         // Global permissions - boolean
         can_manage_leave_types: false,
+        can_manage_holidays: false,
         can_manage_onboarding: false,
         can_manage_manual_attendance: false,
         can_view_birthdays: false,
@@ -652,6 +663,7 @@ const Roles = () => {
                 can_view_activities: role.can_view_activities || 'none',
                 // Global permissions
                 can_manage_leave_types: role.can_manage_leave_types,
+                can_manage_holidays: role.can_manage_holidays || false,
                 can_manage_onboarding: role.can_manage_onboarding,
                 can_manage_manual_attendance: role.can_manage_manual_attendance || false,
                 can_view_birthdays: role.can_view_birthdays,
@@ -688,6 +700,7 @@ const Roles = () => {
                 can_view_activities: 'none',
                 // Global permissions
                 can_manage_leave_types: false,
+                can_manage_holidays: false,
                 can_manage_onboarding: false,
                 can_manage_manual_attendance: false,
                 can_view_birthdays: false,
@@ -832,6 +845,7 @@ const Roles = () => {
         formData.can_view_anniversaries,
         formData.can_manage_roles,
         formData.can_manage_leave_types,
+        formData.can_manage_holidays,
         formData.can_manage_service_accounts,
         formData.can_manage_email_settings,
         formData.can_manage_system_settings === 'all'
