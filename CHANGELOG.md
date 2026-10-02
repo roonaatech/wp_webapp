@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.17.0](https://github.com/roonaatech/wp_webapp/compare/v2.16.8...v2.17.0) (2026-10-02)
+
+
+### Features
+
+* add holidays management page and calendar support ([d9b460b](https://github.com/roonaatech/wp_webapp/commit/d9b460ba70f54cf1f9ebaf4c5ea3c4e64ab2dadc))
+
 ### [2.16.8](https://github.com/roonaatech/wp_webapp/compare/v2.16.7...v2.16.8) (2026-09-29)
 
 
