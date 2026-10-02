@@ -257,8 +257,9 @@ const MonthlySummaryReport = () => {
         leave_days: Math.round((acc.leave_days + (s.leave_days || 0)) * 10) / 10,
         timeoff_minutes: acc.timeoff_minutes + (s.timeoff_minutes || 0),
         onduty_minutes: acc.onduty_minutes + (s.onduty_minutes || 0),
+        holidays: acc.holidays + (s.holidays_count || 0),
         compliant_days: Math.round((acc.compliant_days + (s.compliant_days || 0)) * 10) / 10
-    }), { present_days: 0, work_minutes: 0, leave_days: 0, timeoff_minutes: 0, onduty_minutes: 0, compliant_days: 0 });
+    }), { present_days: 0, work_minutes: 0, leave_days: 0, timeoff_minutes: 0, onduty_minutes: 0, holidays: 0, compliant_days: 0 });
 
     const exportExcel = async () => {
         if (summary.length === 0) return;
@@ -299,6 +300,7 @@ const MonthlySummaryReport = () => {
                 { header: 'Leave Days', key: 'leave', width: 15 },
                 { header: 'Time-Off', key: 'timeoff', width: 15 },
                 { header: 'On-Duty', key: 'onduty', width: 15 },
+                { header: 'Holidays', key: 'holidays', width: 14 },
                 { header: 'Compliant Days (Salary Days)', key: 'compliant_days', width: 26 }
             ];
 
@@ -353,6 +355,7 @@ const MonthlySummaryReport = () => {
                     leave: s.leave_days || 0,
                     timeoff: formatHours(s.timeoff_hours, s.timeoff_minutes),
                     onduty: formatHours(s.onduty_hours, s.onduty_minutes),
+                    holidays: s.holidays_count || 0,
                     compliant_days: compDays
                 });
 
@@ -369,10 +372,10 @@ const MonthlySummaryReport = () => {
 
                 row.eachCell((cell, colNumber) => {
                     cell.border = borderStyle;
-                    if ([3, 4, 5, 6, 7].includes(colNumber)) {
+                    if ([3, 4, 5, 6, 7, 8].includes(colNumber)) {
                         cell.alignment = { vertical: 'middle', horizontal: 'center' };
                     }
-                    if (colNumber === 7 && compDays > 0) {
+                    if (colNumber === 8 && compDays > 0) {
                         cell.font = { color: { argb: 'FF15803D' }, bold: true };
                     }
                 });
@@ -385,16 +388,17 @@ const MonthlySummaryReport = () => {
                 leave: totals.leave_days,
                 timeoff: formatHours(0, totals.timeoff_minutes),
                 onduty: formatHours(0, totals.onduty_minutes),
+                holidays: totals.holidays,
                 compliant_days: totals.compliant_days
             });
             totalRow.font = { bold: true };
             totalRow.eachCell((cell, colNumber) => {
                 cell.border = borderStyle;
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-                if ([3, 4, 5, 6, 7].includes(colNumber)) {
+                if ([3, 4, 5, 6, 7, 8].includes(colNumber)) {
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 }
-                if (colNumber === 7) cell.font = { bold: true, color: { argb: 'FF15803D' } };
+                if (colNumber === 8) cell.font = { bold: true, color: { argb: 'FF15803D' } };
             });
 
             // 2. Create Individual Sheets
@@ -426,7 +430,8 @@ const MonthlySummaryReport = () => {
                 const salBanner = sheet.getCell('A4');
                 const allowedLv = s.quota_summary?.allowed_leave_days ?? (apiAllowedLeave || 1);
                 const allowedTo = (s.quota_summary?.allowed_timeoff_minutes ?? ((apiAllowedTimeOff || 2) * 60)) / 60;
-                salBanner.value = `SALARY CONSIDERATION: ${s.compliant_days || 0} COMPLIANT DAYS (SALARY PAYABLE) | ${s.non_compliant_days || 0} NON-COMPLIANT DAYS | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed | Target: ${complianceHours}h/day`;
+                const holText = s.holidays_count > 0 ? ` | ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : '';
+                salBanner.value = `SALARY CONSIDERATION: ${s.compliant_days || 0} COMPLIANT DAYS (SALARY PAYABLE) | ${s.non_compliant_days || 0} NON-COMPLIANT DAYS${holText} | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed | Target: ${complianceHours}h/day`;
                 salBanner.font = { bold: true, color: { argb: 'FF065F46' }, size: 10 };
                 salBanner.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
                 salBanner.border = borderStyle;
@@ -482,7 +487,7 @@ const MonthlySummaryReport = () => {
                             day.onduty_minutes > 0 ? formatHours(0, day.onduty_minutes) : '—',
                             day.timeoff_requested_minutes > 0 ? formatHours(0, day.timeoff_requested_minutes) : '—',
                             day.timeoff_credited_minutes > 0 ? formatHours(0, day.timeoff_credited_minutes) : '—',
-                            day.type === 'Leave' ? '—' : formatHours(0, day.effective_work_minutes),
+                            day.type === 'Leave' || day.type === 'Holiday' ? '—' : formatHours(0, day.effective_work_minutes),
                             fullRemark
                         ];
 
@@ -592,6 +597,9 @@ const MonthlySummaryReport = () => {
                             displayDate = rec.start_date === rec.end_date
                                 ? formatDateOnly(rec.start_date)
                                 : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`;
+                        } else if (rec.type === 'Holiday') {
+                            displayDate = formatDateOnly(rec.date);
+                            displayDuration = rec.duration || '1 day';
                         } else if (rec.type === 'Time-Off' || rec.type === 'On-Duty') {
                             displayDate = formatDateOnly(rec.date);
                             const durationMatch = rec.duration.match(/\((.+)\)$/);
@@ -608,6 +616,7 @@ const MonthlySummaryReport = () => {
                         const typeCell = row.getCell(1);
                         typeCell.font = { bold: true };
                         if (rec.type === 'Leave') typeCell.font.color = { argb: 'FFEA580C' };
+                        else if (rec.type === 'Holiday') typeCell.font.color = { argb: 'FF0D9488' };
                         else if (rec.type === 'Time-Off') typeCell.font.color = { argb: 'FF7E22CE' };
                         else if (rec.type === 'On-Duty') typeCell.font.color = { argb: 'FF0284C7' };
                         curRowIdx++;
@@ -763,6 +772,9 @@ const MonthlySummaryReport = () => {
                                         <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('onduty_minutes')}>
                                             <span className="text-xs font-black text-white uppercase tracking-widest">On-Duty<SortIcon col="onduty_minutes" /></span>
                                         </th>
+                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('holidays_count')}>
+                                            <span className="text-xs font-black text-white uppercase tracking-widest">Holidays<SortIcon col="holidays_count" /></span>
+                                        </th>
                                         <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('compliant_days')} title="Days considered for salary processing">
                                             <span className="text-xs font-black text-white uppercase tracking-widest">Compliant Days<SortIcon col="compliant_days" /></span>
                                         </th>
@@ -807,6 +819,13 @@ const MonthlySummaryReport = () => {
                                                     {s.onduty_minutes > 0 ? (
                                                         <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-sky-50 text-[#0ea5e9] border border-sky-100">
                                                             {formatHours(s.onduty_hours, s.onduty_minutes)}
+                                                        </span>
+                                                    ) : <span className="text-gray-300 text-xs">—</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {s.holidays_count > 0 ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-teal-50 text-teal-700 border border-teal-200 shadow-2xs" title={`${s.holidays_count} company holiday(s) in this month (Paid)`}>
+                                                            {s.holidays_count} {s.holidays_count === 1 ? 'day' : 'days'}
                                                         </span>
                                                     ) : <span className="text-gray-300 text-xs">—</span>}
                                                 </td>
@@ -864,7 +883,7 @@ const MonthlySummaryReport = () => {
 
                                                 return (
                                                     <tr>
-                                                        <td colSpan={9} className="px-6 py-4 bg-[#f8fafc] border-b border-gray-100">
+                                                        <td colSpan={10} className="px-6 py-4 bg-[#f8fafc] border-b border-gray-100">
                                                             <div className="space-y-4">
                                                             {/* Executive Salary & Quota Summary Cards */}
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -878,7 +897,7 @@ const MonthlySummaryReport = () => {
                                                                             {s.compliant_days ?? 0} {s.compliant_days === 1 ? 'Day' : 'Days'}
                                                                         </div>
                                                                         <div className="text-[10px] text-gray-500 font-medium">
-                                                                            {s.non_compliant_days ?? 0} Non-Compliant {s.non_compliant_days === 1 ? 'day' : 'days'}
+                                                                            {s.non_compliant_days ?? 0} Non-Compliant {s.non_compliant_days === 1 ? 'day' : 'days'}{s.holidays_count > 0 ? ` • ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : ''}
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -954,7 +973,7 @@ const MonthlySummaryReport = () => {
                                                                         }`}
                                                                     >
                                                                         <FiFileText className="w-3.5 h-3.5" />
-                                                                        <span>Leave, Time-off and On-duty Records ({otherRecords.length})</span>
+                                                                        <span>Leave, Time-off, On-duty & Holiday Records ({otherRecords.length})</span>
                                                                     </button>
                                                                 </div>
                                                             </div>
@@ -992,7 +1011,11 @@ const MonthlySummaryReport = () => {
                                                                                                 {formatDateWithWeekday(day.date)}
                                                                                             </td>
                                                                                             <td className="px-3 py-2.5 whitespace-nowrap">
-                                                                                                {daySessions.length === 0 ? (
+                                                                                                {day.type === 'Holiday' ? (
+                                                                                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                                                                                                        Company Holiday
+                                                                                                    </span>
+                                                                                                ) : daySessions.length === 0 ? (
                                                                                                     <span className="text-gray-400 font-mono text-[11px]">—</span>
                                                                                                 ) : (
                                                                                                     <div className="space-y-1">
@@ -1023,7 +1046,9 @@ const MonthlySummaryReport = () => {
                                                                                             </td>
                                                                                             <td className="px-3 py-2.5 text-center">
                                                                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                                                                                    day.type === 'Leave'
+                                                                                                    day.type === 'Holiday'
+                                                                                                        ? 'bg-teal-50 text-teal-700 border-teal-200'
+                                                                                                        : day.type === 'Leave'
                                                                                                         ? 'bg-orange-50 text-orange-600 border-orange-100'
                                                                                                         : day.type === 'Time-Off'
                                                                                                         ? 'bg-purple-50 text-purple-700 border-purple-200'
@@ -1038,6 +1063,11 @@ const MonthlySummaryReport = () => {
                                                                                             </td>
                                                                                             <td className="px-3 py-2.5 text-gray-700">
                                                                                                 <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                                                                                    {day.type === 'Holiday' && (
+                                                                                                        <span className="font-semibold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                                                                                                            Holiday: {day.holiday_name || 'Paid Holiday'}
+                                                                                                        </span>
+                                                                                                    )}
                                                                                                     {day.attendance_minutes > 0 && (
                                                                                                         <span className="font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
                                                                                                             Att: {formatHours(0, day.attendance_minutes)}
@@ -1065,7 +1095,7 @@ const MonthlySummaryReport = () => {
                                                                                                 </div>
                                                                                             </td>
                                                                                             <td className="px-3 py-2.5 text-center font-bold text-gray-800 whitespace-nowrap">
-                                                                                                {day.type === 'Leave' ? '—' : formatHours(0, day.effective_work_minutes)}
+                                                                                                {day.type === 'Leave' || day.type === 'Holiday' ? '—' : formatHours(0, day.effective_work_minutes)}
                                                                                             </td>
                                                                                             <td className="px-3 py-2.5 text-center whitespace-nowrap">
                                                                                                 {day.is_compliant ? (
@@ -1122,6 +1152,8 @@ const MonthlySummaryReport = () => {
                                                                                                     ? 'bg-orange-50 text-orange-600 border-orange-100'
                                                                                                     : rec.type === 'Time-Off'
                                                                                                     ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                                                                                    : rec.type === 'Holiday'
+                                                                                                    ? 'bg-teal-50 text-teal-700 border-teal-200'
                                                                                                     : 'bg-sky-50 text-[#0ea5e9] border-sky-100'
                                                                                                     }`}>
                                                                                                     {rec.type}
@@ -1135,6 +1167,8 @@ const MonthlySummaryReport = () => {
                                                                                             <td className="px-4 py-2 text-xs text-gray-800 font-bold align-top">
                                                                                                 {rec.type === 'Leave'
                                                                                                     ? rec.duration
+                                                                                                    : rec.type === 'Holiday'
+                                                                                                    ? (rec.duration || '1 day')
                                                                                                     : `${formatTimeOnly(rec.start_time)} to ${formatTimeOnly(rec.end_time)}${rec.duration.match(/\((.+)\)$/) ? ` (${rec.duration.match(/\((.+)\)$/)[1]})` : ""}`}
                                                                                             </td>
                                                                                             <td className="px-4 py-2 text-xs text-gray-600 align-top break-words">{rec.detail}</td>
@@ -1159,6 +1193,7 @@ const MonthlySummaryReport = () => {
                                         <td className="px-4 py-3 text-center text-sm text-orange-600">{totals.leave_days} {totals.leave_days === 1 ? 'day' : 'days'}</td>
                                         <td className="px-4 py-3 text-center text-sm text-purple-600">{formatHours(0, totals.timeoff_minutes)}</td>
                                         <td className="px-4 py-3 text-center text-sm text-[#0ea5e9]">{formatHours(0, totals.onduty_minutes)}</td>
+                                        <td className="px-4 py-3 text-center text-sm text-teal-700">{totals.holidays} {totals.holidays === 1 ? 'day' : 'days'}</td>
                                         <td className="px-4 py-3 text-center text-sm text-emerald-700">{totals.compliant_days} {totals.compliant_days === 1 ? 'day' : 'days'}</td>
                                     </tr>
                                 </tbody>

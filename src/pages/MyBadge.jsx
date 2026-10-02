@@ -29,7 +29,8 @@ import {
     LuX,
     LuChevronRight,
     LuSettings,
-    LuCircleAlert
+    LuCircleAlert,
+    LuCalendar
 } from 'react-icons/lu';
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from '../components/BrandLogo';
@@ -692,6 +693,11 @@ const MyBadge = () => {
                                     <LuInfo className="w-3.5 h-3.5 text-purple-600" />
                                     On Approved Leave Today
                                 </span>
+                            ) : todayStatus === 'HOLIDAY' ? (
+                                <span className="bg-teal-50 text-teal-700 border-teal-200 flex items-center gap-1.5 font-bold">
+                                    <LuCalendar className="w-3.5 h-3.5 text-teal-600" />
+                                    Company Holiday ({badgeData?.holidayName || 'Holiday'})
+                                </span>
                             ) : (
                                 <span className="bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1.5">
                                     <LuClock className="w-3.5 h-3.5 text-amber-600" />
@@ -805,7 +811,7 @@ const MyBadge = () => {
                                 </div>
 
                                 {/* Optional Work Notes */}
-                                {todayStatus !== 'COMPLETED' && todayStatus !== 'ON_LEAVE' && (
+                                {todayStatus !== 'COMPLETED' && todayStatus !== 'ON_LEAVE' && todayStatus !== 'HOLIDAY' && (
                                     <div className="mb-4">
                                         <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
                                             <LuFileText className="w-3.5 h-3.5 text-slate-500" />
@@ -856,6 +862,11 @@ const MyBadge = () => {
                                     <div className="w-full py-3.5 px-4 bg-slate-100 text-slate-600 font-bold text-xs rounded-2xl text-center border border-slate-200">
                                         Day's attendance completed & submitted for review
                                     </div>
+                                ) : todayStatus === 'HOLIDAY' ? (
+                                    <div className="w-full py-4 px-4 bg-teal-50 text-teal-800 font-bold text-xs rounded-2xl text-center border border-teal-200 space-y-1">
+                                        <p className="font-extrabold text-sm text-teal-900">Today is a Company Holiday</p>
+                                        <p className="text-teal-700 text-xs font-medium">{badgeData?.holidayName || 'Official Company Holiday'} • Attendance check-in is not allowed</p>
+                                    </div>
                                 ) : (
                                     <div className="w-full py-3.5 px-4 bg-purple-50 text-purple-700 font-bold text-xs rounded-2xl text-center border border-purple-200">
                                         You are on approved leave today
@@ -879,7 +890,16 @@ const MyBadge = () => {
                                 {/* QR Code Container */}
                                 <div className="mt-5 p-4 rounded-2xl bg-gradient-to-b from-gray-50 to-gray-100/80 border border-gray-200 shadow-inner relative group">
                                     
-                                    {isLocked ? (
+                                    {todayStatus === 'HOLIDAY' ? (
+                                        <div className="py-10 flex flex-col items-center justify-center text-center px-4">
+                                            <div className="w-16 h-16 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center mb-3">
+                                                <LuCalendar className="w-8 h-8" />
+                                            </div>
+                                            <p className="text-base font-black text-slate-800">Company Holiday</p>
+                                            <p className="text-xs text-teal-700 font-semibold mt-1">{badgeData?.holidayName || 'Official Company Holiday'}</p>
+                                            <p className="text-[11px] text-slate-500 mt-2 max-w-xs">The office is closed for the holiday. Attendance check-in is not allowed today.</p>
+                                        </div>
+                                    ) : isLocked ? (
                                         <div className="py-12 flex flex-col items-center justify-center">
                                             <div className="w-16 h-16 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center mb-3">
                                                 <LuLock className="w-8 h-8" />
