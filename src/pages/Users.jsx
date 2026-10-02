@@ -68,13 +68,29 @@ const Users = () => {
         }
     };
 
-    const getChartData = (presentLogs) => {
+    const getChartData = (presentLogs, activeHolidays = new Set()) => {
         const dailyRawHours = {};
         (presentLogs || []).forEach(log => {
-            if (!log.check_in_time) return;
-            const rawDate = log.date;
+            if (!log.check_in_time || !log.date) return;
+            const dateParts = String(log.date).split('-');
+            const logDate = dateParts.length === 3
+                ? new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]))
+                : new Date(log.date);
+
+            // Ignore Sundays (day 0)
+            if (logDate.getDay() === 0) return;
+
+            // Ignore Holidays
+            const dateStr = String(log.date).split('T')[0];
+            if (activeHolidays && (
+                (activeHolidays.has && activeHolidays.has(dateStr)) ||
+                (Array.isArray(activeHolidays) && activeHolidays.includes(dateStr))
+            )) {
+                return;
+            }
+
             const hrs = getDurationHours(log.check_in_time, log.check_out_time);
-            dailyRawHours[rawDate] = (dailyRawHours[rawDate] || 0) + hrs;
+            dailyRawHours[dateStr] = (dailyRawHours[dateStr] || 0) + hrs;
         });
 
         const sortedRaw = Object.entries(dailyRawHours).sort((a, b) => a[0].localeCompare(b[0]));
@@ -260,11 +276,34 @@ const Users = () => {
     const [loadingHistory, setLoadingHistory] = useState({});
     const [attendanceHistory, setAttendanceHistory] = useState({});
     const [loadingAttendance, setLoadingAttendance] = useState({});
+    const [holidaysSet, setHolidaysSet] = useState(new Set());
     const [chartFilters, setChartFilters] = useState({}); // staffid -> '30d' | '60d' | '90d' | 'year'
     const [showAbsent, setShowAbsent] = useState({}); // staffid -> true when absent days are shown (hidden by default)
     const [historyTooltip, setHistoryTooltip] = useState({ show: false, events: [], anchor: null, date: null });
     const tooltipRef = useRef(null);
     const [tooltipCoords, setTooltipCoords] = useState({ left: 0, top: 0, ready: false });
+
+    // Fetch active company holidays to ignore in chart and mark in calendar
+    useEffect(() => {
+        const fetchHolidays = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+                const res = await axios.get(`${API_BASE_URL}/api/holidays?status=1`, {
+                    headers: { 'x-access-token': token }
+                });
+                const set = new Set();
+                (res.data || []).forEach(h => {
+                    const dStr = (h.holiday_date || h.date)?.split('T')[0];
+                    if (dStr) set.add(dStr);
+                });
+                setHolidaysSet(set);
+            } catch (e) {
+                console.error("Error fetching holidays in Users:", e);
+            }
+        };
+        fetchHolidays();
+    }, []);
 
     // Keep the Yearly History tooltip inside the viewport: flip to the left of the
     // hovered cell when it would overflow on the right, and clamp it vertically.
@@ -2341,7 +2380,7 @@ const Users = () => {
                                                                                                             bgClass = "bg-slate-100 border border-slate-200 text-slate-400";
                                                                                                         } else if (isFuture) {
                                                                                                             bgClass = "bg-gray-50 border border-gray-100 text-gray-300";
-                                                                                                        } else if (excusedSet.has(dateStr)) {
+                                                                                                        } else if (excusedSet.has(dateStr) || holidaysSet.has(dateStr) || (attData.holidays && attData.holidays.includes(dateStr))) {
                                                                                                             bgClass = "bg-blue-500 border border-black/10 text-white shadow-sm";
                                                                                                         } else if (showAbsent[u.staffid]) {
                                                                                                             bgClass = "bg-red-500 border border-black/10 text-white shadow-sm";
@@ -2400,12 +2439,21 @@ const Users = () => {
                                                                                         { key: 'year',          label: 'This Year'     },
                                                                                     ];
                                                                                     const now = getCurrentInAppTimezone().full;
+                                                                                    const userHolidays = new Set([...holidaysSet, ...(attData.holidays || [])]);
                                                                                     const filteredLogs = (attData.present || []).filter(log => {
                                                                                         if (!log.date) return false;
                                                                                         const dateParts = String(log.date).split('-');
                                                                                         const logDate = dateParts.length === 3
-                                                                                            ? new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
+                                                                                            ? new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]))
                                                                                             : new Date(log.date);
+
+                                                                                        // Ignore Sundays (day 0)
+                                                                                        if (logDate.getDay() === 0) return false;
+
+                                                                                        // Ignore Holidays
+                                                                                        const dateStr = String(log.date).split('T')[0];
+                                                                                        if (userHolidays.has(dateStr)) return false;
+
                                                                                         if (activeFilter === 'year') {
                                                                                             return logDate.getFullYear() === now.getFullYear();
                                                                                         }
@@ -2447,7 +2495,7 @@ const Users = () => {
                                                                                         cutoff.setHours(0, 0, 0, 0);
                                                                                         return logDate >= cutoff;
                                                                                     });
-                                                                                    const chartData = getChartData(filteredLogs);
+                                                                                    const chartData = getChartData(filteredLogs, userHolidays);
                                                                                     return (
                                                                                         <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mt-6 shadow-sm">
                                                                                             {/* Header row: title + filter pills */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -20,24 +20,43 @@ import {
     LuUserCog,
     LuQrCode,
     LuCalendarPlus,
-    LuCalendarHeart
+    LuCalendarHeart,
+    LuCalendarCheck
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
 import packageJson from '../../package.json';
 import '../hide-scrollbar.css';
-import { hasAdminPermission, canApproveLeave, canApproveOnDuty, canManageLeaveTypes, canManageHolidays, canManageOnboarding, canManageManualAttendance, canViewReports, canManageRoles, canManageEmailSettings, canManageSystemSettings, canManageUsers as canManageUsersUtil, canAccessUsersPage, canManageActiveOnDuty, canManageSchedule, canViewActivities, canAccessAttendancePortal, canViewAttendanceReport, canManageServiceAccounts, isSelfServiceOnly } from '../utils/roleUtils';
+import {
+    canApproveLeave,
+    canApproveOnDuty,
+    canManageLeaveTypes,
+    canManageHolidays,
+    canManageOnboarding,
+    canManageManualAttendance,
+    canViewReports,
+    canManageRoles,
+    canManageEmailSettings,
+    canManageSystemSettings,
+    canAccessUsersPage,
+    canManageActiveOnDuty,
+    canManageSchedule,
+    canViewActivities,
+    canAccessAttendancePortal,
+    canViewAttendanceReport,
+    canManageServiceAccounts,
+    isSelfServiceOnly
+} from '../utils/roleUtils';
 
 const Sidebar = () => {
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    // Use permission-based checks instead of hardcoded role IDs
-    const isAdmin = hasAdminPermission(user.role);
+
+    // Permission-based checks
     const isSelfService = isSelfServiceOnly(user.role);
     const canApprove = canApproveLeave(user.role) || canApproveOnDuty(user.role);
-    const canManageUsersPermission = canManageUsersUtil(user.role); // Users page edit visibility
-    const canAccessUsersPermission = canAccessUsersPage(user.role); // Users page visibility (view or manage)
-    const canManageOnboardingPermission = canManageOnboarding(user.role); // Onboarding permission
+    const canAccessUsersPermission = canAccessUsersPage(user.role);
+    const canManageOnboardingPermission = canManageOnboarding(user.role);
     const canManageRolesPermission = canManageRoles(user.role);
     const canManageEmailPermission = canManageEmailSettings(user.role);
     const canManageSystemPermission = canManageSystemSettings(user.role);
@@ -49,15 +68,60 @@ const Sidebar = () => {
     const canViewAttendanceReportPermission = canViewAttendanceReport(user.role);
     const canManageServiceAccountsPermission = canManageServiceAccounts(user.role);
     const canManageManualAttendancePermission = canManageManualAttendance(user.role);
-    // Show Management section only if the user has at least one item in it
-    const hasAnyManagementPermission = canApprove || canManageActiveOnDutyPermission || canManageSchedulePermission || canAccessAttendance;
-    // Show Staff section if user has staff management permission
-    const hasAnyStaffPermission = canAccessUsersPermission || canManageOnboardingPermission || canManageManualAttendancePermission;
-    // Show Configurations section if user has any configuration permission
-    const hasAnyConfigPermission = canManageLeaveTypes(user.role) || canManageHolidays(user.role) || canManageRolesPermission || canManageEmailPermission || canManageSystemPermission || canManageServiceAccountsPermission;
+
+    // Group visibility checks
+    const hasPeopleMenu = canAccessUsersPermission || canManageOnboardingPermission;
+    const hasAttendanceMenu = canAccessAttendance || canViewAttendanceReportPermission || canManageManualAttendancePermission || canManageSchedulePermission || canManageActiveOnDutyPermission;
+    const hasReportsMenu = canViewReportsPermission || canViewActivitiesPermission;
+    const hasSettingsMenu = canManageLeaveTypes(user.role) || canManageHolidays(user.role) || canManageRolesPermission || canManageSystemPermission || canManageEmailPermission || canManageServiceAccountsPermission || true;
+
+    // Group child route arrays for active highlighting and auto-expansion
+    const peoplePaths = ['/users', '/onboard'];
+    const attendancePaths = ['/attendance', '/attendance-report', '/manual-attendance', '/calendar', '/active-onduty'];
+    const reportsPaths = ['/reports', '/activities'];
+    const settingsPaths = ['/leave-types', '/holidays', '/roles', '/settings', '/email-settings', '/service-accounts', '/apk'];
+
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
     const [, setRoleVersion] = useState(0);
+
+    // Sidebar collapsed state
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        const saved = localStorage.getItem('sidebarCollapsed');
+        return saved ? JSON.parse(saved) : false;
+    });
+
+    // Submenus open state
+    const [openMenus, setOpenMenus] = useState(() => {
+        const p = location.pathname;
+        return {
+            people: peoplePaths.includes(p),
+            attendance: attendancePaths.includes(p),
+            reports: reportsPaths.includes(p),
+            settings: settingsPaths.includes(p)
+        };
+    });
+
+    const toggleMenu = (menuKey) => {
+        setOpenMenus(prev => ({
+            ...prev,
+            [menuKey]: !prev[menuKey]
+        }));
+    };
+
+    // Auto-expand parent submenu when navigating to a child page
+    useEffect(() => {
+        const p = location.pathname;
+        if (peoplePaths.includes(p)) {
+            setOpenMenus(prev => ({ ...prev, people: true }));
+        } else if (attendancePaths.includes(p)) {
+            setOpenMenus(prev => ({ ...prev, attendance: true }));
+        } else if (reportsPaths.includes(p)) {
+            setOpenMenus(prev => ({ ...prev, reports: true }));
+        } else if (settingsPaths.includes(p)) {
+            setOpenMenus(prev => ({ ...prev, settings: true }));
+        }
+    }, [location.pathname]);
 
     useEffect(() => {
         const handleRolesUpdated = () => {
@@ -67,30 +131,13 @@ const Sidebar = () => {
         return () => window.removeEventListener('rolesUpdated', handleRolesUpdated);
     }, []);
 
-    const [isCollapsed, setIsCollapsed] = useState(() => {
-        const saved = localStorage.getItem('sidebarCollapsed');
-        return saved ? JSON.parse(saved) : false;
-    });
-
-    const [isSettingsOpen, setIsSettingsOpen] = useState(() => {
-        return location.pathname === '/email-settings' || location.pathname === '/settings' || location.pathname === '/service-accounts';
-    });
-    const [isSettingsFullyOpen, setIsSettingsFullyOpen] = useState(isSettingsOpen);
-
     useEffect(() => {
-        let timeout;
-        if (isSettingsOpen) {
-            timeout = setTimeout(() => setIsSettingsFullyOpen(true), 300);
-        } else {
-            setIsSettingsFullyOpen(false);
-        }
-        return () => clearTimeout(timeout);
-    }, [isSettingsOpen]);
+        localStorage.setItem('sidebarCollapsed', JSON.stringify(isCollapsed));
+    }, [isCollapsed]);
 
     useEffect(() => {
         fetchActiveOnDutyCount();
         fetchApprovalsCount();
-        // Refresh every 30 seconds
         const interval = setInterval(() => {
             fetchActiveOnDutyCount();
             fetchApprovalsCount();
@@ -98,26 +145,10 @@ const Sidebar = () => {
         return () => clearInterval(interval);
     }, []);
 
-    useEffect(() => {
-        localStorage.setItem('sidebarCollapsed', JSON.stringify(isCollapsed));
-    }, [isCollapsed]);
-
-    // Constructively open settings menu if user navigates to a sub-page
-    useEffect(() => {
-        if (location.pathname === '/email-settings' || location.pathname === '/settings' || location.pathname === '/service-accounts') {
-            setIsSettingsOpen(true);
-        }
-    }, [location.pathname]);
-
     const fetchActiveOnDutyCount = async () => {
         try {
             const token = localStorage.getItem('token');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-            if (!token) return;
-
-            // Check if user has permission to manage active on-duty
-            if (!canManageActiveOnDuty(user.role)) {
+            if (!token || !canManageActiveOnDuty(user.role)) {
                 setActiveOnDutyCount(0);
                 return;
             }
@@ -137,11 +168,8 @@ const Sidebar = () => {
     const fetchApprovalsCount = async () => {
         try {
             const token = localStorage.getItem('token');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-
             if (!token) return;
 
-            // Check if user has permission to approve requests
             const hasLeavePermission = canApproveLeave(user.role);
             const hasOnDutyPermission = canApproveOnDuty(user.role);
 
@@ -162,9 +190,7 @@ const Sidebar = () => {
         }
     };
 
-    const isActive = (path) => {
-        return location.pathname === path;
-    };
+    const isActive = (path) => location.pathname === path;
 
     const [hoveredLink, setHoveredLink] = useState(null);
     const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
@@ -175,7 +201,7 @@ const Sidebar = () => {
             const rect = event.currentTarget.getBoundingClientRect();
             setTooltipPos({
                 top: rect.top + rect.height / 2,
-                left: rect.right + 10 // 10px gap from the element
+                left: rect.right + 10
             });
         }
     };
@@ -184,67 +210,194 @@ const Sidebar = () => {
         setHoveredLink(null);
     };
 
-    const NavLink = ({ to, icon, label, badge, indent = false }) => (
-        <div className="relative group">
+    // Standard NavLink (Top-level or Indented Submenu Item)
+    const NavLink = ({ to, icon, label, badge, indent = false }) => {
+        const active = isActive(to);
+        return (
+            <div className="relative group">
+                <Link
+                    to={to}
+                    onMouseEnter={(e) => handleMouseEnter(to, e)}
+                    onMouseLeave={handleMouseLeave}
+                    className={`
+                        flex items-center gap-3 px-4 py-2.5 transition-colors duration-200 relative
+                        ${isCollapsed ? 'justify-center mx-4 rounded-lg' : ''}
+                        ${!isCollapsed && active
+                            ? (indent 
+                                ? 'bg-[var(--bg-primary)] text-[#1e1b4b] font-bold rounded-l-xl ml-8 rounded-r-none soft-arc-active' 
+                                : 'bg-[var(--bg-primary)] text-[#1e1b4b] font-bold rounded-l-xl ml-4 rounded-r-none soft-arc-active')
+                            : ''
+                        }
+                        ${!isCollapsed && !active
+                            ? (indent 
+                                ? 'text-slate-300 hover:bg-white/5 hover:text-white rounded-lg ml-8 mr-4' 
+                                : 'text-slate-200 hover:bg-white/5 hover:text-white rounded-lg mx-4')
+                            : ''
+                        }
+                        ${indent && !isCollapsed ? 'text-sm py-2' : ''}
+                    `}
+                >
+                    <span className={`${indent && !isCollapsed ? 'text-lg text-slate-300' : 'text-xl'} flex-shrink-0`}>{icon}</span>
+                    {!isCollapsed && (
+                        <>
+                            <span className={`flex-1 tracking-wide ${indent ? 'text-sm font-medium' : 'text-base font-medium'}`}>{label}</span>
+                            {badge !== undefined && badge > 0 && (
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm flex-shrink-0 bg-rose-500 text-white">
+                                    {badge}
+                                </span>
+                            )}
+                        </>
+                    )}
+                    {isCollapsed && badge !== undefined && badge > 0 && (
+                        <span className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold bg-rose-500 text-white">
+                            {badge}
+                        </span>
+                    )}
+                </Link>
+
+                {/* Tooltip for standalone items in collapsed mode */}
+                {isCollapsed && hoveredLink === to && (
+                    <div
+                        className="fixed bg-gray-900 text-white px-3 py-2 rounded-lg whitespace-nowrap text-sm font-medium shadow-lg z-50 pointer-events-none"
+                        style={{
+                            top: `${tooltipPos.top}px`,
+                            left: `${tooltipPos.left}px`,
+                            transform: 'translateY(-50%)'
+                        }}
+                    >
+                        {label}
+                        <div className="absolute -left-1 top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Accordion Parent Group for Expanded Sidebar
+    const NavParent = ({ icon, label, isOpen, onToggle, childPaths, badge, children }) => {
+        const isChildActive = childPaths.some(p => location.pathname === p);
+
+        return (
+            <div className="relative mb-1">
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    className={`
+                        w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors duration-200 mx-4 relative
+                        ${isChildActive && !isOpen ? 'text-cyan-400 font-semibold bg-white/5' : 'text-slate-200 hover:bg-white/5 hover:text-white'}
+                    `}
+                    style={{ width: 'calc(100% - 2rem)' }}
+                >
+                    <span className={`text-xl flex-shrink-0 ${isChildActive && !isOpen ? 'text-cyan-400' : 'text-slate-300'}`}>{icon}</span>
+                    <span className="font-medium flex-1 tracking-wide text-base text-left">{label}</span>
+                    {badge !== undefined && badge > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm bg-rose-500 text-white mr-1.5 flex-shrink-0">
+                            {badge}
+                        </span>
+                    )}
+                    <span className={`transition-transform duration-200 text-slate-400 flex-shrink-0 ${isOpen ? 'rotate-90 text-white' : ''}`}>
+                        <LuChevronRight size={16} />
+                    </span>
+                </button>
+
+                {/* Submenu Accordion */}
+                <div
+                    className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                        isOpen ? 'max-h-[600px] opacity-100 mt-1 mb-2 space-y-0.5' : 'max-h-0 opacity-0'
+                    }`}
+                >
+                    {children}
+                </div>
+            </div>
+        );
+    };
+
+    // Collapsed Flyout Group
+    const CollapsedGroup = ({ icon, label, badge, childPaths, children }) => {
+        const [isHovered, setIsHovered] = useState(false);
+        const [flyoutTop, setFlyoutTop] = useState(0);
+        const isChildActive = childPaths.some(p => location.pathname === p);
+        const containerRef = useRef(null);
+
+        const handleMouseEnter = () => {
+            if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                setFlyoutTop(rect.top);
+            }
+            setIsHovered(true);
+        };
+
+        const handleMouseLeave = () => {
+            setIsHovered(false);
+        };
+
+        return (
+            <div 
+                ref={containerRef}
+                onMouseEnter={handleMouseEnter} 
+                onMouseLeave={handleMouseLeave} 
+                className="relative flex justify-center py-1"
+            >
+                <div
+                    className={`
+                        w-12 h-11 flex items-center justify-center rounded-xl transition-all duration-200 cursor-pointer relative
+                        ${isChildActive ? 'bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30' : 'text-slate-200 hover:bg-white/10 hover:text-white'}
+                    `}
+                >
+                    <span className="text-xl">{icon}</span>
+                    {badge !== undefined && badge > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold bg-rose-500 text-white shadow-sm">
+                            {badge}
+                        </span>
+                    )}
+                </div>
+
+                {/* Floating Flyout Menu */}
+                {isHovered && (
+                    <div 
+                        className="fixed left-[76px] z-50 bg-[#1e1b4b] border border-indigo-800/90 rounded-xl shadow-2xl py-2 min-w-[210px] animate-in fade-in zoom-in-95 duration-150"
+                        style={{ top: `${Math.max(10, Math.min(flyoutTop, window.innerHeight - 340))}px` }}
+                    >
+                        <div className="px-4 py-2 border-b border-white/10 mb-1 flex items-center justify-between">
+                            <span className="text-xs font-black text-cyan-400 uppercase tracking-wider">{label}</span>
+                            {badge !== undefined && badge > 0 && (
+                                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white">
+                                    {badge}
+                                </span>
+                            )}
+                        </div>
+                        <div className="py-0.5 space-y-0.5">
+                            {children}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Sub-item for collapsed flyout menu
+    const FlyoutLink = ({ to, icon, label, badge }) => {
+        const active = isActive(to);
+        return (
             <Link
                 to={to}
-                onMouseEnter={(e) => handleMouseEnter(to, e)}
-                onMouseLeave={handleMouseLeave}
                 className={`
-                    flex items-center gap-3 px-4 py-2.5 transition-colors duration-200 relative
-                    ${isCollapsed ? 'justify-center' : ''}
-                    ${isActive(to)
-                        ? 'bg-[var(--bg-primary)] text-[#1e1b4b] font-bold rounded-l-xl ml-4 rounded-r-none soft-arc-active'
-                        : 'text-slate-200 hover:bg-white/5 hover:text-white rounded-lg mx-4'
-                    }
-                    ${indent && !isCollapsed ? (isActive(to) ? 'ml-8' : 'ml-8') + ' text-sm' : ''}
+                    flex items-center gap-2.5 px-4 py-2 text-sm transition-colors
+                    ${active 
+                        ? 'bg-blue-600/30 text-cyan-300 font-semibold border-l-2 border-cyan-400' 
+                        : 'text-slate-200 hover:bg-white/10 hover:text-white font-medium'}
                 `}
             >
-                <span className={`${indent && !isCollapsed ? 'text-lg' : 'text-xl'} flex-shrink-0`}>{icon}</span>
-                {!isCollapsed && (
-                    <>
-                        <span className="font-medium flex-1 tracking-wide text-base">{label}</span>
-                        {badge !== undefined && badge > 0 && (
-                            <span className={`
-                                px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm flex-shrink-0
-                                ${isActive(to)
-                                    ? 'bg-white/20 text-white'
-                                    : 'bg-rose-500 text-white'
-                                }
-                            `}>
-                                {badge}
-                            </span>
-                        )}
-                    </>
-                )}
-                {isCollapsed && badge !== undefined && badge > 0 && (
-                    <span className={`
-                        absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold
-                        ${isActive(to)
-                            ? 'bg-white/20 text-white'
-                            : 'bg-rose-500 text-white'
-                        }
-                    `}>
+                <span className="text-base flex-shrink-0 text-slate-300">{icon}</span>
+                <span className="flex-1">{label}</span>
+                {badge !== undefined && badge > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white">
                         {badge}
                     </span>
                 )}
             </Link>
-
-            {/* Tooltip - positioned at hovered element */}
-            {isCollapsed && hoveredLink === to && (
-                <div className="fixed bg-gray-900 text-white px-3 py-2 rounded-lg whitespace-nowrap text-sm font-medium shadow-lg z-50 pointer-events-none"
-                    style={{
-                        top: `${tooltipPos.top}px`,
-                        left: `${tooltipPos.left}px`,
-                        transform: 'translateY(-50%)'
-                    }}
-                >
-                    {label}
-                    <div className="absolute -left-1 top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
-                </div>
-            )}
-        </div>
-    );
+        );
+    };
 
     return (
         <div className={`
@@ -271,11 +424,15 @@ const Sidebar = () => {
                 </button>
             </div>
 
-            {/* Navigation */}
+            {/* Navigation Menus */}
             <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
-                {!isCollapsed && !user.isServiceAccount && (
+                
+                {/* 1. OVERVIEW / DASHBOARD */}
+                {!user.isServiceAccount && (
                     <div>
-                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2">Overview</p>
+                        {!isCollapsed && (
+                            <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2">Overview</p>
+                        )}
                         {isSelfService ? (
                             <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
                         ) : (
@@ -283,190 +440,216 @@ const Sidebar = () => {
                         )}
                     </div>
                 )}
-                {isCollapsed && !user.isServiceAccount && (
-                    <div className="space-y-2">
-                        {isSelfService ? (
-                            <NavLink to="/my-requests" icon={<LuClipboardPen />} label="My Requests" />
-                        ) : (
-                            <NavLink to="/" icon={<LuLayoutDashboard />} label="Dashboard" />
-                        )}
-                    </div>
-                )}
 
-                {!isCollapsed && hasAnyManagementPermission && (
+                {/* 2. APPROVALS */}
+                {canApprove && (
                     <div>
-                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Management</p>
-                        {/* Approvals - Only for users who can approve leave or on-duty requests */}
-                        {canApprove && (
-                            <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
-                        )}
-                        {/* Active On-Duty - For users with can_manage_active_onduty permission */}
-                        {canManageActiveOnDutyPermission && (
-                            <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
-                        )}
-                        {/* Calendar/Schedule - For users with can_manage_schedule permission */}
-                        {canManageSchedulePermission && (
-                            <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
-                        )}
-                        {/* Attendance Kiosk - For users with kiosk access permission */}
-                        {canAccessAttendance && (
-                            <NavLink to="/attendance" icon={<LuQrCode />} label="Attendance Kiosk" />
-                        )}
-                    </div>
-                )}
-                {isCollapsed && hasAnyManagementPermission && (
-                    <div className="space-y-2">
-                        {canApprove && (
-                            <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
-                        )}
-                        {canManageActiveOnDutyPermission && (
-                            <NavLink to="/active-onduty" icon={<LuCar />} label="Active On-Duty" badge={activeOnDutyCount} />
-                        )}
-                        {canManageSchedulePermission && (
-                            <NavLink to="/calendar" icon={<LuCalendarDays />} label="Schedule" />
-                        )}
-                        {canAccessAttendance && (
-                            <NavLink to="/attendance" icon={<LuQrCode />} label="Attendance Kiosk" />
-                        )}
+                        <NavLink to="/approvals" icon={<LuClipboardCheck />} label="Approvals" badge={approvalsCount} />
                     </div>
                 )}
 
-                {/* Staff Directory - Show if user has staff management permissions */}
-                {!isCollapsed && hasAnyStaffPermission && (
-                    <div>
-                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">People</p>
-                        {/* Users - Admin & those who can manage or view users */}
-                        {canAccessUsersPermission && (
-                            <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
-                        )}
-                        {canManageOnboardingPermission && (
-                            <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
-                        )}
-                        {canManageManualAttendancePermission && (
-                            <NavLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Attendance" />
-                        )}
-                    </div>
+                {/* CATEGORY DIVIDER FOR CORE MODULES */}
+                {!isCollapsed && (hasPeopleMenu || hasAttendanceMenu || hasReportsMenu || hasSettingsMenu) && (
+                    <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-5">Modules</p>
                 )}
 
-                {/* Configurations - Show if user has any configuration permission */}
-                {!isCollapsed && hasAnyConfigPermission && (
-                    <div>
-                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Configurations</p>
-                        {/* Leave Types */}
-                        {canManageLeaveTypes(user.role) && (
-                            <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
-                        )}
-                        {/* Holidays */}
-                        {canManageHolidays(user.role) && (
-                            <NavLink to="/holidays" icon={<LuCalendarHeart />} label="Holidays" />
-                        )}
-                        {/* Roles */}
-                        {canManageRolesPermission && (
-                            <NavLink to="/roles" icon={<LuShield />} label="Roles" />
+                {/* ========================================================= */}
+                {/* EXPANDED VIEW: 4 Core Accordion Menus (People, Attendance, Reports, Settings) */}
+                {/* ========================================================= */}
+                {!isCollapsed && (
+                    <>
+                        {/* 3. PEOPLE MENU */}
+                        {hasPeopleMenu && (
+                            <NavParent
+                                id="people"
+                                icon={<LuUsers />}
+                                label="People"
+                                isOpen={openMenus.people}
+                                onToggle={() => toggleMenu('people')}
+                                childPaths={peoplePaths}
+                            >
+                                {canAccessUsersPermission && (
+                                    <NavLink to="/users" icon={<LuUsers />} label="Employee Directory" indent={true} />
+                                )}
+                                {canManageOnboardingPermission && (
+                                    <NavLink to="/onboard" icon={<LuClipboardPen />} label="Onboarding" indent={true} />
+                                )}
+                            </NavParent>
                         )}
 
-                        {/* Nested Settings Menu */}
-                        {(canManageEmailPermission || canManageSystemPermission || canManageServiceAccountsPermission) && (
-                            <div>
-                                <button
-                                    onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                                    className={`
-                                        w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors duration-200 mx-4 relative mb-1
-                                        text-slate-200 hover:bg-white/5 hover:text-white
-                                    `}
-                                >
-                                    <span className="text-xl flex-shrink-0"><LuSettings /></span>
-                                    <span className="font-medium flex-1 tracking-wide text-base text-left">Settings</span>
-                                    <span className={`transition-transform duration-300 ${isSettingsOpen ? 'rotate-90' : ''}`}>
-                                        <LuChevronRight />
-                                    </span>
-                                </button>
-
-                                <div className={`transition-all duration-300 ${isSettingsFullyOpen ? 'overflow-visible' : 'overflow-hidden'} ${isSettingsOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                    {/* Email Settings */}
-                                    {canManageEmailPermission && (
-                                        <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" indent={true} />
-                                    )}
-                                    {/* System Settings */}
-                                    {canManageSystemPermission && (
-                                        <NavLink to="/settings" icon={<LuSettings />} label="System Settings" indent={true} />
-                                    )}
-                                    {/* Service Accounts */}
-                                    {canManageServiceAccountsPermission && (
-                                        <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" indent={true} />
-                                    )}
-                                </div>
-                            </div>
+                        {/* 4. ATTENDANCE MENU */}
+                        {hasAttendanceMenu && (
+                            <NavParent
+                                id="attendance"
+                                icon={<LuCalendarCheck />}
+                                label="Attendance"
+                                isOpen={openMenus.attendance}
+                                onToggle={() => toggleMenu('attendance')}
+                                childPaths={attendancePaths}
+                                badge={!openMenus.attendance ? activeOnDutyCount : undefined}
+                            >
+                                {canAccessAttendance && (
+                                    <NavLink to="/attendance" icon={<LuQrCode />} label="Kiosk Terminal" indent={true} />
+                                )}
+                                {canViewAttendanceReportPermission && (
+                                    <NavLink to="/attendance-report" icon={<LuCalendarDays />} label="Timesheet Review" indent={true} />
+                                )}
+                                {canManageManualAttendancePermission && (
+                                    <NavLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Punch Entry" indent={true} />
+                                )}
+                                {canManageSchedulePermission && (
+                                    <NavLink to="/calendar" icon={<LuCalendarDays />} label="Shift Roster" indent={true} />
+                                )}
+                                {canManageActiveOnDutyPermission && (
+                                    <NavLink to="/active-onduty" icon={<LuCar />} label="Live On-Duty" badge={activeOnDutyCount} indent={true} />
+                                )}
+                            </NavParent>
                         )}
-                    </div>
+
+                        {/* 5. REPORTS MENU */}
+                        {hasReportsMenu && (
+                            <NavParent
+                                id="reports"
+                                icon={<LuFileText />}
+                                label="Reports & Analytics"
+                                isOpen={openMenus.reports}
+                                onToggle={() => toggleMenu('reports')}
+                                childPaths={reportsPaths}
+                            >
+                                {canViewReportsPermission && (
+                                    <NavLink to="/reports" icon={<LuFileText />} label="Summary Reports" indent={true} />
+                                )}
+                                {canViewActivitiesPermission && (
+                                    <NavLink to="/activities" icon={<LuActivity />} label="Audit Trail" indent={true} />
+                                )}
+                            </NavParent>
+                        )}
+
+                        {/* 6. SETTINGS MENU */}
+                        {hasSettingsMenu && (
+                            <NavParent
+                                id="settings"
+                                icon={<LuSettings />}
+                                label="Settings"
+                                isOpen={openMenus.settings}
+                                onToggle={() => toggleMenu('settings')}
+                                childPaths={settingsPaths}
+                            >
+                                {canManageLeaveTypes(user.role) && (
+                                    <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" indent={true} />
+                                )}
+                                {canManageHolidays(user.role) && (
+                                    <NavLink to="/holidays" icon={<LuCalendarHeart />} label="Holidays" indent={true} />
+                                )}
+                                {canManageRolesPermission && (
+                                    <NavLink to="/roles" icon={<LuShield />} label="Roles & Permissions" indent={true} />
+                                )}
+                                {canManageSystemPermission && (
+                                    <NavLink to="/settings" icon={<LuSettings />} label="General Settings" indent={true} />
+                                )}
+                                {canManageEmailPermission && (
+                                    <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" indent={true} />
+                                )}
+                                {canManageServiceAccountsPermission && (
+                                    <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" indent={true} />
+                                )}
+                                <NavLink to="/apk" icon={<LuSmartphone />} label="App Distribution" indent={true} />
+                            </NavParent>
+                        )}
+                    </>
                 )}
 
-                {/* Collapsed Mode - Staff Members & Configurations */}
-                {isCollapsed && (hasAnyStaffPermission || hasAnyConfigPermission) && (
-                    <div className="space-y-2">
-                        {canAccessUsersPermission && (
-                            <NavLink to="/users" icon={<LuUsers />} label="Staff Members" />
-                        )}
-                        {canManageOnboardingPermission && (
-                            <NavLink to="/onboard" icon={<LuClipboardPen />} label="Employee Onboarding" />
-                        )}
-                        {canManageManualAttendancePermission && (
-                            <NavLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Attendance" />
-                        )}
-                        {canManageLeaveTypes(user.role) && (
-                            <NavLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
-                        )}
-                        {canManageHolidays(user.role) && (
-                            <NavLink to="/holidays" icon={<LuCalendarHeart />} label="Holidays" />
-                        )}
-                        {canManageRolesPermission && (
-                            <NavLink to="/roles" icon={<LuShield />} label="Roles" />
-                        )}
-                        {/* When collapsed, we show items individually for better UX */}
-                        {canManageEmailPermission && (
-                            <NavLink to="/email-settings" icon={<LuMail />} label="Email Settings" />
-                        )}
-                        {canManageSystemPermission && (
-                            <NavLink to="/settings" icon={<LuSettings />} label="System Settings" />
-                        )}
-                        {canManageServiceAccountsPermission && (
-                            <NavLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" />
-                        )}
-                    </div>
-                )}
-
-                {!isCollapsed && (canViewReportsPermission || canViewActivitiesPermission || canViewAttendanceReportPermission) && (
-                    <div>
-                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-4">Analysis</p>
-                        {canViewReportsPermission && (
-                            <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
-                        )}
-                        {canViewAttendanceReportPermission && (
-                            <NavLink to="/attendance-report" icon={<LuCalendarDays />} label="Attendance Review" />
-                        )}
-                        {/* Activities - Based on can_view_activities permission */}
-                        {canViewActivitiesPermission && (
-                            <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
+                {/* ========================================================= */}
+                {/* COLLAPSED VIEW: 4 Core Flyout Menus */}
+                {/* ========================================================= */}
+                {isCollapsed && (
+                    <div className="space-y-1 pt-1">
+                        {/* 3. PEOPLE (Collapsed Flyout) */}
+                        {hasPeopleMenu && (
+                            <CollapsedGroup
+                                icon={<LuUsers />}
+                                label="People"
+                                childPaths={peoplePaths}
+                            >
+                                {canAccessUsersPermission && (
+                                    <FlyoutLink to="/users" icon={<LuUsers />} label="Employee Directory" />
+                                )}
+                                {canManageOnboardingPermission && (
+                                    <FlyoutLink to="/onboard" icon={<LuClipboardPen />} label="Onboarding" />
+                                )}
+                            </CollapsedGroup>
                         )}
 
-                        <div className="mt-6 mb-3 border-t border-white/5 pt-6">
-                            <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-4 px-6">Downloads</p>
-                            <NavLink to="/apk" icon={<LuSmartphone />} label="Mobile App" />
-                        </div>
-                    </div>
-                )}
-                {isCollapsed && (canViewReportsPermission || canViewActivitiesPermission || canViewAttendanceReportPermission) && (
-                    <div className="space-y-2">
-                        {canViewReportsPermission && (
-                            <NavLink to="/reports" icon={<LuFileText />} label="Reports" />
+                        {/* 4. ATTENDANCE (Collapsed Flyout) */}
+                        {hasAttendanceMenu && (
+                            <CollapsedGroup
+                                icon={<LuCalendarCheck />}
+                                label="Attendance"
+                                childPaths={attendancePaths}
+                                badge={activeOnDutyCount}
+                            >
+                                {canAccessAttendance && (
+                                    <FlyoutLink to="/attendance" icon={<LuQrCode />} label="Kiosk Terminal" />
+                                )}
+                                {canViewAttendanceReportPermission && (
+                                    <FlyoutLink to="/attendance-report" icon={<LuCalendarDays />} label="Timesheet Review" />
+                                )}
+                                {canManageManualAttendancePermission && (
+                                    <FlyoutLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Punch Entry" />
+                                )}
+                                {canManageSchedulePermission && (
+                                    <FlyoutLink to="/calendar" icon={<LuCalendarDays />} label="Shift Roster" />
+                                )}
+                                {canManageActiveOnDutyPermission && (
+                                    <FlyoutLink to="/active-onduty" icon={<LuCar />} label="Live On-Duty" badge={activeOnDutyCount} />
+                                )}
+                            </CollapsedGroup>
                         )}
-                        {canViewAttendanceReportPermission && (
-                            <NavLink to="/attendance-report" icon={<LuCalendarDays />} label="Attendance Review" />
+
+                        {/* 5. REPORTS (Collapsed Flyout) */}
+                        {hasReportsMenu && (
+                            <CollapsedGroup
+                                icon={<LuFileText />}
+                                label="Reports & Analytics"
+                                childPaths={reportsPaths}
+                            >
+                                {canViewReportsPermission && (
+                                    <FlyoutLink to="/reports" icon={<LuFileText />} label="Summary Reports" />
+                                )}
+                                {canViewActivitiesPermission && (
+                                    <FlyoutLink to="/activities" icon={<LuActivity />} label="Audit Trail" />
+                                )}
+                            </CollapsedGroup>
                         )}
-                        {canViewActivitiesPermission && (
-                            <NavLink to="/activities" icon={<LuActivity />} label="Activity Log" />
+
+                        {/* 6. SETTINGS (Collapsed Flyout) */}
+                        {hasSettingsMenu && (
+                            <CollapsedGroup
+                                icon={<LuSettings />}
+                                label="Settings"
+                                childPaths={settingsPaths}
+                            >
+                                {canManageLeaveTypes(user.role) && (
+                                    <FlyoutLink to="/leave-types" icon={<LuLayers />} label="Leave Types" />
+                                )}
+                                {canManageHolidays(user.role) && (
+                                    <FlyoutLink to="/holidays" icon={<LuCalendarHeart />} label="Holidays" />
+                                )}
+                                {canManageRolesPermission && (
+                                    <FlyoutLink to="/roles" icon={<LuShield />} label="Roles & Permissions" />
+                                )}
+                                {canManageSystemPermission && (
+                                    <FlyoutLink to="/settings" icon={<LuSettings />} label="General Settings" />
+                                )}
+                                {canManageEmailPermission && (
+                                    <FlyoutLink to="/email-settings" icon={<LuMail />} label="Email Settings" />
+                                )}
+                                {canManageServiceAccountsPermission && (
+                                    <FlyoutLink to="/service-accounts" icon={<LuUserCog />} label="Service Accounts" />
+                                )}
+                                <FlyoutLink to="/apk" icon={<LuSmartphone />} label="App Distribution" />
+                            </CollapsedGroup>
                         )}
-                        <NavLink to="/apk" icon={<LuSmartphone />} label="Mobile App" />
                     </div>
                 )}
 

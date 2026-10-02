@@ -819,37 +819,28 @@ const Roles = () => {
         });
     };
 
-    // Calculate configured permission counts
-    const activeHierarchicalCount = [
-        formData.can_approve_leave,
-        formData.can_approve_onduty,
-        formData.can_approve_timeoff,
-        formData.can_manage_users,
-        formData.can_view_users,
-        formData.can_edit_attendance,
-        formData.can_delete_attendance,
-        formData.can_view_attendance_report,
-        formData.can_manage_active_onduty,
-        formData.can_manage_schedule,
-        formData.can_view_reports,
-        formData.can_view_activities
-    ].filter(val => val && val !== 'none').length;
+    // Calculate configured permission counts dynamically from group definitions
+    const activeHierarchicalCount = HIERARCHICAL_GROUPS.flatMap(g => g.permissions).filter(
+        p => (formData[p.key] || 'none') !== 'none'
+    ).length;
+    const totalHierarchicalCount = HIERARCHICAL_GROUPS.reduce((acc, g) => acc + g.permissions.length, 0);
 
-    const activeGlobalCount = [
-        formData.can_access_webapp,
-        formData.can_view_dashboard,
-        formData.can_access_attendance_portal,
-        formData.can_manage_onboarding && formData.name !== 'manager' && formData.name !== 'employee',
-        formData.can_manage_manual_attendance,
-        formData.can_view_birthdays,
-        formData.can_view_anniversaries,
-        formData.can_manage_roles,
-        formData.can_manage_leave_types,
-        formData.can_manage_holidays,
-        formData.can_manage_service_accounts,
-        formData.can_manage_email_settings,
-        formData.can_manage_system_settings === 'all'
-    ].filter(Boolean).length;
+    const visibleGlobalPermissions = GLOBAL_GROUPS.flatMap(g => g.permissions).filter(p => {
+        if (p.adminOnly) {
+            return formData.id === 1 || formData.id === 3 || !formData.id;
+        }
+        return true;
+    });
+    const totalGlobalCount = visibleGlobalPermissions.length;
+    const activeGlobalCount = visibleGlobalPermissions.filter(p => {
+        if (p.disabledFor && p.disabledFor.includes(formData.name)) {
+            return false;
+        }
+        if (p.key === 'can_manage_system_settings') {
+            return formData.can_manage_system_settings === 'all';
+        }
+        return !!formData[p.key];
+    }).length;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -1374,7 +1365,7 @@ const Roles = () => {
                                     <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
                                         activeModalTab === 'hierarchical' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-600'
                                     }`}>
-                                        {activeHierarchicalCount}/12
+                                        {activeHierarchicalCount}/{totalHierarchicalCount}
                                     </span>
                                 </button>
                                 <button
@@ -1391,7 +1382,7 @@ const Roles = () => {
                                     <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
                                         activeModalTab === 'global' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
                                     }`}>
-                                        {activeGlobalCount}/{formData.id === 1 || formData.id === 3 || !formData.id ? '12' : '11'}
+                                        {activeGlobalCount}/{totalGlobalCount}
                                     </span>
                                 </button>
                             </div>
