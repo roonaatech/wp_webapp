@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.2](https://github.com/roonaatech/wp_webapp/compare/v2.17.1...v2.17.2) (2026-10-02)
+
+
+### Code Refactoring
+
+* compute role permission counts dynamically and exclude holidays and Sundays from attendance logs ([0d421c5](https://github.com/roonaatech/wp_webapp/commit/0d421c53f86eca929f19f1314c60996afcfa29a0))
+
 ### [2.17.1](https://github.com/roonaatech/wp_webapp/compare/v2.17.0...v2.17.1) (2026-10-02)
 
 
