@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.8](https://github.com/roonaatech/wp_webapp/compare/v2.17.7...v2.17.8) (2026-10-03)
+
+
+### Features
+
+* add role-based permissions and UI controls for viewing staff change history ([fbcf813](https://github.com/roonaatech/wp_webapp/commit/fbcf81323c97567a45d11405cc8532688cfe9299))
+
 ### [2.17.7](https://github.com/roonaatech/wp_webapp/compare/v2.17.6...v2.17.7) (2026-10-03)
 
 
