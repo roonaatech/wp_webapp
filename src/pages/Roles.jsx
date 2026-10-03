@@ -38,7 +38,8 @@ import {
     LuSparkles,
     LuCheckCheck,
     LuTrash2,
-    LuPencil
+    LuPencil,
+    LuHistory
 } from "react-icons/lu";
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -113,6 +114,12 @@ const HIERARCHICAL_GROUPS = [
                 title: 'View Staff Directory (Read Only)',
                 description: 'Browse staff contact list, employee profiles, and hierarchy details',
                 icon: LuUsers
+            },
+            {
+                key: 'can_view_change_history',
+                title: 'Change History',
+                description: 'Inspect modification logs, profile revisions, role assignments, and account audit records',
+                icon: LuHistory
             }
         ]
     },
@@ -414,6 +421,12 @@ const getRolePermissionsList = (role) => {
             color: role.can_view_users === 'all' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
         });
     }
+    if (role.can_view_change_history && role.can_view_change_history !== 'none') {
+        list.push({
+            label: `Change History (${role.can_view_change_history === 'all' ? 'All' : 'Sub'})`,
+            color: role.can_view_change_history === 'all' ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-sky-50 text-sky-700 border-sky-200'
+        });
+    }
     if (role.can_manage_active_onduty && role.can_manage_active_onduty !== 'none') {
         list.push({
             label: `Active OnDuty (${role.can_manage_active_onduty === 'all' ? 'All' : 'Sub'})`,
@@ -517,6 +530,7 @@ const Roles = () => {
         can_approve_timeoff: 'none',
         can_manage_users: 'none',
         can_view_users: 'none',
+        can_view_change_history: 'none',
         can_edit_attendance: 'none',
         can_delete_attendance: 'none',
         can_view_attendance_report: 'none',
@@ -616,6 +630,7 @@ const Roles = () => {
                 can_approve_timeoff: role.can_approve_timeoff || 'none',
                 can_manage_users: role.can_manage_users || 'none',
                 can_view_users: role.can_view_users || 'none',
+                can_view_change_history: role.can_view_change_history || 'none',
                 can_edit_attendance: role.can_edit_attendance || role.can_manage_attendance || 'none',
                 can_delete_attendance: role.can_delete_attendance || role.can_manage_attendance || 'none',
                 can_view_attendance_report: role.can_view_attendance_report || 'none',
@@ -653,6 +668,7 @@ const Roles = () => {
                 can_approve_timeoff: 'none',
                 can_manage_users: 'none',
                 can_view_users: 'none',
+                can_view_change_history: 'none',
                 can_edit_attendance: 'none',
                 can_delete_attendance: 'none',
                 can_view_attendance_report: 'none',

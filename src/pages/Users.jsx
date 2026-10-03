@@ -14,6 +14,7 @@ import {
     canManageUsers as canManageUsersUtil,
     canManageUsersAll as canManageUsersAllUtil,
     canViewUsers as canViewUsersUtil,
+    canViewChangeHistory,
     canAccessUsersPage,
     getRoleDisplayName,
     getRoleColor as getRoleColorUtil,
@@ -714,6 +715,10 @@ const Users = () => {
     };
 
     const fetchStaffChangeHistory = async (userId, category = 'all', duration = null, startDate = null, endDate = null) => {
+        const targetUser = users.find(usr => usr.staffid === userId);
+        if (!canViewChangeHistory(user.role, targetUser, user.id || user.staffid)) {
+            return;
+        }
         setLoadingChangeHistory(prev => ({ ...prev, [userId]: true }));
         try {
             const token = localStorage.getItem('token');
@@ -770,8 +775,11 @@ const Users = () => {
                 fetchAllUsersForChart();
             }
             // Pre-fetch staff change history (default to 30 days)
-            if (!changeHistory[userId]) {
-                fetchStaffChangeHistory(userId, 'all', '30d');
+            const targetUser = users.find(usr => usr.staffid === userId);
+            if (canViewChangeHistory(user.role, targetUser, user.id || user.staffid)) {
+                if (!changeHistory[userId]) {
+                    fetchStaffChangeHistory(userId, 'all', '30d');
+                }
             }
         }
     };
@@ -2340,23 +2348,25 @@ const Users = () => {
                                                                         </svg>
                                                                         Leave & Attendance
                                                                     </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setActiveTab('change_history');
-                                                                            if (!changeHistory[u.staffid]) {
-                                                                                fetchStaffChangeHistory(u.staffid, 'all', changeHistoryDuration[u.staffid] || '30d');
-                                                                            }
-                                                                        }}
-                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
-                                                                            activeTab === 'change_history'
-                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
-                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
-                                                                        }`}
-                                                                    >
-                                                                        {activeTab === 'change_history' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
-                                                                        <LuHistory className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'change_history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} />
-                                                                        Change History
-                                                                    </button>
+                                                                    {canViewChangeHistory(user.role, u, user.id || user.staffid) && (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setActiveTab('change_history');
+                                                                                if (!changeHistory[u.staffid]) {
+                                                                                    fetchStaffChangeHistory(u.staffid, 'all', changeHistoryDuration[u.staffid] || '30d');
+                                                                                }
+                                                                            }}
+                                                                            className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                                activeTab === 'change_history'
+                                                                                    ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                            }`}
+                                                                        >
+                                                                            {activeTab === 'change_history' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                            <LuHistory className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'change_history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} />
+                                                                            Change History
+                                                                        </button>
+                                                                    )}
                                                                 </nav>
                                                             </div>
 
@@ -2771,7 +2781,7 @@ const Users = () => {
                                                                 </div>
                                                             )}
 
-                                                            {activeTab === 'change_history' && (
+                                                            {activeTab === 'change_history' && canViewChangeHistory(user.role, u, user.id || user.staffid) && (
                                                                 <div className="animate-fadeIn">
                                                                     {/* Header */}
                                                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-gray-100">

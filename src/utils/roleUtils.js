@@ -311,6 +311,42 @@ export const canAccessUsersPage = (roleId) => {
 };
 
 /**
+ * Check if user can view staff change history (any level - subordinates or all)
+ */
+export const canViewChangeHistoryAny = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_change_history === 'subordinates' || role.can_view_change_history === 'all';
+};
+
+/**
+ * Check if user can view staff change history for all users
+ */
+export const canViewChangeHistoryAll = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_view_change_history === 'all';
+};
+
+/**
+ * Check if user can view staff change history for a specific target user
+ */
+export const canViewChangeHistory = (roleId, targetUser = null, currentUserId = null) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    if (role.can_view_change_history === 'all') {
+        return true;
+    }
+    if (role.can_view_change_history === 'subordinates') {
+        if (!targetUser || !currentUserId) return true;
+        const targetId = targetUser.staffid || targetUser.id;
+        const currId = currentUserId;
+        return targetId === currId || targetUser.approving_manager_id === currId;
+    }
+    return false;
+};
+
+/**
  * Check if user can manage active on-duty records (any level - subordinates or all)
  */
 export const canManageActiveOnDuty = (roleId) => {
@@ -710,6 +746,9 @@ export default {
     canViewReports,
     canManageUsers,
     canViewUsers,
+    canViewChangeHistory,
+    canViewChangeHistoryAny,
+    canViewChangeHistoryAll,
     canAccessUsersPage,
     canAccessAttendancePortal,
     canAccessKiosk,
