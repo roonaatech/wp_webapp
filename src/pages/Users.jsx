@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { FiEdit2, FiTrash2, FiPlus, FiX, FiAlertTriangle, FiKey, FiLink, FiChevronDown, FiChevronRight, FiInfo, FiLock } from 'react-icons/fi';
-import { LuSparkles, LuBuilding2, LuHouse, LuBriefcase, LuCalendar, LuCheck } from 'react-icons/lu';
+import { LuSparkles, LuBuilding2, LuHouse, LuBriefcase, LuCalendar, LuCheck, LuHistory, LuClock, LuSearch, LuRefreshCw, LuUserCheck, LuShield, LuArrowRight, LuTag } from 'react-icons/lu';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -279,6 +279,15 @@ const Users = () => {
     const [loadingHistory, setLoadingHistory] = useState({});
     const [attendanceHistory, setAttendanceHistory] = useState({});
     const [loadingAttendance, setLoadingAttendance] = useState({});
+    const [changeHistory, setChangeHistory] = useState({});
+    const [loadingChangeHistory, setLoadingChangeHistory] = useState({});
+    const [changeHistoryFilter, setChangeHistoryFilter] = useState({}); // staffid -> 'all' | 'leave' | 'org' | 'profile' | 'attendance'
+    const [changeHistoryDuration, setChangeHistoryDuration] = useState({}); // staffid -> 'all' | '7d' | '30d' | '90d' | 'this_month' | 'this_year' | 'custom'
+    const [changeHistoryCustomDates, setChangeHistoryCustomDates] = useState({}); // staffid -> { start: '', end: '' }
+    const [changeHistorySearch, setChangeHistorySearch] = useState({}); // staffid -> search text
+    const [changeHistoryChangerFilter, setChangeHistoryChangerFilter] = useState({}); // staffid -> changer name | 'all'
+    const [changeHistoryPage, setChangeHistoryPage] = useState({}); // staffid -> page number (default 1)
+    const [changeHistoryPageSize, setChangeHistoryPageSize] = useState({}); // staffid -> items per page (default 10)
     const [holidaysSet, setHolidaysSet] = useState(new Set());
     const [holidaysMap, setHolidaysMap] = useState({});
     const [chartFilters, setChartFilters] = useState({}); // staffid -> '30d' | '60d' | '90d' | 'year'
@@ -704,6 +713,42 @@ const Users = () => {
         }
     };
 
+    const fetchStaffChangeHistory = async (userId, category = 'all', duration = null, startDate = null, endDate = null) => {
+        setLoadingChangeHistory(prev => ({ ...prev, [userId]: true }));
+        try {
+            const token = localStorage.getItem('token');
+            const dur = duration !== null ? duration : (changeHistoryDuration[userId] || '30d');
+            const custom = changeHistoryCustomDates[userId] || {};
+            const sDate = startDate !== null ? startDate : custom.start;
+            const eDate = endDate !== null ? endDate : custom.end;
+
+            const params = { category, limit: 250 };
+            if (dur && dur !== 'all') params.duration = dur;
+            if (sDate) params.startDate = sDate;
+            if (eDate) params.endDate = eDate;
+
+            const res = await axios.get(`${API_BASE_URL}/api/admin/users/${userId}/change-history`, {
+                params,
+                headers: { 'x-access-token': token }
+            });
+            if (res.data && res.data.success) {
+                setChangeHistory(prev => ({
+                    ...prev,
+                    [userId]: res.data
+                }));
+            }
+        } catch (error) {
+            console.error(`Error fetching change history for user ${userId}:`, error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to load change history';
+            setChangeHistory(prev => ({
+                ...prev,
+                [userId]: { error: errorMessage }
+            }));
+        } finally {
+            setLoadingChangeHistory(prev => ({ ...prev, [userId]: false }));
+        }
+    };
+
     const handleExpandUser = (userId) => {
         if (expandedUserId === userId) {
             setExpandedUserId(null);
@@ -723,6 +768,10 @@ const Users = () => {
             // Fetch all users for org chart if not already loaded
             if (allUsersRef.length === 0) {
                 fetchAllUsersForChart();
+            }
+            // Pre-fetch staff change history (default to 30 days)
+            if (!changeHistory[userId]) {
+                fetchStaffChangeHistory(userId, 'all', '30d');
             }
         }
     };
@@ -2230,8 +2279,8 @@ const Users = () => {
                                         </tr>
 
                                         {expandedUserId === u.staffid && (
-                                            <tr className="bg-slate-50 border-t border-slate-200 shadow-inner">
-                                                <td colSpan={canManageUsers ? 9 : 8} className="px-6 py-6">
+                                            <tr className="bg-slate-200 border-t-2 border-b-2 border-slate-300">
+                                                <td colSpan={canManageUsers ? 9 : 8} className="p-6 bg-slate-200/90 shadow-[inset_0_6px_20px_rgba(0,0,0,0.12)]">
                                                     {loadingBalance[u.staffid] ? (
                                                         <div className="flex flex-col items-center justify-center py-8">
                                                             <ModernLoader size="md" message="Loading leave balance..." />
@@ -2248,7 +2297,7 @@ const Users = () => {
                                                             <div className="flex flex-col md:flex-row gap-5">
                                                             {/* Modern Vertical Nav */}
                                                             <div className="w-full md:w-48 flex-shrink-0">
-                                                                <nav className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-gray-100 p-1.5 flex flex-col gap-0.5">
+                                                                <nav className="bg-white rounded-2xl shadow-[0_20px_45px_-8px_rgba(0,0,0,0.28),0_8px_20px_-4px_rgba(0,0,0,0.18)] border border-slate-300 p-2 flex flex-col gap-1">
                                                                     <button
                                                                         onClick={() => setActiveTab('leave')}
                                                                         className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
@@ -2291,11 +2340,28 @@ const Users = () => {
                                                                         </svg>
                                                                         Leave & Attendance
                                                                     </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setActiveTab('change_history');
+                                                                            if (!changeHistory[u.staffid]) {
+                                                                                fetchStaffChangeHistory(u.staffid, 'all', changeHistoryDuration[u.staffid] || '30d');
+                                                                            }
+                                                                        }}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'change_history'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                        }`}
+                                                                    >
+                                                                        {activeTab === 'change_history' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <LuHistory className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'change_history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} />
+                                                                        Change History
+                                                                    </button>
                                                                 </nav>
                                                             </div>
 
                                                             {/* Tab Content Panel */}
-                                                            <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm min-w-0">
+                                                            <div className="flex-1 bg-white border border-slate-300 rounded-2xl p-6 shadow-[0_20px_45px_-8px_rgba(0,0,0,0.28),0_8px_20px_-4px_rgba(0,0,0,0.18)] min-w-0">
                                                             {activeTab === 'leave' && (
                                                                 <div>
                                                                     <div className="flex items-center justify-between mb-4">
@@ -2704,13 +2770,697 @@ const Users = () => {
                                                                     })()}
                                                                 </div>
                                                             )}
+
+                                                            {activeTab === 'change_history' && (
+                                                                <div className="animate-fadeIn">
+                                                                    {/* Header */}
+                                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-gray-100">
+                                                                        <div>
+                                                                            <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                                                                                <span className="w-1 h-4 bg-indigo-600 rounded-full"></span>
+                                                                                Staff Change &amp; Audit History
+                                                                            </h4>
+                                                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                                                History of leave modifications, organization changes, and profile edits
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
+                                                                            {/* Date Duration Selector */}
+                                                                            <div className="relative">
+                                                                                <LuCalendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                                                                                <select
+                                                                                    value={changeHistoryDuration[u.staffid] || '30d'}
+                                                                                    onChange={(e) => {
+                                                                                        const newDur = e.target.value;
+                                                                                        setChangeHistoryDuration(prev => ({ ...prev, [u.staffid]: newDur }));
+                                                                                        setChangeHistoryPage(prev => ({ ...prev, [u.staffid]: 1 }));
+                                                                                        if (newDur !== 'custom') {
+                                                                                            fetchStaffChangeHistory(u.staffid, changeHistoryFilter[u.staffid] || 'all', newDur);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="pl-8 pr-7 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-700 font-medium transition cursor-pointer appearance-none"
+                                                                                    title="Filter changes by date duration"
+                                                                                >
+                                                                                    <option value="30d">Last 30 Days</option>
+                                                                                    <option value="7d">Last 7 Days</option>
+                                                                                    <option value="90d">Last 90 Days</option>
+                                                                                    <option value="this_month">This Month</option>
+                                                                                    <option value="this_year">This Year</option>
+                                                                                    <option value="all">All Time</option>
+                                                                                    <option value="custom">Custom Range...</option>
+                                                                                </select>
+                                                                                <FiChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                                                                            </div>
+
+                                                                            {/* Custom Date Range Picker */}
+                                                                            {changeHistoryDuration[u.staffid] === 'custom' && (
+                                                                                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
+                                                                                    <input
+                                                                                        type="date"
+                                                                                        value={changeHistoryCustomDates[u.staffid]?.start || ''}
+                                                                                        onChange={(e) => {
+                                                                                            const s = e.target.value;
+                                                                                            setChangeHistoryCustomDates(prev => ({
+                                                                                                ...prev,
+                                                                                                [u.staffid]: { ...(prev[u.staffid] || {}), start: s }
+                                                                                            }));
+                                                                                        }}
+                                                                                        className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-indigo-500"
+                                                                                        title="From Date"
+                                                                                    />
+                                                                                    <span className="text-slate-400 text-xs">to</span>
+                                                                                    <input
+                                                                                        type="date"
+                                                                                        value={changeHistoryCustomDates[u.staffid]?.end || ''}
+                                                                                        onChange={(e) => {
+                                                                                            const ed = e.target.value;
+                                                                                            setChangeHistoryCustomDates(prev => ({
+                                                                                                ...prev,
+                                                                                                [u.staffid]: { ...(prev[u.staffid] || {}), end: ed }
+                                                                                            }));
+                                                                                        }}
+                                                                                        className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-indigo-500"
+                                                                                        title="To Date"
+                                                                                    />
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            const custom = changeHistoryCustomDates[u.staffid] || {};
+                                                                                            fetchStaffChangeHistory(u.staffid, changeHistoryFilter[u.staffid] || 'all', 'custom', custom.start, custom.end);
+                                                                                        }}
+                                                                                        className="px-2 py-0.5 bg-indigo-600 text-white rounded text-[11px] font-bold hover:bg-indigo-700 transition cursor-pointer"
+                                                                                    >
+                                                                                        Apply
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Search */}
+                                                                            <div className="relative">
+                                                                                <LuSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                                                                <input
+                                                                                    type="text"
+                                                                                    placeholder="Search changes or changer..."
+                                                                                    value={changeHistorySearch[u.staffid] || ''}
+                                                                                    onChange={(e) => {
+                                                                                        setChangeHistorySearch(prev => ({ ...prev, [u.staffid]: e.target.value }));
+                                                                                        setChangeHistoryPage(prev => ({ ...prev, [u.staffid]: 1 }));
+                                                                                    }}
+                                                                                    className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 w-40 sm:w-52 text-slate-700 placeholder:text-slate-400 transition"
+                                                                                />
+                                                                                {changeHistorySearch[u.staffid] && (
+                                                                                    <button
+                                                                                        onClick={() => {
+                                                                                            setChangeHistorySearch(prev => ({ ...prev, [u.staffid]: '' }));
+                                                                                            setChangeHistoryPage(prev => ({ ...prev, [u.staffid]: 1 }));
+                                                                                        }}
+                                                                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                                                                                    >
+                                                                                        <FiX className="w-3 h-3" />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+
+                                                                            {/* Refresh Button */}
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    const dur = changeHistoryDuration[u.staffid] || '30d';
+                                                                                    const custom = changeHistoryCustomDates[u.staffid] || {};
+                                                                                    fetchStaffChangeHistory(u.staffid, changeHistoryFilter[u.staffid] || 'all', dur, custom.start, custom.end);
+                                                                                }}
+                                                                                disabled={loadingChangeHistory[u.staffid]}
+                                                                                className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-slate-200 transition cursor-pointer"
+                                                                                title="Refresh History"
+                                                                            >
+                                                                                <LuRefreshCw className={`w-3.5 h-3.5 ${loadingChangeHistory[u.staffid] ? 'animate-spin text-indigo-600' : ''}`} />
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Filter Pills */}
+                                                                    {(() => {
+                                                                        const histData = changeHistory[u.staffid] || {};
+                                                                        const allItems = histData.history || [];
+                                                                        const currentFilter = changeHistoryFilter[u.staffid] || 'all';
+                                                                        const activeDuration = changeHistoryDuration[u.staffid] || '30d';
+                                                                        const customDates = changeHistoryCustomDates[u.staffid] || {};
+                                                                        const now = new Date();
+
+                                                                        // Duration filtering
+                                                                        let durationFiltered = allItems;
+                                                                        if (activeDuration !== 'all') {
+                                                                            durationFiltered = allItems.filter(e => {
+                                                                                if (!e.createdAt) return false;
+                                                                                const d = new Date(e.createdAt);
+                                                                                if (isNaN(d.getTime())) return false;
+
+                                                                                if (activeDuration === '7d') {
+                                                                                    return d >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                                                                                } else if (activeDuration === '30d') {
+                                                                                    return d >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                                                                                } else if (activeDuration === '90d') {
+                                                                                    return d >= new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                                                                                } else if (activeDuration === 'this_month') {
+                                                                                    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+                                                                                } else if (activeDuration === 'this_year') {
+                                                                                    return d.getFullYear() === now.getFullYear();
+                                                                                } else if (activeDuration === 'custom') {
+                                                                                    if (customDates.start) {
+                                                                                        const s = new Date(customDates.start + 'T00:00:00');
+                                                                                        if (d < s) return false;
+                                                                                    }
+                                                                                    if (customDates.end) {
+                                                                                        const ed = new Date(customDates.end + 'T23:59:59');
+                                                                                        if (d > ed) return false;
+                                                                                    }
+                                                                                    return true;
+                                                                                }
+                                                                                return true;
+                                                                            });
+                                                                        }
+
+                                                                        const counts = {
+                                                                            all: durationFiltered.length,
+                                                                            leave: durationFiltered.filter(e => e.category === 'leave').length,
+                                                                            org: durationFiltered.filter(e => e.category === 'org').length,
+                                                                            profile: durationFiltered.filter(e => e.category === 'profile' || e.category === 'security').length,
+                                                                            attendance: durationFiltered.filter(e => e.category === 'attendance').length
+                                                                        };
+
+                                                                        const filterPills = [
+                                                                            { id: 'all', label: 'All Changes', count: counts.all },
+                                                                            { id: 'leave', label: 'Leave & Balances', count: counts.leave },
+                                                                            { id: 'org', label: 'Org Structure', count: counts.org },
+                                                                            { id: 'profile', label: 'Profile & Account', count: counts.profile },
+                                                                            { id: 'attendance', label: 'Attendance & OD', count: counts.attendance },
+                                                                        ];
+
+                                                                        return (
+                                                                            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 scrollbar-none">
+                                                                                {filterPills.map(pill => {
+                                                                                    const isActive = currentFilter === pill.id;
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={pill.id}
+                                                                                            onClick={() => {
+                                                                                                setChangeHistoryFilter(prev => ({ ...prev, [u.staffid]: pill.id }));
+                                                                                                setChangeHistoryPage(prev => ({ ...prev, [u.staffid]: 1 }));
+                                                                                            }}
+                                                                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer flex-shrink-0 ${
+                                                                                                isActive
+                                                                                                    ? 'bg-slate-900 text-white shadow-sm'
+                                                                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                                                                                            }`}
+                                                                                        >
+                                                                                            <span>{pill.label}</span>
+                                                                                            <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                                                                                                isActive
+                                                                                                    ? 'bg-white/20 text-white'
+                                                                                                    : 'bg-white text-slate-700 shadow-2xs border border-slate-200'
+                                                                                            }`}>
+                                                                                                {pill.count || 0}
+                                                                                            </span>
+                                                                                        </button>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        );
+                                                                    })()}
+
+                                                                    {/* Content Body */}
+                                                                    {loadingChangeHistory[u.staffid] ? (
+                                                                        <div className="flex flex-col items-center justify-center p-12">
+                                                                            <ModernLoader size="md" message="Loading change history..." />
+                                                                        </div>
+                                                                    ) : changeHistory[u.staffid]?.error ? (
+                                                                        <div className="p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 text-xs flex items-center gap-2">
+                                                                            <FiAlertTriangle className="w-4 h-4 flex-shrink-0" />
+                                                                            <span>{changeHistory[u.staffid].error}</span>
+                                                                        </div>
+                                                                    ) : (() => {
+                                                                        const histData = changeHistory[u.staffid] || {};
+                                                                        const allItems = histData.history || [];
+                                                                        const currentFilter = changeHistoryFilter[u.staffid] || 'all';
+                                                                        const activeDuration = changeHistoryDuration[u.staffid] || '30d';
+                                                                        const customDates = changeHistoryCustomDates[u.staffid] || {};
+                                                                        const searchQuery = (changeHistorySearch[u.staffid] || '').toLowerCase().trim();
+                                                                        const now = new Date();
+
+                                                                        // Duration filter
+                                                                        let durationFiltered = allItems;
+                                                                        if (activeDuration !== 'all') {
+                                                                            durationFiltered = allItems.filter(e => {
+                                                                                if (!e.createdAt) return false;
+                                                                                const d = new Date(e.createdAt);
+                                                                                if (isNaN(d.getTime())) return false;
+
+                                                                                if (activeDuration === '7d') {
+                                                                                    return d >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                                                                                } else if (activeDuration === '30d') {
+                                                                                    return d >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                                                                                } else if (activeDuration === '90d') {
+                                                                                    return d >= new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                                                                                } else if (activeDuration === 'this_month') {
+                                                                                    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+                                                                                } else if (activeDuration === 'this_year') {
+                                                                                    return d.getFullYear() === now.getFullYear();
+                                                                                } else if (activeDuration === 'custom') {
+                                                                                    if (customDates.start) {
+                                                                                        const s = new Date(customDates.start + 'T00:00:00');
+                                                                                        if (d < s) return false;
+                                                                                    }
+                                                                                    if (customDates.end) {
+                                                                                        const ed = new Date(customDates.end + 'T23:59:59');
+                                                                                        if (d > ed) return false;
+                                                                                    }
+                                                                                    return true;
+                                                                                }
+                                                                                return true;
+                                                                            });
+                                                                        }
+
+                                                                        // Filter by active category
+                                                                        let items = durationFiltered;
+                                                                        if (currentFilter === 'leave') {
+                                                                            items = durationFiltered.filter(e => e.category === 'leave');
+                                                                        } else if (currentFilter === 'org') {
+                                                                            items = durationFiltered.filter(e => e.category === 'org');
+                                                                        } else if (currentFilter === 'profile') {
+                                                                            items = durationFiltered.filter(e => e.category === 'profile' || e.category === 'security');
+                                                                        } else if (currentFilter === 'attendance') {
+                                                                            items = durationFiltered.filter(e => e.category === 'attendance');
+                                                                        }
+
+                                                                        // Unique changers for dropdown filter
+                                                                        const rawHistoryList = durationFiltered;
+                                                                        const uniqueChangers = Array.from(
+                                                                            new Set(rawHistoryList.map(e => e.changer?.name).filter(Boolean))
+                                                                        ).sort();
+
+                                                                        // Search filter
+                                                                        if (searchQuery) {
+                                                                            items = items.filter(e =>
+                                                                                (e.description || '').toLowerCase().includes(searchQuery) ||
+                                                                                (e.actionTitle || '').toLowerCase().includes(searchQuery) ||
+                                                                                (e.changer?.name || '').toLowerCase().includes(searchQuery) ||
+                                                                                (e.changer?.role || '').toLowerCase().includes(searchQuery) ||
+                                                                                (e.action || '').toLowerCase().includes(searchQuery)
+                                                                            );
+                                                                        }
+
+                                                                        // Changer filter
+                                                                        const activeChanger = changeHistoryChangerFilter[u.staffid] || 'all';
+                                                                        if (activeChanger !== 'all') {
+                                                                            items = items.filter(e => e.changer?.name === activeChanger);
+                                                                        }
+
+                                                                        if (items.length === 0) {
+                                                                            return (
+                                                                                <div className="text-center py-12 px-4 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
+                                                                                    <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 shadow-2xs flex items-center justify-center text-slate-400 mx-auto mb-3">
+                                                                                        <LuHistory className="w-6 h-6" />
+                                                                                    </div>
+                                                                                    <h5 className="text-xs font-bold text-slate-700">No Change History Found</h5>
+                                                                                    <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
+                                                                                        {searchQuery 
+                                                                                            ? `No changes match "${searchQuery}". Try a different keyword.` 
+                                                                                            : `No modifications recorded yet for this category.`}
+                                                                                    </p>
+                                                                                </div>
+                                                                            );
+                                                                        }
+
+                                                                        const formatDiffVal = (val) => {
+                                                                            if (val === null || val === undefined || val === '') return <span className="italic text-slate-400 font-normal">none</span>;
+                                                                            if (typeof val === 'boolean') return val ? 'Active / Yes' : 'Inactive / No';
+                                                                            if (Array.isArray(val)) {
+                                                                                if (val.length === 0) return <span className="italic text-slate-400 font-normal">none</span>;
+                                                                                return val.map(item => {
+                                                                                    if (typeof item === 'object' && item !== null) {
+                                                                                        const typeName = item.name || item.leave_type_name || item.leave_name || item.title || (item.leave_type_id ? `Type #${item.leave_type_id}` : null);
+                                                                                        const countVal = item.days_allowed !== undefined ? item.days_allowed : (item.quota !== undefined ? item.quota : (item.days !== undefined ? item.days : null));
+                                                                                        if (typeName && countVal !== null) return `${typeName}: ${countVal}d`;
+                                                                                        if (typeName) return typeName;
+                                                                                        return Object.entries(item).filter(([k]) => !['id', 'created_at', 'updated_at'].includes(k)).map(([k, v]) => `${k}: ${v}`).join(' ');
+                                                                                    }
+                                                                                    return String(item);
+                                                                                }).join(', ');
+                                                                            }
+                                                                            if (typeof val === 'object') {
+                                                                                return Object.entries(val).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(', ');
+                                                                            }
+                                                                            if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(val)) {
+                                                                                try {
+                                                                                    const d = new Date(val);
+                                                                                    if (!isNaN(d.getTime())) {
+                                                                                        return formatInTimezone(d, null, {
+                                                                                            month: 'short',
+                                                                                            day: 'numeric',
+                                                                                            year: 'numeric',
+                                                                                            hour: 'numeric',
+                                                                                            minute: '2-digit',
+                                                                                            hour12: true
+                                                                                        });
+                                                                                    }
+                                                                                } catch (e) {
+                                                                                    // fallback
+                                                                                }
+                                                                            }
+                                                                            return String(val);
+                                                                        };
+
+                                                                        // Pagination calculations
+                                                                        const pageSize = changeHistoryPageSize[u.staffid] || 10;
+                                                                        const currentPage = changeHistoryPage[u.staffid] || 1;
+                                                                        const totalFiltered = items.length;
+                                                                        const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+                                                                        const safePage = Math.min(Math.max(1, currentPage), totalPages);
+                                                                        const startIdx = (safePage - 1) * pageSize;
+                                                                        const endIdx = Math.min(startIdx + pageSize, totalFiltered);
+                                                                        const pagedItems = items.slice(startIdx, endIdx);
+
+                                                                        return (
+                                                                            <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-2xs">
+                                                                                <table className="w-full text-left border-collapse">
+                                                                                    <thead className="bg-slate-100 border-b-2 border-slate-800 text-slate-800">
+                                                                                        <tr className="border-b-2 border-slate-800">
+                                                                                            <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider w-40 whitespace-nowrap border-b-2 border-slate-800">
+                                                                                                Date &amp; Time
+                                                                                            </th>
+                                                                                            <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider w-36 whitespace-nowrap border-b-2 border-slate-800">
+                                                                                                Category
+                                                                                            </th>
+                                                                                            <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider min-w-[280px] border-b-2 border-slate-800">
+                                                                                                Change Details
+                                                                                            </th>
+                                                                                            <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider w-60 whitespace-nowrap border-b-2 border-slate-800">
+                                                                                                <div className="flex items-center justify-between gap-2">
+                                                                                                    <span>Changed By</span>
+                                                                                                    {uniqueChangers.length > 0 && (
+                                                                                                        <select
+                                                                                                            value={activeChanger}
+                                                                                                            onChange={(e) => {
+                                                                                                                const val = e.target.value;
+                                                                                                                setChangeHistoryChangerFilter(prev => ({ ...prev, [u.staffid]: val }));
+                                                                                                                setChangeHistoryPage(prev => ({ ...prev, [u.staffid]: 1 }));
+                                                                                                            }}
+                                                                                                            onClick={(e) => e.stopPropagation()}
+                                                                                                            className="text-[10px] font-medium normal-case py-1 pl-2 pr-6 bg-white border border-slate-300 rounded text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-500 shadow-2xs cursor-pointer hover:border-slate-400"
+                                                                                                            title="Filter by person who made the change"
+                                                                                                        >
+                                                                                                            <option value="all">All ({uniqueChangers.length})</option>
+                                                                                                            {uniqueChangers.map((name) => (
+                                                                                                                <option key={name} value={name}>{name}</option>
+                                                                                                            ))}
+                                                                                                            {activeChanger !== 'all' && !uniqueChangers.includes(activeChanger) && (
+                                                                                                                <option value={activeChanger}>{activeChanger}</option>
+                                                                                                            )}
+                                                                                                        </select>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </th>
+                                                                                        </tr>
+                                                                                    </thead>
+                                                                                    <tbody className="divide-y divide-slate-100">
+                                                                                        {pagedItems.map((item) => {
+                                                                                            const isOrg = item.category === 'org';
+                                                                                            const isLeave = item.category === 'leave';
+                                                                                            const isProfile = item.category === 'profile';
+                                                                                            const isSecurity = item.category === 'security';
+                                                                                            const isAttendance = item.category === 'attendance';
+
+                                                                                            // Category badge styling
+                                                                                            let badgeBg = 'bg-slate-100 text-slate-700 border-slate-200';
+                                                                                            if (isLeave) {
+                                                                                                badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                                                                                            } else if (isOrg) {
+                                                                                                badgeBg = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                                                                                            } else if (isProfile) {
+                                                                                                badgeBg = 'bg-sky-50 text-sky-700 border-sky-200';
+                                                                                            } else if (isSecurity) {
+                                                                                                badgeBg = 'bg-amber-50 text-amber-700 border-amber-200';
+                                                                                            } else if (isAttendance) {
+                                                                                                badgeBg = 'bg-purple-50 text-purple-700 border-purple-200';
+                                                                                            }
+
+                                                                                            // Parse date
+                                                                                            const eventDate = item.createdAt ? new Date(item.createdAt) : null;
+                                                                                            const datePart = eventDate ? formatInTimezone(eventDate, null, {
+                                                                                                month: 'short',
+                                                                                                day: 'numeric',
+                                                                                                year: 'numeric'
+                                                                                            }) : '--';
+                                                                                            const timePart = eventDate ? formatInTimezone(eventDate, null, {
+                                                                                                hour: 'numeric',
+                                                                                                minute: '2-digit',
+                                                                                                hour12: true
+                                                                                            }) : '';
+
+                                                                                            // Diff details
+                                                                                            const oldVals = item.old_values || {};
+                                                                                            const newVals = item.new_values || {};
+                                                                                            const diffKeys = Object.keys(newVals).filter(k => k !== 'allocations' && k !== 'login_device' && k !== 'password_changed');
+
+                                                                                            const labelMap = {
+                                                                                                role: 'Role',
+                                                                                                approving_manager: 'Reporting Manager',
+                                                                                                work_mode: 'Work Mode',
+                                                                                                hybrid_office_days: 'Hybrid Office Days',
+                                                                                                active: 'Account Status',
+                                                                                                firstname: 'First Name',
+                                                                                                lastname: 'Last Name',
+                                                                                                email: 'Email',
+                                                                                                secondary_email: 'Secondary Email',
+                                                                                                gender: 'Gender',
+                                                                                                check_in_time: 'Check In Time',
+                                                                                                check_out_time: 'Check Out Time',
+                                                                                                date_of_birth: 'Date of Birth',
+                                                                                                date_of_joining: 'Date of Joining',
+                                                                                                birthplace: 'Birth Place',
+                                                                                                height_weight: 'Height & Weight',
+                                                                                                blood_group: 'Blood Group',
+                                                                                                marital_status: 'Marital Status',
+                                                                                                no_of_children: 'Children Count',
+                                                                                                hobbies: 'Hobbies',
+                                                                                                nationality: 'Nationality',
+                                                                                                religion: 'Religion',
+                                                                                                present_address: 'Present Address',
+                                                                                                present_contact_no: 'Present Contact',
+                                                                                                permanent_address: 'Permanent Address',
+                                                                                                permanent_contact_no: 'Permanent Contact',
+                                                                                                father_name: 'Father Name',
+                                                                                                father_age: 'Father Age',
+                                                                                                father_occupation: 'Father Occupation',
+                                                                                                father_work_status: 'Father Work Status',
+                                                                                                mother_name: 'Mother Name',
+                                                                                                mother_age: 'Mother Age',
+                                                                                                mother_occupation: 'Mother Occupation',
+                                                                                                bank_account_number: 'Bank Account Number',
+                                                                                                bank_ifsc_code: 'Bank IFSC Code',
+                                                                                                bank_name_address: 'Bank Name & Branch',
+                                                                                                onboarding_place: 'Joining Place',
+                                                                                                onboarding_status: 'Onboarding Status',
+                                                                                                abis_access: 'ABIS Access',
+                                                                                                has_disability: 'Disability Status',
+                                                                                                disability_details: 'Disability Details',
+                                                                                                profile_image: 'Profile Photo',
+                                                                                                documents: 'Documents',
+                                                                                                educations: 'Education',
+                                                                                                experiences: 'Experience',
+                                                                                                family_members: 'Family Details'
+                                                                                            };
+
+                                                                                            return (
+                                                                                                <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                                                                                                    {/* Date & Time */}
+                                                                                                    <td className="px-4 py-3 align-top whitespace-nowrap">
+                                                                                                        <div className="font-semibold text-slate-800 text-xs">{datePart}</div>
+                                                                                                        <div className="text-[11px] text-slate-400 font-medium">{timePart}</div>
+                                                                                                    </td>
+
+                                                                                                    {/* Category */}
+                                                                                                    <td className="px-4 py-3 align-top whitespace-nowrap">
+                                                                                                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badgeBg}`}>
+                                                                                                            {isLeave && <LuCalendar className="w-3 h-3" />}
+                                                                                                            {isOrg && <LuBriefcase className="w-3 h-3" />}
+                                                                                                            {isProfile && <LuUserCheck className="w-3 h-3" />}
+                                                                                                            {isSecurity && <LuShield className="w-3 h-3" />}
+                                                                                                            {isAttendance && <LuClock className="w-3 h-3" />}
+                                                                                                            {item.categoryLabel || item.category}
+                                                                                                        </span>
+                                                                                                    </td>
+
+                                                                                                    {/* Change Details */}
+                                                                                                    <td className="px-4 py-3 align-top">
+                                                                                                        <div className="font-semibold text-slate-900 text-xs">
+                                                                                                            {item.actionTitle || item.action}
+                                                                                                        </div>
+                                                                                                        <div className="text-xs text-slate-600 mt-0.5 leading-relaxed font-normal">
+                                                                                                            {item.description}
+                                                                                                        </div>
+
+                                                                                                        {/* Diffs: Allocations */}
+                                                                                                        {newVals.allocations && Array.isArray(newVals.allocations) && (
+                                                                                                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                                                                {newVals.allocations.map((alloc, idx) => (
+                                                                                                                    <span
+                                                                                                                        key={idx}
+                                                                                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-50 border border-slate-200 text-[11px]"
+                                                                                                                    >
+                                                                                                                        <span className="text-slate-600 font-medium">{alloc.name}:</span>
+                                                                                                                        <strong className="text-emerald-700 font-bold">{alloc.days_allowed}d</strong>
+                                                                                                                    </span>
+                                                                                                                ))}
+                                                                                                            </div>
+                                                                                                        )}
+
+                                                                                                        {/* Diffs: Fields */}
+                                                                                                        {diffKeys.length > 0 && (
+                                                                                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                                                                                {diffKeys.map((key) => {
+                                                                                                                    const oldV = oldVals[key];
+                                                                                                                    const newV = newVals[key];
+                                                                                                                    if (newV === undefined) return null;
+                                                                                                                    const fieldLabel = labelMap[key] || key.replace(/_/g, ' ');
+
+                                                                                                                    const isDiff = oldV !== undefined && (typeof oldV === 'object' || typeof newV === 'object' ? JSON.stringify(oldV) !== JSON.stringify(newV) : String(oldV).trim() !== String(newV).trim());
+                                                                                                                    return (
+                                                                                                                        <div key={key} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[11px]">
+                                                                                                                            <span className="font-semibold text-slate-600 capitalize">{fieldLabel}:</span>
+                                                                                                                            {isDiff ? (
+                                                                                                                                <>
+                                                                                                                                    <span className="px-1.5 py-0.2 rounded bg-red-50 text-red-700 border border-red-200 line-through text-[10px] font-medium">
+                                                                                                                                        {formatDiffVal(oldV)}
+                                                                                                                                    </span>
+                                                                                                                                    <LuArrowRight className="w-3 h-3 text-slate-400" />
+                                                                                                                                    <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                                                                                                                                        {formatDiffVal(newV)}
+                                                                                                                                    </span>
+                                                                                                                                </>
+                                                                                                                            ) : (
+                                                                                                                                <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-semibold">
+                                                                                                                                    {formatDiffVal(newV)}
+                                                                                                                                </span>
+                                                                                                                            )}
+                                                                                                                        </div>
+                                                                                                                    );
+                                                                                                                })}
+                                                                                                            </div>
+                                                                                                        )}
+                                                                                                    </td>
+
+                                                                                                    {/* Changed By */}
+                                                                                                    <td className="px-4 py-3 align-top whitespace-nowrap">
+                                                                                                        {item.changer?.isSelf ? (
+                                                                                                            <div className="flex flex-col items-start gap-0.5">
+                                                                                                                <span className="font-semibold text-slate-800 text-xs">
+                                                                                                                    {item.changer.name}
+                                                                                                                </span>
+                                                                                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                                                                                                    <LuUserCheck className="w-2.5 h-2.5" />
+                                                                                                                    Self-service
+                                                                                                                </span>
+                                                                                                            </div>
+                                                                                                        ) : (
+                                                                                                            <div className="flex flex-col items-start gap-0.5">
+                                                                                                                <span className="font-semibold text-slate-900 text-xs">
+                                                                                                                    {item.changer?.name || 'System / Admin'}
+                                                                                                                </span>
+                                                                                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                                                                                    <LuUserCheck className="w-2.5 h-2.5" />
+                                                                                                                    {item.changer?.role || 'Admin'}
+                                                                                                                </span>
+                                                                                                            </div>
+                                                                                                        )}
+                                                                                                    </td>
+                                                                                                </tr>
+                                                                                            );
+                                                                                        })}
+                                                                                    </tbody>
+                                                                                </table>
+
+                                                                                {/* Pagination Footer */}
+                                                                                {totalFiltered > 0 && (
+                                                                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-600">
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            <span>
+                                                                                                Showing <strong className="text-slate-800">{totalFiltered === 0 ? 0 : startIdx + 1}</strong> to <strong className="text-slate-800">{endIdx}</strong> of <strong className="text-slate-800">{totalFiltered}</strong> changes
+                                                                                            </span>
+                                                                                            <span className="text-slate-300">|</span>
+                                                                                            <div className="flex items-center gap-1.5">
+                                                                                                <span className="text-slate-500">Rows per page:</span>
+                                                                                                <select
+                                                                                                    value={pageSize}
+                                                                                                    onChange={(e) => {
+                                                                                                        const newSize = parseInt(e.target.value);
+                                                                                                        setChangeHistoryPageSize(prev => ({ ...prev, [u.staffid]: newSize }));
+                                                                                                        setChangeHistoryPage(prev => ({ ...prev, [u.staffid]: 1 }));
+                                                                                                    }}
+                                                                                                    className="py-0.5 px-2 bg-white border border-slate-300 rounded text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary-500 shadow-2xs cursor-pointer"
+                                                                                                >
+                                                                                                    <option value={5}>5</option>
+                                                                                                    <option value={10}>10</option>
+                                                                                                    <option value={20}>20</option>
+                                                                                                    <option value={50}>50</option>
+                                                                                                </select>
+                                                                                            </div>
+                                                                                        </div>
+
+                                                                                        {totalPages > 1 && (
+                                                                                            <div className="flex items-center gap-1">
+                                                                                                <button
+                                                                                                    onClick={() => setChangeHistoryPage(prev => ({ ...prev, [u.staffid]: Math.max(1, safePage - 1) }))}
+                                                                                                    disabled={safePage <= 1}
+                                                                                                    className="px-2.5 py-1 rounded border border-slate-300 bg-white text-slate-600 text-xs font-medium hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                                                                                >
+                                                                                                    Prev
+                                                                                                </button>
+                                                                                                <div className="flex items-center gap-1 px-1">
+                                                                                                    {Array.from({ length: totalPages }, (_, idx) => idx + 1)
+                                                                                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                                                                                                        .map((p, idx, arr) => {
+                                                                                                            const prevP = arr[idx - 1];
+                                                                                                            const showEllipsis = prevP && p - prevP > 1;
+                                                                                                            return (
+                                                                                                                <React.Fragment key={p}>
+                                                                                                                    {showEllipsis && <span className="px-1 text-slate-400">...</span>}
+                                                                                                                    <button
+                                                                                                                        onClick={() => setChangeHistoryPage(prev => ({ ...prev, [u.staffid]: p }))}
+                                                                                                                        className={`min-w-[28px] h-7 px-2 rounded text-xs font-semibold transition-colors ${
+                                                                                                                            safePage === p
+                                                                                                                                ? 'bg-slate-800 text-white shadow-2xs'
+                                                                                                                                : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'
+                                                                                                                        }`}
+                                                                                                                    >
+                                                                                                                        {p}
+                                                                                                                    </button>
+                                                                                                                </React.Fragment>
+                                                                                                            );
+                                                                                                        })}
+                                                                                                </div>
+                                                                                                <button
+                                                                                                    onClick={() => setChangeHistoryPage(prev => ({ ...prev, [u.staffid]: Math.min(totalPages, safePage + 1) }))}
+                                                                                                    disabled={safePage >= totalPages}
+                                                                                                    className="px-2.5 py-1 rounded border border-slate-300 bg-white text-slate-600 text-xs font-medium hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                                                                                >
+                                                                                                    Next
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })()}
+                                                                </div>
+                                                            )}
+                                                                </div>
                                                             </div>
-                                                        </div>
                                                         </div>
                                                     )}
                                                 </td>
-                                            </tr>
-                                        )}
+                                                </tr>
+                                            )}
                                     </React.Fragment>
                                 ))
                             ) : (
