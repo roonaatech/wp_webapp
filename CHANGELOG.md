@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.7](https://github.com/roonaatech/wp_webapp/compare/v2.17.6...v2.17.7) (2026-10-03)
+
+
+### Features
+
+* add absent days tracking and reporting in monthly summary export and UI ([62f3e3d](https://github.com/roonaatech/wp_webapp/commit/62f3e3d9f241a94566b64877ccd9328a6a7c9117))
+
 ### [2.17.6](https://github.com/roonaatech/wp_webapp/compare/v2.17.5...v2.17.6) (2026-10-03)
 
 
