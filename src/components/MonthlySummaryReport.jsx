@@ -253,13 +253,14 @@ const MonthlySummaryReport = () => {
     // Totals
     const totals = summary.reduce((acc, s) => ({
         present_days: acc.present_days + (s.present_days || 0),
+        absent_days: Math.round((acc.absent_days + (s.absent_days || 0)) * 10) / 10,
         work_minutes: acc.work_minutes + (s.work_minutes || 0),
         leave_days: Math.round((acc.leave_days + (s.leave_days || 0)) * 10) / 10,
         timeoff_minutes: acc.timeoff_minutes + (s.timeoff_minutes || 0),
         onduty_minutes: acc.onduty_minutes + (s.onduty_minutes || 0),
         holidays: acc.holidays + (s.holidays_count || 0),
         compliant_days: Math.round((acc.compliant_days + (s.compliant_days || 0)) * 10) / 10
-    }), { present_days: 0, work_minutes: 0, leave_days: 0, timeoff_minutes: 0, onduty_minutes: 0, holidays: 0, compliant_days: 0 });
+    }), { present_days: 0, absent_days: 0, work_minutes: 0, leave_days: 0, timeoff_minutes: 0, onduty_minutes: 0, holidays: 0, compliant_days: 0 });
 
     const exportExcel = async () => {
         if (summary.length === 0) return;
@@ -297,6 +298,7 @@ const MonthlySummaryReport = () => {
                 { header: 'Employee Name', key: 'name', width: 25 },
                 { header: 'Email', key: 'email', width: 30 },
                 { header: 'Present Days', key: 'present', width: 15 },
+                { header: 'Absent Days', key: 'absent', width: 15 },
                 { header: 'Leave Days', key: 'leave', width: 15 },
                 { header: 'Time-Off', key: 'timeoff', width: 15 },
                 { header: 'On-Duty', key: 'onduty', width: 15 },
@@ -352,6 +354,7 @@ const MonthlySummaryReport = () => {
                     name: fullName,
                     email: s.email,
                     present: s.present_days || 0,
+                    absent: s.absent_days || 0,
                     leave: s.leave_days || 0,
                     timeoff: formatHours(s.timeoff_hours, s.timeoff_minutes),
                     onduty: formatHours(s.onduty_hours, s.onduty_minutes),
@@ -372,10 +375,13 @@ const MonthlySummaryReport = () => {
 
                 row.eachCell((cell, colNumber) => {
                     cell.border = borderStyle;
-                    if ([3, 4, 5, 6, 7, 8].includes(colNumber)) {
+                    if ([3, 4, 5, 6, 7, 8, 9].includes(colNumber)) {
                         cell.alignment = { vertical: 'middle', horizontal: 'center' };
                     }
-                    if (colNumber === 8 && compDays > 0) {
+                    if (colNumber === 4 && (s.absent_days || 0) > 0) {
+                        cell.font = { color: { argb: 'FFE11D48' }, bold: true };
+                    }
+                    if (colNumber === 9 && compDays > 0) {
                         cell.font = { color: { argb: 'FF15803D' }, bold: true };
                     }
                 });
@@ -385,6 +391,7 @@ const MonthlySummaryReport = () => {
                 name: 'TOTAL',
                 email: '',
                 present: totals.present_days,
+                absent: totals.absent_days,
                 leave: totals.leave_days,
                 timeoff: formatHours(0, totals.timeoff_minutes),
                 onduty: formatHours(0, totals.onduty_minutes),
@@ -395,10 +402,11 @@ const MonthlySummaryReport = () => {
             totalRow.eachCell((cell, colNumber) => {
                 cell.border = borderStyle;
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-                if ([3, 4, 5, 6, 7, 8].includes(colNumber)) {
+                if ([3, 4, 5, 6, 7, 8, 9].includes(colNumber)) {
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 }
-                if (colNumber === 8) cell.font = { bold: true, color: { argb: 'FF15803D' } };
+                if (colNumber === 4 && totals.absent_days > 0) cell.font = { bold: true, color: { argb: 'FFE11D48' } };
+                if (colNumber === 9) cell.font = { bold: true, color: { argb: 'FF15803D' } };
             });
 
             // 2. Create Individual Sheets
@@ -431,7 +439,10 @@ const MonthlySummaryReport = () => {
                 const allowedLv = s.quota_summary?.allowed_leave_days ?? (apiAllowedLeave || 1);
                 const allowedTo = (s.quota_summary?.allowed_timeoff_minutes ?? ((apiAllowedTimeOff || 2) * 60)) / 60;
                 const holText = s.holidays_count > 0 ? ` | ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : '';
-                salBanner.value = `SALARY CONSIDERATION: ${s.compliant_days || 0} COMPLIANT DAYS (SALARY PAYABLE) | ${s.non_compliant_days || 0} NON-COMPLIANT DAYS${holText} | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed | Target: ${complianceHours}h/day`;
+                salBanner.value = `SALARY CONSIDERATION: ${s.compliant_days || 0} COMPLIANT DAYS (SALARY PAYABLE) | ${s.absent_days || 0} ABSENT DAYS | ${s.non_compliant_days || 0} NON-COMPLIANT DAYS${holText} | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed | Target: ${complianceHours}h/day`;
+                salBanner.font = { bold: true, color: { argb: 'FF065F46' }, size: 10 };
+                salBanner.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                salBanner.border = borderStyle;
                 salBanner.font = { bold: true, color: { argb: 'FF065F46' }, size: 10 };
                 salBanner.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
                 salBanner.border = borderStyle;
@@ -515,14 +526,14 @@ const MonthlySummaryReport = () => {
                 }
 
                 const attSessions = s.attendance_records || (s.records?.find(r => r.type === 'Attendance')?.sessions) || [];
-                const otherRecords = (s.records || []).filter(r => r.type !== 'Attendance');
+                const otherRecords = (s.records || []).filter(r => r.type !== 'Attendance' && r.type !== 'Absent');
 
                 // 2. Attendance Sessions Section
                 if (attSessions.length > 0) {
                     sheet.mergeCells(`A${curRowIdx}:I${curRowIdx}`);
                     const attTitle = sheet.getCell(`A${curRowIdx}`);
                     const compCounts = getModalComplianceDayCounts(attSessions, complianceHours);
-                    attTitle.value = `ATTENDANCE SESSIONS (${s.present_days || 0} Present Days | ${compCounts.compliantDays} Compliant | ${compCounts.nonCompliantDays} Non-Compliant${compCounts.inProgressDays > 0 ? ` | ${compCounts.inProgressDays} In Progress` : ''} | Total Work Time: ${formatHours(s.work_hours, s.work_minutes)})`;
+                    attTitle.value = `ATTENDANCE SESSIONS (${s.present_days || 0} Present Days | ${s.absent_days || 0} Absent Days | ${compCounts.compliantDays} Compliant | ${compCounts.nonCompliantDays} Non-Compliant${compCounts.inProgressDays > 0 ? ` | ${compCounts.inProgressDays} In Progress` : ''} | Total Work Time: ${formatHours(s.work_hours, s.work_minutes)})`;
                     attTitle.font = { bold: true, color: { argb: 'FF065F46' }, size: 10 };
                     attTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
                     attTitle.border = borderStyle;
@@ -570,11 +581,11 @@ const MonthlySummaryReport = () => {
                     curRowIdx++; // empty line spacing
                 }
 
-                // 2. Leaves, Time-Off & On-Duty Section
+                // 2. Leaves, Absent, Time-Off & On-Duty Section
                 if (otherRecords.length > 0) {
                     sheet.mergeCells(`A${curRowIdx}:I${curRowIdx}`);
                     const otherTitle = sheet.getCell(`A${curRowIdx}`);
-                    otherTitle.value = `LEAVES, TIME-OFF & ON-DUTY RECORDS`;
+                    otherTitle.value = `LEAVES, TIME-OFF, ON-DUTY & HOLIDAY RECORDS`;
                     otherTitle.font = { bold: true, color: { argb: 'FF1E1B4B' }, size: 10 };
                     otherTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
                     otherTitle.border = borderStyle;
@@ -597,12 +608,12 @@ const MonthlySummaryReport = () => {
                             displayDate = rec.start_date === rec.end_date
                                 ? formatDateOnly(rec.start_date)
                                 : `${formatDateOnly(rec.start_date)} to ${formatDateOnly(rec.end_date)}`;
-                        } else if (rec.type === 'Holiday') {
+                        } else if (rec.type === 'Holiday' || rec.type === 'Absent') {
                             displayDate = formatDateOnly(rec.date);
                             displayDuration = rec.duration || '1 day';
                         } else if (rec.type === 'Time-Off' || rec.type === 'On-Duty') {
                             displayDate = formatDateOnly(rec.date);
-                            const durationMatch = rec.duration.match(/\((.+)\)$/);
+                            const durationMatch = rec.duration && rec.duration.match(/\((.+)\)$/);
                             const durationSuffix = durationMatch ? ` (${durationMatch[1]})` : "";
                             displayDuration = `${formatTimeOnly(rec.start_time)} to ${formatTimeOnly(rec.end_time)}${durationSuffix}`;
                         }
@@ -616,6 +627,7 @@ const MonthlySummaryReport = () => {
                         const typeCell = row.getCell(1);
                         typeCell.font = { bold: true };
                         if (rec.type === 'Leave') typeCell.font.color = { argb: 'FFEA580C' };
+                        else if (rec.type === 'Absent') typeCell.font.color = { argb: 'FFE11D48' };
                         else if (rec.type === 'Holiday') typeCell.font.color = { argb: 'FF0D9488' };
                         else if (rec.type === 'Time-Off') typeCell.font.color = { argb: 'FF7E22CE' };
                         else if (rec.type === 'On-Duty') typeCell.font.color = { argb: 'FF0284C7' };
@@ -710,6 +722,11 @@ const MonthlySummaryReport = () => {
                         </div>
                         <div className="hidden xl:block h-4 w-px bg-gray-200" />
                         <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Absent Days:</span>
+                            <span className="text-base font-black text-rose-600">{totals.absent_days}</span>
+                        </div>
+                        <div className="hidden xl:block h-4 w-px bg-gray-200" />
+                        <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salary Processed Days:</span>
                             <span className="text-base font-black text-emerald-700">{totals.compliant_days} {totals.compliant_days === 1 ? 'day' : 'days'}</span>
                         </div>
@@ -763,6 +780,9 @@ const MonthlySummaryReport = () => {
                                         <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('present_days')}>
                                             <span className="text-xs font-black text-white uppercase tracking-widest">Present Days<SortIcon col="present_days" /></span>
                                         </th>
+                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('absent_days')} title="Unexcused absent working days till current date">
+                                            <span className="text-xs font-black text-white uppercase tracking-widest">Absent Days<SortIcon col="absent_days" /></span>
+                                        </th>
                                         <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('leave_days')}>
                                             <span className="text-xs font-black text-white uppercase tracking-widest">Leave Days<SortIcon col="leave_days" /></span>
                                         </th>
@@ -798,6 +818,13 @@ const MonthlySummaryReport = () => {
                                                     {s.present_days > 0 ? (
                                                         <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-blue-50 text-blue-700 border border-blue-200">
                                                             {s.present_days} {s.present_days === 1 ? 'day' : 'days'}
+                                                        </span>
+                                                    ) : <span className="text-gray-300 text-xs">—</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {s.absent_days > 0 ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-600 border border-rose-200 shadow-2xs" title={`${s.absent_days} day(s) absent till current date`}>
+                                                            {s.absent_days} {s.absent_days === 1 ? 'day' : 'days'}
                                                         </span>
                                                     ) : <span className="text-gray-300 text-xs">—</span>}
                                                 </td>
@@ -843,7 +870,7 @@ const MonthlySummaryReport = () => {
                                             </tr>
                                             {expandedRows[s.staff_id] && (() => {
                                                 const attSessions = s.attendance_records || (s.records?.find(r => r.type === 'Attendance')?.sessions) || [];
-                                                const otherRecords = (s.records || []).filter(r => r.type !== 'Attendance');
+                                                const otherRecords = (s.records || []).filter(r => r.type !== 'Attendance' && r.type !== 'Absent');
 
                                                 // Map attendance sessions by date (YYYY-MM-DD)
                                                 const sessionsByDate = {};
@@ -883,7 +910,7 @@ const MonthlySummaryReport = () => {
 
                                                 return (
                                                     <tr>
-                                                        <td colSpan={10} className="px-6 py-4 bg-[#f8fafc] border-b border-gray-100">
+                                                        <td colSpan={11} className="px-6 py-4 bg-[#f8fafc] border-b border-gray-100">
                                                             <div className="space-y-4">
                                                             {/* Executive Salary & Quota Summary Cards */}
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -897,7 +924,7 @@ const MonthlySummaryReport = () => {
                                                                             {s.compliant_days ?? 0} {s.compliant_days === 1 ? 'Day' : 'Days'}
                                                                         </div>
                                                                         <div className="text-[10px] text-gray-500 font-medium">
-                                                                            {s.non_compliant_days ?? 0} Non-Compliant {s.non_compliant_days === 1 ? 'day' : 'days'}{s.holidays_count > 0 ? ` • ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : ''}
+                                                                            {s.non_compliant_days ?? 0} Non-Compliant {s.non_compliant_days === 1 ? 'day' : 'days'}{(s.absent_days || 0) > 0 ? ` (incl. ${s.absent_days} absent)` : ''}{s.holidays_count > 0 ? ` • ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : ''}
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -1048,6 +1075,8 @@ const MonthlySummaryReport = () => {
                                                                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
                                                                                                     day.type === 'Holiday'
                                                                                                         ? 'bg-teal-50 text-teal-700 border-teal-200'
+                                                                                                        : day.type === 'Absent'
+                                                                                                        ? 'bg-rose-50 text-rose-600 border-rose-200'
                                                                                                         : day.type === 'Leave'
                                                                                                         ? 'bg-orange-50 text-orange-600 border-orange-100'
                                                                                                         : day.type === 'Time-Off'
@@ -1066,6 +1095,11 @@ const MonthlySummaryReport = () => {
                                                                                                     {day.type === 'Holiday' && (
                                                                                                         <span className="font-semibold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
                                                                                                             Holiday: {day.holiday_name || 'Paid Holiday'}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {day.type === 'Absent' && (
+                                                                                                        <span className="font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                                                                                                            Unexcused Absence
                                                                                                         </span>
                                                                                                     )}
                                                                                                     {day.attendance_minutes > 0 && (
@@ -1095,10 +1129,14 @@ const MonthlySummaryReport = () => {
                                                                                                 </div>
                                                                                             </td>
                                                                                             <td className="px-3 py-2.5 text-center font-bold text-gray-800 whitespace-nowrap">
-                                                                                                {day.type === 'Leave' || day.type === 'Holiday' ? '—' : formatHours(0, day.effective_work_minutes)}
+                                                                                                {day.type === 'Leave' || day.type === 'Holiday' || day.type === 'Absent' ? '—' : formatHours(0, day.effective_work_minutes)}
                                                                                             </td>
                                                                                             <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                                                                                {day.is_compliant ? (
+                                                                                                {day.type === 'Absent' ? (
+                                                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">
+                                                                                                        <FiX className="w-3 h-3 text-rose-700" /> Absent (0 Days)
+                                                                                                    </span>
+                                                                                                ) : day.is_compliant ? (
                                                                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
                                                                                                         <FiCheck className="w-3 h-3 text-emerald-700" /> Compliant (1 Day)
                                                                                                     </span>
@@ -1140,7 +1178,7 @@ const MonthlySummaryReport = () => {
                                                                             {otherRecords.length === 0 ? (
                                                                                 <tr>
                                                                                     <td colSpan={4} className="px-4 py-6 text-center text-gray-400 italic text-xs">
-                                                                                        No leave, time-off or on-duty records found
+                                                                                        No leave, time-off, on-duty or holiday records found
                                                                                     </td>
                                                                                 </tr>
                                                                             ) : (
@@ -1150,6 +1188,8 @@ const MonthlySummaryReport = () => {
                                                                                             <td className="px-4 py-2 align-top">
                                                                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${rec.type === 'Leave'
                                                                                                     ? 'bg-orange-50 text-orange-600 border-orange-100'
+                                                                                                    : rec.type === 'Absent'
+                                                                                                    ? 'bg-rose-50 text-rose-600 border-rose-200'
                                                                                                     : rec.type === 'Time-Off'
                                                                                                     ? 'bg-purple-50 text-purple-700 border-purple-200'
                                                                                                     : rec.type === 'Holiday'
@@ -1167,9 +1207,9 @@ const MonthlySummaryReport = () => {
                                                                                             <td className="px-4 py-2 text-xs text-gray-800 font-bold align-top">
                                                                                                 {rec.type === 'Leave'
                                                                                                     ? rec.duration
-                                                                                                    : rec.type === 'Holiday'
+                                                                                                    : rec.type === 'Holiday' || rec.type === 'Absent'
                                                                                                     ? (rec.duration || '1 day')
-                                                                                                    : `${formatTimeOnly(rec.start_time)} to ${formatTimeOnly(rec.end_time)}${rec.duration.match(/\((.+)\)$/) ? ` (${rec.duration.match(/\((.+)\)$/)[1]})` : ""}`}
+                                                                                                    : `${formatTimeOnly(rec.start_time)} to ${formatTimeOnly(rec.end_time)}${rec.duration && rec.duration.match(/\((.+)\)$/) ? ` (${rec.duration.match(/\((.+)\)$/)[1]})` : ""}`}
                                                                                             </td>
                                                                                             <td className="px-4 py-2 text-xs text-gray-600 align-top break-words">{rec.detail}</td>
                                                                                         </tr>
@@ -1190,6 +1230,7 @@ const MonthlySummaryReport = () => {
                                     <tr className="bg-[#1e1b4b]/5 font-black">
                                         <td colSpan={4} className="px-4 py-3 text-sm text-[#1e1b4b] uppercase tracking-widest text-right">Total</td>
                                         <td className="px-4 py-3 text-center text-sm text-blue-600">{totals.present_days} {totals.present_days === 1 ? 'day' : 'days'}</td>
+                                        <td className="px-4 py-3 text-center text-sm text-rose-600">{totals.absent_days} {totals.absent_days === 1 ? 'day' : 'days'}</td>
                                         <td className="px-4 py-3 text-center text-sm text-orange-600">{totals.leave_days} {totals.leave_days === 1 ? 'day' : 'days'}</td>
                                         <td className="px-4 py-3 text-center text-sm text-purple-600">{formatHours(0, totals.timeoff_minutes)}</td>
                                         <td className="px-4 py-3 text-center text-sm text-[#0ea5e9]">{formatHours(0, totals.onduty_minutes)}</td>
