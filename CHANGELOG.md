@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.4](https://github.com/roonaatech/wp_webapp/compare/v2.17.3...v2.17.4) (2026-10-03)
+
+
+### Code Refactoring
+
+* remove group collapse and bulk toggle functionality from Roles and Users pages ([746544b](https://github.com/roonaatech/wp_webapp/commit/746544be5a19f154efff4aab107f7d540a370ee6))
+
 ### [2.17.3](https://github.com/roonaatech/wp_webapp/compare/v2.17.2...v2.17.3) (2026-10-02)
 
 
