@@ -503,45 +503,7 @@ const Roles = () => {
         }
     };
 
-    const getInitialCollapsedState = () => {
-        const initial = {};
-        HIERARCHICAL_GROUPS.forEach(g => { initial[g.id] = true; });
-        GLOBAL_GROUPS.forEach(g => { initial[g.id] = true; });
-        return initial;
-    };
 
-    const [collapsedGroups, setCollapsedGroups] = useState(getInitialCollapsedState);
-
-    const toggleGroupCollapse = (groupId) => {
-        setCollapsedGroups(prev => ({
-            ...prev,
-            [groupId]: !prev[groupId]
-        }));
-    };
-
-    const areAllHierarchicalCollapsed = HIERARCHICAL_GROUPS.every(g => !!collapsedGroups[g.id]);
-    const toggleAllHierarchicalCollapse = () => {
-        setCollapsedGroups(prev => {
-            const updated = { ...prev };
-            const shouldCollapse = !areAllHierarchicalCollapsed;
-            HIERARCHICAL_GROUPS.forEach(g => {
-                updated[g.id] = shouldCollapse;
-            });
-            return updated;
-        });
-    };
-
-    const areAllGlobalCollapsed = GLOBAL_GROUPS.every(g => !!collapsedGroups[g.id]);
-    const toggleAllGlobalCollapse = () => {
-        setCollapsedGroups(prev => {
-            const updated = { ...prev };
-            const shouldCollapse = !areAllGlobalCollapsed;
-            GLOBAL_GROUPS.forEach(g => {
-                updated[g.id] = shouldCollapse;
-            });
-            return updated;
-        });
-    };
 
     // Form state
     const [formData, setFormData] = useState({
@@ -717,7 +679,6 @@ const Roles = () => {
             });
         }
         setActiveModalTab('basic');
-        setCollapsedGroups(getInitialCollapsedState());
         setShowModal(true);
     };
 
@@ -725,7 +686,6 @@ const Roles = () => {
         setShowModal(false);
         setEditingRole(null);
         setActiveModalTab('basic');
-        setCollapsedGroups(getInitialCollapsedState());
     };
 
     const handleInputChange = (e) => {
@@ -751,17 +711,6 @@ const Roles = () => {
         });
     };
 
-    const setAllHierarchical = (value) => {
-        setFormData(prev => {
-            const updated = { ...prev };
-            HIERARCHICAL_GROUPS.forEach(group => {
-                group.permissions.forEach(p => {
-                    updated[p.key] = value;
-                });
-            });
-            return updated;
-        });
-    };
 
     // Permission helpers for global booleans
     const toggleGlobalPermission = (key) => {
@@ -798,26 +747,6 @@ const Roles = () => {
         });
     };
 
-    const setAllGlobal = (value) => {
-        setFormData(prev => {
-            const updated = { ...prev };
-            GLOBAL_GROUPS.forEach(group => {
-                group.permissions.forEach(p => {
-                    if (p.disabledFor && p.disabledFor.includes(prev.name)) {
-                        return;
-                    }
-                    if (p.key === 'can_manage_system_settings') {
-                        if (prev.id === 1 || prev.id === 3 || !prev.id) {
-                            updated[p.key] = value ? 'all' : 'none';
-                        }
-                    } else {
-                        updated[p.key] = value;
-                    }
-                });
-            });
-            return updated;
-        });
-    };
 
     // Calculate configured permission counts dynamically from group definitions
     const activeHierarchicalCount = HIERARCHICAL_GROUPS.flatMap(g => g.permissions).filter(
@@ -1512,65 +1441,21 @@ const Roles = () => {
                                 {/* TAB 2: HIERARCHICAL PERMISSIONS */}
                                 {activeModalTab === 'hierarchical' && (
                                     <div className="space-y-6 animate-fadeIn">
-                                        {/* Guide banner + Quick Global Toggles */}
-                                        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/90 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                            <div>
-                                                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                                                    <LuLayers size={14} className="text-indigo-600" />
-                                                    Hierarchical Scope Guide
-                                                </h3>
-                                                <p className="text-xs text-slate-500 mt-0.5">
-                                                    Select <strong className="text-indigo-700">Subordinates</strong> for direct and downstream reports, or <strong className="text-emerald-700">All Staff</strong> for organization-wide access.
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAllHierarchical('none')}
-                                                    className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition cursor-pointer"
-                                                >
-                                                    All None
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAllHierarchical('subordinates')}
-                                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition cursor-pointer"
-                                                >
-                                                    All Subordinates
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAllHierarchical('all')}
-                                                    className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition cursor-pointer"
-                                                >
-                                                    All Staff
-                                                </button>
-                                                <div className="h-4 w-[1px] bg-slate-200 mx-0.5 hidden sm:block"></div>
-                                                <button
-                                                    type="button"
-                                                    onClick={toggleAllHierarchicalCollapse}
-                                                    className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1"
-                                                >
-                                                    {areAllHierarchicalCollapsed ? (
-                                                        <>
-                                                            <LuChevronDown size={13} />
-                                                            <span>Expand All</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <LuChevronUp size={13} />
-                                                            <span>Collapse All</span>
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
+                                        {/* Guide banner */}
+                                        <div className="bg-slate-100 rounded-2xl p-4 border border-slate-300">
+                                            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                                <LuLayers size={14} className="text-indigo-600" />
+                                                Hierarchical Scope Guide
+                                            </h3>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                Select <strong className="text-indigo-700">Subordinates</strong> for direct and downstream reports, or <strong className="text-emerald-700">All Staff</strong> for organization-wide access.
+                                            </p>
                                         </div>
 
                                         {/* Grouped Hierarchical Categories */}
                                         <div className="space-y-4">
                                             {HIERARCHICAL_GROUPS.map((group) => {
                                                 const GroupIcon = group.icon;
-                                                const isCollapsed = !!collapsedGroups[group.id];
                                                 const configuredCount = group.permissions.filter(p => (formData[p.key] || 'none') !== 'none').length;
                                                 const allStaffCount = group.permissions.filter(p => formData[p.key] === 'all').length;
                                                 const t = group.theme || {};
@@ -1578,22 +1463,15 @@ const Roles = () => {
                                                 return (
                                                     <div
                                                         key={group.id}
-                                                        className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
-                                                            isCollapsed
-                                                                ? (t.borderCollapsed || 'border-slate-200/80 bg-slate-50/40')
-                                                                : `${t.border || 'border-slate-200/90'} bg-white`
-                                                        }`}
+                                                        className={`rounded-2xl border transition-all duration-200 overflow-hidden ${t.border || 'border-slate-200/90'} bg-white`}
                                                     >
-                                                        {/* Main Section Header Banner (Visually distinct with theme gradient & category badge) */}
+                                                        {/* Main Section Header Banner */}
                                                         <div 
-                                                            className={`p-4 sm:p-5 transition-colors duration-150 cursor-pointer select-none group/hdr ${
-                                                                isCollapsed ? 'hover:bg-white/60' : `${t.headerBg || 'bg-slate-50'} border-b border-slate-200/60`
-                                                            }`}
-                                                            onClick={() => toggleGroupCollapse(group.id)}
+                                                            className={`p-4 sm:p-5 ${t.headerBg || 'bg-slate-50'} border-b border-slate-200/60`}
                                                         >
                                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                                                 <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover/hdr:scale-105 duration-200 ${
+                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                                                                         t.iconContainer || 'bg-indigo-600 text-white shadow-sm'
                                                                     }`}>
                                                                         <GroupIcon size={20} />
@@ -1617,8 +1495,8 @@ const Roles = () => {
                                                                                 {configuredCount}/{group.permissions.length} Configured
                                                                             </span>
                                                                         </div>
-                                                                        <h4 className={`text-sm sm:text-base font-black tracking-tight leading-tight transition ${
-                                                                            t.titleText || 'text-slate-900'
+                                                                        <h4 className={`text-sm sm:text-base font-black tracking-tight leading-tight ${
+                                                                            t.titleText ? t.titleText.replace(/group-hover\/hdr:[^\s]+/g, '') : 'text-slate-900'
                                                                         }`}>
                                                                             {group.title}
                                                                         </h4>
@@ -1626,8 +1504,8 @@ const Roles = () => {
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Group Action Controls & Animated Chevron */}
-                                                                <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                                {/* Group Action Controls */}
+                                                                <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
                                                                     <div className="flex items-center gap-1 bg-white/80 p-1 rounded-lg border border-slate-200/80 shadow-2xs">
                                                                         <button
                                                                             type="button"
@@ -1653,106 +1531,98 @@ const Roles = () => {
                                                                             All Staff
                                                                         </button>
                                                                     </div>
-
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => toggleGroupCollapse(group.id)}
-                                                                        className="p-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-500 hover:text-slate-800 hover:bg-slate-100 shadow-2xs transition cursor-pointer"
-                                                                        title={isCollapsed ? "Expand section" : "Collapse section"}
-                                                                    >
-                                                                        <LuChevronDown 
-                                                                            size={18} 
-                                                                            className={`transform transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`} 
-                                                                        />
-                                                                    </button>
                                                                 </div>
                                                             </div>
                                                         </div>
 
                                                         {/* Inner Child Elements List */}
-                                                        {!isCollapsed && (
-                                                            <div className="p-4 sm:p-5 bg-slate-50/50 space-y-3 animate-fadeIn">
-                                                                {group.permissions.map((perm) => {
-                                                                    const PermIcon = perm.icon;
-                                                                    const currentValue = formData[perm.key] || 'none';
+                                                        <div className="p-4 sm:p-5 bg-white space-y-3">
+                                                            {group.permissions.map((perm) => {
+                                                                const PermIcon = perm.icon;
+                                                                const currentValue = formData[perm.key] || 'none';
 
-                                                                    return (
-                                                                        <div
-                                                                            key={perm.key}
-                                                                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:border-slate-300 transition duration-150"
-                                                                        >
-                                                                            <div className="flex items-start gap-3 min-w-0">
-                                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                                                                                    currentValue === 'all'
-                                                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                                                                        : currentValue === 'subordinates'
-                                                                                            ? 'bg-indigo-50 text-indigo-600 border border-indigo-200'
-                                                                                            : 'bg-slate-100 text-slate-400'
-                                                                                }`}>
-                                                                                    <PermIcon size={16} />
-                                                                                </div>
-                                                                                <div>
-                                                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                                                        <span className="text-xs font-bold text-slate-800">{perm.title}</span>
-                                                                                        {currentValue === 'all' && (
-                                                                                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                                                                All Staff
-                                                                                            </span>
-                                                                                        )}
-                                                                                        {currentValue === 'subordinates' && (
-                                                                                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                                                                                Subordinates
-                                                                                            </span>
-                                                                                        )}
-                                                                                    </div>
-                                                                                    <p className="text-[11px] text-slate-500 mt-0.5">{perm.description}</p>
-                                                                                </div>
+                                                                return (
+                                                                    <div
+                                                                        key={perm.key}
+                                                                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition duration-150 shadow-xs ${
+                                                                            currentValue === 'all'
+                                                                                ? 'bg-slate-300 border-emerald-500 ring-1 ring-emerald-500/25 hover:border-emerald-600'
+                                                                                : currentValue === 'subordinates'
+                                                                                    ? 'bg-slate-300 border-indigo-500 ring-1 ring-indigo-500/25 hover:border-indigo-600'
+                                                                                    : 'bg-slate-300 border-slate-400/80 hover:border-slate-500 hover:bg-slate-300/90'
+                                                                        }`}
+                                                                    >
+                                                                        <div className="flex items-start gap-3 min-w-0">
+                                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                                                                currentValue === 'all'
+                                                                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-xs'
+                                                                                    : currentValue === 'subordinates'
+                                                                                        ? 'bg-indigo-50 text-indigo-600 border border-indigo-200 shadow-xs'
+                                                                                        : 'bg-white text-slate-500 border border-slate-300 shadow-xs'
+                                                                            }`}>
+                                                                                <PermIcon size={16} />
                                                                             </div>
-
-                                                                            {/* 3-Way Segmented Control */}
-                                                                            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 self-start sm:self-center flex-shrink-0">
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => setHierarchicalPermission(perm.key, 'none')}
-                                                                                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                                                                                        currentValue === 'none'
-                                                                                            ? 'bg-white text-slate-700 shadow-2xs border border-slate-200/80'
-                                                                                            : 'text-slate-500 hover:text-slate-800'
-                                                                                    }`}
-                                                                                >
-                                                                                    <LuX size={12} />
-                                                                                    <span>None</span>
-                                                                                </button>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => setHierarchicalPermission(perm.key, 'subordinates')}
-                                                                                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                                                                                        currentValue === 'subordinates'
-                                                                                            ? 'bg-indigo-600 text-white shadow-xs'
-                                                                                            : 'text-slate-500 hover:text-indigo-600'
-                                                                                    }`}
-                                                                                >
-                                                                                    <LuUsers size={12} />
-                                                                                    <span>Subordinates</span>
-                                                                                </button>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => setHierarchicalPermission(perm.key, 'all')}
-                                                                                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                                                                                        currentValue === 'all'
-                                                                                            ? 'bg-emerald-600 text-white shadow-xs'
-                                                                                            : 'text-slate-500 hover:text-emerald-600'
-                                                                                    }`}
-                                                                                >
-                                                                                    <LuGlobe size={12} />
-                                                                                    <span>All Staff</span>
-                                                                                </button>
+                                                                            <div>
+                                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                                    <span className="text-xs font-bold text-slate-900">{perm.title}</span>
+                                                                                    {currentValue === 'all' && (
+                                                                                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                                            All Staff
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {currentValue === 'subordinates' && (
+                                                                                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                                                            Subordinates
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <p className="text-[11px] text-slate-700 font-medium mt-0.5">{perm.description}</p>
                                                                             </div>
                                                                         </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        )}
+
+                                                                        {/* 3-Way Segmented Control */}
+                                                                        <div className="inline-flex p-1 bg-white rounded-xl border border-slate-300 shadow-xs self-start sm:self-center flex-shrink-0">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setHierarchicalPermission(perm.key, 'none')}
+                                                                                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                                                                                    currentValue === 'none'
+                                                                                        ? 'bg-slate-200 text-slate-900 shadow-xs border border-slate-300 font-extrabold'
+                                                                                        : 'text-slate-400 hover:text-slate-700'
+                                                                                }`}
+                                                                            >
+                                                                                <LuX size={12} />
+                                                                                <span>None</span>
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setHierarchicalPermission(perm.key, 'subordinates')}
+                                                                                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                                                                                    currentValue === 'subordinates'
+                                                                                        ? 'bg-indigo-600 text-white shadow-xs'
+                                                                                        : 'text-slate-400 hover:text-indigo-600'
+                                                                                }`}
+                                                                            >
+                                                                                <LuUsers size={12} />
+                                                                                <span>Subordinates</span>
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setHierarchicalPermission(perm.key, 'all')}
+                                                                                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                                                                                    currentValue === 'all'
+                                                                                        ? 'bg-emerald-600 text-white shadow-xs'
+                                                                                        : 'text-slate-400 hover:text-emerald-600'
+                                                                                }`}
+                                                                            >
+                                                                                <LuGlobe size={12} />
+                                                                                <span>All Staff</span>
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
@@ -1763,58 +1633,21 @@ const Roles = () => {
                                 {/* TAB 3: GLOBAL PERMISSIONS */}
                                 {activeModalTab === 'global' && (
                                     <div className="space-y-6 animate-fadeIn">
-                                        {/* Guide banner + Quick Global Toggles */}
-                                        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/90 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                            <div>
-                                                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                                                    <LuGlobe size={14} className="text-emerald-600" />
-                                                    Global Permissions Guide
-                                                </h3>
-                                                <p className="text-xs text-slate-500 mt-0.5">
-                                                    These permissions apply globally across the system and are independent of user hierarchy levels.
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAllGlobal(false)}
-                                                    className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition cursor-pointer"
-                                                >
-                                                    Disable All
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAllGlobal(true)}
-                                                    className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition cursor-pointer"
-                                                >
-                                                    Enable All
-                                                </button>
-                                                <div className="h-4 w-[1px] bg-slate-200 mx-0.5 hidden sm:block"></div>
-                                                <button
-                                                    type="button"
-                                                    onClick={toggleAllGlobalCollapse}
-                                                    className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1"
-                                                >
-                                                    {areAllGlobalCollapsed ? (
-                                                        <>
-                                                            <LuChevronDown size={13} />
-                                                            <span>Expand All</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <LuChevronUp size={13} />
-                                                            <span>Collapse All</span>
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
+                                        {/* Guide banner */}
+                                        <div className="bg-slate-100 rounded-2xl p-4 border border-slate-300">
+                                            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                                <LuGlobe size={14} className="text-emerald-600" />
+                                                Global Permissions Guide
+                                            </h3>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                These permissions apply globally across the system and are independent of user hierarchy levels.
+                                            </p>
                                         </div>
 
                                         {/* Grouped Global Categories */}
                                         <div className="space-y-4">
                                             {GLOBAL_GROUPS.map((group) => {
                                                 const GroupIcon = group.icon;
-                                                const isCollapsed = !!collapsedGroups[group.id];
                                                 const visiblePermissions = group.permissions.filter(p => {
                                                     if (p.adminOnly) {
                                                         return formData.id === 1 || formData.id === 3 || !formData.id;
@@ -1834,22 +1667,15 @@ const Roles = () => {
                                                 return (
                                                     <div
                                                         key={group.id}
-                                                        className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
-                                                            isCollapsed
-                                                                ? (t.borderCollapsed || 'border-slate-200/80 bg-slate-50/40')
-                                                                : `${t.border || 'border-slate-200/90'} bg-white`
-                                                        }`}
+                                                        className={`rounded-2xl border transition-all duration-200 overflow-hidden ${t.border || 'border-slate-200/90'} bg-white`}
                                                     >
                                                         {/* Main Section Header Banner */}
                                                         <div 
-                                                            className={`p-4 sm:p-5 transition-colors duration-150 cursor-pointer select-none group/hdr ${
-                                                                isCollapsed ? 'hover:bg-white/60' : `${t.headerBg || 'bg-slate-50'} border-b border-slate-200/60`
-                                                            }`}
-                                                            onClick={() => toggleGroupCollapse(group.id)}
+                                                            className={`p-4 sm:p-5 ${t.headerBg || 'bg-slate-50'} border-b border-slate-200/60`}
                                                         >
                                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                                                 <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover/hdr:scale-105 duration-200 ${
+                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                                                                         t.iconContainer || 'bg-emerald-600 text-white shadow-sm'
                                                                     }`}>
                                                                         <GroupIcon size={20} />
@@ -1873,8 +1699,8 @@ const Roles = () => {
                                                                                 {activeCount}/{visiblePermissions.length} Active
                                                                             </span>
                                                                         </div>
-                                                                        <h4 className={`text-sm sm:text-base font-black tracking-tight leading-tight transition ${
-                                                                            t.titleText || 'text-slate-900'
+                                                                        <h4 className={`text-sm sm:text-base font-black tracking-tight leading-tight ${
+                                                                            t.titleText ? t.titleText.replace(/group-hover\/hdr:[^\s]+/g, '') : 'text-slate-900'
                                                                         }`}>
                                                                             {group.title}
                                                                         </h4>
@@ -1882,8 +1708,8 @@ const Roles = () => {
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Group Action Controls & Animated Chevron */}
-                                                                <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                                {/* Group Action Controls */}
+                                                                <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
                                                                     <div className="flex items-center gap-1 bg-white/80 p-1 rounded-lg border border-slate-200/80 shadow-2xs">
                                                                         <button
                                                                             type="button"
@@ -1902,88 +1728,72 @@ const Roles = () => {
                                                                             Enable All
                                                                         </button>
                                                                     </div>
-
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => toggleGroupCollapse(group.id)}
-                                                                        className="p-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-500 hover:text-slate-800 hover:bg-slate-100 shadow-2xs transition cursor-pointer"
-                                                                        title={isCollapsed ? "Expand section" : "Collapse section"}
-                                                                    >
-                                                                        <LuChevronDown 
-                                                                            size={18} 
-                                                                            className={`transform transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`} 
-                                                                        />
-                                                                    </button>
                                                                 </div>
                                                             </div>
                                                         </div>
 
-                                                        {/* Inner Interactive Cards Grid */}
-                                                        {!isCollapsed && (
-                                                            <div className="p-4 sm:p-5 bg-slate-50/50 animate-fadeIn">
-                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                                    {visiblePermissions.map((perm) => {
-                                                                        const PermIcon = perm.icon;
-                                                                        const isDisabled = perm.disabledFor && perm.disabledFor.includes(formData.name);
-                                                                        const isChecked = perm.key === 'can_manage_system_settings'
-                                                                            ? formData.can_manage_system_settings === 'all'
-                                                                            : !!formData[perm.key];
+                                                        {/* Inner Interactive Cards List */}
+                                                        <div className="p-4 sm:p-5 bg-white space-y-3">
+                                                            {visiblePermissions.map((perm) => {
+                                                                const PermIcon = perm.icon;
+                                                                const isDisabled = perm.disabledFor && perm.disabledFor.includes(formData.name);
+                                                                const isChecked = perm.key === 'can_manage_system_settings'
+                                                                    ? formData.can_manage_system_settings === 'all'
+                                                                    : !!formData[perm.key];
 
-                                                                        return (
-                                                                            <div
-                                                                                key={perm.key}
-                                                                                onClick={() => !isDisabled && toggleGlobalPermission(perm.key)}
-                                                                                className={`flex items-start justify-between gap-3 p-3.5 rounded-xl border transition duration-150 select-none ${
-                                                                                    isDisabled
-                                                                                        ? 'bg-slate-100/70 border-slate-200 opacity-60 cursor-not-allowed'
-                                                                                        : isChecked
-                                                                                            ? 'bg-emerald-50/50 border-emerald-200/90 shadow-2xs cursor-pointer hover:border-emerald-300'
-                                                                                            : 'bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer shadow-2xs'
-                                                                                }`}
-                                                                            >
-                                                                                <div className="flex items-start gap-2.5 min-w-0">
-                                                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                                                                                        isChecked
-                                                                                            ? 'bg-emerald-600 text-white shadow-xs'
-                                                                                            : 'bg-slate-100 text-slate-400'
-                                                                                    }`}>
-                                                                                        <PermIcon size={16} />
-                                                                                    </div>
-                                                                                    <div className="min-w-0">
-                                                                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                                                                            <span className={`text-xs font-bold leading-tight ${
-                                                                                                isChecked ? 'text-emerald-950' : 'text-slate-800'
-                                                                                            }`}>
-                                                                                                {perm.title}
-                                                                                            </span>
-                                                                                            {isDisabled && (
-                                                                                                <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-slate-200 text-slate-600">
-                                                                                                    Locked
-                                                                                                </span>
-                                                                                            )}
-                                                                                        </div>
-                                                                                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                                                                                            {perm.description}
-                                                                                        </p>
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                {/* iOS Toggle Switch */}
-                                                                                <div className="flex-shrink-0 pt-0.5">
-                                                                                    <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                                                                                        isChecked ? 'bg-emerald-600' : 'bg-slate-200'
-                                                                                    }`}>
-                                                                                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition duration-200 shadow-sm ${
-                                                                                            isChecked ? 'translate-x-4.5' : 'translate-x-1'
-                                                                                        }`} />
-                                                                                    </div>
-                                                                                </div>
+                                                                return (
+                                                                    <div
+                                                                        key={perm.key}
+                                                                        onClick={() => !isDisabled && toggleGlobalPermission(perm.key)}
+                                                                        className={`flex items-center justify-between gap-3 p-3.5 rounded-xl border transition duration-150 select-none shadow-xs ${
+                                                                            isDisabled
+                                                                                ? 'bg-slate-300/60 border-slate-400/50 opacity-60 cursor-not-allowed'
+                                                                                : isChecked
+                                                                                    ? 'bg-slate-300 border-emerald-500 ring-1 ring-emerald-500/25 shadow-xs cursor-pointer hover:border-emerald-600'
+                                                                                    : 'bg-slate-300 border-slate-400/80 hover:border-slate-500 hover:bg-slate-300/90 cursor-pointer'
+                                                                        }`}
+                                                                    >
+                                                                        <div className="flex items-start gap-3 min-w-0">
+                                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                                                                isChecked
+                                                                                    ? 'bg-emerald-600 text-white shadow-xs'
+                                                                                    : 'bg-white text-slate-500 border border-slate-300 shadow-xs'
+                                                                            }`}>
+                                                                                <PermIcon size={16} />
                                                                             </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                                            <div className="min-w-0">
+                                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                    <span className={`text-xs font-bold leading-tight ${
+                                                                                        isChecked ? 'text-emerald-950 font-black' : 'text-slate-900'
+                                                                                    }`}>
+                                                                                        {perm.title}
+                                                                                    </span>
+                                                                                    {isDisabled && (
+                                                                                        <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-slate-400/30 text-slate-700 border border-slate-400/50">
+                                                                                            Locked
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <p className="text-[11px] text-slate-700 font-medium mt-0.5 leading-snug">
+                                                                                    {perm.description}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* iOS Toggle Switch */}
+                                                                        <div className="flex-shrink-0">
+                                                                            <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
+                                                                                isChecked ? 'bg-emerald-600' : 'bg-slate-400/90'
+                                                                            }`}>
+                                                                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition duration-200 shadow-sm ${
+                                                                                    isChecked ? 'translate-x-4.5' : 'translate-x-1'
+                                                                                }`} />
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
