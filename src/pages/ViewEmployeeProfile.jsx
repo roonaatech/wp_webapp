@@ -1293,22 +1293,29 @@ const ViewEmployeeProfile = () => {
                                 </div>
                             )}
 
-                            <div className="flex items-center gap-3 py-1">
-                                <input
-                                    type="checkbox"
-                                    id="abis_access"
-                                    checked={approvalForm.abis_access}
-                                    onChange={(e) => setApprovalForm(prev => ({ ...prev, abis_access: e.target.checked }))}
-                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
-                                />
-                                <label htmlFor="abis_access" className="text-sm font-semibold text-slate-700 select-none cursor-pointer">
-                                    Enable ABIS Access
+                            <div className={`p-3.5 rounded-xl border transition-all ${approvalForm.abis_access ? 'bg-blue-50/60 border-blue-200' : 'bg-slate-50 border-slate-200'}`}>
+                                <label htmlFor="abis_access" className="flex items-center justify-between cursor-pointer select-none">
+                                    <div className="flex items-center gap-2.5">
+                                        <input
+                                            type="checkbox"
+                                            id="abis_access"
+                                            checked={approvalForm.abis_access}
+                                            onChange={(e) => setApprovalForm(prev => ({ ...prev, abis_access: e.target.checked }))}
+                                            className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                            Grant ABIS Application Access
+                                        </span>
+                                    </div>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${approvalForm.abis_access ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+                                        {approvalForm.abis_access ? 'Active Access' : 'Disabled'}
+                                    </span>
                                 </label>
                             </div>
 
                             {/* Leave Allocation Option */}
-                            <div className="pt-3 border-t border-slate-100">
-                                <div className="flex items-center justify-between mb-2">
+                            <div className={`p-3.5 rounded-xl border transition-all ${approvalForm.allocate_leaves ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                                <div className="flex items-center justify-between">
                                     <label htmlFor="allocate_leaves" className="flex items-center gap-2.5 cursor-pointer select-none">
                                         <input
                                             type="checkbox"
@@ -1317,11 +1324,11 @@ const ViewEmployeeProfile = () => {
                                             onChange={(e) => setApprovalForm(prev => ({ ...prev, allocate_leaves: e.target.checked }))}
                                             className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
                                         />
-                                        <span className="text-sm font-bold text-slate-700">
+                                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                                             Allocate Initial Leaves
                                         </span>
                                     </label>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-white border border-emerald-300 px-2 py-0.5 rounded-full">
                                         6 + 6 Days
                                     </span>
                                 </div>
