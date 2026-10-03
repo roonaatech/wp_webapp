@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.5](https://github.com/roonaatech/wp_webapp/compare/v2.17.4...v2.17.5) (2026-10-03)
+
+
+### Features
+
+* add change history tab and tracking features to user management profile view ([4e5e048](https://github.com/roonaatech/wp_webapp/commit/4e5e0480945fb98e33588d01b3e8bafea3e8656e))
+
 ### [2.17.4](https://github.com/roonaatech/wp_webapp/compare/v2.17.3...v2.17.4) (2026-10-03)
 
 
