@@ -255,6 +255,7 @@ function App() {
 
             {/* Protected Routes */}
             <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+            <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
             <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
             <Route path="/service-accounts" element={<ProtectedLayout><ServiceAccounts /></ProtectedLayout>} />
             <Route path="/attendance" element={<ProtectedLayout><Attendance /></ProtectedLayout>} />

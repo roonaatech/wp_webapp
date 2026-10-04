@@ -139,9 +139,15 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
         if (currentPath === '/my-requests' || currentPath === '/my-badge' || currentPath === '/verify-profile') {
             return <Navigate to="/unauthorized" replace />;
         }
-        // Redirect home page to attendance portal or unauthorized
+        // Redirect home page to context_path, attendance portal, or allow dashboard
         if (currentPath === '/') {
-            if (canAccessAttendancePortal(user.role)) {
+            if (user.context_path && user.context_path !== '/') {
+                return <Navigate to={user.context_path} replace />;
+            } else if (canAccessAttendancePortal(user.role) && !canAccessWebApp(user.role)) {
+                return <Navigate to="/attendance" replace />;
+            } else if (canAccessWebApp(user.role)) {
+                // Allowed to view / (Dashboard)
+            } else if (canAccessAttendancePortal(user.role)) {
                 return <Navigate to="/attendance" replace />;
             } else {
                 return <Navigate to="/unauthorized" replace />;
@@ -160,7 +166,11 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
     if (!isSelfServiceRoute) {
         // 1. Gating: If user doesn't have webapp access at all, they belong in /my-requests
         if (!canAccessWebApp(user.role)) {
-            return <Navigate to="/my-requests" replace />;
+            if (isAttendanceRoute && canAccessAttendancePortal(user.role)) {
+                // Allowed into attendance kiosk/portal
+            } else {
+                return <Navigate to="/my-requests" replace />;
+            }
         }
 
         // 2. Navigation: If they ONLY have web access (no management permissions), 

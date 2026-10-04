@@ -90,7 +90,8 @@ const Login = () => {
             gender: data.gender,
             work_mode: normalizeWorkMode(data.work_mode),
             hybrid_office_days: data.hybrid_office_days || [],
-            isServiceAccount: data.isServiceAccount === true
+            isServiceAccount: data.isServiceAccount === true,
+            context_path: data.context_path || null
         };
 
         // Role & Gender Validation (First Time / Setup Required)
@@ -139,6 +140,16 @@ const Login = () => {
         // Gating Check: If user must change password, sign declaration, or complete first-time setup
         if (mustChangePassword || mustCompleteDeclaration || data.isFirstLogin || data.isFirstTimeLogin) {
             navigate('/verify-profile');
+            return;
+        }
+
+        // Service Account Context Path redirection
+        if (user.isServiceAccount && user.context_path) {
+            let targetPath = user.context_path.trim();
+            if (!targetPath.startsWith('/')) {
+                targetPath = '/' + targetPath;
+            }
+            navigate(targetPath);
             return;
         }
 

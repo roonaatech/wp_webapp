@@ -38,7 +38,8 @@ const ServiceAccounts = () => {
         email: '',
         password: '',
         role_id: '',
-        active: true
+        active: true,
+        context_path: ''
     });
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -123,6 +124,10 @@ const ServiceAccounts = () => {
                     aValue = a.active ? 1 : 0;
                     bValue = b.active ? 1 : 0;
                     break;
+                case 'context_path':
+                    aValue = (a.context_path || '').toString().toLowerCase();
+                    bValue = (b.context_path || '').toString().toLowerCase();
+                    break;
                 case 'last_login':
                     aValue = a.last_login ? new Date(a.last_login).getTime() : 0;
                     bValue = b.last_login ? new Date(b.last_login).getTime() : 0;
@@ -146,7 +151,8 @@ const ServiceAccounts = () => {
             email: '',
             password: '',
             role_id: roles[0]?.id || '',
-            active: true
+            active: true,
+            context_path: ''
         });
         setShowPassword(false);
         setShowModal(true);
@@ -159,7 +165,8 @@ const ServiceAccounts = () => {
             email: account.email,
             password: '', // keep blank unless rotating secret
             role_id: account.role_id,
-            active: account.active
+            active: account.active,
+            context_path: account.context_path || ''
         });
         setShowPassword(false);
         setShowModal(true);
@@ -206,7 +213,8 @@ const ServiceAccounts = () => {
                     name: formData.name,
                     email: formData.email,
                     role_id: parseInt(formData.role_id),
-                    active: formData.active
+                    active: formData.active,
+                    context_path: formData.context_path ? formData.context_path.trim() : null
                 };
                 if (formData.password) {
                     updatePayload.password = formData.password;
@@ -221,7 +229,8 @@ const ServiceAccounts = () => {
                     name: formData.name,
                     email: formData.email,
                     password: formData.password,
-                    role_id: parseInt(formData.role_id)
+                    role_id: parseInt(formData.role_id),
+                    context_path: formData.context_path ? formData.context_path.trim() : null
                 };
                 await axios.post(`${API_BASE_URL}/api/admin/service-accounts`, createPayload, {
                     headers: { 'x-access-token': token }
@@ -316,6 +325,14 @@ const ServiceAccounts = () => {
                             </th>
                             <th className="px-6 py-3 text-left">
                                 <button
+                                    onClick={() => handleSort('context_path')}
+                                    className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
+                                >
+                                    Context Path <TableSortIcon column="context_path" sortConfig={sortConfig} />
+                                </button>
+                            </th>
+                            <th className="px-6 py-3 text-left">
+                                <button
                                     onClick={() => handleSort('last_login')}
                                     className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest hover:text-[#0ea5e9] transition-colors"
                                 >
@@ -328,7 +345,7 @@ const ServiceAccounts = () => {
                     <tbody>
                         {accounts.length === 0 ? (
                             <tr>
-                                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                                     No service accounts found
                                 </td>
                             </tr>
@@ -349,6 +366,17 @@ const ServiceAccounts = () => {
                                             }`}>
                                             {account.active ? 'Active' : 'Inactive'}
                                         </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {account.context_path ? (
+                                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-mono font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                                                {account.context_path}
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-gray-400 italic">
+                                                Default (/)
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-gray-600 text-sm">
                                         {account.last_login
@@ -468,6 +496,23 @@ const ServiceAccounts = () => {
                                 </select>
                                 <p className="text-xs text-gray-500 mt-2">
                                     Reuses existing Roles and permissions policy structure.
+                                </p>
+                            </div>
+
+                            {/* Context Path (Landing Route) */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Context Path (Landing Route)
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g., /dashboard or /attendance"
+                                    value={formData.context_path}
+                                    onChange={(e) => setFormData({ ...formData, context_path: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 font-mono text-sm"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Target URL path to automatically navigate to after login (e.g. <span className="font-mono text-blue-600 font-medium">/dashboard</span>, <span className="font-mono text-blue-600 font-medium">/attendance</span>).
                                 </p>
                             </div>
 
