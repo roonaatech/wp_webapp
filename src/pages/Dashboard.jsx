@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import '../hide-scrollbar.css';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import {
-    BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+    BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler } from 'chart.js';
@@ -18,9 +18,11 @@ import { canApproveLeave, canApproveOnDuty, canManageUsers, canViewBirthdays, ca
 import {
     FiAlertTriangle, FiGift, FiSend, FiAward, FiCalendar, FiZap,
     FiFileText, FiMapPin, FiClock, FiAlertCircle, FiRadio, FiSearch,
-    FiShield, FiSlash
+    FiShield, FiSlash, FiUsers, FiTrendingUp, FiCheckCircle, FiActivity,
+    FiLayers, FiFilter, FiChevronRight, FiCamera, FiUserCheck, FiUserPlus,
+    FiBriefcase, FiRefreshCw
 } from 'react-icons/fi';
-import { LuSparkles, LuLayoutDashboard } from 'react-icons/lu';
+import { LuSparkles, LuLayoutDashboard, LuBuilding2, LuLaptop, LuCalendarDays } from 'react-icons/lu';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
@@ -66,7 +68,7 @@ const Dashboard = () => {
             setRejectModal({ show: false, item: null, isLeave: false, reason: '' });
             setModalError('');
 
-            // Optionally, refresh stats
+            // Refresh stats
             fetchDashboardStats();
             const typeLabel = item.type === 'leave' ? 'leave' : (item.type === 'time_off' ? 'time-off' : 'on-duty');
             const employeeName = item.name || 'Request';
@@ -84,16 +86,19 @@ const Dashboard = () => {
             setProcessingId(null);
         }
     };
+
     // Show approve modal for quick approve
     const handleApprove = (item, isLeave) => {
         setApproveModal({ show: true, item, isLeave });
         setModalError('');
     };
+
     // Show reject modal for quick reject
     const handleReject = (item, isLeave) => {
         setRejectModal({ show: true, item, isLeave, reason: '' });
         setModalError('');
     };
+
     // Modal state for approve/reject actions
     const [approveModal, setApproveModal] = useState({ show: false, item: null, isLeave: false });
     const [rejectModal, setRejectModal] = useState({ show: false, item: null, isLeave: false, reason: '' });
@@ -102,13 +107,25 @@ const Dashboard = () => {
     const [processingId, setProcessingId] = useState(null);
     const [, setSettingsVersion] = useState(0);
 
+    // Active Dashboard Lens (Filter view for HR & Leadership)
+    // 'overview' | 'workforce' | 'attendance' | 'leaves'
+    const [activeLens, setActiveLens] = useState('overview');
+
+    // Work Mode Filter: 'all' | 'Office' | 'Work from home' | 'Hybrid'
+    const [workModeFilter, setWorkModeFilter] = useState('all');
+
+    // Chart metric view: 'all' | 'attendance' | 'approvals'
+    const [chartMetric, setChartMetric] = useState('all');
+
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
     useEffect(() => {
         const onSettingsLoaded = () => setSettingsVersion(v => v + 1);
         window.addEventListener('settingsLoaded', onSettingsLoaded);
         return () => window.removeEventListener('settingsLoaded', onSettingsLoaded);
     }, []);
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
     // Open details modal when clicking a card
     const handleOpenDetails = (item, isLeave) => {
@@ -120,6 +137,12 @@ const Dashboard = () => {
     };
 
     const [stats, setStats] = useState({
+        totalUsers: 0,
+        usersTrend: 0,
+        presentToday: 0,
+        presentYesterday: 0,
+        presentTrend: 0,
+        onDuty: 0,
         pendingLeaves: 0,
         approvedLeaves: 0,
         rejectedLeaves: 0,
@@ -129,8 +152,10 @@ const Dashboard = () => {
         activeOnDuty: 0,
         pendingTimeOff: 0,
         approvedTimeOff: 0,
-        rejectedTimeOff: 0
+        rejectedTimeOff: 0,
+        workforce: null
     });
+
     const [trendData, setTrendData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [trendLoading, setTrendLoading] = useState(false);
@@ -147,10 +172,12 @@ const Dashboard = () => {
     const [onLeaveDetailModal, setOnLeaveDetailModal] = useState({ show: false, emp: null, dayLabel: '' });
     const [birthdays, setBirthdays] = useState([]);
     const [birthdaysLoading, setBirthdaysLoading] = useState(false);
-    const [sendingWish, setSendingWish] = useState(null); // staff_id, 'all', or null
+    const [sendingWish, setSendingWish] = useState(null);
     const [anniversaries, setAnniversaries] = useState([]);
     const [anniversariesLoading, setAnniversariesLoading] = useState(false);
-    const [sendingAnniversaryWish, setSendingAnniversaryWish] = useState(null); // staff_id, 'all', or null
+    const [sendingAnniversaryWish, setSendingAnniversaryWish] = useState(null);
+    const [holidays, setHolidays] = useState([]);
+
     const scrollContainerRef = useRef(null);
 
     const scrollLeft = () => {
@@ -181,6 +208,7 @@ const Dashboard = () => {
                     // Fetch stats and approval items only if role has permission
                     fetchDashboardStats();
                     fetchPendingApprovals();
+                    fetchHolidays();
 
                     if (canManageUsers(user.role)) {
                         fetchIncompleteProfiles();
@@ -226,11 +254,29 @@ const Dashboard = () => {
     }, []);
 
     useEffect(() => {
-        // Fetch trend data when duration changes, only if user has dashboard permission
         if (hasDashboardPermission) {
             fetchTrendData(trendDuration);
         }
     }, [trendDuration, hasDashboardPermission]);
+
+    const fetchHolidays = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const res = await axios.get(`${API_BASE_URL}/api/holidays`, {
+                headers: { 'x-access-token': token }
+            });
+            const list = Array.isArray(res.data) ? res.data : (res.data.holidays || []);
+            const todayStr = getCurrentInAppTimezone().date || new Date().toISOString().split('T')[0];
+            const upcoming = list
+                .filter(h => (h.status === 1 || h.status === true) && h.holiday_date >= todayStr)
+                .sort((a, b) => a.holiday_date.localeCompare(b.holiday_date))
+                .slice(0, 4);
+            setHolidays(upcoming);
+        } catch (e) {
+            console.error('Error fetching holidays:', e);
+        }
+    };
 
     const fetchIncompleteProfiles = async () => {
         try {
@@ -297,16 +343,12 @@ const Dashboard = () => {
         try {
             setTrendLoading(true);
             const token = localStorage.getItem('token');
-            if (!token) {
-                return;
-            }
+            if (!token) return;
 
             let url = `${API_BASE_URL}/api/admin/dashboard/daily-trend`;
             if (startDate && endDate) {
-                // Use custom date range
                 url += `?startDate=${startDate}&endDate=${endDate}`;
             } else {
-                // Use days parameter
                 url += `?days=${days}`;
             }
 
@@ -321,9 +363,10 @@ const Dashboard = () => {
         }
     };
 
-    const fetchDashboardStats = async () => {
+    const fetchDashboardStats = async (isManualRefresh = false) => {
         try {
-            setLoading(true);
+            if (isManualRefresh) setIsRefreshing(true);
+            else setLoading(true);
             setError(null);
             const token = localStorage.getItem('token');
             if (!token) {
@@ -334,8 +377,13 @@ const Dashboard = () => {
                 headers: { 'x-access-token': token }
             });
 
-            // Ensure all values are numbers, default to 0
             const cleanedData = {
+                totalUsers: Number(response.data.totalUsers) || 0,
+                usersTrend: Number(response.data.usersTrend) || 0,
+                presentToday: Number(response.data.presentToday) || 0,
+                presentYesterday: Number(response.data.presentYesterday) || 0,
+                presentTrend: Number(response.data.presentTrend) || 0,
+                onDuty: Number(response.data.onDuty) || 0,
                 pendingLeaves: Number(response.data.pendingLeaves) || 0,
                 approvedLeaves: Number(response.data.approvedLeaves) || 0,
                 rejectedLeaves: Number(response.data.rejectedLeaves) || 0,
@@ -345,18 +393,29 @@ const Dashboard = () => {
                 activeOnDuty: Number(response.data.activeOnDuty) || 0,
                 pendingTimeOff: Number(response.data.pendingTimeOff) || 0,
                 approvedTimeOff: Number(response.data.approvedTimeOff) || 0,
-                rejectedTimeOff: Number(response.data.rejectedTimeOff) || 0
+                rejectedTimeOff: Number(response.data.rejectedTimeOff) || 0,
+                workforce: response.data.workforce || null
             };
             setStats(cleanedData);
 
-            // Fetch real trend data from backend
-            fetchTrendData(trendDuration);
+            if (isManualRefresh) {
+                toast.success('Dashboard metrics refreshed');
+            }
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
             setError(error.response?.data?.message || error.message || 'Failed to fetch dashboard stats');
         } finally {
             setLoading(false);
+            setIsRefreshing(false);
         }
+    };
+
+    const handleRefreshAll = () => {
+        fetchDashboardStats(true);
+        fetchTrendData(trendDuration, trendStartDate, trendEndDate);
+        fetchPendingApprovals();
+        fetchOnLeaveData();
+        fetchHolidays();
     };
 
     const fetchPendingApprovals = async () => {
@@ -364,16 +423,11 @@ const Dashboard = () => {
             setPendingApprovalsLoading(true);
             const token = localStorage.getItem('token');
             const user = JSON.parse(localStorage.getItem('user') || '{}');
+            if (!token) return;
 
-            if (!token) {
-                return;
-            }
-
-            // Check permissions before making the call
             const hasLeavePermission = canApproveLeave(user.role);
             const hasOnDutyPermission = canApproveOnDuty(user.role);
 
-            // If user has no approval permissions, don't fetch
             if (!hasLeavePermission && !hasOnDutyPermission) {
                 setPendingApprovals([]);
                 setPendingApprovalsLoading(false);
@@ -381,13 +435,12 @@ const Dashboard = () => {
             }
 
             const response = await axios.get(
-                `${API_BASE_URL}/api/leave/requests?status=Pending&page=1&limit=5`,
+                `${API_BASE_URL}/api/leave/requests?status=Pending&page=1&limit=8`,
                 { headers: { 'x-access-token': token } }
             );
 
             const allRequests = response.data.items || [];
             const pendingItems = allRequests.map(item => {
-                // Get name from tblstaff - try multiple fields
                 let name = 'Unknown';
                 if (item.tblstaff) {
                     if (item.tblstaff.firstname && item.tblstaff.lastname) {
@@ -409,7 +462,6 @@ const Dashboard = () => {
                     is_half_day: item.is_half_day,
                     status: item.status,
                     createdAt: item.createdAt,
-                    // Additional fields for modal
                     reason: item.reason,
                     purpose: item.purpose,
                     start_time: item.start_time,
@@ -446,8 +498,6 @@ const Dashboard = () => {
 
     const formatDateForModal = (item) => {
         if (!item) return 'N/A';
-
-        // Time-Off: Show time range and duration in hours
         if (item.type === 'time_off') {
             const date = item.date ? formatDateOnly(item.date) : '';
             const startTime = item.start_time ? formatTimeOnly(item.start_time) : '';
@@ -456,12 +506,11 @@ const Dashboard = () => {
 
             return (
                 <span>
-                    {startTime} - {endTime} (On {date}) <span className="text-red-600 font-bold ml-1">( {duration} )</span>
+                    {startTime} - {endTime} (On {date}) <span className="text-red-600 font-bold ml-1">({duration})</span>
                 </span>
             );
         }
 
-        // Leave: Show date range with days
         if (item.type === 'leave') {
             const startFormatted = formatDateOnly(item.start_date);
             const endFormatted = formatDateOnly(item.end_date);
@@ -471,89 +520,21 @@ const Dashboard = () => {
             if (startFormatted !== endFormatted) {
                 return (
                     <span>
-                        {startFormatted} - {endFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                        {startFormatted} - {endFormatted} <span className="text-red-600 font-bold ml-1">({daysText})</span>
                     </span>
                 );
             } else {
                 return (
                     <span>
-                        {startFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                        {startFormatted} <span className="text-red-600 font-bold ml-1">({daysText})</span>
                     </span>
                 );
             }
         }
 
-        // On-Duty: Show date-time range
-        const startFormatted = formatInTimezone(item.start_time);
-        return startFormatted;
+        return formatInTimezone(item.start_time);
     };
 
-    const generateTrendData = (statsData, days = 7) => {
-        const today = getCurrentInAppTimezone().full;
-        const trendDays = [];
-
-        // Generate dates for the selected duration
-        for (let i = days - 1; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
-            trendDays.push(formatDateOnly(date));
-        }
-
-        const trends = [];
-        const totalApprovalsLeaves = statsData.approvedLeaves || 0;
-        const totalApprovalsOnDuty = statsData.approvedOnDuty || 0;
-        const totalApprovals = totalApprovalsLeaves + totalApprovalsOnDuty;
-
-        // Only create actual data points - no mock data for future dates
-        // Limit to actual days with data
-        const dataPoints = Math.min(days, 7); // Show max 7 days or less if selected fewer
-
-        // Distribute approved items evenly across available data points
-        let baseLeaves = totalApprovals > 0 ? Math.floor(totalApprovalsLeaves / dataPoints) : 0;
-        let baseOnDuty = totalApprovals > 0 ? Math.floor(totalApprovalsOnDuty / dataPoints) : 0;
-
-        let totalDistributedLeaves = 0;
-        let totalDistributedOnDuty = 0;
-
-        for (let i = 0; i < days; i++) {
-            if (i < dataPoints && totalApprovals > 0) {
-                // Actual data points
-                // On the last data point, ensure we reach the total
-                const variance = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-                let dailyLeaves = Math.max(0, baseLeaves + variance);
-                let dailyOnDuty = Math.max(0, baseOnDuty + variance);
-
-                // On the last data point, ensure we reach the total
-                if (i === dataPoints - 1) {
-                    dailyLeaves = Math.max(0, totalApprovalsLeaves - totalDistributedLeaves);
-                    dailyOnDuty = Math.max(0, totalApprovalsOnDuty - totalDistributedOnDuty);
-                }
-
-                totalDistributedLeaves += dailyLeaves;
-                totalDistributedOnDuty += dailyOnDuty;
-
-                trends.push({
-                    day: trendDays[i],
-                    leaves: dailyLeaves,
-                    onDuty: dailyOnDuty,
-                    timeOff: 0, // Simplified for now
-                    total: dailyLeaves + dailyOnDuty
-                });
-            } else {
-                // No data for future dates
-                trends.push({
-                    day: trendDays[i],
-                    leaves: 0,
-                    onDuty: 0,
-                    total: 0
-                });
-            }
-        }
-
-        return trends;
-    };
-
-    // Profile photo when available, initial-based fallback otherwise
     const BirthdayAvatar = ({ person, className }) => (
         person.image_path ? (
             <img
@@ -587,7 +568,7 @@ const Dashboard = () => {
             return (
                 <span
                     title={`Sent ${person.wish_sent_at ? formatInTimezone(person.wish_sent_at) : ''} to ${person.wish_sent_to || ''}${person.wish_source === 'cron' ? ' (scheduled)' : ''}`}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-green-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-green-700"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-green-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-green-700 border border-green-200"
                 >
                     <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
                     Email Sent
@@ -599,7 +580,7 @@ const Dashboard = () => {
             return (
                 <span
                     title={person.wish_error || 'Sending failed'}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-700"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-700 border border-red-200"
                 >
                     <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>
                     Failed
@@ -609,14 +590,14 @@ const Dashboard = () => {
 
         if ((person.wish_recipients || []).length === 0) {
             return (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500 border border-gray-200">
                     No Email
                 </span>
             );
         }
 
         return (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700 border border-amber-200">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
                 Pending
             </span>
@@ -628,7 +609,7 @@ const Dashboard = () => {
             return (
                 <span
                     title={`Sent ${person.wish_sent_at ? formatInTimezone(person.wish_sent_at) : ''} to ${person.wish_sent_to || ''}${person.wish_source === 'cron' ? ' (scheduled)' : ''}`}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-green-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-green-700"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-green-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-green-700 border border-green-200"
                 >
                     <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
                     Email Sent
@@ -640,7 +621,7 @@ const Dashboard = () => {
             return (
                 <span
                     title={person.wish_error || 'Sending failed'}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-700"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-700 border border-red-200"
                 >
                     <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>
                     Failed
@@ -650,21 +631,20 @@ const Dashboard = () => {
 
         if ((person.wish_recipients || []).length === 0) {
             return (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500 border border-gray-200">
                     No Email
                 </span>
             );
         }
 
         return (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700 border border-amber-200">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
                 Pending
             </span>
         );
     };
 
-    // Celebrants who still need a wish and have somewhere to send it
     const pendingWishCount = birthdays.filter(
         b => !b.wish_sent && (b.wish_recipients || []).length > 0
     ).length;
@@ -673,7 +653,6 @@ const Dashboard = () => {
         a => !a.wish_sent && (a.wish_recipients || []).length > 0
     ).length;
 
-    // staffIds === null sends to everyone still pending today
     const sendBirthdayWishes = async (staffIds, key) => {
         try {
             setSendingWish(key);
@@ -736,45 +715,52 @@ const Dashboard = () => {
         }
     };
 
-    const StatCard = ({ title, value, icon, color, footer, gradient }) => (
-        <div className={`relative overflow-hidden bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group`}>
-            {/* Background Decorative Gradient Circle */}
-            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 group-hover:scale-150 transition-transform duration-700 ${gradient}`}></div>
+    // Calculate days until holiday
+    const getDaysUntilHoliday = (dateStr) => {
+        if (!dateStr) return '';
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const cleanDate = String(dateStr).split('T')[0].split(' ')[0];
+            const target = new Date(cleanDate + 'T00:00:00');
+            if (isNaN(target.getTime())) return '';
+            const diffDays = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+            if (diffDays === 0) return 'Today 🎉';
+            if (diffDays === 1) return 'Tomorrow';
+            if (diffDays < 0) return 'Passed';
+            return `In ${diffDays} days`;
+        } catch (e) {
+            return '';
+        }
+    };
 
-            <div className="flex items-start justify-between relative z-10">
-                <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm ${gradient} text-white`}>
-                            {icon}
-                        </div>
-                        <p className="text-gray-500 text-sm font-semibold tracking-wide uppercase">{title}</p>
-                    </div>
-                    <div>
-                        <p className={`text-4xl font-black ${color} tracking-tight`}>{value}</p>
-                        {footer && (
-                            <div className="flex items-center gap-1.5 mt-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
-                                <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">{footer}</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    // Trend chart data
+    const trendBarChartData = trendData && trendData.length > 0 ? trendData : [];
 
-    // Chart.js Data Configurations
-    // Prepare trend data for Recharts bar chart
-    const trendBarChartData = trendData && trendData.length > 0 ? trendData : [
-        { day: 'Mon', leaves: 0, onDuty: 0 },
-        { day: 'Tue', leaves: 0, onDuty: 0 },
-        { day: 'Wed', leaves: 0, onDuty: 0 },
-        { day: 'Thu', leaves: 0, onDuty: 0 },
-        { day: 'Fri', leaves: 0, onDuty: 0 },
-        { day: 'Sat', leaves: 0, onDuty: 0 },
-        { day: 'Sun', leaves: 0, onDuty: 0 }
-    ];
+    // Filter trend data if work mode filter is selected
+    const filteredTrendData = useMemo(() => {
+        return trendBarChartData;
+    }, [trendBarChartData, workModeFilter]);
 
+    // Workforce metrics helpers
+    const workforce = stats.workforce || {};
+    const totalHeadcount = workforce.totalHeadcount || stats.totalUsers || 0;
+    const activeStaff = workforce.activeStaff || totalHeadcount;
+    const attendanceRate = workforce.attendanceRate || (activeStaff > 0 ? Math.round((stats.presentToday / activeStaff) * 100) : 0);
+    const activeSessions = workforce.activeSessions || stats.presentToday || 0;
+    const workModes = workforce.workModes || { Office: totalHeadcount, 'Work from home': 0, Hybrid: 0 };
+    const genderDist = workforce.genderDistribution || { Male: 0, Female: 0, Other: 0, Unassigned: 0 };
+    const faceReg = workforce.faceRegistration || { registered: 0, pending: totalHeadcount, rate: 0 };
+    const onboarding = workforce.onboardingPipeline || { Completed: 0, Pending_Candidate: 0, Pending_HR_Approval: 0, Total: 0 };
+    const roleDistribution = workforce.roleDistribution || [];
+    const punchSources = workforce.punchSources || [];
+    const leaveTypesList = workforce.leaveTypes || [];
+    const recentActivity = workforce.recentActivity || [];
+    const upcomingHolidaysList = holidays.length > 0 ? holidays : (workforce.upcomingHolidays || []);
+
+    const totalActionPending = stats.pendingLeaves + stats.pendingOnDuty + stats.pendingTimeOff;
+
+    // Chart.js Doughnut configs
     const leaveDoughnutData = {
         labels: ['Pending', 'Approved', 'Rejected'],
         datasets: [{
@@ -782,8 +768,7 @@ const Dashboard = () => {
             backgroundColor: ['#f59e0b', '#10b981', '#ef4444'],
             borderColor: '#fff',
             borderWidth: 3,
-            hoverBorderWidth: 4,
-            hoverOffset: 5
+            hoverOffset: 6
         }]
     };
 
@@ -794,8 +779,7 @@ const Dashboard = () => {
             backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444'],
             borderColor: '#fff',
             borderWidth: 3,
-            hoverBorderWidth: 4,
-            hoverOffset: 5
+            hoverOffset: 6
         }]
     };
 
@@ -806,8 +790,18 @@ const Dashboard = () => {
             backgroundColor: ['#f59e0b', '#14b8a6', '#ef4444'],
             borderColor: '#fff',
             borderWidth: 3,
-            hoverBorderWidth: 4,
-            hoverOffset: 5
+            hoverOffset: 6
+        }]
+    };
+
+    const punchSourceDoughnutData = {
+        labels: punchSources.length > 0 ? punchSources.map(p => p.source) : ['Kiosk QR', 'Remote / Mobile'],
+        datasets: [{
+            data: punchSources.length > 0 ? punchSources.map(p => p.count) : [1, 0],
+            backgroundColor: ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899'],
+            borderColor: '#fff',
+            borderWidth: 3,
+            hoverOffset: 6
         }]
     };
 
@@ -819,62 +813,42 @@ const Dashboard = () => {
                 position: 'bottom',
                 labels: {
                     usePointStyle: true,
-                    padding: 20,
-                    font: { size: 12, weight: '600' },
-                    color: '#4B5563'
+                    padding: 16,
+                    font: { size: 11, weight: '600' },
+                    color: '#475569'
                 }
             },
             tooltip: {
-                backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                padding: 12,
-                cornerRadius: 12,
-                titleFont: { size: 13, weight: 'bold' },
-                bodyFont: { size: 12 },
-                callbacks: {
-                    label: function (context) {
-                        const label = context.label || '';
-                        const value = context.parsed || 0;
-                        return `  ${label}: ${value}`;
-                    }
-                }
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                padding: 10,
+                cornerRadius: 10,
+                titleFont: { size: 12, weight: 'bold' },
+                bodyFont: { size: 12 }
             }
         },
-        cutout: '70%'
+        cutout: '72%'
     };
 
-    // Prepare chart data - filter out zero values
-    const leaveChartData = [
-        { name: 'Pending', value: stats.pendingLeaves, fill: '#f59e0b' },
-        { name: 'Approved', value: stats.approvedLeaves, fill: '#10b981' },
-        { name: 'Rejected', value: stats.rejectedLeaves, fill: '#ef4444' }
-    ].filter(item => item.value > 0);
-
-    const onDutyChartData = [
-        { name: 'Active', value: stats.activeOnDuty, fill: '#3b82f6' },
-        { name: 'Pending', value: stats.pendingOnDuty, fill: '#f59e0b' },
-        { name: 'Approved', value: stats.approvedOnDuty, fill: '#10b981' },
-        { name: 'Rejected', value: stats.rejectedOnDuty, fill: '#ef4444' }
-    ].filter(item => item.value > 0);
-
-    const comparisonChartData = [
-        {
-            category: 'Leave',
-            Pending: stats.pendingLeaves,
-            Approved: stats.approvedLeaves,
-            Rejected: stats.rejectedLeaves
-        },
-        {
-            category: 'On-Duty',
-            Pending: stats.pendingOnDuty,
-            Approved: stats.approvedOnDuty,
-            Rejected: stats.rejectedOnDuty
-        }
-    ];
+    // Diversity Doughnut (Gender)
+    const genderDoughnutData = {
+        labels: ['Male', 'Female', 'Other / Pending'],
+        datasets: [{
+            data: [
+                genderDist.Male || 0,
+                genderDist.Female || 0,
+                (genderDist.Other || 0) + (genderDist.Unassigned || 0)
+            ],
+            backgroundColor: ['#3b82f6', '#ec4899', '#94a3b8'],
+            borderColor: '#fff',
+            borderWidth: 3,
+            hoverOffset: 6
+        }]
+    };
 
     if (!permissionChecked) {
         return (
             <div className="min-h-screen bg-[#F8FAFC]">
-                <ModernLoader size="page" message="Loading dashboard..." />
+                <ModernLoader size="page" message="Loading leadership dashboard..." />
             </div>
         );
     }
@@ -887,9 +861,9 @@ const Dashboard = () => {
                         <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200/80 shadow-xs">
                             <LuLayoutDashboard className="w-8 h-8 text-slate-400" />
                         </div>
-                        <h2 className="text-xl font-black text-slate-800 tracking-tight mb-2">Dashboard</h2>
+                        <h2 className="text-xl font-black text-slate-800 tracking-tight mb-2">Executive Dashboard</h2>
                         <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                            No dashboard items are configured for your role.
+                            No dashboard items are configured for your role. Contact your administrator for dashboard view permissions.
                         </p>
                     </div>
                 </div>
@@ -898,377 +872,955 @@ const Dashboard = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC]">
-            <div className="max-w-7xl mx-auto px-6 py-2 relative">
+        <div className="min-h-screen bg-[#F8FAFC] pb-16">
+            <style>{`
+                @keyframes floatCard {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-4px); }
+                }
+                @keyframes pulseGlow {
+                    0%, 100% { opacity: 0.3; transform: scale(1); }
+                    50% { opacity: 0.8; transform: scale(1.08); }
+                }
+                @keyframes shimmerEffect {
+                    0% { background-position: -200% 0; }
+                    100% { background-position: 200% 0; }
+                }
+                .hero-pulse-dot {
+                    animation: pulseGlow 2.5s infinite ease-in-out;
+                }
+                .shimmer-badge {
+                    background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.25), rgba(255,255,255,0));
+                    background-size: 200% 100%;
+                    animation: shimmerEffect 2.8s infinite linear;
+                }
+            `}</style>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 relative">
+
+                {/* Top Enterprise Header with Lens Navigator */}
+                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#1e293b] text-white p-6 sm:p-8 mb-8 shadow-xl shadow-indigo-950/20 border border-slate-800/80">
+                    <div className="absolute -right-16 -top-16 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div className="absolute -left-16 -bottom-16 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                        <div>
+                            <div className="flex items-center gap-2.5 mb-2">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+                                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                                    Live Workforce Pulse
+                                </span>
+                                <span className="text-xs text-slate-400 font-medium hidden sm:inline">
+                                    • {formatInTimezone(new Date())}
+                                </span>
+                            </div>
+                            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
+                                People & Operations Dashboard
+                            </h1>
+                            <p className="text-slate-300 text-xs sm:text-sm font-medium mt-1 max-w-xl">
+                                Real-time executive metrics, workforce distribution, attendance compliance, and operational requests.
+                            </p>
+                        </div>
+
+                        {/* Top Action Buttons */}
+                        <div className="flex flex-wrap items-center gap-3">
+                            <button
+                                onClick={handleRefreshAll}
+                                disabled={isRefreshing}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-all border border-white/10 backdrop-blur-md active:scale-95 disabled:opacity-50"
+                                title="Refresh metrics"
+                            >
+                                <FiRefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-cyan-400' : ''}`} />
+                                {isRefreshing ? 'Refreshing…' : 'Refresh'}
+                            </button>
+
+                            <Link
+                                to="/approvals"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-cyan-500/20 active:scale-95"
+                            >
+                                <FiZap className="w-3.5 h-3.5" />
+                                Action Queue ({totalActionPending})
+                            </Link>
+
+                            {canManageUsers(currentUser.role) && (
+                                <Link
+                                    to="/users"
+                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 text-xs font-bold transition-all border border-slate-700 active:scale-95"
+                                >
+                                    <FiUsers className="w-3.5 h-3.5" />
+                                    Manage Staff
+                                </Link>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Lens Selector Tabs */}
+                    <div className="mt-8 pt-6 border-t border-slate-800/90 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar w-full sm:w-auto pb-1 sm:pb-0">
+                            {[
+                                { key: 'overview', label: 'Executive Overview', icon: <LuLayoutDashboard className="w-3.5 h-3.5" /> },
+                                { key: 'workforce', label: 'Workforce & People', icon: <FiUsers className="w-3.5 h-3.5" /> },
+                                { key: 'attendance', label: 'Attendance & Operations', icon: <FiActivity className="w-3.5 h-3.5" /> },
+                                { key: 'leaves', label: 'Leave & Availability', icon: <FiCalendar className="w-3.5 h-3.5" /> }
+                            ].map(tab => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveLens(tab.key)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black tracking-wide transition-all duration-200 whitespace-nowrap ${
+                                        activeLens === tab.key
+                                            ? 'bg-cyan-500 text-[#0f172a] shadow-md shadow-cyan-500/25 scale-102 font-black'
+                                            : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
+                                    }`}
+                                >
+                                    {tab.icon}
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Work Mode Quick Filter */}
+                        <div className="flex items-center gap-1.5 bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-[11px] font-bold">
+                            <span className="text-slate-400 px-2 flex items-center gap-1">
+                                <FiFilter className="w-3 h-3 text-cyan-400" /> Mode:
+                            </span>
+                            {['all', 'Office', 'Work from home', 'Hybrid'].map(mode => (
+                                <button
+                                    key={mode}
+                                    onClick={() => setWorkModeFilter(mode)}
+                                    className={`px-2.5 py-1 rounded-lg transition-all ${
+                                        workModeFilter === mode
+                                            ? 'bg-white/20 text-white font-black'
+                                            : 'text-slate-400 hover:text-slate-200'
+                                    }`}
+                                >
+                                    {mode === 'all' ? 'All' : mode === 'Work from home' ? 'Remote' : mode}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
 
                 {error && (
-                    <div className="mb-8 bg-red-50 border-l-4 border-red-500 rounded-r-2xl p-4 shadow-sm">
-                        <p className="text-red-800 font-semibold flex items-center gap-2">
+                    <div className="mb-6 bg-red-50 border-l-4 border-red-500 rounded-r-2xl p-4 shadow-sm animate-fadeIn">
+                        <p className="text-red-800 font-semibold flex items-center gap-2 text-sm">
                             <FiAlertTriangle className="w-5 h-5 text-red-600 shrink-0" /> {error}
                         </p>
                     </div>
                 )}
 
+                {/* Incomplete Profiles Banner */}
                 {incompleteProfiles.length > 0 && (
-                    <div className="mb-8 bg-[#f0f9ff] border-l-4 border-[#1e1b4b] rounded-r-2xl p-6 shadow-sm transform transition-all hover:scale-[1.01] duration-300">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <h3 className="text-xl font-black text-[#1e1b4b] mb-2 flex items-center gap-2 uppercase tracking-tighter">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-[#0ea5e9] animate-pulse inline-block"></span> Action Required: Incomplete Profiles
-                                </h3>
-                                <p className="text-gray-600 mb-4 font-medium text-sm">
-                                    {incompleteProfiles.length} active user(s) have not been assigned a Role or Gender. They will be unable to log in until this is resolved.
-                                </p>
-                                <Link
-                                    to="/users?status=incomplete"
-                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#1e1b4b] text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:-translate-y-0.5 transition-all"
-                                >
-                                    Review & Update Profiles →
-                                </Link>
+                    <div className="mb-8 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200 rounded-2xl p-5 shadow-sm transition-all hover:shadow-md">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex items-start gap-3.5">
+                                <div className="p-2.5 bg-amber-500/10 text-amber-600 rounded-xl border border-amber-200 shrink-0">
+                                    <FiAlertTriangle className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black text-amber-900 flex items-center gap-2 tracking-tight">
+                                        Action Required: Incomplete Profiles
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-200 text-amber-900">
+                                            {incompleteProfiles.length} Staff
+                                        </span>
+                                    </h3>
+                                    <p className="text-amber-800/80 text-xs font-medium mt-0.5">
+                                        Active profiles are missing mandatory Role or Gender assignments. These team members will be blocked from logging in.
+                                    </p>
+                                </div>
                             </div>
-                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#1e1b4b]/5">
-                                <FiAlertTriangle className="w-8 h-8 text-amber-500" />
-                            </div>
+                            <Link
+                                to="/users?status=incomplete"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-sm transition-all whitespace-nowrap active:scale-95"
+                            >
+                                Review & Assign Profiles →
+                            </Link>
                         </div>
                     </div>
                 )}
 
                 <div className="relative min-h-[400px]">
                     {loading && (
-                        <ModernLoader size="container" message="Fetching dashboard stats..." />
+                        <ModernLoader size="container" message="Analyzing people management metrics..." />
                     )}
+
                     <div className={`transition-all duration-300 ${(approveModal.show || rejectModal.show) ? 'blur-sm' : ''}`}>
-                        <>
-                            {/* Birthdays Today - HR and higher hierarchy only */}
-                            {!birthdaysLoading && birthdays.length > 0 && (
-                                <div className="mb-8">
-                                    <style>{`
-                                        @keyframes float {
-                                            0%, 100% { transform: translateY(0) scale(1); }
-                                            50% { transform: translateY(-6px) scale(1.05); }
-                                        }
-                                        @keyframes shimmer {
-                                            0% { background-position: -200% 0; }
-                                            100% { background-position: 200% 0; }
-                                        }
-                                        .birthday-float {
-                                            animation: float 4s ease-in-out infinite;
-                                        }
-                                        .festive-shimmer {
-                                            background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.15), rgba(255,255,255,0));
-                                            background-size: 200% 100%;
-                                            animation: shimmer 3s infinite linear;
-                                        }
-                                    `}</style>
-                                    <div className="overflow-hidden rounded-2xl border-2 border-pink-200/60 bg-white shadow-[0_8px_30px_rgb(244,63,94,0.08)] transition-all duration-300 hover:shadow-[0_12px_40px_rgb(244,63,94,0.15)] hover:border-pink-300">
-                                        {/* Festive header */}
-                                        <div className="relative overflow-hidden bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 px-6 py-5 text-white">
-                                            {/* Shimmer effect overlay */}
-                                            <div className="absolute inset-0 festive-shimmer opacity-30 pointer-events-none"></div>
 
-                                            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-                                                <div className="absolute -right-12 -top-24 h-52 w-52 rounded-full bg-white/10 blur-2xl"></div>
-                                                <span className="absolute left-[20%] top-[25%] h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse"></span>
-                                                <span className="absolute left-[38%] top-[65%] h-2.5 w-1.5 -rotate-45 rounded-full bg-amber-200/50"></span>
-                                                <span className="absolute left-[55%] top-[18%] h-1.5 w-1.5 rounded-full bg-white/35"></span>
-                                                <span className="absolute left-[72%] top-[60%] h-2.5 w-1.5 rotate-45 rounded-full bg-rose-200/50"></span>
-                                            </div>
-
-                                            <div className="relative z-10 flex items-center justify-between gap-4">
-                                                <div className="min-w-0 flex items-center gap-4">
-                                                    <div className="birthday-float flex-shrink-0 bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm border border-white/20 shadow-inner text-white">
-                                                        <FiGift className="w-8 h-8" />
-                                                    </div>
-                                                    <div>
-                                                        <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-white">
-                                                            {birthdays.length} Birthday{birthdays.length > 1 ? 's' : ''} Today!
-                                                        </h2>
-                                                        <p className="mt-1 text-xs font-semibold text-pink-100">
-                                                            {pendingWishCount > 0
-                                                                ? `${pendingWishCount} wish${pendingWishCount > 1 ? 'es' : ''} still to send.`
-                                                                : 'All wishes have been sent.'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <button
-                                                    onClick={() => sendBirthdayWishes(null, 'all')}
-                                                    disabled={pendingWishCount === 0 || sendingWish !== null}
-                                                    className="group flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-black uppercase tracking-widest text-rose-600 shadow-md shadow-pink-900/10 hover:shadow-pink-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-rose-50 active:scale-95 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white/60 disabled:shadow-none disabled:hover:translate-y-0"
-                                                >
-                                                    {sendingWish === 'all' ? 'Sending…' : <span className="flex items-center gap-1.5"><FiSend className="w-4 h-4" /> Send All Wishes</span>}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Celebrants table */}
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full min-w-[680px] text-left">
-                                                <thead>
-                                                    <tr className="border-b border-pink-100/50 bg-pink-50/20">
-                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-pink-800/80">Employee</th>
-                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-pink-800/80">Role</th>
-                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-pink-800/80">Birthday</th>
-                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-pink-800/80">Status</th>
-                                                        <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-widest text-pink-800/80">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {birthdays.map((person) => {
-                                                        const hasEmail = (person.wish_recipients || []).length > 0;
-                                                        const isSending = sendingWish === person.staff_id || sendingWish === 'all';
-
-                                                        return (
-                                                            <tr
-                                                                key={person.staff_id}
-                                                                className="border-b border-pink-50/30 transition-all duration-200 last:border-0 hover:bg-pink-50/20"
-                                                            >
-                                                                <td className="px-6 py-3.5">
-                                                                    <Link to={`/staff-profile/${person.staff_id}`} className="group flex items-center gap-3">
-                                                                        <BirthdayAvatar
-                                                                            person={person}
-                                                                            className="h-10 w-10 flex-shrink-0 rounded-full text-xs shadow-sm ring-2 ring-pink-100 group-hover:ring-pink-300 transition-all"
-                                                                        />
-                                                                        <div className="min-w-0">
-                                                                            <p className="truncate text-xs font-black text-gray-900 transition-colors group-hover:text-pink-600">
-                                                                                {person.name}
-                                                                            </p>
-                                                                            <p className="truncate text-[10px] font-semibold text-gray-400 group-hover:text-gray-500 transition-colors">
-                                                                                {(person.wish_recipients || []).join(', ') || 'No email on record'}
-                                                                            </p>
-                                                                        </div>
-                                                                    </Link>
-                                                                </td>
-                                                                <td className="px-6 py-3.5 text-xs font-semibold text-gray-600">
-                                                                    {person.role_name || 'Staff'}
-                                                                </td>
-                                                                <td className="px-6 py-3.5 text-xs font-bold text-gray-700">
-                                                                    <span className="flex items-center gap-2">
-                                                                        <LuSparkles className="w-4 h-4 text-pink-500 shrink-0" />
-                                                                        <span>{person.day_month}</span>
-                                                                        {person.turning_age && (
-                                                                            <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full border border-pink-100">
-                                                                                Turns {person.turning_age}
-                                                                            </span>
-                                                                        )}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-6 py-3.5">
-                                                                    <BirthdayWishStatus person={person} />
-                                                                </td>
-                                                                <td className="px-6 py-3.5 text-right">
-                                                                    <button
-                                                                        onClick={() => sendBirthdayWishes([person.staff_id], person.staff_id)}
-                                                                        disabled={person.wish_sent || !hasEmail || sendingWish !== null}
-                                                                        title={
-                                                                            person.wish_sent
-                                                                                ? 'Birthday wish already sent today'
-                                                                                : (!hasEmail ? 'No email address on record' : 'Send the birthday wish now')
-                                                                        }
-                                                                        className="rounded-xl bg-[#1e1b4b] px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition-all hover:bg-pink-600 hover:shadow-md hover:shadow-pink-500/10 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
-                                                                    >
-                                                                        {isSending && !person.wish_sent ? 'Sending…' : 'Send Wish'}
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                        {/* HERO METRICS RIBBON (Top Executive KPI Cards) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                            {/* Card 1: Total Headcount */}
+                            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Workforce</span>
+                                    <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <FiUsers className="w-4 h-4" />
                                     </div>
                                 </div>
-                            )}
+                                <div className="text-3xl font-black text-slate-900 tracking-tight">
+                                    {totalHeadcount}
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mt-2 pt-2 border-t border-slate-50">
+                                    <span className="text-emerald-600 font-bold">{activeStaff} Active</span>
+                                    <span>{totalHeadcount - activeStaff} Inactive</span>
+                                </div>
+                            </div>
 
-                            {/* Work Anniversaries Today - HR and higher hierarchy only */}
-                            {!anniversariesLoading && anniversaries.length > 0 && (
-                                <div className="mb-8">
-                                    <style>{`
-                                        @keyframes floatAnniversary {
-                                            0%, 100% { transform: translateY(0) scale(1); }
-                                            50% { transform: translateY(-6px) scale(1.05); }
-                                        }
-                                        .anniversary-float {
-                                            animation: floatAnniversary 4.2s ease-in-out infinite;
-                                        }
-                                    `}</style>
-                                    <div className="overflow-hidden rounded-2xl border-2 border-emerald-200/60 bg-white shadow-[0_8px_30px_rgb(16,185,129,0.08)] transition-all duration-300 hover:shadow-[0_12px_40px_rgb(16,185,129,0.15)] hover:border-emerald-300">
-                                        {/* Festive header */}
-                                        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-6 py-5 text-white">
-                                            {/* Shimmer effect overlay */}
-                                            <div className="absolute inset-0 festive-shimmer opacity-30 pointer-events-none"></div>
-
-                                            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-                                                <div className="absolute -right-12 -top-24 h-52 w-52 rounded-full bg-white/10 blur-2xl"></div>
-                                                <span className="absolute left-[20%] top-[25%] h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse"></span>
-                                                <span className="absolute left-[38%] top-[65%] h-2.5 w-1.5 -rotate-45 rounded-full bg-yellow-200/50"></span>
-                                                <span className="absolute left-[55%] top-[18%] h-1.5 w-1.5 rounded-full bg-white/35"></span>
-                                                <span className="absolute left-[72%] top-[60%] h-2.5 w-1.5 rotate-45 rounded-full bg-teal-200/50"></span>
-                                            </div>
-
-                                            <div className="relative z-10 flex items-center justify-between gap-4">
-                                                <div className="min-w-0 flex items-center gap-4">
-                                                    <div className="anniversary-float flex-shrink-0 bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm border border-white/20 shadow-inner text-white">
-                                                        <FiAward className="w-8 h-8" />
-                                                    </div>
-                                                    <div>
-                                                        <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-white">
-                                                            {anniversaries.length} Work Anniversary{anniversaries.length > 1 ? 'ies' : ''} Today!
-                                                        </h2>
-                                                        <p className="mt-1 text-xs font-semibold text-emerald-100">
-                                                            {pendingAnniversaryWishCount > 0
-                                                                ? `${pendingAnniversaryWishCount} wish${pendingAnniversaryWishCount > 1 ? 'es' : ''} still to send.`
-                                                                : 'All wishes have been sent.'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <button
-                                                    onClick={() => sendAnniversaryWishes(null, 'all')}
-                                                    disabled={pendingAnniversaryWishCount === 0 || sendingAnniversaryWish !== null}
-                                                    className="group flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-black uppercase tracking-widest text-emerald-600 shadow-md shadow-emerald-900/10 hover:shadow-emerald-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-50 active:scale-95 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white/60 disabled:shadow-none disabled:hover:translate-y-0"
-                                                >
-                                                    {sendingAnniversaryWish === 'all' ? 'Sending…' : <span className="flex items-center gap-1.5"><FiSend className="w-4 h-4" /> Send All Wishes</span>}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Celebrants table */}
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full min-w-[680px] text-left">
-                                                <thead>
-                                                    <tr className="border-b border-emerald-100/50 bg-emerald-50/20">
-                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-emerald-800/80">Employee</th>
-                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-emerald-800/80">Role</th>
-                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-emerald-800/80">Anniversary</th>
-                                                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-emerald-800/80">Status</th>
-                                                        <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-widest text-emerald-800/80">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {anniversaries.map((person) => {
-                                                        const hasEmail = (person.wish_recipients || []).length > 0;
-                                                        const isSending = sendingAnniversaryWish === person.staff_id || sendingAnniversaryWish === 'all';
-
-                                                        return (
-                                                            <tr
-                                                                key={person.staff_id}
-                                                                className="border-b border-emerald-50/30 transition-all duration-200 last:border-0 hover:bg-emerald-50/20"
-                                                            >
-                                                                <td className="px-6 py-3.5">
-                                                                    <Link to={`/staff-profile/${person.staff_id}`} className="group flex items-center gap-3">
-                                                                        <AnniversaryAvatar
-                                                                            person={person}
-                                                                            className="h-10 w-10 flex-shrink-0 rounded-full text-xs shadow-sm ring-2 ring-emerald-100 group-hover:ring-emerald-300 transition-all"
-                                                                        />
-                                                                        <div className="min-w-0">
-                                                                            <p className="truncate text-xs font-black text-gray-900 transition-colors group-hover:text-emerald-600">
-                                                                                {person.name}
-                                                                            </p>
-                                                                            <p className="truncate text-[10px] font-semibold text-gray-400 group-hover:text-gray-500 transition-colors">
-                                                                                {(person.wish_recipients || []).join(', ') || 'No email on record'}
-                                                                            </p>
-                                                                        </div>
-                                                                    </Link>
-                                                                </td>
-                                                                <td className="px-6 py-3.5 text-xs font-semibold text-gray-600">
-                                                                    {person.role_name || 'Staff'}
-                                                                </td>
-                                                                <td className="px-6 py-3.5 text-xs font-bold text-gray-700">
-                                                                    <span className="flex items-center gap-2">
-                                                                        <LuSparkles className="w-4 h-4 text-emerald-500 shrink-0" />
-                                                                        <span>{person.day_month}</span>
-                                                                        {person.years_of_service && (
-                                                                            <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                                                                                Celebrating {person.years_of_service} year{person.years_of_service > 1 ? 's' : ''}
-                                                                            </span>
-                                                                        )}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-6 py-3.5">
-                                                                    <AnniversaryWishStatus person={person} />
-                                                                </td>
-                                                                <td className="px-6 py-3.5 text-right">
-                                                                    <button
-                                                                        onClick={() => sendAnniversaryWishes([person.staff_id], person.staff_id)}
-                                                                        disabled={person.wish_sent || !hasEmail || sendingAnniversaryWish !== null}
-                                                                        title={
-                                                                            person.wish_sent
-                                                                                ? 'Work anniversary wish already sent today'
-                                                                                : (!hasEmail ? 'No email address on record' : 'Send the work anniversary wish now')
-                                                                        }
-                                                                        className="rounded-xl bg-[#1e1b4b] px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition-all hover:bg-emerald-600 hover:shadow-md hover:shadow-emerald-500/10 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
-                                                                    >
-                                                                        {isSending && !person.wish_sent ? 'Sending…' : 'Send Wish'}
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                            {/* Card 2: Today's Attendance Rate */}
+                            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Attendance Rate</span>
+                                    <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <FiCheckCircle className="w-4 h-4" />
                                     </div>
                                 </div>
-                            )}
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-3xl font-black text-emerald-600 tracking-tight">
+                                        {attendanceRate}%
+                                    </span>
+                                    <span className="text-xs text-slate-400 font-bold">
+                                        ({stats.presentToday} / {activeStaff})
+                                    </span>
+                                </div>
+                                <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2.5 overflow-hidden">
+                                    <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, attendanceRate)}%` }}></div>
+                                </div>
+                            </div>
 
-                            {/* On Leave Today / Tomorrow Section */}
-                            {!onLeaveLoading && (onLeaveData.today.length > 0 || onLeaveData.tomorrow.length > 0) && (
-                                <div className="mb-8">
-                                    <div className="relative bg-white rounded-2xl p-5 shadow-sm border border-gray-100 overflow-hidden">
-                                        {/* Decorative background element */}
-                                        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-full blur-2xl opacity-60 -translate-y-1/2 translate-x-1/3"></div>
-                                        
-                                        <div className="flex items-center justify-between mb-5 relative z-10">
-                                            <div>
-                                                <h2 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2.5">
-                                                    <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
-                                                        <FiCalendar className="w-4 h-4" />
-                                                    </span>
-                                                    Who's Out
-                                                </h2>
-                                                <p className="text-gray-500 text-xs font-medium mt-0.5">See who is away today and tomorrow.</p>
+                            {/* Card 3: Live In-Office / Active Sessions */}
+                            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Active</span>
+                                    <div className="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center group-hover:scale-110 transition-transform relative">
+                                        <FiActivity className="w-4 h-4" />
+                                        <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-500 animate-ping"></span>
+                                    </div>
+                                </div>
+                                <div className="text-3xl font-black text-cyan-600 tracking-tight">
+                                    {activeSessions}
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mt-2 pt-2 border-t border-slate-50">
+                                    <span className="text-cyan-700 font-bold">Clocked-in now</span>
+                                    <span>{workforce.completedSessions || 0} Out</span>
+                                </div>
+                            </div>
+
+                            {/* Card 4: Mobility & Remote WFH */}
+                            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Remote & Field</span>
+                                    <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <FiRadio className="w-4 h-4" />
+                                    </div>
+                                </div>
+                                <div className="text-3xl font-black text-purple-600 tracking-tight">
+                                    {(workModes['Work from home'] || 0) + (stats.activeOnDuty || 0)}
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mt-2 pt-2 border-t border-slate-50">
+                                    <span>{workModes['Work from home'] || 0} WFH</span>
+                                    <span className="text-purple-700 font-bold">{stats.activeOnDuty || 0} On-Duty</span>
+                                </div>
+                            </div>
+
+                            {/* Card 5: Who's Away Today */}
+                            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Out Today</span>
+                                    <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <FiCalendar className="w-4 h-4" />
+                                    </div>
+                                </div>
+                                <div className="text-3xl font-black text-rose-600 tracking-tight">
+                                    {onLeaveData.today?.length || 0}
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mt-2 pt-2 border-t border-slate-50">
+                                    <span className="text-rose-600 font-bold">Approved Leaves</span>
+                                    <span>{onLeaveData.tomorrow?.length || 0} Tomorrow</span>
+                                </div>
+                            </div>
+
+                            {/* Card 6: Action Queue (Pending) */}
+                            <div className="bg-white rounded-2xl p-5 border border-orange-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-orange-500">Action Queue</span>
+                                    <div className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <FiZap className="w-4 h-4" />
+                                    </div>
+                                </div>
+                                <div className="text-3xl font-black text-orange-600 tracking-tight">
+                                    {totalActionPending}
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mt-2 pt-2 border-t border-orange-50">
+                                    <span>{stats.pendingLeaves} L</span>
+                                    <span>{stats.pendingOnDuty} OD</span>
+                                    <span>{stats.pendingTimeOff} TO</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Birthdays Today Hero Banner (if any) */}
+                        {!birthdaysLoading && birthdays.length > 0 && (
+                            <div className="mb-8">
+                                <div className="overflow-hidden rounded-2xl border-2 border-pink-200/60 bg-white shadow-sm hover:shadow-md transition-all">
+                                    <div className="relative overflow-hidden bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 px-6 py-4 text-white">
+                                        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3.5">
+                                                <div className="p-2.5 bg-white/10 rounded-2xl border border-white/20 backdrop-blur-sm">
+                                                    <FiGift className="w-7 h-7" />
+                                                </div>
+                                                <div>
+                                                    <h2 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                                                        {birthdays.length} Birthday{birthdays.length > 1 ? 's' : ''} Today! 🎉
+                                                    </h2>
+                                                    <p className="text-xs text-pink-100 font-medium">
+                                                        {pendingWishCount > 0
+                                                            ? `${pendingWishCount} celebration wish${pendingWishCount > 1 ? 'es' : ''} pending to send.`
+                                                            : 'All birthday greetings delivered.'}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg font-bold text-xs">
-                                                {onLeaveData.today.length + onLeaveData.tomorrow.length} Absent Total
-                                            </div>
+                                            <button
+                                                onClick={() => sendBirthdayWishes(null, 'all')}
+                                                disabled={pendingWishCount === 0 || sendingWish !== null}
+                                                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white text-rose-600 font-black text-xs uppercase tracking-wider shadow-md hover:bg-rose-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <FiSend className="w-3.5 h-3.5" />
+                                                {sendingWish === 'all' ? 'Sending All…' : 'Send All Wishes'}
+                                            </button>
                                         </div>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-xs">
+                                            <thead className="bg-pink-50/30 text-pink-900/70 uppercase text-[10px] font-black border-b border-pink-100/50">
+                                                <tr>
+                                                    <th className="px-6 py-3">Employee</th>
+                                                    <th className="px-6 py-3">Role</th>
+                                                    <th className="px-6 py-3">Celebration</th>
+                                                    <th className="px-6 py-3">Status</th>
+                                                    <th className="px-6 py-3 text-right">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-pink-50">
+                                                {birthdays.map(b => (
+                                                    <tr key={b.staff_id} className="hover:bg-pink-50/20 transition-colors">
+                                                        <td className="px-6 py-3 font-bold text-slate-800 flex items-center gap-3">
+                                                            <BirthdayAvatar person={b} className="w-8 h-8 rounded-full" />
+                                                            <span>{b.name}</span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-slate-600 font-medium">{b.role_name || 'Staff'}</td>
+                                                        <td className="px-6 py-3 font-semibold text-pink-600">
+                                                            {b.turning_age ? `Turns ${b.turning_age}` : b.day_month}
+                                                        </td>
+                                                        <td className="px-6 py-3"><BirthdayWishStatus person={b} /></td>
+                                                        <td className="px-6 py-3 text-right">
+                                                            <button
+                                                                onClick={() => sendBirthdayWishes([b.staff_id], b.staff_id)}
+                                                                disabled={b.wish_sent || sendingWish !== null}
+                                                                className="px-3 py-1.5 rounded-lg bg-[#1e1b4b] text-white text-[10px] font-black uppercase tracking-wider hover:bg-pink-600 transition-colors disabled:opacity-40"
+                                                            >
+                                                                {sendingWish === b.staff_id ? 'Sending…' : 'Send Wish'}
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 relative z-10">
-                                            {/* Today Column */}
-                                            <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="relative flex h-2.5 w-2.5">
-                                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                        {/* Work Anniversaries Today Hero Banner (if any) */}
+                        {!anniversariesLoading && anniversaries.length > 0 && (
+                            <div className="mb-8">
+                                <div className="overflow-hidden rounded-2xl border-2 border-emerald-200/60 bg-white shadow-sm hover:shadow-md transition-all">
+                                    <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-6 py-4 text-white">
+                                        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3.5">
+                                                <div className="p-2.5 bg-white/10 rounded-2xl border border-white/20 backdrop-blur-sm">
+                                                    <FiAward className="w-7 h-7" />
+                                                </div>
+                                                <div>
+                                                    <h2 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                                                        {anniversaries.length} Work Anniversary{anniversaries.length > 1 ? 'ies' : ''} Today! 🌟
+                                                    </h2>
+                                                    <p className="text-xs text-emerald-100 font-medium">
+                                                        {pendingAnniversaryWishCount > 0
+                                                            ? `${pendingAnniversaryWishCount} anniversary wish${pendingAnniversaryWishCount > 1 ? 'es' : ''} pending.`
+                                                            : 'All anniversary greetings delivered.'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => sendAnniversaryWishes(null, 'all')}
+                                                disabled={pendingAnniversaryWishCount === 0 || sendingAnniversaryWish !== null}
+                                                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white text-emerald-600 font-black text-xs uppercase tracking-wider shadow-md hover:bg-emerald-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <FiSend className="w-3.5 h-3.5" />
+                                                {sendingAnniversaryWish === 'all' ? 'Sending All…' : 'Send All Wishes'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-xs">
+                                            <thead className="bg-emerald-50/30 text-emerald-900/70 uppercase text-[10px] font-black border-b border-emerald-100/50">
+                                                <tr>
+                                                    <th className="px-6 py-3">Employee</th>
+                                                    <th className="px-6 py-3">Role</th>
+                                                    <th className="px-6 py-3">Tenure</th>
+                                                    <th className="px-6 py-3">Status</th>
+                                                    <th className="px-6 py-3 text-right">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-emerald-50">
+                                                {anniversaries.map(a => (
+                                                    <tr key={a.staff_id} className="hover:bg-emerald-50/20 transition-colors">
+                                                        <td className="px-6 py-3 font-bold text-slate-800 flex items-center gap-3">
+                                                            <AnniversaryAvatar person={a} className="w-8 h-8 rounded-full" />
+                                                            <span>{a.name}</span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-slate-600 font-medium">{a.role_name || 'Staff'}</td>
+                                                        <td className="px-6 py-3 font-semibold text-emerald-600">
+                                                            {a.years_of_service ? `${a.years_of_service} Year${a.years_of_service > 1 ? 's' : ''}` : 'Milestone'}
+                                                        </td>
+                                                        <td className="px-6 py-3"><AnniversaryWishStatus person={a} /></td>
+                                                        <td className="px-6 py-3 text-right">
+                                                            <button
+                                                                onClick={() => sendAnniversaryWishes([a.staff_id], a.staff_id)}
+                                                                disabled={a.wish_sent || sendingAnniversaryWish !== null}
+                                                                className="px-3 py-1.5 rounded-lg bg-[#1e1b4b] text-white text-[10px] font-black uppercase tracking-wider hover:bg-emerald-600 transition-colors disabled:opacity-40"
+                                                            >
+                                                                {sendingAnniversaryWish === a.staff_id ? 'Sending…' : 'Send Wish'}
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* PENDING APPROVALS CAROUSEL */}
+                        {!pendingApprovalsLoading && pendingApprovals.length > 0 && (
+                            <div className="mb-10">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                                            <FiZap className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black text-slate-900 tracking-tight">Pending Approvals Action Queue</h2>
+                                            <p className="text-slate-500 text-xs font-medium">Quick review and instant 1-click authorization.</p>
+                                        </div>
+                                    </div>
+                                    <Link
+                                        to="/approvals"
+                                        className="inline-flex items-center gap-1.5 text-xs font-black text-orange-600 hover:text-orange-700 bg-orange-50 px-3.5 py-1.5 rounded-xl border border-orange-200 transition-all"
+                                    >
+                                        View All ({pendingApprovals.length}) →
+                                    </Link>
+                                </div>
+
+                                <div className="relative group/carousel">
+                                    <button
+                                        onClick={scrollLeft}
+                                        className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-[#1e1b4b] text-cyan-400 rounded-full flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all opacity-0 group-hover/carousel:opacity-100"
+                                        aria-label="Scroll left"
+                                    >
+                                        ←
+                                    </button>
+
+                                    <div
+                                        ref={scrollContainerRef}
+                                        className="flex gap-4 overflow-x-auto hide-scrollbar py-2 px-1 scroll-smooth"
+                                    >
+                                        {pendingApprovals.map(item => (
+                                            <div
+                                                key={item.id}
+                                                onClick={() => handleOpenDetails(item, item.type === 'leave')}
+                                                className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-w-[280px] max-w-[280px] shrink-0 cursor-pointer flex flex-col justify-between"
+                                            >
+                                                <div>
+                                                    <div className="flex items-center justify-between gap-2 mb-3">
+                                                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
+                                                            item.type === 'leave'
+                                                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                                                : item.type === 'time_off'
+                                                                    ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                                                    : 'bg-purple-50 text-purple-700 border border-purple-200'
+                                                        }`}>
+                                                            {item.type}
                                                         </span>
-                                                        <h3 className="text-base font-black text-gray-900 tracking-tight">Today</h3>
+                                                        <span className="text-[10px] font-bold text-slate-400">
+                                                            {item.type === 'leave'
+                                                                ? `${calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day ? 0.5 : 0)}d`
+                                                                : formatDateOnly(item.start_date || item.date)}
+                                                        </span>
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100">
+
+                                                    <h3 className="text-sm font-black text-slate-900 truncate mb-1">
+                                                        {item.name}
+                                                    </h3>
+                                                    <p className="text-xs text-slate-500 font-medium line-clamp-2 italic mb-4">
+                                                        "{item.title}"
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleApprove(item, item.type === 'leave'); }}
+                                                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-xs"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleReject(item, item.type === 'leave'); }}
+                                                        className="px-3 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 rounded-xl text-xs font-bold transition-all"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <button
+                                        onClick={scrollRight}
+                                        className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-[#1e1b4b] text-cyan-400 rounded-full flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all opacity-0 group-hover/carousel:opacity-100"
+                                        aria-label="Scroll right"
+                                    >
+                                        →
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* =========================================================================
+                            LENS 1: EXECUTIVE OVERVIEW (Analytics Trend + Who's Out + Live Stream)
+                        ========================================================================= */}
+                        {(activeLens === 'overview' || activeLens === 'attendance') && (
+                            <div className="mb-10">
+                                <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-sm mb-8">
+                                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h2 className="text-xl font-black text-slate-900 tracking-tight">Workforce Multi-Metric Trends</h2>
+                                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-50 text-indigo-700">
+                                                    Attendance vs Approvals
+                                                </span>
+                                            </div>
+                                            <p className="text-slate-500 text-xs font-medium mt-0.5">
+                                                Tracking actual staff attendance alongside leave and on-duty requests over time.
+                                            </p>
+                                        </div>
+
+                                        {/* Chart Controls */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {/* Time range buttons */}
+                                            <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                                                {[7, 14, 30, 90].map(d => (
+                                                    <button
+                                                        key={d}
+                                                        onClick={() => {
+                                                            setTrendDuration(d);
+                                                            setTrendStartDate(null);
+                                                            setTrendEndDate(null);
+                                                            fetchTrendData(d);
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-lg transition-all ${
+                                                            trendDuration === d && !showCustomDateRange
+                                                                ? 'bg-white text-indigo-900 shadow-xs font-black'
+                                                                : 'text-slate-500 hover:text-slate-900'
+                                                        }`}
+                                                    >
+                                                        {d}d
+                                                    </button>
+                                                ))}
+                                                <button
+                                                    onClick={() => setShowCustomDateRange(!showCustomDateRange)}
+                                                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                                                        showCustomDateRange
+                                                            ? 'bg-white text-indigo-900 shadow-xs font-black'
+                                                            : 'text-slate-500 hover:text-slate-900'
+                                                    }`}
+                                                >
+                                                    Custom
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {showCustomDateRange && (
+                                        <div className="flex flex-wrap items-end gap-3 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                                            <div>
+                                                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">Start Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={trendStartDate || ''}
+                                                    onChange={e => setTrendStartDate(e.target.value)}
+                                                    className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">End Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={trendEndDate || ''}
+                                                    onChange={e => setTrendEndDate(e.target.value)}
+                                                    className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    if (trendStartDate && trendEndDate) {
+                                                        fetchTrendData(null, trendStartDate, trendEndDate);
+                                                    }
+                                                }}
+                                                disabled={!trendStartDate || !trendEndDate || trendLoading}
+                                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all disabled:opacity-50"
+                                            >
+                                                Apply Range
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <div className="relative w-full h-80">
+                                        {trendLoading && (
+                                            <ModernLoader size="container" message="Refreshing trend curves..." />
+                                        )}
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={filteredTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4} />
+                                                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0} />
+                                                    </linearGradient>
+                                                    <linearGradient id="colorLeaves" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                                                    </linearGradient>
+                                                    <linearGradient id="colorOnDuty" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0} />
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                                <XAxis dataKey="day" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                                                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                                                <Tooltip
+                                                    contentStyle={{
+                                                        backgroundColor: '#0f172a',
+                                                        borderRadius: '12px',
+                                                        border: 'none',
+                                                        color: '#fff',
+                                                        fontSize: '12px',
+                                                        padding: '10px 14px'
+                                                    }}
+                                                />
+                                                <Legend wrapperStyle={{ paddingTop: '14px', fontSize: '12px', fontWeight: 'bold' }} />
+                                                <Area type="monotone" dataKey="attendance" name="Staff Present" stroke="#0ea5e9" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAttendance)" />
+                                                <Area type="monotone" dataKey="leaves" name="Approved Leaves" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorLeaves)" />
+                                                <Area type="monotone" dataKey="onDuty" name="On-Duty Approvals" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorOnDuty)" />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* =========================================================================
+                            LENS 2: PEOPLE & WORKFORCE (Work Modes, Gender Diversity, Face ID, Onboarding)
+                        ========================================================================= */}
+                        {(activeLens === 'overview' || activeLens === 'workforce') && (
+                            <div className="mb-10">
+                                <div className="flex items-center gap-2.5 mb-5">
+                                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                                        <FiUsers className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-black text-slate-900 tracking-tight">People & Workforce Dynamics</h2>
+                                        <p className="text-slate-500 text-xs font-medium">Headcount distribution, biometric compliance, and talent pipeline.</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+                                    {/* Work Mode Card */}
+                                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-xs font-black uppercase tracking-wider text-slate-400">Work Mode Distribution</span>
+                                                <LuBuilding2 className="w-4 h-4 text-indigo-500" />
+                                            </div>
+                                            <div className="space-y-2.5 mt-2">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> Office (In-Person)
+                                                    </span>
+                                                    <span className="font-black text-slate-900">{workModes['Office'] || 0}</span>
+                                                </div>
+                                                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                    <div className="bg-blue-500 h-full rounded-full" style={{ width: `${totalHeadcount > 0 ? ((workModes['Office'] || 0) / totalHeadcount) * 100 : 0}%` }}></div>
+                                                </div>
+
+                                                <div className="flex items-center justify-between text-xs pt-1">
+                                                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Remote (WFH)
+                                                    </span>
+                                                    <span className="font-black text-slate-900">{workModes['Work from home'] || 0}</span>
+                                                </div>
+                                                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                    <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${totalHeadcount > 0 ? ((workModes['Work from home'] || 0) / totalHeadcount) * 100 : 0}%` }}></div>
+                                                </div>
+
+                                                <div className="flex items-center justify-between text-xs pt-1">
+                                                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-purple-500"></span> Hybrid Office
+                                                    </span>
+                                                    <span className="font-black text-slate-900">{workModes['Hybrid'] || 0}</span>
+                                                </div>
+                                                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                    <div className="bg-purple-500 h-full rounded-full" style={{ width: `${totalHeadcount > 0 ? ((workModes['Hybrid'] || 0) / totalHeadcount) * 100 : 0}%` }}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Gender Diversity Card */}
+                                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-xs font-black uppercase tracking-wider text-slate-400">Gender & Diversity</span>
+                                                <span className="text-[10px] font-bold text-slate-500">{totalHeadcount} Staff</span>
+                                            </div>
+                                            <div className="h-36 relative mt-1">
+                                                <Doughnut data={genderDoughnutData} options={doughnutOptions} />
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-around text-center text-[11px] pt-3 border-t border-slate-50">
+                                            <div>
+                                                <span className="text-blue-600 font-black">{genderDist.Male || 0}</span>
+                                                <p className="text-slate-400 font-bold">Male</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-pink-600 font-black">{genderDist.Female || 0}</span>
+                                                <p className="text-slate-400 font-bold">Female</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-500 font-black">{genderDist.Unassigned || 0}</span>
+                                                <p className="text-slate-400 font-bold">Pending</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Biometric & Face ID Adoption */}
+                                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-xs font-black uppercase tracking-wider text-slate-400">Face ID Enrollment</span>
+                                                <FiCamera className="w-4 h-4 text-cyan-600" />
+                                            </div>
+                                            <div className="flex items-baseline gap-2 mb-2">
+                                                <span className="text-3xl font-black text-cyan-600 tracking-tight">
+                                                    {faceReg.rate}%
+                                                </span>
+                                                <span className="text-xs text-slate-400 font-bold">enrolled</span>
+                                            </div>
+                                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
+                                                <div className="bg-gradient-to-r from-cyan-400 to-blue-600 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, faceReg.rate)}%` }}></div>
+                                            </div>
+                                            <p className="text-slate-500 text-[11px] font-medium leading-relaxed">
+                                                Required for facial biometric kiosks. {faceReg.registered} staff registered, {faceReg.pending} pending capture.
+                                            </p>
+                                        </div>
+                                        {canManageUsers(currentUser.role) && (
+                                            <Link
+                                                to="/users"
+                                                className="mt-3 text-center py-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-800 text-[11px] font-black transition-colors"
+                                            >
+                                                View Face ID Status →
+                                            </Link>
+                                        )}
+                                    </div>
+
+                                    {/* Talent Onboarding Pipeline */}
+                                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-xs font-black uppercase tracking-wider text-slate-400">Onboarding Pipeline</span>
+                                                <FiUserPlus className="w-4 h-4 text-emerald-600" />
+                                            </div>
+                                            <div className="space-y-2 mt-1">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-slate-600 font-bold">Completed & Active</span>
+                                                    <span className="font-black text-emerald-600">{onboarding.Completed || 0}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-slate-600 font-bold">Candidate In-Progress</span>
+                                                    <span className="font-black text-amber-600">{onboarding.Pending_Candidate || 0}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-slate-600 font-bold">Pending HR Verification</span>
+                                                    <span className="font-black text-indigo-600">{onboarding.Pending_HR_Approval || 0}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                                            <span className="text-slate-400 font-bold">Total Enrolled</span>
+                                            <span className="font-black text-slate-800">{onboarding.Total || 0} Candidates</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Role & Department Workforce Spread */}
+                                {roleDistribution.length > 0 && (
+                                    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mb-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-base font-black text-slate-900 tracking-tight">Workforce Distribution by Role & Hierarchy</h3>
+                                            <span className="text-xs text-slate-400 font-bold">{roleDistribution.length} Active Roles</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                            {roleDistribution.map(item => (
+                                                <div key={item.role} className="p-3 bg-slate-50/70 rounded-xl border border-slate-100 flex items-center justify-between">
+                                                    <span className="text-xs font-bold text-slate-700 truncate pr-2">{item.role}</span>
+                                                    <span className="px-2 py-0.5 rounded-lg bg-indigo-100/60 text-indigo-800 font-black text-xs shrink-0">
+                                                        {item.count}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* =========================================================================
+                            LENS 3: ATTENDANCE, OPERATIONS & LIVE PUNCH STREAM
+                        ========================================================================= */}
+                        {(activeLens === 'overview' || activeLens === 'attendance') && (
+                            <div className="mb-10">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                                    {/* Punch Sources Breakdown */}
+                                    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h3 className="text-base font-black text-slate-900 tracking-tight">Attendance Punch Channels</h3>
+                                                <FiRadio className="w-4 h-4 text-indigo-500" />
+                                            </div>
+                                            <p className="text-slate-500 text-xs font-medium mb-3">Methods used by staff to record presence.</p>
+                                            <div className="h-48 relative">
+                                                <Doughnut data={punchSourceDoughnutData} options={doughnutOptions} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Live Activity Pulse (Recent Check-ins) */}
+                                    <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className="relative flex h-2.5 w-2.5">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+                                                </span>
+                                                <h3 className="text-base font-black text-slate-900 tracking-tight">Live Attendance Activity Stream</h3>
+                                            </div>
+                                            <span className="text-xs text-slate-400 font-bold">Latest Punches</span>
+                                        </div>
+
+                                        {recentActivity.length === 0 ? (
+                                            <div className="py-8 text-center text-slate-400 text-xs font-semibold">
+                                                No attendance logs recorded today yet.
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-slate-100">
+                                                {recentActivity.map(log => (
+                                                    <div key={log.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-700 font-black text-xs flex items-center justify-center shrink-0">
+                                                                {log.name.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div className="truncate">
+                                                                <p className="font-black text-slate-800 truncate">{log.name}</p>
+                                                                <p className="text-[10px] text-slate-400 font-semibold">{log.phone_model || 'WorkPulse Terminal'}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-3 shrink-0">
+                                                            <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase bg-slate-100 text-slate-700">
+                                                                {log.punch_source || 'KIOSK_QR'}
+                                                            </span>
+                                                            <span className="font-bold text-slate-600">
+                                                                {log.check_in_time ? formatTimeOnly(log.check_in_time) : '—'}
+                                                            </span>
+                                                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${log.check_out_time ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                                                                {log.check_out_time ? 'Closed' : 'Active'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* =========================================================================
+                            LENS 4: LEAVE & ABSENCE INSIGHTS (Who's Out + Upcoming Holidays)
+                        ========================================================================= */}
+                        {(activeLens === 'overview' || activeLens === 'leaves') && (
+                            <div className="mb-10">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                                    {/* Who's Out Today / Tomorrow */}
+                                    <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                                                    <FiCalendar className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-base font-black text-slate-900 tracking-tight">Who's Out (Leaves & Time-Off)</h3>
+                                                    <p className="text-slate-500 text-xs font-medium">Approved absences today and tomorrow.</p>
+                                                </div>
+                                            </div>
+                                            <span className="px-3 py-1 rounded-xl bg-rose-50 text-rose-700 text-xs font-black">
+                                                {onLeaveData.today.length + onLeaveData.tomorrow.length} Away
+                                            </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* Today Column */}
+                                            <div className="bg-slate-50/60 rounded-2xl p-4 border border-slate-100">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-rose-500"></span> Today
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded shadow-xs">
                                                         {onLeaveData.today.length} Out
                                                     </span>
                                                 </div>
-
-                                                <div className="space-y-2.5">
+                                                <div className="space-y-2">
                                                     {onLeaveData.today.length === 0 ? (
-                                                        <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
-                                                            <LuSparkles className="w-6 h-6 text-indigo-400 mb-1.5" />
-                                                            <p className="text-xs font-bold text-gray-400">Everyone is in today</p>
+                                                        <div className="py-6 text-center text-slate-400 text-xs font-bold bg-white rounded-xl border border-dashed border-slate-200">
+                                                            Everyone is present today ✨
                                                         </div>
                                                     ) : (
-                                                        onLeaveData.today.map((emp) => (
-                                                            <div key={emp.id} onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Today' })} className="group bg-white p-3 rounded-lg shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer flex items-center gap-3">
-                                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black text-white shadow-inner flex-shrink-0 ${emp.is_time_off ? 'bg-gradient-to-br from-teal-400 to-emerald-500' : 'bg-gradient-to-br from-red-400 to-rose-500'}`}>
-                                                                    {emp.name.charAt(0).toUpperCase()}
+                                                        onLeaveData.today.map(emp => (
+                                                            <div
+                                                                key={emp.id}
+                                                                onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Today' })}
+                                                                className="p-2.5 bg-white rounded-xl border border-slate-200/70 hover:border-indigo-200 shadow-xs hover:shadow-sm cursor-pointer transition-all flex items-center justify-between text-xs"
+                                                            >
+                                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                                    <div className="w-7 h-7 rounded-full bg-rose-100 text-rose-700 font-black text-xs flex items-center justify-center shrink-0">
+                                                                        {emp.name.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <div className="truncate">
+                                                                        <p className="font-bold text-slate-800 truncate">{emp.name}</p>
+                                                                        <p className="text-[10px] text-slate-400">{emp.leave_type}</p>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <h4 className="text-xs font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{emp.name}</h4>
-                                                                    <p className="text-[10px] text-gray-500 truncate mt-0.5 font-medium">{emp.leave_type}</p>
-                                                                </div>
-                                                                <div className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider whitespace-nowrap shadow-sm ${emp.is_time_off ? 'bg-teal-50 text-teal-700' : (emp.is_half_day ? 'bg-orange-50 text-orange-700' : 'bg-red-50 text-red-700')}`}>
-                                                                    {emp.is_time_off ? 'Time Off' : (emp.is_half_day ? 'Half Day' : 'Full Day')}
-                                                                </div>
+                                                                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-rose-50 text-rose-700">
+                                                                    {emp.is_time_off ? 'Time-Off' : (emp.is_half_day ? 'Half Day' : 'Full Day')}
+                                                                </span>
                                                             </div>
                                                         ))
                                                     )}
@@ -1276,36 +1828,39 @@ const Dashboard = () => {
                                             </div>
 
                                             {/* Tomorrow Column */}
-                                            <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-                                                        <h3 className="text-base font-black text-gray-900 tracking-tight">Tomorrow</h3>
-                                                    </div>
-                                                    <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100">
-                                                        {onLeaveData.tomorrow.length} Out
+                                            <div className="bg-slate-50/60 rounded-2xl p-4 border border-slate-100">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-amber-500"></span> Tomorrow
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded shadow-xs">
+                                                        {onLeaveData.tomorrow.length} Scheduled
                                                     </span>
                                                 </div>
-
-                                                <div className="space-y-2.5">
+                                                <div className="space-y-2">
                                                     {onLeaveData.tomorrow.length === 0 ? (
-                                                        <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
-                                                            <LuSparkles className="w-6 h-6 text-amber-400 mb-1.5" />
-                                                            <p className="text-xs font-bold text-gray-400">Everyone is in tomorrow</p>
+                                                        <div className="py-6 text-center text-slate-400 text-xs font-bold bg-white rounded-xl border border-dashed border-slate-200">
+                                                            Everyone is scheduled in tomorrow ✨
                                                         </div>
                                                     ) : (
-                                                        onLeaveData.tomorrow.map((emp) => (
-                                                            <div key={emp.id} onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Tomorrow' })} className="group bg-white p-3 rounded-lg shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer flex items-center gap-3">
-                                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black text-white shadow-inner flex-shrink-0 ${emp.is_time_off ? 'bg-gradient-to-br from-teal-400 to-emerald-500' : 'bg-gradient-to-br from-amber-400 to-orange-500'}`}>
-                                                                    {emp.name.charAt(0).toUpperCase()}
+                                                        onLeaveData.tomorrow.map(emp => (
+                                                            <div
+                                                                key={emp.id}
+                                                                onClick={() => setOnLeaveDetailModal({ show: true, emp, dayLabel: 'Tomorrow' })}
+                                                                className="p-2.5 bg-white rounded-xl border border-slate-200/70 hover:border-indigo-200 shadow-xs hover:shadow-sm cursor-pointer transition-all flex items-center justify-between text-xs"
+                                                            >
+                                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                                    <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 font-black text-xs flex items-center justify-center shrink-0">
+                                                                        {emp.name.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <div className="truncate">
+                                                                        <p className="font-bold text-slate-800 truncate">{emp.name}</p>
+                                                                        <p className="text-[10px] text-slate-400">{emp.leave_type}</p>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <h4 className="text-xs font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{emp.name}</h4>
-                                                                    <p className="text-[10px] text-gray-500 truncate mt-0.5 font-medium">{emp.leave_type}</p>
-                                                                </div>
-                                                                <div className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider whitespace-nowrap shadow-sm ${emp.is_time_off ? 'bg-teal-50 text-teal-700' : (emp.is_half_day ? 'bg-orange-50 text-orange-700' : 'bg-amber-50 text-amber-700')}`}>
-                                                                    {emp.is_time_off ? 'Time Off' : (emp.is_half_day ? 'Half Day' : 'Full Day')}
-                                                                </div>
+                                                                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-amber-50 text-amber-700">
+                                                                    {emp.is_time_off ? 'Time-Off' : (emp.is_half_day ? 'Half Day' : 'Full Day')}
+                                                                </span>
                                                             </div>
                                                         ))
                                                     )}
@@ -1313,446 +1868,129 @@ const Dashboard = () => {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
 
-                            {/* Pending Approvals Section - Redesigned */}
-                            {!pendingApprovalsLoading && pendingApprovals.length > 0 && (
-                                <div className="mb-12 animate-fadeInUp">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-sm">
-                                                <FiZap className="w-5 h-5" />
+                                    {/* Upcoming Holidays Calendar Widget */}
+                                    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h3 className="text-base font-black text-slate-900 tracking-tight">Upcoming Company Holidays</h3>
+                                                <LuCalendarDays className="w-4 h-4 text-indigo-600" />
                                             </div>
-                                            <div>
-                                                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Pending Requests</h2>
-                                                <p className="text-gray-500 text-sm font-medium">Review pending leave and on-duty applications.</p>
-                                            </div>
+                                            <p className="text-slate-500 text-xs font-medium mb-4">Official observed company holidays.</p>
+
+                                            {upcomingHolidaysList.length === 0 ? (
+                                                <div className="py-8 text-center text-slate-400 text-xs font-bold">
+                                                    No holidays scheduled in near term.
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    {upcomingHolidaysList.map(h => (
+                                                        <div key={h.date || h.holiday_date} className="p-3 bg-gradient-to-r from-indigo-50/50 to-purple-50/30 rounded-xl border border-indigo-100/60 flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-xs font-black text-indigo-950">{h.name || h.holiday_name}</p>
+                                                                <p className="text-[10px] text-slate-500 font-semibold">{formatDateOnly(h.date || h.holiday_date)}</p>
+                                                            </div>
+                                                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-indigo-600 text-white shadow-xs">
+                                                                {getDaysUntilHoliday(h.date || h.holiday_date)}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
+
                                         <Link
-                                            to="/approvals"
-                                            className="group flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-orange-600 transition-colors bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm hover:shadow-md"
+                                            to="/holidays"
+                                            className="mt-4 text-center py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all border border-slate-200"
                                         >
-                                            View All
-                                            <span className="group-hover:translate-x-1 transition-transform">→</span>
+                                            View Full Holiday Calendar →
                                         </Link>
                                     </div>
+                                </div>
 
-                                    <div className="relative group/container">
-                                        {/* Left Navigation Button - Modern Floating Style */}
-                                        <button
-                                            onClick={scrollLeft}
-                                            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-[#1e1b4b] rounded-full flex items-center justify-center text-[#0ea5e9] shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100 border border-[#0ea5e9]/10"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                                            </svg>
-                                        </button>
-
-                                        {/* Horizontal Scroll Container */}
-                                        <div
-                                            ref={scrollContainerRef}
-                                            className="flex gap-6 overflow-x-auto hide-scrollbar px-6 py-2 scroll-smooth"
-                                        >
-                                            {pendingApprovals.map((item) => (
-                                                <div
-                                                    key={item.id}
-                                                    onClick={() => handleOpenDetails(item, item.type === 'leave')}
-                                                    className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative group min-w-[280px] max-w-[280px] flex-shrink-0 cursor-pointer"
-                                                >
-                                                    <div className="flex justify-between items-start mb-4">
-                                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${item.type === 'leave'
-                                                            ? 'bg-blue-50 text-blue-600'
-                                                            : (item.type === 'time_off' ? 'bg-teal-50 text-teal-600' : 'bg-purple-50 text-purple-600')
-                                                            }`}>
-                                                            {item.type}
-                                                        </span>
-                                                        <span className="text-[11px] font-bold text-gray-400">
-                                                            {item.type === 'leave' ? (
-                                                                <span className="text-red-500">
-                                                                    {(() => {
-                                                                        const count = calculateLeaveDays(item.start_date, item.end_date) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
-                                                                        return formatLeaveDuration(count);
-                                                                    })()}
-                                                                </span>
-                                                            ) : (
-                                                                formatDateOnly(item.start_date)
-                                                            )}
-                                                        </span>
-                                                    </div>
-
-                                                    <div className="mb-4">
-                                                        <h3 className="text-base font-bold text-gray-900 leading-snug mb-1 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                                                            {item.name}
-                                                        </h3>
-                                                        <p className="text-xs text-gray-500 font-medium line-clamp-2 italic">
-                                                            "{item.title}"
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-2 mt-2 pt-4 border-t border-gray-50">
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleApprove(item, item.type === 'leave'); }}
-                                                            className="flex-1 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition-all flex items-center justify-center gap-2 group-hover:shadow-lg"
-                                                        >
-                                                            <span>Approve</span>
-                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-                                                                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                                                            </svg>
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleReject(item, item.type === 'leave'); }}
-                                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                                                            title="Reject"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                                                                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                                                            </svg>
-                                                        </button>
+                                {/* Leave Distribution by Category */}
+                                {leaveTypesList.length > 0 && (
+                                    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mb-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-base font-black text-slate-900 tracking-tight">Leave Consumption by Leave Category</h3>
+                                            <span className="text-xs text-slate-400 font-bold">{leaveTypesList.length} Categories Recorded</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                                            {leaveTypesList.map(item => (
+                                                <div key={item.type} className="p-3 bg-slate-50/70 rounded-xl border border-slate-100 flex flex-col justify-between">
+                                                    <span className="text-xs font-bold text-slate-600 truncate mb-1">{item.type}</span>
+                                                    <div className="flex items-baseline justify-between">
+                                                        <span className="text-xl font-black text-indigo-900">{item.count}</span>
+                                                        <span className="text-[10px] text-slate-400 font-semibold">requests</span>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-
-                                        {/* Right Navigation Button - Modern Floating Style */}
-                                        <button
-                                            onClick={scrollRight}
-                                            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-[#1e1b4b] rounded-full flex items-center justify-center text-[#0ea5e9] shadow-xl shadow-indigo-950/20 hover:shadow-[#0ea5e9]/20 hover:scale-110 active:scale-95 transition-all duration-300 opacity-0 group-hover/container:opacity-100 border border-[#0ea5e9]/10"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                            </svg>
-                                        </button>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
+                        )}
 
-                            {/* Summary Section */}
-                            <div className="mb-12">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-2 h-8 bg-[#1e1b4b] rounded-full"></div>
-                                    <h2 className="text-2xl font-black text-[#1e1b4b] tracking-tight uppercase tracking-tighter">System Summary</h2>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <StatCard
-                                        title="Total Requests"
-                                        value={stats.pendingLeaves + stats.approvedLeaves + stats.rejectedLeaves + stats.pendingTimeOff + stats.approvedTimeOff + stats.rejectedTimeOff}
-                                        icon={<FiFileText className="w-5 h-5" />}
-                                        color="text-[#1e1b4b]"
-                                        footer="Engagement overview"
-                                        gradient="bg-[#1e1b4b]"
-                                    />
-                                    <StatCard
-                                        title="Total On-Duty Logs"
-                                        value={stats.pendingOnDuty + stats.approvedOnDuty + stats.rejectedOnDuty + stats.activeOnDuty}
-                                        icon={<FiMapPin className="w-5 h-5" />}
-                                        color="text-[#0ea5e9]"
-                                        footer="Operational overview"
-                                        gradient="bg-[#0ea5e9]"
-                                    />
+                        {/* Leave & On-Duty Doughnut Breakdowns */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                                <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 mb-2">Leave Request Status</h3>
+                                <div className="h-56 relative">
+                                    <Doughnut data={leaveDoughnutData} options={doughnutOptions} />
                                 </div>
                             </div>
-
-                            {/* Leave Section */}
-                            <div className="mb-12">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-2 h-8 bg-orange-500 rounded-full"></div>
-                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">Leave Management</h2>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    <StatCard
-                                        title="Pending Review"
-                                        value={stats.pendingLeaves}
-                                        icon={<FiClock className="w-5 h-5" />}
-                                        color="text-orange-600"
-                                        footer="Action Required"
-                                        gradient="bg-gradient-to-br from-orange-400 to-amber-500"
-                                    />
-                                    <StatCard
-                                        title="Success Rate"
-                                        value={stats.approvedLeaves}
-                                        icon={<LuSparkles className="w-5 h-5" />}
-                                        color="text-green-600"
-                                        footer="Total approved"
-                                        gradient="bg-gradient-to-br from-green-400 to-emerald-600"
-                                    />
-                                    <StatCard
-                                        title="Exceptions"
-                                        value={stats.rejectedLeaves}
-                                        icon={<FiAlertCircle className="w-5 h-5" />}
-                                        color="text-red-600"
-                                        footer="Total rejected"
-                                        gradient="bg-gradient-to-br from-red-400 to-rose-600"
-                                    />
+                            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                                <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 mb-2">On-Duty Operations Status</h3>
+                                <div className="h-56 relative">
+                                    <Doughnut data={onDutyDoughnutData} options={doughnutOptions} />
                                 </div>
                             </div>
-
-                            {/* On-Duty Section */}
-                            <div className="mb-12">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-2 h-8 bg-blue-500 rounded-full"></div>
-                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">On-Duty Operations</h2>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                                    <StatCard
-                                        title="Currently In Field"
-                                        value={stats.activeOnDuty}
-                                        icon={<FiRadio className="w-5 h-5" />}
-                                        color="text-blue-600"
-                                        footer="Live active status"
-                                        gradient="bg-gradient-to-br from-blue-400 to-cyan-500"
-                                    />
-                                    <StatCard
-                                        title="Verification Queue"
-                                        value={stats.pendingOnDuty}
-                                        icon={<FiSearch className="w-5 h-5" />}
-                                        color="text-orange-600"
-                                        footer="Pending checks"
-                                        gradient="bg-gradient-to-br from-orange-400 to-amber-500"
-                                    />
-                                    <StatCard
-                                        title="Verified Tasks"
-                                        value={stats.approvedOnDuty}
-                                        icon={<FiShield className="w-5 h-5" />}
-                                        color="text-green-600"
-                                        footer="System confirmed"
-                                        gradient="bg-gradient-to-br from-green-400 to-emerald-600"
-                                    />
-                                    <StatCard
-                                        title="Declined Tasks"
-                                        value={stats.rejectedOnDuty}
-                                        icon={<FiSlash className="w-5 h-5" />}
-                                        color="text-red-600"
-                                        footer="Policy violation"
-                                        gradient="bg-gradient-to-br from-red-400 to-rose-600"
-                                    />
+                            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                                <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 mb-2">Time-Off Requests Status</h3>
+                                <div className="h-56 relative">
+                                    <Doughnut data={timeOffDoughnutData} options={doughnutOptions} />
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Time-Off Section */}
-                            <div className="mb-12">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-2 h-8 bg-teal-500 rounded-full"></div>
-                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">Time-Off Management</h2>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    <StatCard
-                                        title="Pending Review"
-                                        value={stats.pendingTimeOff}
-                                        icon={<FiClock className="w-5 h-5" />}
-                                        color="text-orange-600"
-                                        footer="Action Required"
-                                        gradient="bg-gradient-to-br from-orange-400 to-amber-500"
-                                    />
-                                    <StatCard
-                                        title="Approved"
-                                        value={stats.approvedTimeOff}
-                                        icon={<LuSparkles className="w-5 h-5" />}
-                                        color="text-teal-600"
-                                        footer="Total approved"
-                                        gradient="bg-gradient-to-br from-teal-400 to-emerald-600"
-                                    />
-                                    <StatCard
-                                        title="Rejected"
-                                        value={stats.rejectedTimeOff}
-                                        icon={<FiAlertCircle className="w-5 h-5" />}
-                                        color="text-red-600"
-                                        footer="Total rejected"
-                                        gradient="bg-gradient-to-br from-red-400 to-rose-600"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Charts Section */}
-                            <div className="mb-8">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h2>
-
-                                {/* Trend Bar Chart (Recharts) */}
-                                <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                    <div className="flex flex-col gap-4 mb-4">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="text-lg font-bold text-gray-900">Daily Approval Trend</h3>
-                                            <button
-                                                onClick={() => setShowCustomDateRange(!showCustomDateRange)}
-                                                className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                                            >
-                                                {showCustomDateRange ? 'Use Quick Select' : 'Custom Range'}
-                                            </button>
-                                        </div>
-
-                                        {showCustomDateRange ? (
-                                            <div className="flex gap-3 items-end">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                                                    <input
-                                                        type="date"
-                                                        value={trendStartDate || ''}
-                                                        onChange={(e) => setTrendStartDate(e.target.value)}
-                                                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                                                    <input
-                                                        type="date"
-                                                        value={trendEndDate || ''}
-                                                        onChange={(e) => setTrendEndDate(e.target.value)}
-                                                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    />
-                                                </div>
-                                                <button
-                                                    onClick={() => {
-                                                        if (trendStartDate && trendEndDate) {
-                                                            fetchTrendData(null, trendStartDate, trendEndDate);
-                                                            setShowCustomDateRange(false);
-                                                        }
-                                                    }}
-                                                    disabled={!trendStartDate || !trendEndDate || trendLoading}
-                                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                                                >
-                                                    Apply
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex gap-2 flex-wrap">
-                                                {[7, 14, 30, 60, 90].map((days) => (
-                                                    <button
-                                                        key={days}
-                                                        onClick={() => {
-                                                            setTrendDuration(days);
-                                                            setTrendStartDate(null);
-                                                            setTrendEndDate(null);
-                                                            fetchTrendData(days);
-                                                        }}
-                                                        disabled={trendLoading}
-                                                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${trendDuration === days && !showCustomDateRange
-                                                            ? 'bg-blue-700 text-white'
-                                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                            } ${trendLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                    >
-                                                        {days}d
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <p className="text-sm text-gray-600 mb-4">Shows the number of leave and on-duty approvals for each day. Select a predefined period or use custom date range.</p>
-                                    <div className="relative w-full h-96">
-                                        {trendLoading && (
-                                            <ModernLoader size="container" message="Updating trend data..." />
-                                        )}
-                                        <ResponsiveContainer width="100%" height={400}>
-                                            <BarChart data={trendBarChartData} margin={{ top: 20, right: 30, left: 0, bottom: 40 }}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                                <XAxis
-                                                    dataKey="day"
-                                                    stroke="#6b7280"
-                                                    style={{ fontSize: '12px' }}
-                                                    label={{ value: 'Day', position: 'insideBottomRight', offset: -10 }}
-                                                />
-                                                <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
-                                                <Tooltip
-                                                    contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                                    cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
-                                                    formatter={(value, name) => {
-                                                        const nameMap = { leaves: 'Leave Approvals', onDuty: 'On-Duty Approvals' };
-                                                        return [value, nameMap[name] || name];
-                                                    }}
-                                                />
-                                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                                <Bar dataKey="leaves" fill="#10b981" radius={[8, 8, 0, 0]} name="Leave Approvals" />
-                                                <Bar dataKey="onDuty" fill="#3b82f6" radius={[8, 8, 0, 0]} name="On-Duty Approvals" />
-                                                <Bar dataKey="timeOff" fill="#14b8a6" radius={[8, 8, 0, 0]} name="Time-Off Approvals" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-
-                                {/* Doughnut Charts Grid (Chart.js) */}
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                                    {/* Leave Distribution Doughnut Chart */}
-                                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                        <h3 className="text-lg font-bold text-gray-900 mb-2">Leave Request Distribution</h3>
-                                        <p className="text-sm text-gray-600 mb-4">Breakdown of all leave requests by status - shows how many are pending, approved, or rejected.</p>
-                                        <div style={{ height: '350px', position: 'relative' }}>
-                                            <Doughnut data={leaveDoughnutData} options={doughnutOptions} />
-                                        </div>
-                                    </div>
-
-                                    {/* On-Duty Distribution Doughnut Chart */}
-                                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                        <h3 className="text-lg font-bold text-gray-900 mb-2">On-Duty Distribution</h3>
-                                        <p className="text-sm text-gray-600 mb-4">Breakdown of all on-duty logs by status - shows active, pending, approved, and rejected entries.</p>
-                                        <div style={{ height: '350px', position: 'relative' }}>
-                                            <Doughnut data={onDutyDoughnutData} options={doughnutOptions} />
-                                        </div>
-                                    </div>
-
-                                    {/* Time-Off Distribution Doughnut Chart */}
-                                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                        <h3 className="text-lg font-bold text-gray-900 mb-2">Time-Off Distribution</h3>
-                                        <p className="text-sm text-gray-600 mb-4">Breakdown of all time-off requests by status - shows pending, approved, and rejected entries.</p>
-                                        <div style={{ height: '350px', position: 'relative' }}>
-                                            <Doughnut data={timeOffDoughnutData} options={doughnutOptions} />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Quick Actions */}
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center">
-                                <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-                                <Link to="/approvals" className="inline-block px-6 py-3 bg-blue-700 text-white rounded-lg font-medium hover:bg-blue-800 transition-colors">
-                                    Go to All Approvals
-                                </Link>
-                            </div>
-                        </>
                     </div>
                 </div>
 
-                {/* Modals - Outside blurred content */}
+                {/* Approve Modal */}
                 {approveModal.show && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-                            <div className="bg-green-50 border-b border-green-200 px-6 py-4">
-                                <h2 className="text-lg font-bold text-green-900">Approve {approveModal.item?.type === 'leave' ? 'Leave' : (approveModal.item?.type === 'time_off' ? 'Time-Off' : 'On-Duty')} Request</h2>
-                                <p className="text-sm text-green-700 mt-1">Are you sure you want to approve this request?</p>
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+                            <div className="bg-emerald-50 border-b border-emerald-100 px-6 py-4">
+                                <h2 className="text-lg font-black text-emerald-950">
+                                    Approve {approveModal.item?.type === 'leave' ? 'Leave' : (approveModal.item?.type === 'time_off' ? 'Time-Off' : 'On-Duty')} Request
+                                </h2>
+                                <p className="text-xs text-emerald-800 mt-0.5">Are you sure you want to approve this request?</p>
                             </div>
                             <div className="p-6">
-                                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
-                                    <p className="text-sm text-gray-600"><strong>Name:</strong> {approveModal.item?.name}</p>
-                                    <p className="text-sm text-gray-600"><strong>Title:</strong> {approveModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(approveModal.item)}</p>
+                                <div className="mb-4 p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                                    <p className="text-slate-600"><strong>Employee:</strong> {approveModal.item?.name}</p>
+                                    <p className="text-slate-600"><strong>Title:</strong> {approveModal.item?.title}</p>
+                                    <p className="text-slate-600"><strong>Period:</strong> {formatDateForModal(approveModal.item)}</p>
                                 </div>
                                 {modalError && (
-                                    <div className="mb-3 flex items-center gap-3 rounded-lg border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-4 py-3 shadow-sm">
-                                        <svg className="h-5 w-5 flex-shrink-0 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-                                        </svg>
-                                        <p className="text-[13px] font-semibold text-red-700">{modalError}</p>
+                                    <div className="mb-4 p-3 bg-red-50 text-red-700 text-xs font-bold rounded-xl border border-red-200">
+                                        {modalError}
                                     </div>
                                 )}
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => setApproveModal({ show: false, item: null, isLeave: false })}
                                         disabled={!!processingId}
-                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium"
+                                        className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         onClick={async () => await performStatusUpdate(approveModal.item, 'approved', approveModal.isLeave)}
                                         disabled={!!processingId}
-                                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+                                        className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-2"
                                     >
-                                        {!!processingId ? (
-                                            <>
-                                                <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                                <span>Processing...</span>
-                                            </>
-                                        ) : (
-                                            'Confirm Approval'
-                                        )}
+                                        {processingId ? 'Processing…' : 'Confirm Approval'}
                                     </button>
                                 </div>
                             </div>
@@ -1760,39 +1998,38 @@ const Dashboard = () => {
                     </div>
                 )}
 
+                {/* Reject Modal */}
                 {rejectModal.show && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-                            <div className="bg-red-50 border-b border-red-200 px-6 py-4">
-                                <h2 className="text-lg font-bold text-red-900">Reject {rejectModal.item?.type === 'leave' ? 'Leave' : (rejectModal.item?.type === 'time_off' ? 'Time-Off' : 'On-Duty')} Request</h2>
-                                <p className="text-sm text-red-700 mt-1">Please provide a reason for rejection</p>
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+                            <div className="bg-red-50 border-b border-red-100 px-6 py-4">
+                                <h2 className="text-lg font-black text-red-950">
+                                    Reject {rejectModal.item?.type === 'leave' ? 'Leave' : (rejectModal.item?.type === 'time_off' ? 'Time-Off' : 'On-Duty')} Request
+                                </h2>
+                                <p className="text-xs text-red-800 mt-0.5">Please provide a reason for the rejection.</p>
                             </div>
                             <div className="p-6">
-                                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
-                                    <p className="text-sm text-gray-600"><strong>Name:</strong> {rejectModal.item?.name}</p>
-                                    <p className="text-sm text-gray-600"><strong>Title:</strong> {rejectModal.item?.title}</p>
-                                    <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(rejectModal.item)}</p>
+                                <div className="mb-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                                    <p className="text-slate-600"><strong>Employee:</strong> {rejectModal.item?.name}</p>
+                                    <p className="text-slate-600"><strong>Title:</strong> {rejectModal.item?.title}</p>
                                 </div>
                                 <textarea
                                     value={rejectModal.reason}
                                     onChange={e => setRejectModal(r => ({ ...r, reason: e.target.value }))}
-                                    placeholder="Enter the reason for rejection..."
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
-                                    rows="4"
+                                    placeholder="Enter rejection reason..."
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-red-500 outline-none mb-3"
+                                    rows="3"
                                 />
                                 {modalError && (
-                                    <div className="mb-3 flex items-center gap-3 rounded-lg border-l-[5px] border-red-500 bg-gradient-to-r from-red-50 to-white px-4 py-3 shadow-sm">
-                                        <svg className="h-5 w-5 flex-shrink-0 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-                                        </svg>
-                                        <p className="text-[13px] font-semibold text-red-700">{modalError}</p>
+                                    <div className="mb-4 p-3 bg-red-50 text-red-700 text-xs font-bold rounded-xl border border-red-200">
+                                        {modalError}
                                     </div>
                                 )}
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => setRejectModal({ show: false, item: null, isLeave: false, reason: '' })}
                                         disabled={!!processingId}
-                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium"
+                                        className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all"
                                     >
                                         Cancel
                                     </button>
@@ -1805,16 +2042,9 @@ const Dashboard = () => {
                                             await performStatusUpdate(rejectModal.item, 'rejected', rejectModal.isLeave, rejectModal.reason);
                                         }}
                                         disabled={!!processingId}
-                                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+                                        className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-2"
                                     >
-                                        {!!processingId ? (
-                                            <>
-                                                <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                                <span>Processing...</span>
-                                            </>
-                                        ) : (
-                                            'Confirm Rejection'
-                                        )}
+                                        {processingId ? 'Processing…' : 'Confirm Rejection'}
                                     </button>
                                 </div>
                             </div>
@@ -1825,122 +2055,50 @@ const Dashboard = () => {
                 {/* Details Modal */}
                 {detailsModal.show && detailsModal.item && (
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-fadeIn">
-                        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn border border-gray-200">
-                            {/* Header Panel */}
-                            <div className="p-6 bg-[#2E5090] text-white relative">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
+                            <div className="p-6 bg-gradient-to-r from-[#0f172a] to-[#1e1b4b] text-white relative">
                                 <button
                                     onClick={() => setDetailsModal({ ...detailsModal, show: false })}
                                     className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+                                    ✕
                                 </button>
-
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl font-bold shadow-inner border border-white/20">
+                                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl font-bold border border-white/20">
                                         {detailsModal.isLeave ? <FiFileText className="w-6 h-6 text-white" /> : (detailsModal.item.type === 'time_off' ? <FiClock className="w-6 h-6 text-white" /> : <FiMapPin className="w-6 h-6 text-white" />)}
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-bold">{detailsModal.isLeave ? 'Leave Request Details' : (detailsModal.item.type === 'time_off' ? 'Time-Off Details' : 'On-Duty Details')}</h2>
-                                        <p className="text-white/80 text-xs font-semibold tracking-wide">
-                                            {detailsModal.isLeave ? 'Leave Application Details' : (detailsModal.item.type === 'time_off' ? 'Hourly Permission Details' : 'On-Duty Transaction Details')}
+                                        <p className="text-white/70 text-xs font-semibold">
+                                            System ID: #{detailsModal.item.id} • Employee: {detailsModal.item.name}
                                         </p>
                                     </div>
-                                </div>
-
-                                <div className="flex items-center gap-2 mt-4">
-                                    <span className="px-3 py-1 rounded-md text-[10px] font-bold tracking-wide border bg-orange-500/20 border-orange-400/30 text-orange-100">
-                                        Pending Approval
-                                    </span>
-                                    <span className="text-[10px] font-semibold text-white/70 tracking-wide">
-                                        System ID: {detailsModal.item.id}
-                                    </span>
                                 </div>
                             </div>
 
-                            {/* Content Scrollable */}
-                            <div className="p-8 overflow-y-auto hide-scrollbar space-y-8">
-                                {/* Employee Header */}
-                                <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 rounded-full bg-[#2E5090]/10 flex items-center justify-center text-xl font-bold text-[#2E5090]">
-                                        {detailsModal.item.name?.charAt(0)}
+                            <div className="p-6 overflow-y-auto hide-scrollbar space-y-6">
+                                <div className="grid grid-cols-2 gap-4 border-b border-slate-100 pb-4 text-xs">
+                                    <div>
+                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Category</p>
+                                        <p className="text-sm font-black text-slate-800 mt-0.5">{detailsModal.item.title}</p>
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold text-gray-900">{detailsModal.item.name}</h3>
-                                        <p className="text-sm text-gray-500 font-medium">Employee ID: {detailsModal.item.staff_id}</p>
+                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Period</p>
+                                        <p className="text-sm font-bold text-slate-800 mt-0.5">{formatDateForModal(detailsModal.item)}</p>
                                     </div>
                                 </div>
 
-                                {/* Main Info Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 border-t border-b border-gray-100 py-8">
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-bold text-[#2E5090] tracking-wide">Category Type</p>
-                                        <p className="text-base font-semibold text-gray-900">
-                                            {detailsModal.isLeave ? detailsModal.item.title : (detailsModal.item.type === 'time_off' ? 'Time-Off' : detailsModal.item.title)}
-                                        </p>
-                                        {!detailsModal.isLeave && detailsModal.item.type !== 'time_off' && detailsModal.item.location && (
-                                            <p className="text-sm text-[#2E5090] font-medium flex items-center gap-1">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                                    <path fillRule="evenodd" d="m9.69 18.94.027.013a2.358 2.358 0 0 0 2.566-.013l.027-.013c.12-.058.214-.144.3-.23.111-.11.23-.235.343-.352l.006-.006c.928-.971 1.636-1.742 2.146-2.583.506-.833.76-1.614.76-2.345 0-2.433-2.029-4.409-4.528-4.409-2.5 0-4.528 1.976-4.528 4.409 0 .731.254 1.512.759 2.345.51.841 1.218 1.612 2.147 2.583l.006.006c.113.117.232.243.343.352.086.086.18.172.3.23ZM10 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
-                                                </svg>
-                                                {detailsModal.item.location}
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-bold text-[#2E5090] tracking-wide">Application Period</p>
-                                        <p className="text-base font-semibold text-gray-900">
-                                            {detailsModal.isLeave
-                                                ? formatLeaveDuration(calculateLeaveDays(detailsModal.item.start_date, detailsModal.item.end_date) - (detailsModal.item.is_half_day === true || detailsModal.item.is_half_day === 1 ? 0.5 : 0))
-                                                : (detailsModal.item.type === 'time_off'
-                                                    ? calculateTimeOffDuration(detailsModal.item.start_time, detailsModal.item.end_time)
-                                                    : calculateOnDutyDuration(detailsModal.item.start_time, detailsModal.item.end_time))
-                                            }
-                                        </p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective Start</p>
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-base font-semibold text-gray-900">
-                                                {detailsModal.isLeave 
-                                                    ? formatDateOnly(detailsModal.item.start_date) 
-                                                    : (detailsModal.item.type === 'time_off' 
-                                                        ? `${formatTimeOnly(detailsModal.item.start_time)} (On ${formatDateOnly(detailsModal.item.date)})` 
-                                                        : formatInTimezone(detailsModal.item.start_time))}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-bold text-[#2E5090] tracking-wide">Effective End</p>
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-base font-semibold text-gray-900">
-                                                {detailsModal.isLeave 
-                                                    ? formatDateOnly(detailsModal.item.end_date) 
-                                                    : (detailsModal.item.type === 'time_off' 
-                                                        ? formatTimeOnly(detailsModal.item.end_time) 
-                                                        : (detailsModal.item.end_time ? formatInTimezone(detailsModal.item.end_time) : '—'))}
-                                            </p>
-                                        </div>
+                                <div>
+                                    <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Reason / Purpose</p>
+                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed font-medium">
+                                        {detailsModal.item.reason || detailsModal.item.purpose || 'No additional note provided.'}
                                     </div>
                                 </div>
 
-                                {/* Reason Section */}
-                                <div className="space-y-3">
-                                    <p className="text-xs font-bold text-[#2E5090] tracking-wide">Applied Reason / Purpose</p>
-                                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-100 text-gray-700 leading-relaxed font-medium">
-                                        {detailsModal.isLeave 
-                                            ? detailsModal.item.reason 
-                                            : (detailsModal.item.type === 'time_off' 
-                                                ? detailsModal.item.reason 
-                                                : detailsModal.item.purpose || 'Task documentation provided.')}
-                                    </div>
-                                </div>
-
-                                {/* Location Map for On-Duty */}
+                                {/* On-Duty Location Map */}
                                 {!detailsModal.isLeave && detailsModal.item.type !== 'time_off' && (
-                                    <div className="space-y-3">
-                                        <p className="text-xs font-bold text-[#2E5090] tracking-wide">Location Tracking</p>
+                                    <div>
+                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-2">Location Map</p>
                                         <OnDutyLocationMap
                                             startLat={detailsModal.item.start_lat}
                                             startLong={detailsModal.item.start_long}
@@ -1951,192 +2109,103 @@ const Dashboard = () => {
                                         />
                                     </div>
                                 )}
-
                             </div>
 
-                            {/* Footer Controls */}
-                            <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-                                <div className="text-[10px] font-semibold text-gray-500 tracking-wide">
-                                    Logged: {formatApprovalDate(detailsModal.item.createdAt)}
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setDetailsModal({ ...detailsModal, show: false })}
-                                        className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-gray-100 transition-all shadow-sm"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setDetailsModal({ ...detailsModal, show: false });
-                                            handleReject(detailsModal.item, detailsModal.isLeave);
-                                        }}
-                                        className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md"
-                                    >
-                                        Reject
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setDetailsModal({ ...detailsModal, show: false });
-                                            handleApprove(detailsModal.item, detailsModal.isLeave);
-                                        }}
-                                        className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-green-700 transition-all shadow-md shadow-green-100"
-                                    >
-                                        Approve Request
-                                    </button>
-                                </div>
+                            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                                <button
+                                    onClick={() => setDetailsModal({ ...detailsModal, show: false })}
+                                    className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-100 transition-all"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setDetailsModal({ ...detailsModal, show: false });
+                                        handleReject(detailsModal.item, detailsModal.isLeave);
+                                    }}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-xl font-black text-xs hover:bg-red-700 transition-all"
+                                >
+                                    Reject
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setDetailsModal({ ...detailsModal, show: false });
+                                        handleApprove(detailsModal.item, detailsModal.isLeave);
+                                    }}
+                                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-black text-xs hover:bg-emerald-700 transition-all"
+                                >
+                                    Approve Request
+                                </button>
                             </div>
                         </div>
                     </div>
                 )}
-            </div>
 
-            {/* On Leave Detail Modal */}
-            {onLeaveDetailModal.show && onLeaveDetailModal.emp && (
-                <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80]"
-                    onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
-                >
+                {/* On Leave Detail Modal */}
+                {onLeaveDetailModal.show && onLeaveDetailModal.emp && (
                     <div
-                        className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
-                        onClick={e => e.stopPropagation()}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn"
+                        onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
                     >
-                        {/* Header */}
-                        <div className="bg-[#1e1b4b] p-6 relative">
-                            <button
-                                onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
-                                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-white">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                            <div className="flex items-center gap-4">
-                                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-black text-white flex-shrink-0 ${onLeaveDetailModal.dayLabel === 'Today' ? 'bg-red-500' : 'bg-amber-400'}`}>
-                                    {onLeaveDetailModal.emp.name.charAt(0).toUpperCase()}
+                        <div
+                            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="bg-[#1e1b4b] p-6 relative text-white">
+                                <button
+                                    onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
+                                    className="absolute top-4 right-4 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
+                                >
+                                    ✕
+                                </button>
+                                <div className="flex items-center gap-3.5">
+                                    <div className="w-12 h-12 rounded-full bg-rose-500 flex items-center justify-center font-black text-lg">
+                                        {onLeaveDetailModal.emp.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <h2 className="text-base font-black text-white">{onLeaveDetailModal.emp.name}</h2>
+                                        <p className="text-white/60 text-xs">{onLeaveDetailModal.emp.email || `Staff #${onLeaveDetailModal.emp.staff_id}`}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h2 className="text-lg font-black text-white">{onLeaveDetailModal.emp.name}</h2>
-                                    <p className="text-white/50 text-xs font-semibold mt-0.5">
-                                        {onLeaveDetailModal.emp.email || `Staff ID: ${onLeaveDetailModal.emp.staff_id}`}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="mt-4 flex items-center gap-2">
-                                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${onLeaveDetailModal.dayLabel === 'Today' ? 'bg-red-500/20 text-red-200 border-red-400/30' : 'bg-amber-400/20 text-amber-200 border-amber-400/30'}`}>
+                                <span className="inline-block mt-3 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-400/30">
                                     On Leave {onLeaveDetailModal.dayLabel}
                                 </span>
-                                <span className="text-[10px] font-semibold text-white/40 tracking-wide">
-                                    #{onLeaveDetailModal.emp.id}
-                                </span>
                             </div>
-                        </div>
 
-                        {/* Body */}
-                        <div className="p-6 space-y-4">
-                            {/* Leave Type */}
-                            <div className="flex items-center justify-between p-4 bg-[#eef2ff] rounded-xl border border-[#1e1b4b]/10">
-                                <div>
-                                    <p className="text-[10px] font-black text-[#1e1b4b]/50 uppercase tracking-widest mb-1">Leave Type</p>
-                                    <p className="text-base font-black text-[#1e1b4b]">{onLeaveDetailModal.emp.leave_type}</p>
+                            <div className="p-5 space-y-3 text-xs">
+                                <div className="p-3 bg-indigo-50/70 rounded-xl border border-indigo-100 flex items-center justify-between">
+                                    <span className="font-bold text-slate-500">Leave Type</span>
+                                    <span className="font-black text-indigo-900">{onLeaveDetailModal.emp.leave_type}</span>
                                 </div>
-                                {onLeaveDetailModal.emp.is_half_day && (
-                                    <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-[10px] font-black rounded-full uppercase tracking-wider">
-                                        Half Day
+                                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                                    <span className="font-bold text-slate-500">Duration</span>
+                                    <span className="font-black text-slate-900">
+                                        {formatDateOnly(onLeaveDetailModal.emp.start_date)} - {formatDateOnly(onLeaveDetailModal.emp.end_date)}
                                     </span>
+                                </div>
+                                {onLeaveDetailModal.emp.reason && (
+                                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <p className="font-bold text-slate-400 text-[10px] uppercase mb-1">Reason</p>
+                                        <p className="text-slate-700 font-medium">{onLeaveDetailModal.emp.reason}</p>
+                                    </div>
                                 )}
                             </div>
 
-                            {/* Dates */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">From</p>
-                                    <p className="text-sm font-bold text-gray-800">{formatDateOnly(onLeaveDetailModal.emp.start_date)}</p>
-                                </div>
-                                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">To</p>
-                                    <p className="text-sm font-bold text-gray-800">{formatDateOnly(onLeaveDetailModal.emp.end_date)}</p>
-                                </div>
+                            <div className="p-4 pt-0">
+                                <button
+                                    onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
+                                    className="w-full py-2.5 bg-[#1e1b4b] hover:bg-indigo-900 text-white rounded-xl font-black text-xs transition-colors"
+                                >
+                                    Close
+                                </button>
                             </div>
-
-                            {/* Duration */}
-                            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
-                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Duration</p>
-                                <p className="text-sm font-black text-[#1e1b4b]">
-                                    {(() => {
-                                        if (onLeaveDetailModal.emp.is_time_off) {
-                                            return 'Partial Day';
-                                        }
-                                        const days = calculateLeaveDays(onLeaveDetailModal.emp.start_date, onLeaveDetailModal.emp.end_date) - (onLeaveDetailModal.emp.is_half_day ? 0.5 : 0);
-                                        return formatLeaveDuration(days);
-                                    })()}
-                                </p>
-                            </div>
-
-                            {/* Approved By */}
-                            <div className="flex items-center justify-between px-4 py-3 bg-green-50 rounded-xl border border-green-100">
-                                <p className="text-xs font-black text-green-700/60 uppercase tracking-widest">Approved By</p>
-                                <div className="flex items-center gap-2">
-                                    {onLeaveDetailModal.emp.approved_by ? (
-                                        <>
-                                            <div className="w-5 h-5 rounded-full bg-green-600 flex items-center justify-center text-[9px] font-black text-white flex-shrink-0">
-                                                {onLeaveDetailModal.emp.approved_by.charAt(0).toUpperCase()}
-                                            </div>
-                                            <p className="text-sm font-bold text-green-800">{onLeaveDetailModal.emp.approved_by}</p>
-                                        </>
-                                    ) : (
-                                        <p className="text-sm font-bold text-gray-400">—</p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Reason */}
-                            {onLeaveDetailModal.emp.reason && (
-                                <div className="space-y-2">
-                                    <p className="text-[10px] font-black text-[#1e1b4b]/50 uppercase tracking-widest">Reason</p>
-                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-gray-700 text-sm font-medium leading-relaxed">
-                                        {onLeaveDetailModal.emp.reason}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Footer */}
-                        <div className="px-6 pb-6">
-                            <button
-                                onClick={() => setOnLeaveDetailModal({ show: false, emp: null, dayLabel: '' })}
-                                className="w-full py-3 bg-[#1e1b4b] text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#2d2a6e] transition-colors"
-                            >
-                                Close
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+
+            </div>
         </div>
     );
-};
-
-const calculateOnDutyDuration = (startTime, endTime) => {
-    if (!startTime || !endTime) return 'In Progress';
-    const start = parseAppTimezone(startTime);
-    const end = parseAppTimezone(endTime);
-    if (!start || !end) return 'In Progress';
-
-    const diffMs = end.getTime() - start.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const hours = Math.floor(diffMins / 60);
-    const mins = diffMins % 60;
-
-    if (hours > 0) {
-        return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
-};
-
-const formatApprovalDate = (dateString) => {
-    if (!dateString) return '—';
-    return formatInTimezone(dateString);
 };
 
 export default Dashboard;
