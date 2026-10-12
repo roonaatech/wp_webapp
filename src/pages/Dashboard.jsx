@@ -117,6 +117,9 @@ const Dashboard = () => {
     // Chart metric view: 'all' | 'attendance' | 'approvals'
     const [chartMetric, setChartMetric] = useState('all');
 
+    // People & Workforce dynamics card view: 'tenure' | 'age'
+    const [workforceMetricView, setWorkforceMetricView] = useState('tenure');
+
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     useEffect(() => {
@@ -782,6 +785,23 @@ const Dashboard = () => {
     const activeSessions = workforce.activeSessions || stats.presentToday || 0;
     const workModes = workforce.workModes || { Office: totalHeadcount, 'Work from home': 0, Hybrid: 0 };
     const genderDist = workforce.genderDistribution || { Male: 0, Female: 0, Other: 0, Unassigned: 0 };
+    const completedSessionsCount = workforce.completedSessions || 0;
+    const onLeaveTodayCount = onLeaveData?.today?.length || 0;
+    const presentTodayCount = stats.presentToday || 0;
+
+    const presence = workforce.presenceMetrics || {
+        totalActiveStaff: activeStaff,
+        attendanceCompleted: completedSessionsCount,
+        attendanceCompletedPct: activeStaff > 0 ? Math.round((completedSessionsCount / activeStaff) * 100) : 0,
+        inProgress: Math.max(0, presentTodayCount - completedSessionsCount),
+        inProgressPct: activeStaff > 0 ? Math.round((Math.max(0, presentTodayCount - completedSessionsCount) / activeStaff) * 100) : 0,
+        presentTotal: presentTodayCount,
+        presentTotalPct: activeStaff > 0 ? Math.round((presentTodayCount / activeStaff) * 100) : 0,
+        leaves: onLeaveTodayCount,
+        leavesPct: activeStaff > 0 ? Math.round((onLeaveTodayCount / activeStaff) * 100) : 0,
+        totalAbsents: Math.max(0, activeStaff - presentTodayCount - onLeaveTodayCount),
+        totalAbsentsPct: activeStaff > 0 ? Math.round((Math.max(0, activeStaff - presentTodayCount - onLeaveTodayCount) / activeStaff) * 100) : 0
+    };
     const onboarding = workforce.onboardingPipeline || { Completed: 0, Pending_Candidate: 0, Pending_HR_Approval: 0, Total: 0 };
     const roleDistribution = workforce.roleDistribution || [];
     const punchSources = workforce.punchSources || [];
@@ -1656,32 +1676,99 @@ const Dashboard = () => {
                                         </div>
                                     </div>
 
-                                    {/* QR Smart Badge Adoption */}
+                                    {/* Attendance, Absents & Leaves Dynamics */}
                                     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex flex-col justify-between">
                                         <div>
                                             <div className="flex items-center justify-between mb-3">
-                                                <span className="text-xs font-black uppercase tracking-wider text-slate-400">QR Badge Attendance</span>
-                                                <LuQrCode className="w-4 h-4 text-cyan-600" />
+                                                <span className="text-xs font-black uppercase tracking-wider text-slate-400">Attendance & Leaves</span>
+                                                <FiUserCheck className="w-4 h-4 text-emerald-600" />
                                             </div>
-                                            <div className="flex items-baseline gap-2 mb-2">
-                                                <span className="text-3xl font-black text-cyan-600 tracking-tight">
-                                                    100%
-                                                </span>
-                                                <span className="text-xs text-slate-400 font-bold">active</span>
+
+                                            {/* Top segmented ratio bar */}
+                                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex mb-3.5 gap-0.5">
+                                                <div
+                                                    className="bg-emerald-500 h-full transition-all duration-500"
+                                                    style={{ width: `${presence.attendanceCompletedPct}%` }}
+                                                    title={`Attendance Completed: ${presence.attendanceCompletedPct}% (${presence.attendanceCompleted} Staff)`}
+                                                />
+                                                {presence.inProgressPct > 0 && (
+                                                    <div
+                                                        className="bg-cyan-500 h-full transition-all duration-500"
+                                                        style={{ width: `${presence.inProgressPct}%` }}
+                                                        title={`In-Progress: ${presence.inProgressPct}% (${presence.inProgress} Staff)`}
+                                                    />
+                                                )}
+                                                <div
+                                                    className="bg-rose-500 h-full transition-all duration-500"
+                                                    style={{ width: `${presence.totalAbsentsPct}%` }}
+                                                    title={`Total Absents: ${presence.totalAbsentsPct}% (${presence.totalAbsents} Staff)`}
+                                                />
+                                                <div
+                                                    className="bg-amber-400 h-full transition-all duration-500"
+                                                    style={{ width: `${presence.leavesPct}%` }}
+                                                    title={`Leaves: ${presence.leavesPct}% (${presence.leaves} Staff)`}
+                                                />
                                             </div>
-                                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
-                                                <div className="bg-gradient-to-r from-cyan-400 to-blue-600 h-full rounded-full transition-all duration-500" style={{ width: '100%' }}></div>
+
+                                            {/* 3 Core Requested Metrics */}
+                                            <div className="space-y-2.5">
+                                                {/* 1. Attendance Completed */}
+                                                <div>
+                                                    <div className="flex items-center justify-between text-xs mb-1">
+                                                        <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Attendance Completed
+                                                        </span>
+                                                        <span className="font-black text-slate-900 flex items-center gap-1">
+                                                            <span className="text-emerald-600 font-black">{presence.attendanceCompletedPct}%</span>
+                                                            <span className="text-[10px] text-slate-400 font-medium">({presence.attendanceCompleted})</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                        <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${presence.attendanceCompletedPct}%` }}></div>
+                                                    </div>
+                                                </div>
+
+                                                {/* 2. Total Absents */}
+                                                <div>
+                                                    <div className="flex items-center justify-between text-xs mb-1">
+                                                        <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                                                            <span className="w-2 h-2 rounded-full bg-rose-500"></span> Total Absents
+                                                        </span>
+                                                        <span className="font-black text-slate-900 flex items-center gap-1">
+                                                            <span className="text-rose-600 font-black">{presence.totalAbsentsPct}%</span>
+                                                            <span className="text-[10px] text-slate-400 font-medium">({presence.totalAbsents})</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                        <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${presence.totalAbsentsPct}%` }}></div>
+                                                    </div>
+                                                </div>
+
+                                                {/* 3. Leaves */}
+                                                <div>
+                                                    <div className="flex items-center justify-between text-xs mb-1">
+                                                        <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                                                            <span className="w-2 h-2 rounded-full bg-amber-400"></span> Leaves
+                                                        </span>
+                                                        <span className="font-black text-slate-900 flex items-center gap-1">
+                                                            <span className="text-amber-600 font-black">{presence.leavesPct}%</span>
+                                                            <span className="text-[10px] text-slate-400 font-medium">({presence.leaves})</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                        <div className="bg-amber-400 h-full rounded-full transition-all duration-500" style={{ width: `${presence.leavesPct}%` }}></div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <p className="text-slate-500 text-[11px] font-medium leading-relaxed">
-                                                Fast & secure touchless QR badge scanning enabled for all {activeStaff} active employees.
-                                            </p>
                                         </div>
-                                        <Link
-                                            to="/attendance"
-                                            className="mt-3 text-center py-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-800 text-[11px] font-black transition-colors"
-                                        >
-                                            Open Kiosk Terminal →
-                                        </Link>
+
+                                        {/* Footer */}
+                                        <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between text-[11px]">
+                                            <span className="text-slate-400 font-bold">Total Workforce</span>
+                                            <span className="font-black text-slate-700">
+                                                {activeStaff} Active Staff {presence.inProgress > 0 ? `· ${presence.inProgress} active now` : ''}
+                                            </span>
+                                        </div>
                                     </div>
 
                                     {/* Talent Onboarding Pipeline */}
