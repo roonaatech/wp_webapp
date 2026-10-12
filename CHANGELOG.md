@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.13](https://github.com/roonaatech/wp_webapp/compare/v2.17.12...v2.17.13) (2026-10-12)
+
+
+### Features
+
+* add workforce presence and attendance dynamics metrics card to dashboard ([3904209](https://github.com/roonaatech/wp_webapp/commit/3904209f9b25928cce71208e96b1a20db4570321))
+
 ### [2.17.12](https://github.com/roonaatech/wp_webapp/compare/v2.17.11...v2.17.12) (2026-10-12)
 
 
