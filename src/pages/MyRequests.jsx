@@ -1243,6 +1243,21 @@ const MyRequests = () => {
                     })()}
                 </div>
 
+            {/* ── Pending HR Assignment Notice ── */}
+            {(!user.role) && (
+                <div className="mx-4 mt-3 mb-1 p-3.5 bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-500/10 border border-amber-200/80 rounded-2xl flex items-start gap-3 shadow-xs">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-sm">
+                        ⏳
+                    </div>
+                    <div>
+                        <h4 className="text-xs font-bold text-amber-900 leading-snug">Onboarding Profile Submitted</h4>
+                        <p className="text-[11px] text-amber-700/90 font-medium leading-relaxed mt-0.5">
+                            Your profile details and declaration have been received. HR will assign your official email, role, and reporting manager soon.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* ── Tab Selector ── */}
             <div className="bg-white border-b border-gray-100 sticky top-[60px] z-40 shadow-sm">
                 <div className="flex">

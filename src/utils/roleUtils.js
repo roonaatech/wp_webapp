@@ -96,11 +96,14 @@ export const getRoleById = (roleId) => {
  * Get role display name by ID
  */
 export const getRoleDisplayName = (roleId) => {
+    if (roleId === null || roleId === undefined) {
+        return 'Pending Role Assignment';
+    }
     const role = getRoleById(roleId);
     if (role) {
         return role.display_name || role.name;
     }
-    return 'Unknown';
+    return 'Pending Role Assignment';
 };
 
 /**
@@ -108,6 +111,11 @@ export const getRoleDisplayName = (roleId) => {
  * Uses the explicit can_access_webapp permission field
  */
 export const canAccessWebApp = (roleId) => {
+    // Self-service employees awaiting role assignment by HR have basic web app access
+    if (roleId === null || roleId === undefined) {
+        return true;
+    }
+
     const role = getRoleById(roleId);
 
     if (!role) {
@@ -702,6 +710,7 @@ export const getApproverLabel = () => {
  * Get role color based on hierarchy level
  */
 export const getRoleColor = (roleId) => {
+    if (roleId === null || roleId === undefined) return 'bg-amber-50 text-amber-700 border border-amber-200';
     const role = getRoleById(roleId);
     if (!role) return 'bg-gray-50 text-gray-700';
 

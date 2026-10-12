@@ -60,7 +60,7 @@ const getPageHeaderInfo = (pathname, user) => {
     if (path.startsWith('/attendance')) {
         return {
             title: 'Smart Attendance Terminal',
-            subtitle: 'Face recognition and kiosk check-in terminal'
+            subtitle: 'QR badge and kiosk check-in terminal'
         };
     }
     if (path.startsWith('/reports')) {

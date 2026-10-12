@@ -1023,8 +1023,6 @@ const Activities = () => {
                                 <option value="BADGE_QR_CHECK_OUT">BADGE QR CHECK OUT</option>
                                 <option value="KIOSK_CHECK_IN">KIOSK CHECK IN</option>
                                 <option value="KIOSK_CHECK_OUT">KIOSK CHECK OUT</option>
-                                <option value="REGISTER_FACE">REGISTER FACE</option>
-                                <option value="REMOVE_FACE">REMOVE FACE</option>
                             </optgroup>
 
                             <optgroup label="Authentication & Security">
@@ -1040,7 +1038,7 @@ const Activities = () => {
                                 const standardActions = new Set([
                                     'CREATE', 'UPDATE', 'DELETE', 'UPDATE_PROFILE',
                                     'APPROVE', 'REJECT',
-                                    'CHECK_IN', 'CHECK_OUT', 'BADGE_QR_CHECK_IN', 'BADGE_QR_CHECK_OUT', 'KIOSK_CHECK_IN', 'KIOSK_CHECK_OUT', 'REGISTER_FACE', 'REMOVE_FACE',
+                                    'CHECK_IN', 'CHECK_OUT', 'BADGE_QR_CHECK_IN', 'BADGE_QR_CHECK_OUT', 'KIOSK_CHECK_IN', 'KIOSK_CHECK_OUT',
                                     'LOGIN', 'LOGOUT', 'PASSWORD_RESET', 'PASSWORD_RESET_REQUESTED', 'PASSWORD_CHANGE'
                                 ]);
                                 const otherActions = summary.actionCounts.filter(a => a.action && !standardActions.has(a.action));

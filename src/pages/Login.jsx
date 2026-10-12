@@ -94,13 +94,6 @@ const Login = () => {
             context_path: data.context_path || null
         };
 
-        // Role & Gender Validation (First Time / Setup Required)
-        if (!user.role || (!user.gender && !user.isServiceAccount)) {
-            setShowWelcomeModal(true);
-            setLoading(false);
-            return;
-        }
-
         // Persist or clear Remember Me credentials based on preference
         try {
             if (rememberMe) {
@@ -140,6 +133,13 @@ const Login = () => {
         // Gating Check: If user must change password, sign declaration, or complete first-time setup
         if (mustChangePassword || mustCompleteDeclaration || data.isFirstLogin || data.isFirstTimeLogin) {
             navigate('/verify-profile');
+            return;
+        }
+
+        // If gender is missing for non-service account users after setup, prompt administrator contact
+        if (!user.gender && !user.isServiceAccount) {
+            setShowWelcomeModal(true);
+            setLoading(false);
             return;
         }
 
@@ -246,7 +246,7 @@ const Login = () => {
                 }
                 errorMsg = err.response.data?.message || 'Access denied. Please contact your administrator.';
             } else if (err.response.status === 404) {
-                errorMsg = 'Authentication service endpoint not found. Please contact support.';
+                errorMsg = err.response.data?.message || 'Invalid email address or password.';
             } else if (err.response.status === 500) {
                 errorMsg = err.response.data?.message || 'Internal server error during login. Please try again later.';
             } else {

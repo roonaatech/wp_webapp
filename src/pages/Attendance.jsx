@@ -947,7 +947,7 @@ const Attendance = () => {
                                             ? 'bg-indigo-950/90 text-indigo-300 border-indigo-700/60 shadow-sm hover:bg-indigo-900/90'
                                             : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:bg-slate-700'
                                     }`}
-                                    title={privacyBlur ? "Privacy Shield is Active (Faces & Background Blurred). Click to disable." : "Privacy Shield is OFF. Click to enable."}
+                                    title={privacyBlur ? "Privacy Shield is Active (Camera Background Blurred). Click to disable." : "Privacy Shield is OFF. Click to enable."}
                                 >
                                     <LuShieldCheck size={13} className={privacyBlur ? "text-indigo-400" : "text-slate-500"} />
                                     <span>{privacyBlur ? "Privacy Shield On" : "Privacy Shield Off"}</span>

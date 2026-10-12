@@ -22,7 +22,7 @@ import {
     FiLayers, FiFilter, FiChevronRight, FiCamera, FiUserCheck, FiUserPlus,
     FiBriefcase, FiRefreshCw
 } from 'react-icons/fi';
-import { LuSparkles, LuLayoutDashboard, LuBuilding2, LuLaptop, LuCalendarDays } from 'react-icons/lu';
+import { LuSparkles, LuLayoutDashboard, LuBuilding2, LuLaptop, LuCalendarDays, LuQrCode } from 'react-icons/lu';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
@@ -750,7 +750,6 @@ const Dashboard = () => {
     const activeSessions = workforce.activeSessions || stats.presentToday || 0;
     const workModes = workforce.workModes || { Office: totalHeadcount, 'Work from home': 0, Hybrid: 0 };
     const genderDist = workforce.genderDistribution || { Male: 0, Female: 0, Other: 0, Unassigned: 0 };
-    const faceReg = workforce.faceRegistration || { registered: 0, pending: totalHeadcount, rate: 0 };
     const onboarding = workforce.onboardingPipeline || { Completed: 0, Pending_Candidate: 0, Pending_HR_Approval: 0, Total: 0 };
     const roleDistribution = workforce.roleDistribution || [];
     const punchSources = workforce.punchSources || [];
@@ -1529,7 +1528,7 @@ const Dashboard = () => {
                         )}
 
                         {/* =========================================================================
-                            LENS 2: PEOPLE & WORKFORCE (Work Modes, Gender Diversity, Face ID, Onboarding)
+                            LENS 2: PEOPLE & WORKFORCE (Work Modes, Gender Diversity, Smart Badges, Onboarding)
                         ========================================================================= */}
                         {(activeLens === 'overview' || activeLens === 'workforce') && (
                             <div className="mb-10">
@@ -1539,7 +1538,7 @@ const Dashboard = () => {
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-black text-slate-900 tracking-tight">People & Workforce Dynamics</h2>
-                                        <p className="text-slate-500 text-xs font-medium">Headcount distribution, biometric compliance, and talent pipeline.</p>
+                                        <p className="text-slate-500 text-xs font-medium">Headcount distribution, attendance modes, and talent pipeline.</p>
                                     </div>
                                 </div>
 
@@ -1612,34 +1611,32 @@ const Dashboard = () => {
                                         </div>
                                     </div>
 
-                                    {/* Biometric & Face ID Adoption */}
+                                    {/* QR Smart Badge Adoption */}
                                     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex flex-col justify-between">
                                         <div>
                                             <div className="flex items-center justify-between mb-3">
-                                                <span className="text-xs font-black uppercase tracking-wider text-slate-400">Face ID Enrollment</span>
-                                                <FiCamera className="w-4 h-4 text-cyan-600" />
+                                                <span className="text-xs font-black uppercase tracking-wider text-slate-400">QR Badge Attendance</span>
+                                                <LuQrCode className="w-4 h-4 text-cyan-600" />
                                             </div>
                                             <div className="flex items-baseline gap-2 mb-2">
                                                 <span className="text-3xl font-black text-cyan-600 tracking-tight">
-                                                    {faceReg.rate}%
+                                                    100%
                                                 </span>
-                                                <span className="text-xs text-slate-400 font-bold">enrolled</span>
+                                                <span className="text-xs text-slate-400 font-bold">active</span>
                                             </div>
                                             <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
-                                                <div className="bg-gradient-to-r from-cyan-400 to-blue-600 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, faceReg.rate)}%` }}></div>
+                                                <div className="bg-gradient-to-r from-cyan-400 to-blue-600 h-full rounded-full transition-all duration-500" style={{ width: '100%' }}></div>
                                             </div>
                                             <p className="text-slate-500 text-[11px] font-medium leading-relaxed">
-                                                Required for facial biometric kiosks. {faceReg.registered} staff registered, {faceReg.pending} pending capture.
+                                                Fast & secure touchless QR badge scanning enabled for all {activeStaff} active employees.
                                             </p>
                                         </div>
-                                        {canManageUsers(currentUser.role) && (
-                                            <Link
-                                                to="/users"
-                                                className="mt-3 text-center py-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-800 text-[11px] font-black transition-colors"
-                                            >
-                                                View Face ID Status →
-                                            </Link>
-                                        )}
+                                        <Link
+                                            to="/attendance"
+                                            className="mt-3 text-center py-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-800 text-[11px] font-black transition-colors"
+                                        >
+                                            Open Kiosk Terminal →
+                                        </Link>
                                     </div>
 
                                     {/* Talent Onboarding Pipeline */}

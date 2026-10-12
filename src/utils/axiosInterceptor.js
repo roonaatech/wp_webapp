@@ -59,7 +59,7 @@ export const setupAxiosInterceptors = (navigate) => {
             const isLoginRequest = error.config?.url?.includes('auth/signin');
             const isPasswordChangeRequest = error.config?.url?.includes('auth/change-password');
             const isYearlyHistoryRequest = error.config?.url?.includes('yearly-history');
-            const isAttendanceVerifyRequest = error.config?.url?.includes('attendance/check-in-out-with-face');
+            const isAttendanceVerifyRequest = error.config?.url?.includes('attendance/scan-qr-badge');
             
             if (isLoginRequest || isPasswordChangeRequest || isAttendanceVerifyRequest) {
                 return Promise.reject(error);
@@ -186,7 +186,7 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
             const isLoginRequest = requestUrl.includes('auth/signin');
             const isPasswordChangeRequest = requestUrl.includes('auth/change-password');
             const isYearlyHistoryRequest = requestUrl.includes('yearly-history');
-            const isAttendanceVerifyRequest = requestUrl.includes('attendance/check-in-out-with-face');
+            const isAttendanceVerifyRequest = requestUrl.includes('attendance/scan-qr-badge');
 
             // Debug logging
             if (status === 401) {

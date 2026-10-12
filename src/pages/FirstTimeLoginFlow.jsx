@@ -108,7 +108,7 @@ const FirstTimeLoginFlow = () => {
             // (e.g. date_of_birth) so the password submit validation/payload has it.
             fetchMyProfile();
         } else {
-            navigate('/'); // Fallback if no gating flags
+            handleFinishFlow(); // Safely redirect to user's landing page
         }
     }, []);
 
@@ -122,6 +122,20 @@ const FirstTimeLoginFlow = () => {
             setAuditData(response.data);
             
             const pInfo = response.data.profile_info || {};
+
+            // If employee declaration has already been submitted or onboarding completed, skip Step 2
+            const isDeclarationDone = pInfo.onboarding_status === 'Completed' || pInfo.onboarding_status === 'Pending_HR_Approval' || pInfo.consent_given;
+            if (isDeclarationDone) {
+                localStorage.setItem('mustCompleteDeclaration', 'false');
+                const stillMustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
+                if (!stillMustChangePassword) {
+                    await handleFinishFlow();
+                    return;
+                } else {
+                    setStep(1); // Only prompt password update
+                }
+            }
+
             setEditForm({
                 firstname: response.data.firstname || '',
                 lastname: response.data.lastname || '',
@@ -474,6 +488,13 @@ const FirstTimeLoginFlow = () => {
             localStorage.setItem('mustChangePassword', 'false');
             localStorage.setItem('mustCompleteDeclaration', 'false');
 
+            // Update stored user profile with any submitted changes
+            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            if (editForm.firstname) storedUser.firstname = editForm.firstname;
+            if (editForm.lastname) storedUser.lastname = editForm.lastname;
+            if (editForm.gender) storedUser.gender = editForm.gender;
+            localStorage.setItem('user', JSON.stringify(storedUser));
+
             toast.success('Password updated successfully!');
             await handleFinishFlow();
         } catch (err) {
@@ -568,32 +589,25 @@ const FirstTimeLoginFlow = () => {
         setShowSuccessModal(false);
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         
-        if (user && user.role) {
-            try {
-                // Ensure roles are cached/fetched
-                await fetchRoles();
-                
-                const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                if (isMobileDevice) {
-                    navigate('/my-requests');
-                    return;
-                }
-
-                if (!canAccessWebApp(user.role)) {
-                    navigate('/my-requests');
-                    return;
-                }
-
-                if (isSelfServiceOnly(user.role)) {
-                    navigate('/my-requests');
-                    return;
-                }
-            } catch (err) {
-                console.error('Error redirecting after first time login flow:', err);
+        try {
+            // Ensure roles are cached/fetched
+            await fetchRoles();
+            
+            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobileDevice) {
+                navigate('/my-requests');
+                return;
             }
+
+            if (isSelfServiceOnly(user?.role) || !canAccessWebApp(user?.role)) {
+                navigate('/my-requests');
+                return;
+            }
+        } catch (err) {
+            console.error('Error redirecting after first time login flow:', err);
         }
         
-        navigate('/'); // Redirect to standard dashboard!
+        navigate('/'); // Redirect to standard executive dashboard for managers/admins!
     };
 
     return (
