@@ -737,10 +737,42 @@ const Dashboard = () => {
     // Trend chart data
     const trendBarChartData = trendData && trendData.length > 0 ? trendData : [];
 
-    // Filter trend data if work mode filter is selected
+    // Filter trend data: ignore holidays and Sundays ONLY when 0 attendance is recorded
     const filteredTrendData = useMemo(() => {
-        return trendBarChartData;
-    }, [trendBarChartData, workModeFilter]);
+        if (!trendBarChartData || trendBarChartData.length === 0) return [];
+
+        const holidayDatesMap = new Map();
+        (holidays || []).forEach(h => {
+            const statusActive = h.status === 1 || h.status === '1' || h.status === true || h.status === undefined;
+            if (statusActive && h.holiday_date) {
+                const dateStr = typeof h.holiday_date === 'string' ? h.holiday_date.split('T')[0] : '';
+                if (dateStr) holidayDatesMap.set(dateStr, h.holiday_name || 'Holiday');
+            }
+        });
+
+        return trendBarChartData.filter(item => {
+            let isSunday = item.isSunday;
+            let isHoliday = item.isHoliday;
+
+            if (isSunday === undefined && item.isoDate) {
+                const [y, m, d] = item.isoDate.split('-').map(Number);
+                isSunday = new Date(y, m - 1, d).getDay() === 0;
+            }
+
+            if (isHoliday === undefined && item.isoDate) {
+                isHoliday = holidayDatesMap.has(item.isoDate);
+            }
+
+            const attendance = Number(item.attendance) || 0;
+
+            // Ignore showing holidays and Sundays ONLY when 0 attendance is recorded
+            if ((isSunday || isHoliday) && attendance === 0) {
+                return false;
+            }
+
+            return true;
+        });
+    }, [trendBarChartData, holidays, workModeFilter]);
 
     // Workforce metrics helpers
     const workforce = stats.workforce || {};
@@ -1514,6 +1546,19 @@ const Dashboard = () => {
                                                         color: '#fff',
                                                         fontSize: '12px',
                                                         padding: '10px 14px'
+                                                    }}
+                                                    labelFormatter={(label, items) => {
+                                                        const payload = items?.[0]?.payload;
+                                                        if (payload?.isHoliday && payload?.holidayName) {
+                                                            return `${label} • ${payload.holidayName}`;
+                                                        }
+                                                        if (payload?.isHoliday) {
+                                                            return `${label} • Holiday`;
+                                                        }
+                                                        if (payload?.isSunday) {
+                                                            return `${label} • Sunday`;
+                                                        }
+                                                        return label;
                                                     }}
                                                 />
                                                 <Legend wrapperStyle={{ paddingTop: '14px', fontSize: '12px', fontWeight: 'bold' }} />
