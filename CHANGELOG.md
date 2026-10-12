@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.12](https://github.com/roonaatech/wp_webapp/compare/v2.17.11...v2.17.12) (2026-10-12)
+
+
+### Features
+
+* filter zero-attendance Sundays and holidays in trend chart and add tooltip labels ([994d12a](https://github.com/roonaatech/wp_webapp/commit/994d12a65c30ed321444709dee0cb72e841de8bb))
+
+
+### Code Refactoring
+
+* remove face registration features and update login validation flow ([69735a5](https://github.com/roonaatech/wp_webapp/commit/69735a5c102c36289c5bbcee999ab9c99ffd5946))
+
 ### [2.17.11](https://github.com/roonaatech/wp_webapp/compare/v2.17.10...v2.17.11) (2026-10-12)
 
 ### [2.17.10](https://github.com/roonaatech/wp_webapp/compare/v2.17.9...v2.17.10) (2026-10-08)
