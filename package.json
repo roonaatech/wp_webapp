@@ -1,7 +1,7 @@
 {
   "name": "web_admin",
   "private": true,
-  "version": "2.17.10",
+  "version": "2.17.11",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,7 +17,6 @@
     "release:major": "standard-version --release-as major"
   },
   "dependencies": {
-    "@vladmandic/face-api": "^1.7.12",
     "autoprefixer": "^10.4.20",
     "axios": "^1.6.8",
     "chart.js": "^4.5.1",
