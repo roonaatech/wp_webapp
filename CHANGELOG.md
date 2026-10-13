@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.14](https://github.com/roonaatech/wp_webapp/compare/v2.17.13...v2.17.14) (2026-10-13)
+
+
+### Features
+
+* add time-off past days restriction setting and validation in requests page ([cf970e3](https://github.com/roonaatech/wp_webapp/commit/cf970e347dc8fcec8e17a6078623167a3e91669d))
+
 ### [2.17.13](https://github.com/roonaatech/wp_webapp/compare/v2.17.12...v2.17.13) (2026-10-12)
 
 
