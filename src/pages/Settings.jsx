@@ -209,8 +209,8 @@ export default function Settings() {
                 },
                 {
                     key: 'time_off_past_days_allowed',
-                    label: 'Past Days Allowed for Time-Off Application',
-                    description: 'How many past days employees can select when applying for time-off (0 = only today and future dates)',
+                    label: 'Past Working Days Allowed for Time-Off Application',
+                    description: 'How many past working days employees can select when applying for time-off (0 = only today and future dates; Sundays and holidays excluded)',
                     type: 'number',
                     min: 0,
                     max: 365,
@@ -238,8 +238,8 @@ export default function Settings() {
             settings: [
                 {
                     key: 'leave_past_days_allowed',
-                    label: 'Past Days Allowed for Leave Application',
-                    description: 'How many past days employees can select when applying for leave (0 = only today and future dates)',
+                    label: 'Past Working Days Allowed for Leave Application',
+                    description: 'How many past working days employees can select when applying for leave (0 = only today and future dates; Sundays and holidays excluded)',
                     type: 'number',
                     min: 0,
                     max: 365,
