@@ -31,6 +31,7 @@ import {
 import TableSortIcon from '../components/TableSortIcon';
 import { formatInTimezone, parseAppTimezone, formatDateOnly, formatTimeOnly, getCurrentInAppTimezone } from '../utils/timezone.util';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer } from 'recharts';
+import { isAttendanceEnabled } from '../utils/attendanceConfig';
 
 const Users = () => {
     // Permission check state
@@ -43,6 +44,8 @@ const Users = () => {
             return {};
         }
     });
+
+    const attendanceEnabled = isAttendanceEnabled(systemSettings);
 
     useEffect(() => {
         const handleSettingsLoaded = () => {
@@ -767,7 +770,7 @@ const Users = () => {
             if (!yearlyHistory[userId]) {
                 fetchYearlyHistory(userId);
             }
-            if (!attendanceHistory[userId]) {
+            if (attendanceEnabled && !attendanceHistory[userId]) {
                 fetchAttendanceHistory(userId);
             }
             // Fetch all users for org chart if not already loaded
@@ -2335,7 +2338,12 @@ const Users = () => {
                                                                         Org Structure
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => setActiveTab('history')}
+                                                                        onClick={() => {
+                                                                            setActiveTab('history');
+                                                                            if (attendanceEnabled && !attendanceHistory[u.staffid]) {
+                                                                                fetchAttendanceHistory(u.staffid);
+                                                                            }
+                                                                        }}
                                                                         className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
                                                                             activeTab === 'history'
                                                                                 ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
@@ -2346,7 +2354,7 @@ const Users = () => {
                                                                         <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                                         </svg>
-                                                                        Leave & Attendance
+                                                                        {attendanceEnabled ? 'Leave & Attendance' : 'Leave History'}
                                                                     </button>
                                                                     {canViewChangeHistory(user.role, u, user.id || user.staffid) && (
                                                                         <button
@@ -2462,35 +2470,37 @@ const Users = () => {
                                                                     <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center justify-between gap-3">
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
-                                                                            {getCurrentInAppTimezone().full.getFullYear()} Leave &amp; Attendance History
+                                                                            {getCurrentInAppTimezone().full.getFullYear()} {attendanceEnabled ? 'Leave & Attendance History' : 'Leave History'}
                                                                         </div>
-                                                                        <div className="flex items-center gap-2 normal-case tracking-normal">
-                                                                            <span className={`text-xs font-semibold ${showAbsent[u.staffid] ? 'text-red-600' : 'text-gray-400'}`}>
-                                                                                Show Absent
-                                                                            </span>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => setShowAbsent(prev => ({ ...prev, [u.staffid]: !prev[u.staffid] }))}
-                                                                                role="switch"
-                                                                                aria-checked={!!showAbsent[u.staffid]}
-                                                                                title={showAbsent[u.staffid] ? 'Hide days marked absent' : 'Show days marked absent'}
-                                                                                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${showAbsent[u.staffid] ? 'bg-red-500' : 'bg-gray-300'}`}
-                                                                            >
-                                                                                <span
-                                                                                    aria-hidden="true"
-                                                                                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${showAbsent[u.staffid] ? 'translate-x-4' : 'translate-x-0'}`}
-                                                                                />
-                                                                            </button>
-                                                                        </div>
+                                                                        {attendanceEnabled && (
+                                                                            <div className="flex items-center gap-2 normal-case tracking-normal">
+                                                                                <span className={`text-xs font-semibold ${showAbsent[u.staffid] ? 'text-red-600' : 'text-gray-400'}`}>
+                                                                                    Show Absent
+                                                                                </span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setShowAbsent(prev => ({ ...prev, [u.staffid]: !prev[u.staffid] }))}
+                                                                                    role="switch"
+                                                                                    aria-checked={!!showAbsent[u.staffid]}
+                                                                                    title={showAbsent[u.staffid] ? 'Hide days marked absent' : 'Show days marked absent'}
+                                                                                    className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${showAbsent[u.staffid] ? 'bg-red-500' : 'bg-gray-300'}`}
+                                                                                >
+                                                                                    <span
+                                                                                        aria-hidden="true"
+                                                                                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${showAbsent[u.staffid] ? 'translate-x-4' : 'translate-x-0'}`}
+                                                                                    />
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
                                                                     </h4>
 
-                                                                    {(loadingHistory[u.staffid] || loadingAttendance[u.staffid]) ? (
+                                                                    {(loadingHistory[u.staffid] || (attendanceEnabled && loadingAttendance[u.staffid])) ? (
                                                                         <div className="flex items-center justify-center p-8">
                                                                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
                                                                         </div>
-                                                                    ) : (yearlyHistory[u.staffid]?.error || attendanceHistory[u.staffid]?.error) ? (
+                                                                    ) : (yearlyHistory[u.staffid]?.error || (attendanceEnabled && attendanceHistory[u.staffid]?.error)) ? (
                                                                         <div className="p-4 bg-red-50 text-red-600 rounded-lg">
-                                                                            {yearlyHistory[u.staffid]?.error || attendanceHistory[u.staffid]?.error}
+                                                                            {yearlyHistory[u.staffid]?.error || (attendanceEnabled && attendanceHistory[u.staffid]?.error)}
                                                                         </div>
                                                                     ) : (() => {
                                                                         const attData = attendanceHistory[u.staffid] || {};
@@ -2502,10 +2512,14 @@ const Users = () => {
                                                                         return (
                                                                             <div>
                                                                                 <div className="flex flex-wrap items-center gap-4 mb-6 text-xs font-medium text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">
-                                                                                    <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 shadow-sm"></span> Present</div>
-                                                                                    <div className={`flex items-center gap-1.5 ${showAbsent[u.staffid] ? '' : 'opacity-40 line-through'}`}>
-                                                                                        <span className={`w-3 h-3 rounded shadow-sm ${showAbsent[u.staffid] ? 'bg-red-500' : 'bg-gray-300'}`}></span> Absent
-                                                                                    </div>
+                                                                                    {attendanceEnabled && (
+                                                                                        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 shadow-sm"></span> Present</div>
+                                                                                    )}
+                                                                                    {attendanceEnabled && (
+                                                                                        <div className={`flex items-center gap-1.5 ${showAbsent[u.staffid] ? '' : 'opacity-40 line-through'}`}>
+                                                                                            <span className={`w-3 h-3 rounded shadow-sm ${showAbsent[u.staffid] ? 'bg-red-500' : 'bg-gray-300'}`}></span> Absent
+                                                                                        </div>
+                                                                                    )}
                                                                                     <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 shadow-sm"></span> Leave</div>
                                                                                     <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500 shadow-sm"></span> On-Duty</div>
                                                                                     <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500 shadow-sm"></span> Time-Off</div>

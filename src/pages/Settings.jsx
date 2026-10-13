@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward, FiCheckCircle, FiShield } from 'react-icons/fi';
+import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward, FiCheckCircle, FiShield, FiLayers } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -87,7 +87,8 @@ export default function Settings() {
         inactivity_timeout: '5',
         attendance_compliance_hours: String(getAttendanceConfig().complianceHours),
         office_start_time: getAttendanceConfig().startTime,
-        office_end_time: getAttendanceConfig().endTime
+        office_end_time: getAttendanceConfig().endTime,
+        module_attendance_enabled: 'true'
     });
 
     // Define settings configuration for easy expansion
@@ -135,6 +136,19 @@ export default function Settings() {
                     description: 'API key used to display Google Maps on-duty routes and location details',
                     type: 'text',
                     placeholder: 'Enter Google Maps API Key'
+                }
+            ]
+        },
+        {
+            category: 'Module Management',
+            description: 'Enable or disable core system modules across WorkPulse',
+            icon: <FiLayers className="text-purple-600" />,
+            settings: [
+                {
+                    key: 'module_attendance_enabled',
+                    label: 'Attendance',
+                    description: 'Master switch for staff check-in/out, kiosk smart terminals, timesheet reviews, remote WFH punch, and manual attendance entries.',
+                    type: 'toggle'
                 }
             ]
         },
@@ -532,14 +546,16 @@ export default function Settings() {
 
             await axios.post(`${API_BASE_URL}/api/settings`, {
                 key: key,
-                value: value
+                value: String(value),
+                is_public: key.startsWith('module_') || key === 'application_timezone' || key === 'application_date_format' || key === 'application_time_format',
+                category: key.startsWith('module_') ? 'modules' : undefined
             }, {
                 headers: { 'x-access-token': token }
             });
 
             // Always update localStorage and notify all components
             const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
-            existingSettings[key] = value;
+            existingSettings[key] = String(value);
             localStorage.setItem('settings', JSON.stringify(existingSettings));
             window.dispatchEvent(new Event('settingsLoaded'));
 
@@ -620,6 +636,15 @@ export default function Settings() {
         return null;
     }
 
+    const isAttendanceDisabled = settings.module_attendance_enabled === 'false' || settings.module_attendance_enabled === false;
+    const activeConfigList = settingsConfig.filter(cat => {
+        if (cat.category === 'Attendance Configuration' && isAttendanceDisabled) {
+            return false;
+        }
+        return true;
+    });
+    const safeActiveTab = Math.min(activeTab, Math.max(0, activeConfigList.length - 1));
+
     return (
         <div className="p-6 max-w-7xl mx-auto">
 
@@ -628,11 +653,11 @@ export default function Settings() {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
                 {/* Left Sidebar: Vertical Tabs */}
                 <div className="flex flex-col gap-1 bg-white p-2 rounded-xl border border-gray-200 shadow-sm md:col-span-5 lg:col-span-4">
-                    {settingsConfig.map((category, index) => (
+                    {activeConfigList.map((category, index) => (
                         <button
                             key={index}
                             onClick={() => setActiveTab(index)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-left ${activeTab === index
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-left ${safeActiveTab === index
                                 ? 'bg-blue-50 text-blue-600 font-bold'
                                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                                 }`}
@@ -648,17 +673,17 @@ export default function Settings() {
                     {loading && (
                         <ModernLoader size="container" message="Fetching settings..." fullScreen={false} />
                     )}
-                    {settingsConfig[activeTab] && (
+                    {activeConfigList[safeActiveTab] && (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             {/* Category Header */}
                             <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-white rounded-lg shadow-sm">
-                                        {settingsConfig[activeTab].icon}
+                                        {activeConfigList[safeActiveTab].icon}
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-semibold text-gray-800">{settingsConfig[activeTab].category}</h2>
-                                        <p className="text-sm text-gray-500">{settingsConfig[activeTab].description}</p>
+                                        <h2 className="text-lg font-semibold text-gray-800">{activeConfigList[safeActiveTab].category}</h2>
+                                        <p className="text-sm text-gray-500">{activeConfigList[safeActiveTab].description}</p>
                                     </div>
                                 </div>
                             </div>
@@ -680,7 +705,7 @@ export default function Settings() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                        {settingsConfig[activeTab].settings.map((setting, settingIndex) => (
+                                        {activeConfigList[safeActiveTab].settings.map((setting, settingIndex) => (
                                             <tr key={settingIndex} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div>
@@ -819,6 +844,38 @@ export default function Settings() {
                                                                         </div>
                                                                     );
                                                                 })()}
+                                                            </div>
+                                                        ) : setting.type === 'toggle' ? (
+                                                            <div className="flex items-center gap-3">
+                                                                <button
+                                                                    type="button"
+                                                                    role="switch"
+                                                                    aria-checked={settings[setting.key] === 'true' || settings[setting.key] === true}
+                                                                    onClick={() => {
+                                                                        const currentVal = settings[setting.key] === 'true' || settings[setting.key] === true;
+                                                                        const nextVal = currentVal ? 'false' : 'true';
+                                                                        handleSettingChange(setting.key, nextVal);
+                                                                        saveSetting(setting.key, nextVal);
+                                                                    }}
+                                                                    disabled={savingKey === setting.key}
+                                                                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:ring-offset-2 ${
+                                                                        (settings[setting.key] === 'true' || settings[setting.key] === true) ? 'bg-purple-600' : 'bg-gray-300'
+                                                                    } ${savingKey === setting.key ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                                >
+                                                                    <span
+                                                                        aria-hidden="true"
+                                                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                                            (settings[setting.key] === 'true' || settings[setting.key] === true) ? 'translate-x-5' : 'translate-x-0'
+                                                                        }`}
+                                                                    />
+                                                                </button>
+                                                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                                                    (settings[setting.key] === 'true' || settings[setting.key] === true)
+                                                                        ? 'text-purple-700 bg-purple-50 border border-purple-200'
+                                                                        : 'text-gray-600 bg-gray-100 border border-gray-200'
+                                                                }`}>
+                                                                    {(settings[setting.key] === 'true' || settings[setting.key] === true) ? 'Enabled' : 'Disabled'}
+                                                                </span>
                                                             </div>
                                                         ) : (
                                                             <input

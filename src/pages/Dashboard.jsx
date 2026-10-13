@@ -15,6 +15,7 @@ import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { canApproveLeave, canApproveOnDuty, canManageUsers, canViewBirthdays, canViewAnniversaries, canViewDashboard, fetchRoles } from '../utils/roleUtils';
+import { isAttendanceEnabled } from '../utils/attendanceConfig';
 import {
     FiAlertTriangle, FiGift, FiSend, FiAward, FiCalendar, FiZap,
     FiFileText, FiMapPin, FiClock, FiAlertCircle, FiRadio, FiSearch,
@@ -105,11 +106,18 @@ const Dashboard = () => {
     const [detailsModal, setDetailsModal] = useState({ show: false, item: null, isLeave: false });
     const [modalError, setModalError] = useState('');
     const [processingId, setProcessingId] = useState(null);
-    const [, setSettingsVersion] = useState(0);
+    const [settingsVersion, setSettingsVersion] = useState(0);
+    const attendanceEnabled = useMemo(() => isAttendanceEnabled(), [settingsVersion]);
 
     // Active Dashboard Lens (Filter view for HR & Leadership)
     // 'overview' | 'workforce' | 'attendance' | 'leaves'
     const [activeLens, setActiveLens] = useState('overview');
+
+    useEffect(() => {
+        if (!attendanceEnabled && activeLens === 'attendance') {
+            setActiveLens('overview');
+        }
+    }, [attendanceEnabled, activeLens]);
 
     // Work Mode Filter: 'all' | 'Office' | 'Work from home' | 'Hybrid'
     const [workModeFilter, setWorkModeFilter] = useState('all');
@@ -969,7 +977,9 @@ const Dashboard = () => {
                                 People & Operations Dashboard
                             </h1>
                             <p className="text-slate-300 text-xs sm:text-sm font-medium mt-1 max-w-xl">
-                                Real-time executive metrics, workforce distribution, attendance compliance, and operational requests.
+                                {attendanceEnabled
+                                    ? 'Real-time executive metrics, workforce distribution, attendance compliance, and operational requests.'
+                                    : 'Real-time executive metrics, workforce distribution, leave requests, and operational intelligence.'}
                             </p>
                         </div>
 
@@ -1011,16 +1021,25 @@ const Dashboard = () => {
                             {[
                                 { key: 'overview', label: 'Executive Overview', icon: <LuLayoutDashboard className="w-3.5 h-3.5" /> },
                                 { key: 'workforce', label: 'Workforce & People', icon: <FiUsers className="w-3.5 h-3.5" /> },
-                                { key: 'attendance', label: 'Attendance & Operations', icon: <FiActivity className="w-3.5 h-3.5" /> },
+                                {
+                                    key: 'attendance',
+                                    label: attendanceEnabled ? 'Attendance & Operations' : 'Attendance & Operations (Disabled)',
+                                    icon: <FiActivity className="w-3.5 h-3.5" />,
+                                    disabled: !attendanceEnabled
+                                },
                                 { key: 'leaves', label: 'Leave & Availability', icon: <FiCalendar className="w-3.5 h-3.5" /> }
                             ].map(tab => (
                                 <button
                                     key={tab.key}
-                                    onClick={() => setActiveLens(tab.key)}
+                                    disabled={tab.disabled}
+                                    title={tab.disabled ? 'Attendance module is disabled' : undefined}
+                                    onClick={() => !tab.disabled && setActiveLens(tab.key)}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black tracking-wide transition-all duration-200 whitespace-nowrap ${
-                                        activeLens === tab.key
-                                            ? 'bg-cyan-500 text-[#0f172a] shadow-md shadow-cyan-500/25 scale-102 font-black'
-                                            : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
+                                        tab.disabled
+                                            ? 'opacity-40 cursor-not-allowed text-slate-400 hover:text-slate-400 select-none'
+                                            : activeLens === tab.key
+                                                ? 'bg-cyan-500 text-[#0f172a] shadow-md shadow-cyan-500/25 scale-102 font-black'
+                                                : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
                                     }`}
                                 >
                                     {tab.icon}
@@ -1116,43 +1135,93 @@ const Dashboard = () => {
                             </div>
 
                             {/* Card 2: Today's Attendance Rate */}
-                            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Attendance Rate</span>
-                                    <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                        <FiCheckCircle className="w-4 h-4" />
+                            {attendanceEnabled ? (
+                                <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Attendance Rate</span>
+                                        <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <FiCheckCircle className="w-4 h-4" />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-3xl font-black text-emerald-600 tracking-tight">
+                                            {attendanceRate}%
+                                        </span>
+                                        <span className="text-xs text-slate-400 font-bold">
+                                            ({stats.presentToday} / {activeStaff})
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2.5 overflow-hidden">
+                                        <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, attendanceRate)}%` }}></div>
                                     </div>
                                 </div>
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-3xl font-black text-emerald-600 tracking-tight">
-                                        {attendanceRate}%
-                                    </span>
-                                    <span className="text-xs text-slate-400 font-bold">
-                                        ({stats.presentToday} / {activeStaff})
-                                    </span>
+                            ) : (
+                                <div
+                                    className="bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80 shadow-xs opacity-60 select-none cursor-not-allowed flex flex-col justify-between"
+                                    title="Attendance module is disabled"
+                                >
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                                Attendance Rate <span className="text-[9px] lowercase bg-slate-200/70 text-slate-500 px-1.5 py-0.5 rounded font-bold">(disabled)</span>
+                                            </span>
+                                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                                                <FiSlash className="w-4 h-4 text-slate-400" />
+                                            </div>
+                                        </div>
+                                        <div className="text-3xl font-black text-slate-400 tracking-tight">
+                                            —
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium mt-2 pt-2 border-t border-slate-200/60">
+                                        <span>Attendance module disabled</span>
+                                        <span>—</span>
+                                    </div>
                                 </div>
-                                <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2.5 overflow-hidden">
-                                    <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, attendanceRate)}%` }}></div>
-                                </div>
-                            </div>
+                            )}
 
                             {/* Card 3: Live In-Office / Active Sessions */}
-                            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Active</span>
-                                    <div className="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center group-hover:scale-110 transition-transform relative">
-                                        <FiActivity className="w-4 h-4" />
-                                        <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-500 animate-ping"></span>
+                            {attendanceEnabled ? (
+                                <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Active</span>
+                                        <div className="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center group-hover:scale-110 transition-transform relative">
+                                            <FiActivity className="w-4 h-4" />
+                                            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-500 animate-ping"></span>
+                                        </div>
+                                    </div>
+                                    <div className="text-3xl font-black text-cyan-600 tracking-tight">
+                                        {activeSessions}
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mt-2 pt-2 border-t border-slate-50">
+                                        <span className="text-cyan-700 font-bold">Clocked-in now</span>
+                                        <span>{workforce.completedSessions || 0} Out</span>
                                     </div>
                                 </div>
-                                <div className="text-3xl font-black text-cyan-600 tracking-tight">
-                                    {activeSessions}
+                            ) : (
+                                <div
+                                    className="bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80 shadow-xs opacity-60 select-none cursor-not-allowed flex flex-col justify-between"
+                                    title="Attendance module is disabled"
+                                >
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                                Live Active <span className="text-[9px] lowercase bg-slate-200/70 text-slate-500 px-1.5 py-0.5 rounded font-bold">(disabled)</span>
+                                            </span>
+                                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                                                <FiActivity className="w-4 h-4 text-slate-300" />
+                                            </div>
+                                        </div>
+                                        <div className="text-3xl font-black text-slate-400 tracking-tight">
+                                            —
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium mt-2 pt-2 border-t border-slate-200/60">
+                                        <span>Clock-ins disabled</span>
+                                        <span>—</span>
+                                    </div>
                                 </div>
-                                <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mt-2 pt-2 border-t border-slate-50">
-                                    <span className="text-cyan-700 font-bold">Clocked-in now</span>
-                                    <span>{workforce.completedSessions || 0} Out</span>
-                                </div>
-                            </div>
+                            )}
 
                             {/* Card 4: Mobility & Remote WFH */}
                             <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
@@ -1454,14 +1523,25 @@ const Dashboard = () => {
                                 <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-sm mb-8">
                                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
                                         <div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-wrap items-center gap-2">
                                                 <h2 className="text-xl font-black text-slate-900 tracking-tight">Workforce Multi-Metric Trends</h2>
-                                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-50 text-indigo-700">
-                                                    Attendance vs Approvals
+                                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                                    attendanceEnabled
+                                                        ? 'bg-indigo-50 text-indigo-700'
+                                                        : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                                }`}>
+                                                    {attendanceEnabled ? 'Attendance vs Approvals' : 'Approvals & Requests'}
                                                 </span>
+                                                {!attendanceEnabled && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-400 border border-slate-200 select-none">
+                                                        Attendance Curve (Disabled)
+                                                    </span>
+                                                )}
                                             </div>
                                             <p className="text-slate-500 text-xs font-medium mt-0.5">
-                                                Tracking actual staff attendance alongside leave and on-duty requests over time.
+                                                {attendanceEnabled
+                                                    ? 'Tracking actual staff attendance alongside leave and on-duty requests over time.'
+                                                    : 'Tracking employee leave and on-duty requests over time (Attendance tracking disabled).'}
                                             </p>
                                         </div>
 
@@ -1582,7 +1662,9 @@ const Dashboard = () => {
                                                     }}
                                                 />
                                                 <Legend wrapperStyle={{ paddingTop: '14px', fontSize: '12px', fontWeight: 'bold' }} />
-                                                <Area type="monotone" dataKey="attendance" name="Staff Present" stroke="#0ea5e9" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAttendance)" />
+                                                {attendanceEnabled && (
+                                                    <Area type="monotone" dataKey="attendance" name="Staff Present" stroke="#0ea5e9" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAttendance)" />
+                                                )}
                                                 <Area type="monotone" dataKey="leaves" name="Approved Leaves" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorLeaves)" />
                                                 <Area type="monotone" dataKey="onDuty" name="On-Duty Approvals" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorOnDuty)" />
                                             </AreaChart>
@@ -1677,99 +1759,149 @@ const Dashboard = () => {
                                     </div>
 
                                     {/* Attendance, Absents & Leaves Dynamics */}
-                                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex flex-col justify-between">
-                                        <div>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className="text-xs font-black uppercase tracking-wider text-slate-400">Attendance & Leaves</span>
-                                                <FiUserCheck className="w-4 h-4 text-emerald-600" />
-                                            </div>
+                                    {attendanceEnabled ? (
+                                        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-xs font-black uppercase tracking-wider text-slate-400">
+                                                        Attendance & Leaves
+                                                    </span>
+                                                    <FiUserCheck className="w-4 h-4 text-emerald-600" />
+                                                </div>
 
-                                            {/* Top segmented ratio bar */}
-                                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex mb-3.5 gap-0.5">
-                                                <div
-                                                    className="bg-emerald-500 h-full transition-all duration-500"
-                                                    style={{ width: `${presence.attendanceCompletedPct}%` }}
-                                                    title={`Attendance Completed: ${presence.attendanceCompletedPct}% (${presence.attendanceCompleted} Staff)`}
-                                                />
-                                                {presence.inProgressPct > 0 && (
+                                                {/* Top segmented ratio bar */}
+                                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex mb-3.5 gap-0.5">
                                                     <div
-                                                        className="bg-cyan-500 h-full transition-all duration-500"
-                                                        style={{ width: `${presence.inProgressPct}%` }}
-                                                        title={`In-Progress: ${presence.inProgressPct}% (${presence.inProgress} Staff)`}
+                                                        className="bg-emerald-500 h-full transition-all duration-500"
+                                                        style={{ width: `${presence.attendanceCompletedPct}%` }}
+                                                        title={`Attendance Completed: ${presence.attendanceCompletedPct}% (${presence.attendanceCompleted} Staff)`}
                                                     />
-                                                )}
-                                                <div
-                                                    className="bg-rose-500 h-full transition-all duration-500"
-                                                    style={{ width: `${presence.totalAbsentsPct}%` }}
-                                                    title={`Total Absents: ${presence.totalAbsentsPct}% (${presence.totalAbsents} Staff)`}
-                                                />
-                                                <div
-                                                    className="bg-amber-400 h-full transition-all duration-500"
-                                                    style={{ width: `${presence.leavesPct}%` }}
-                                                    title={`Leaves: ${presence.leavesPct}% (${presence.leaves} Staff)`}
-                                                />
+                                                    {presence.inProgressPct > 0 && (
+                                                        <div
+                                                            className="bg-cyan-500 h-full transition-all duration-500"
+                                                            style={{ width: `${presence.inProgressPct}%` }}
+                                                            title={`In-Progress: ${presence.inProgressPct}% (${presence.inProgress} Staff)`}
+                                                        />
+                                                    )}
+                                                    <div
+                                                        className="bg-rose-500 h-full transition-all duration-500"
+                                                        style={{ width: `${presence.totalAbsentsPct}%` }}
+                                                        title={`Total Absents: ${presence.totalAbsentsPct}% (${presence.totalAbsents} Staff)`}
+                                                    />
+                                                    <div
+                                                        className="bg-amber-400 h-full transition-all duration-500"
+                                                        style={{ width: `${presence.leavesPct}%` }}
+                                                        title={`Leaves: ${presence.leavesPct}% (${presence.leaves} Staff)`}
+                                                    />
+                                                </div>
+
+                                                {/* Core Requested Metrics */}
+                                                <div className="space-y-2.5">
+                                                    {/* 1. Attendance Completed */}
+                                                    <div>
+                                                        <div className="flex items-center justify-between text-xs mb-1">
+                                                            <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                                                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Attendance Completed
+                                                            </span>
+                                                            <span className="font-black text-slate-900 flex items-center gap-1">
+                                                                <span className="text-emerald-600 font-black">{presence.attendanceCompletedPct}%</span>
+                                                                <span className="text-[10px] text-slate-400 font-medium">({presence.attendanceCompleted})</span>
+                                                            </span>
+                                                        </div>
+                                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                            <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${presence.attendanceCompletedPct}%` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 2. Total Absents */}
+                                                    <div>
+                                                        <div className="flex items-center justify-between text-xs mb-1">
+                                                            <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                                                                <span className="w-2 h-2 rounded-full bg-rose-500"></span> Total Absents
+                                                            </span>
+                                                            <span className="font-black text-slate-900 flex items-center gap-1">
+                                                                <span className="text-rose-600 font-black">{presence.totalAbsentsPct}%</span>
+                                                                <span className="text-[10px] text-slate-400 font-medium">({presence.totalAbsents})</span>
+                                                            </span>
+                                                        </div>
+                                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                            <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${presence.totalAbsentsPct}%` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 3. Leaves */}
+                                                    <div>
+                                                        <div className="flex items-center justify-between text-xs mb-1">
+                                                            <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                                                                <span className="w-2 h-2 rounded-full bg-amber-400"></span> Leaves
+                                                            </span>
+                                                            <span className="font-black text-slate-900 flex items-center gap-1">
+                                                                <span className="text-amber-600 font-black">{presence.leavesPct}%</span>
+                                                                <span className="text-[10px] text-slate-400 font-medium">({presence.leaves})</span>
+                                                            </span>
+                                                        </div>
+                                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                            <div className="bg-amber-400 h-full rounded-full transition-all duration-500" style={{ width: `${presence.leavesPct}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            {/* 3 Core Requested Metrics */}
-                                            <div className="space-y-2.5">
-                                                {/* 1. Attendance Completed */}
-                                                <div>
-                                                    <div className="flex items-center justify-between text-xs mb-1">
-                                                        <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Attendance Completed
-                                                        </span>
-                                                        <span className="font-black text-slate-900 flex items-center gap-1">
-                                                            <span className="text-emerald-600 font-black">{presence.attendanceCompletedPct}%</span>
-                                                            <span className="text-[10px] text-slate-400 font-medium">({presence.attendanceCompleted})</span>
-                                                        </span>
-                                                    </div>
-                                                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                                        <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${presence.attendanceCompletedPct}%` }}></div>
-                                                    </div>
+                                            {/* Footer */}
+                                            <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between text-[11px]">
+                                                <span className="text-slate-400 font-bold">Total Workforce</span>
+                                                <span className="font-black text-slate-700">
+                                                    {activeStaff} Active Staff {presence.inProgress > 0 ? `· ${presence.inProgress} active now` : ''}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between opacity-60 select-none cursor-not-allowed"
+                                            title="Attendance module is disabled"
+                                        >
+                                            <div>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                                        Attendance & Absents <span className="text-[9px] lowercase bg-slate-200/70 text-slate-500 px-1.5 py-0.5 rounded font-bold">(disabled)</span>
+                                                    </span>
+                                                    <FiSlash className="w-4 h-4 text-slate-400" />
                                                 </div>
 
-                                                {/* 2. Total Absents */}
-                                                <div>
-                                                    <div className="flex items-center justify-between text-xs mb-1">
-                                                        <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                                                            <span className="w-2 h-2 rounded-full bg-rose-500"></span> Total Absents
-                                                        </span>
-                                                        <span className="font-black text-slate-900 flex items-center gap-1">
-                                                            <span className="text-rose-600 font-black">{presence.totalAbsentsPct}%</span>
-                                                            <span className="text-[10px] text-slate-400 font-medium">({presence.totalAbsents})</span>
-                                                        </span>
-                                                    </div>
-                                                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                                        <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${presence.totalAbsentsPct}%` }}></div>
-                                                    </div>
+                                                <div className="my-4 p-3.5 rounded-xl bg-slate-100/90 border border-slate-200/70 text-center">
+                                                    <FiActivity className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+                                                    <p className="text-xs font-bold text-slate-600">Attendance Module Disabled</p>
+                                                    <p className="text-[11px] text-slate-400 mt-1">Daily clock-ins, presence ratios, and absent tracking are inactive.</p>
                                                 </div>
 
-                                                {/* 3. Leaves */}
-                                                <div>
-                                                    <div className="flex items-center justify-between text-xs mb-1">
-                                                        <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                                                            <span className="w-2 h-2 rounded-full bg-amber-400"></span> Leaves
+                                                <div className="space-y-2 text-xs">
+                                                    <div className="flex items-center justify-between py-1 border-b border-slate-200/50">
+                                                        <span className="text-slate-400 font-bold flex items-center gap-1.5">
+                                                            <span className="w-2 h-2 rounded-full bg-slate-300"></span> Attendance Completed
                                                         </span>
-                                                        <span className="font-black text-slate-900 flex items-center gap-1">
-                                                            <span className="text-amber-600 font-black">{presence.leavesPct}%</span>
-                                                            <span className="text-[10px] text-slate-400 font-medium">({presence.leaves})</span>
-                                                        </span>
+                                                        <span className="font-bold text-slate-400">—</span>
                                                     </div>
-                                                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                                        <div className="bg-amber-400 h-full rounded-full transition-all duration-500" style={{ width: `${presence.leavesPct}%` }}></div>
+                                                    <div className="flex items-center justify-between py-1 border-b border-slate-200/50">
+                                                        <span className="text-slate-400 font-bold flex items-center gap-1.5">
+                                                            <span className="w-2 h-2 rounded-full bg-slate-300"></span> Total Absents
+                                                        </span>
+                                                        <span className="font-bold text-slate-400">—</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between py-1">
+                                                        <span className="text-slate-600 font-bold flex items-center gap-1.5">
+                                                            <span className="w-2 h-2 rounded-full bg-amber-400"></span> Approved Leaves
+                                                        </span>
+                                                        <span className="font-black text-slate-700">{presence.leaves} Staff</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        {/* Footer */}
-                                        <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between text-[11px]">
-                                            <span className="text-slate-400 font-bold">Total Workforce</span>
-                                            <span className="font-black text-slate-700">
-                                                {activeStaff} Active Staff {presence.inProgress > 0 ? `· ${presence.inProgress} active now` : ''}
-                                            </span>
+                                            <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                                                <span className="text-slate-400 font-bold">Total Workforce</span>
+                                                <span className="font-black text-slate-500">{activeStaff} Active Staff</span>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* Talent Onboarding Pipeline */}
                                     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex flex-col justify-between">
@@ -1829,65 +1961,121 @@ const Dashboard = () => {
                             <div className="mb-10">
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                                     {/* Punch Sources Breakdown */}
-                                    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <h3 className="text-base font-black text-slate-900 tracking-tight">Attendance Punch Channels</h3>
-                                                <FiRadio className="w-4 h-4 text-indigo-500" />
-                                            </div>
-                                            <p className="text-slate-500 text-xs font-medium mb-3">Methods used by staff to record presence.</p>
-                                            <div className="h-48 relative">
-                                                <Doughnut data={punchSourceDoughnutData} options={doughnutOptions} />
+                                    {attendanceEnabled ? (
+                                        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <h3 className="text-base font-black text-slate-900 tracking-tight">Attendance Punch Channels</h3>
+                                                    <FiRadio className="w-4 h-4 text-indigo-500" />
+                                                </div>
+                                                <p className="text-slate-500 text-xs font-medium mb-3">Methods used by staff to record presence.</p>
+                                                <div className="h-48 relative">
+                                                    <Doughnut data={punchSourceDoughnutData} options={doughnutOptions} />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <div
+                                            className="bg-slate-50/70 rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between opacity-60 select-none cursor-not-allowed"
+                                            title="Attendance module is disabled"
+                                        >
+                                            <div>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-base font-black text-slate-700 tracking-tight">Attendance Punch Channels</h3>
+                                                        <span className="text-[10px] lowercase bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-bold">(disabled)</span>
+                                                    </div>
+                                                    <FiSlash className="w-4 h-4 text-slate-400" />
+                                                </div>
+                                                <p className="text-slate-400 text-xs font-medium mb-3">Methods used by staff to record presence.</p>
+                                                <div className="h-48 flex flex-col items-center justify-center text-center p-4 bg-slate-100/80 rounded-2xl border border-slate-200/60">
+                                                    <FiRadio className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                                                    <p className="text-xs font-bold text-slate-600">Punch Channels Inactive</p>
+                                                    <p className="text-[11px] text-slate-400 mt-1 max-w-[200px]">Attendance module is disabled. Punch sources (QR, Kiosk, Mobile) are not recorded.</p>
+                                                </div>
+                                            </div>
+                                            <div className="pt-3 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-400 font-semibold mt-3">
+                                                <span>Recording Mode</span>
+                                                <span>Disabled</span>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Live Activity Pulse (Recent Check-ins) */}
-                                    <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="flex items-center gap-2">
-                                                <span className="relative flex h-2.5 w-2.5">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
-                                                </span>
-                                                <h3 className="text-base font-black text-slate-900 tracking-tight">Live Attendance Activity Stream</h3>
+                                    {attendanceEnabled ? (
+                                        <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="relative flex h-2.5 w-2.5">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+                                                    </span>
+                                                    <h3 className="text-base font-black text-slate-900 tracking-tight">Live Attendance Activity Stream</h3>
+                                                </div>
+                                                <span className="text-xs text-slate-400 font-bold">Latest Punches</span>
                                             </div>
-                                            <span className="text-xs text-slate-400 font-bold">Latest Punches</span>
-                                        </div>
 
-                                        {recentActivity.length === 0 ? (
-                                            <div className="py-8 text-center text-slate-400 text-xs font-semibold">
-                                                No attendance logs recorded today yet.
-                                            </div>
-                                        ) : (
-                                            <div className="divide-y divide-slate-100">
-                                                {recentActivity.map(log => (
-                                                    <div key={log.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                                                        <div className="flex items-center gap-3 min-w-0">
-                                                            <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-700 font-black text-xs flex items-center justify-center shrink-0">
-                                                                {log.name.charAt(0).toUpperCase()}
+                                            {recentActivity.length === 0 ? (
+                                                <div className="py-8 text-center text-slate-400 text-xs font-semibold">
+                                                    No attendance logs recorded today yet.
+                                                </div>
+                                            ) : (
+                                                <div className="divide-y divide-slate-100">
+                                                    {recentActivity.map(log => (
+                                                        <div key={log.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-700 font-black text-xs flex items-center justify-center shrink-0">
+                                                                    {log.name.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div className="truncate">
+                                                                    <p className="font-black text-slate-800 truncate">{log.name}</p>
+                                                                    <p className="text-[10px] text-slate-400 font-semibold">{log.phone_model || 'WorkPulse Terminal'}</p>
+                                                                </div>
                                                             </div>
-                                                            <div className="truncate">
-                                                                <p className="font-black text-slate-800 truncate">{log.name}</p>
-                                                                <p className="text-[10px] text-slate-400 font-semibold">{log.phone_model || 'WorkPulse Terminal'}</p>
+                                                            <div className="flex items-center gap-3 shrink-0">
+                                                                <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase bg-slate-100 text-slate-700">
+                                                                    {log.punch_source || 'KIOSK_QR'}
+                                                                </span>
+                                                                <span className="font-bold text-slate-600">
+                                                                    {log.check_in_time ? formatTimeOnly(log.check_in_time) : '—'}
+                                                                </span>
+                                                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${log.check_out_time ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                                                                    {log.check_out_time ? 'Closed' : 'Active'}
+                                                                </span>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-3 shrink-0">
-                                                            <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase bg-slate-100 text-slate-700">
-                                                                {log.punch_source || 'KIOSK_QR'}
-                                                            </span>
-                                                            <span className="font-bold text-slate-600">
-                                                                {log.check_in_time ? formatTimeOnly(log.check_in_time) : '—'}
-                                                            </span>
-                                                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${log.check_out_time ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>
-                                                                {log.check_out_time ? 'Closed' : 'Active'}
-                                                            </span>
-                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="lg:col-span-2 bg-slate-50/70 rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between opacity-60 select-none cursor-not-allowed"
+                                            title="Attendance module is disabled"
+                                        >
+                                            <div>
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-300"></span>
+                                                        <h3 className="text-base font-black text-slate-700 tracking-tight">Live Attendance Activity Stream</h3>
+                                                        <span className="text-[10px] lowercase bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-bold">(disabled)</span>
                                                     </div>
-                                                ))}
+                                                    <span className="text-xs text-slate-400 font-bold">Module Disabled</span>
+                                                </div>
+                                                <div className="py-12 flex flex-col items-center justify-center text-center">
+                                                    <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-3 border border-slate-200/60">
+                                                        <FiClock className="w-6 h-6" />
+                                                    </div>
+                                                    <h4 className="text-sm font-black text-slate-600">Live Activity Stream Disabled</h4>
+                                                    <p className="text-xs text-slate-400 mt-1 max-w-sm">Live clock-in and check-out logs are inactive because the Attendance module is currently disabled.</p>
+                                                </div>
                                             </div>
-                                        )}
-                                    </div>
+                                            <div className="pt-3 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-400 font-semibold mt-3">
+                                                <span>Real-time Streams</span>
+                                                <span>Disabled</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}

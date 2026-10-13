@@ -39,7 +39,8 @@ import {
     LuCheckCheck,
     LuTrash2,
     LuPencil,
-    LuHistory
+    LuHistory,
+    LuBoxes
 } from "react-icons/lu";
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -340,6 +341,12 @@ const GLOBAL_GROUPS = [
                 description: 'Configure system-wide settings and preferences (Admin / Super Admin)',
                 icon: LuSettings,
                 adminOnly: true
+            },
+            {
+                key: 'can_manage_modules',
+                title: 'Manage Module Configuration',
+                description: 'Enable or disable system modules (e.g., Attendance module)',
+                icon: LuBoxes
             }
         ]
     }
@@ -385,6 +392,9 @@ const getRolePermissionsList = (role) => {
     }
     if (role.can_manage_email_settings) {
         list.push({ label: 'Email Config', color: 'bg-slate-100 text-slate-700 border-slate-200' });
+    }
+    if (role.can_manage_modules) {
+        list.push({ label: 'Modules', color: 'bg-teal-50 text-teal-700 border-teal-200' });
     }
     if (role.can_manage_system_settings === 'all') {
         list.push({ label: 'System Settings', color: 'bg-blue-50 text-blue-700 border-blue-200' });
@@ -551,6 +561,7 @@ const Roles = () => {
         can_manage_service_accounts: false,
         can_manage_email_settings: false,
         can_manage_system_settings: 'none',
+        can_manage_modules: false,
         can_access_attendance_portal: false,
         can_manage_attendance: 'none',
         active: true
@@ -615,7 +626,7 @@ const Roles = () => {
         }
     };
 
-    const handleOpenModal = (role = null) => {
+    const handleOpenModal = (role = null, initialTab = 'basic') => {
         if (role) {
             setEditingRole(role);
             setFormData({
@@ -651,6 +662,7 @@ const Roles = () => {
                 can_manage_service_accounts: role.can_manage_service_accounts || false,
                 can_manage_email_settings: role.can_manage_email_settings,
                 can_manage_system_settings: role.can_manage_system_settings,
+                can_manage_modules: Boolean(role.can_manage_modules),
                 can_access_attendance_portal: role.can_access_attendance_portal || false,
                 can_manage_attendance: role.can_manage_attendance || 'none',
                 active: role.active
@@ -689,12 +701,13 @@ const Roles = () => {
                 can_manage_service_accounts: false,
                 can_manage_email_settings: false,
                 can_manage_system_settings: 'none',
+                can_manage_modules: false,
                 can_access_attendance_portal: false,
                 can_manage_attendance: 'none',
                 active: true
             });
         }
-        setActiveModalTab('basic');
+        setActiveModalTab(initialTab);
         setShowModal(true);
     };
 
@@ -1005,249 +1018,261 @@ const Roles = () => {
                 </div>
             )}
 
-            <div className="mb-4 flex justify-between items-center">
-                <button
-                    onClick={handleToggleHierarchyMode}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${hierarchyMode
-                        ? 'bg-gray-600 text-white hover:bg-gray-700'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                        }`}
-                >
-                    <FiMove className="inline mr-2" />
-                    {hierarchyMode ? 'Cancel Hierarchy Edit' : 'Edit Hierarchy'}
-                </button>
-
-                {hierarchyMode && (
-                    <button
-                        onClick={handleSaveHierarchy}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
-                    >
-                        <FiSave className="inline mr-2" />
-                        Save Hierarchy
-                    </button>
-                )}
-
-                {!hierarchyMode && (
-                    <button
-                        onClick={() => handleOpenModal()}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
-                    >
-                        <FiPlus className="inline mr-2" />
-                        Add New Role
-                    </button>
-                )}
+            {/* Header */}
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                        <LuShield className="w-6 h-6 text-indigo-600" />
+                        Roles & Permissions
+                    </h1>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                        Manage organizational roles, seniority precedence, and hierarchical approval scopes
+                    </p>
+                </div>
             </div>
+                    <div className="mb-4 flex justify-between items-center">
+                        <button
+                            onClick={handleToggleHierarchyMode}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${hierarchyMode
+                                ? 'bg-gray-600 text-white hover:bg-gray-700'
+                                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                }`}
+                        >
+                            <FiMove className="inline mr-2" />
+                            {hierarchyMode ? 'Cancel Hierarchy Edit' : 'Edit Hierarchy'}
+                        </button>
 
-            <div className="bg-white rounded-lg shadow overflow-x-auto">
-                {hierarchyMode && (
-                    <div className="bg-blue-50 border-b border-blue-200 px-6 py-3">
-                        <p className="text-sm text-blue-800 font-medium flex items-center">
-                            <MdDragIndicator className="mr-2" />
-                            Drag and drop roles to reorder hierarchy (top = highest authority)
-                        </p>
-                    </div>
-                )}
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            {hierarchyMode && <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drag</th>}
-                            <th className="px-3 py-3 text-left">
-                                {!hierarchyMode ? (
-                                    <button
-                                        onClick={() => handleSort('display_name')}
-                                        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
-                                    >
-                                        Display Name <TableSortIcon column="display_name" sortConfig={sortConfig} />
-                                    </button>
-                                ) : (
-                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Display Name</span>
-                                )}
-                            </th>
-                            <th className="px-3 py-3 text-left">
-                                {!hierarchyMode ? (
-                                    <button
-                                        onClick={() => handleSort('name')}
-                                        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
-                                    >
-                                        Name <TableSortIcon column="name" sortConfig={sortConfig} />
-                                    </button>
-                                ) : (
-                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name</span>
-                                )}
-                            </th>
-                            <th className="px-3 py-3 text-left">
-                                {!hierarchyMode ? (
-                                    <button
-                                        onClick={() => handleSort('hierarchy_level')}
-                                        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
-                                    >
-                                        Hierarchy <TableSortIcon column="hierarchy_level" sortConfig={sortConfig} />
-                                    </button>
-                                ) : (
-                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Hierarchy</span>
-                                )}
-                            </th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <div className="flex items-center gap-2">
-                                    <span>Permissions</span>
-                                    {roles.length > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={toggleAllPermissionsExpand}
-                                            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 normal-case px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 transition cursor-pointer flex items-center gap-1"
-                                            title={allExpanded ? 'Collapse all role permissions' : 'Expand all role permissions'}
-                                        >
-                                            <span>{allExpanded ? 'Collapse All' : 'Expand All'}</span>
-                                            {allExpanded ? <LuChevronUp size={11} /> : <LuChevronDown size={11} />}
-                                        </button>
-                                    )}
-                                </div>
-                            </th>
-                            <th className="px-3 py-3 text-left">
-                                {!hierarchyMode ? (
-                                    <button
-                                        onClick={() => handleSort('active')}
-                                        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
-                                    >
-                                        Status <TableSortIcon column="active" sortConfig={sortConfig} />
-                                    </button>
-                                ) : (
-                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</span>
-                                )}
-                            </th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {(hierarchyMode ? hierarchyRoles : sortedRoles).map((role, index) => (
-                            <tr
-                                key={role.id}
-                                draggable={hierarchyMode}
-                                onDragStart={hierarchyMode ? (e) => handleDragStart(e, index) : undefined}
-                                onDragOver={hierarchyMode ? (e) => handleDragOver(e, index) : undefined}
-                                onDragLeave={hierarchyMode ? handleDragLeave : undefined}
-                                onDrop={hierarchyMode ? (e) => handleDrop(e, index) : undefined}
-                                onDragEnd={hierarchyMode ? handleDragEnd : undefined}
-                                className={`
-                                    ${hierarchyMode ? 'cursor-move' : 'hover:bg-gray-50'}
-                                    ${draggedIndex === index ? 'opacity-40 bg-gray-100' : ''}
-                                    ${dragOverIndex === index ? 'border-t-4 border-indigo-500' : ''}
-                                    transition-all duration-150
-                                `}
+                        {hierarchyMode && (
+                            <button
+                                onClick={handleSaveHierarchy}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
                             >
-                                {hierarchyMode && (
-                                    <td className="px-3 py-4 whitespace-nowrap">
-                                        <MdDragIndicator className="w-5 h-5 text-gray-400" />
-                                    </td>
-                                )}
-                                <td className="px-3 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-medium text-gray-900">{role.display_name}</div>
-                                    {role.description && (
-                                        <div className="text-sm text-gray-500">{role.description}</div>
-                                    )}
-                                </td>
-                                <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-sm font-mono text-gray-700">{role.name}</span>
-                                </td>
-                                <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                        Level {role.hierarchy_level}
-                                    </span>
-                                </td>
-                                <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                                        {getUserCount(role.id)} users
-                                    </span>
-                                </td>
-                                <td className="px-3 py-4 align-top">
-                                    {(() => {
-                                        const perms = getRolePermissionsList(role);
-                                        const isExpanded = !!expandedPermissions[role.id];
+                                <FiSave className="inline mr-2" />
+                                Save Hierarchy
+                            </button>
+                        )}
 
-                                        if (perms.length === 0) {
-                                            return (
-                                                <span className="text-xs text-slate-400 italic font-medium">
-                                                    No permissions
-                                                </span>
-                                            );
-                                        }
+                        {!hierarchyMode && (
+                            <button
+                                onClick={() => handleOpenModal()}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                            >
+                                <FiPlus className="inline mr-2" />
+                                Add New Role
+                            </button>
+                        )}
+                    </div>
 
-                                        const visiblePerms = isExpanded ? perms : perms.slice(0, 4);
-                                        const remainingCount = perms.length - 4;
-
-                                        return (
-                                            <div className="space-y-1.5" style={{ minWidth: '240px', maxWidth: '340px' }}>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {visiblePerms.map((perm, pIdx) => (
-                                                        <span
-                                                            key={pIdx}
-                                                            className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight border shadow-2xs ${perm.color}`}
-                                                        >
-                                                            {perm.label}
-                                                        </span>
-                                                    ))}
-                                                </div>
-
-                                                {perms.length > 4 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            togglePermissionsExpand(role.id);
-                                                        }}
-                                                        className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-200/70 transition cursor-pointer"
-                                                    >
-                                                        {isExpanded ? (
-                                                            <>
-                                                                <span>Show Less</span>
-                                                                <LuChevronUp size={12} />
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <span>+{remainingCount} more</span>
-                                                                <LuChevronDown size={12} />
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
-                                </td>
-                                <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${role.active
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-red-100 text-red-800'
-                                        }`}>
-                                        {role.active ? 'Active' : 'Inactive'}
-                                    </span>
-                                </td>
-                                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
-                                    {!hierarchyMode && (
-                                        <div className="flex space-x-2">
+                    <div className="bg-white rounded-lg shadow overflow-x-auto">
+                        {hierarchyMode && (
+                            <div className="bg-blue-50 border-b border-blue-200 px-6 py-3">
+                                <p className="text-sm text-blue-800 font-medium flex items-center">
+                                    <MdDragIndicator className="mr-2" />
+                                    Drag and drop roles to reorder hierarchy (top = highest authority)
+                                </p>
+                            </div>
+                        )}
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    {hierarchyMode && <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drag</th>}
+                                    <th className="px-3 py-3 text-left">
+                                        {!hierarchyMode ? (
                                             <button
-                                                onClick={() => handleOpenModal(role)}
-                                                className="text-indigo-600 hover:text-indigo-900"
-                                                title="Edit role"
+                                                onClick={() => handleSort('display_name')}
+                                                className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
                                             >
-                                                <FiEdit2 className="w-5 h-5" />
+                                                Display Name <TableSortIcon column="display_name" sortConfig={sortConfig} />
                                             </button>
+                                        ) : (
+                                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Display Name</span>
+                                        )}
+                                    </th>
+                                    <th className="px-3 py-3 text-left">
+                                        {!hierarchyMode ? (
                                             <button
-                                                onClick={() => handleDelete(role)}
-                                                className="text-red-600 hover:text-red-900"
-                                                title="Delete role"
+                                                onClick={() => handleSort('name')}
+                                                className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
                                             >
-                                                <FiTrash2 className="w-5 h-5" />
+                                                Name <TableSortIcon column="name" sortConfig={sortConfig} />
                                             </button>
+                                        ) : (
+                                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name</span>
+                                        )}
+                                    </th>
+                                    <th className="px-3 py-3 text-left">
+                                        {!hierarchyMode ? (
+                                            <button
+                                                onClick={() => handleSort('hierarchy_level')}
+                                                className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                                            >
+                                                Hierarchy <TableSortIcon column="hierarchy_level" sortConfig={sortConfig} />
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Hierarchy</span>
+                                        )}
+                                    </th>
+                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
+                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <div className="flex items-center gap-2">
+                                            <span>Permissions</span>
+                                            {roles.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={toggleAllPermissionsExpand}
+                                                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 normal-case px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 transition cursor-pointer flex items-center gap-1"
+                                                    title={allExpanded ? 'Collapse all role permissions' : 'Expand all role permissions'}
+                                                >
+                                                    <span>{allExpanded ? 'Collapse All' : 'Expand All'}</span>
+                                                    {allExpanded ? <LuChevronUp size={11} /> : <LuChevronDown size={11} />}
+                                                </button>
+                                            )}
                                         </div>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                                    </th>
+                                    <th className="px-3 py-3 text-left">
+                                        {!hierarchyMode ? (
+                                            <button
+                                                onClick={() => handleSort('active')}
+                                                className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                                            >
+                                                Status <TableSortIcon column="active" sortConfig={sortConfig} />
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</span>
+                                        )}
+                                    </th>
+                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {(hierarchyMode ? hierarchyRoles : sortedRoles).map((role, index) => (
+                                    <tr
+                                        key={role.id}
+                                        draggable={hierarchyMode}
+                                        onDragStart={hierarchyMode ? (e) => handleDragStart(e, index) : undefined}
+                                        onDragOver={hierarchyMode ? (e) => handleDragOver(e, index) : undefined}
+                                        onDragLeave={hierarchyMode ? handleDragLeave : undefined}
+                                        onDrop={hierarchyMode ? (e) => handleDrop(e, index) : undefined}
+                                        onDragEnd={hierarchyMode ? handleDragEnd : undefined}
+                                        className={`
+                                            ${hierarchyMode ? 'cursor-move' : 'hover:bg-gray-50'}
+                                            ${draggedIndex === index ? 'opacity-40 bg-gray-100' : ''}
+                                            ${dragOverIndex === index ? 'border-t-4 border-indigo-500' : ''}
+                                            transition-all duration-150
+                                        `}
+                                    >
+                                        {hierarchyMode && (
+                                            <td className="px-3 py-4 whitespace-nowrap">
+                                                <MdDragIndicator className="w-5 h-5 text-gray-400" />
+                                            </td>
+                                        )}
+                                        <td className="px-3 py-4 whitespace-nowrap">
+                                            <div className="text-sm font-medium text-gray-900">{role.display_name}</div>
+                                            {role.description && (
+                                                <div className="text-sm text-gray-500">{role.description}</div>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-4 whitespace-nowrap">
+                                            <span className="text-sm font-mono text-gray-700">{role.name}</span>
+                                        </td>
+                                        <td className="px-3 py-4 whitespace-nowrap">
+                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                Level {role.hierarchy_level}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-4 whitespace-nowrap">
+                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                {getUserCount(role.id)} users
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-4 align-top">
+                                            {(() => {
+                                                const perms = getRolePermissionsList(role);
+                                                const isExpanded = !!expandedPermissions[role.id];
+
+                                                if (perms.length === 0) {
+                                                    return (
+                                                        <span className="text-xs text-slate-400 italic font-medium">
+                                                            No permissions
+                                                        </span>
+                                                    );
+                                                }
+
+                                                const visiblePerms = isExpanded ? perms : perms.slice(0, 4);
+                                                const remainingCount = perms.length - 4;
+
+                                                return (
+                                                    <div className="space-y-1.5" style={{ minWidth: '240px', maxWidth: '340px' }}>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {visiblePerms.map((perm, pIdx) => (
+                                                                <span
+                                                                    key={pIdx}
+                                                                    className={`px-1.5 py-0.5 text-[11px] font-medium rounded text-center leading-tight border shadow-2xs ${perm.color}`}
+                                                                >
+                                                                    {perm.label}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+
+                                                        {perms.length > 4 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    togglePermissionsExpand(role.id);
+                                                                }}
+                                                                className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-200/70 transition cursor-pointer"
+                                                            >
+                                                                {isExpanded ? (
+                                                                    <>
+                                                                        <span>Show Less</span>
+                                                                        <LuChevronUp size={12} />
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <span>+{remainingCount} more</span>
+                                                                        <LuChevronDown size={12} />
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
+                                        </td>
+                                        <td className="px-3 py-4 whitespace-nowrap">
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${role.active
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-red-100 text-red-800'
+                                                }`}>
+                                                {role.active ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
+                                            {!hierarchyMode && (
+                                                <div className="flex space-x-2">
+                                                    <button
+                                                        onClick={() => handleOpenModal(role)}
+                                                        className="text-indigo-600 hover:text-indigo-900"
+                                                        title="Edit role"
+                                                    >
+                                                        <FiEdit2 className="w-5 h-5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(role)}
+                                                        className="text-red-600 hover:text-red-900"
+                                                        title="Delete role"
+                                                    >
+                                                        <FiTrash2 className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
 
             {/* Create/Edit Role Modal */}
             {showModal && (

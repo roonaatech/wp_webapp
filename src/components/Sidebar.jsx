@@ -21,7 +21,9 @@ import {
     LuQrCode,
     LuCalendarPlus,
     LuCalendarHeart,
-    LuCalendarCheck
+    LuCalendarCheck,
+    LuCompass,
+    LuBoxes
 } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import BrandLogo from './BrandLogo';
@@ -38,6 +40,7 @@ import {
     canManageRoles,
     canManageEmailSettings,
     canManageSystemSettings,
+    canManageModules,
     canAccessUsersPage,
     canManageActiveOnDuty,
     canManageSchedule,
@@ -47,6 +50,7 @@ import {
     canManageServiceAccounts,
     isSelfServiceOnly
 } from '../utils/roleUtils';
+import { isAttendanceEnabled } from '../utils/attendanceConfig';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -68,16 +72,29 @@ const Sidebar = () => {
     const canViewAttendanceReportPermission = canViewAttendanceReport(user.role);
     const canManageServiceAccountsPermission = canManageServiceAccounts(user.role);
     const canManageManualAttendancePermission = canManageManualAttendance(user.role);
+    const canManageModulesPermission = canManageModules(user.role);
+
+    const [attendanceEnabled, setAttendanceEnabled] = useState(() => isAttendanceEnabled());
+
+    useEffect(() => {
+        const handleSettingsLoaded = () => {
+            setAttendanceEnabled(isAttendanceEnabled());
+        };
+        window.addEventListener('settingsLoaded', handleSettingsLoaded);
+        return () => window.removeEventListener('settingsLoaded', handleSettingsLoaded);
+    }, []);
 
     // Group visibility checks
     const hasPeopleMenu = canAccessUsersPermission || canManageOnboardingPermission;
-    const hasAttendanceMenu = canAccessAttendance || canViewAttendanceReportPermission || canManageManualAttendancePermission || canManageSchedulePermission || canManageActiveOnDutyPermission;
+    const hasOperationsMenu = canManageSchedulePermission || canManageActiveOnDutyPermission;
+    const hasAttendanceMenu = attendanceEnabled && (canAccessAttendance || canViewAttendanceReportPermission || canManageManualAttendancePermission);
     const hasReportsMenu = canViewReportsPermission || canViewActivitiesPermission;
     const hasSettingsMenu = canManageLeaveTypes(user.role) || canManageHolidays(user.role) || canManageRolesPermission || canManageSystemPermission || canManageEmailPermission || canManageServiceAccountsPermission || true;
 
     // Group child route arrays for active highlighting and auto-expansion
     const peoplePaths = ['/users', '/onboard'];
-    const attendancePaths = ['/attendance', '/attendance-report', '/manual-attendance', '/calendar', '/active-onduty'];
+    const operationsPaths = ['/calendar', '/active-onduty'];
+    const attendancePaths = ['/attendance', '/attendance-report', '/manual-attendance'];
     const reportsPaths = ['/reports', '/activities'];
     const settingsPaths = ['/leave-types', '/holidays', '/roles', '/settings', '/email-settings', '/service-accounts', '/apk'];
 
@@ -96,6 +113,7 @@ const Sidebar = () => {
         const p = location.pathname;
         return {
             people: peoplePaths.includes(p),
+            operations: operationsPaths.includes(p),
             attendance: attendancePaths.includes(p),
             reports: reportsPaths.includes(p),
             settings: settingsPaths.includes(p)
@@ -114,6 +132,8 @@ const Sidebar = () => {
         const p = location.pathname;
         if (peoplePaths.includes(p)) {
             setOpenMenus(prev => ({ ...prev, people: true }));
+        } else if (operationsPaths.includes(p)) {
+            setOpenMenus(prev => ({ ...prev, operations: true }));
         } else if (attendancePaths.includes(p)) {
             setOpenMenus(prev => ({ ...prev, attendance: true }));
         } else if (reportsPaths.includes(p)) {
@@ -449,12 +469,12 @@ const Sidebar = () => {
                 )}
 
                 {/* CATEGORY DIVIDER FOR CORE MODULES */}
-                {!isCollapsed && (hasPeopleMenu || hasAttendanceMenu || hasReportsMenu || hasSettingsMenu) && (
+                {!isCollapsed && (hasPeopleMenu || hasOperationsMenu || hasAttendanceMenu || hasReportsMenu || hasSettingsMenu) && (
                     <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-5">Modules</p>
                 )}
 
                 {/* ========================================================= */}
-                {/* EXPANDED VIEW: 4 Core Accordion Menus (People, Attendance, Reports, Settings) */}
+                {/* EXPANDED VIEW: Core Accordion Menus & Administration */}
                 {/* ========================================================= */}
                 {!isCollapsed && (
                     <>
@@ -477,7 +497,27 @@ const Sidebar = () => {
                             </NavParent>
                         )}
 
-                        {/* 4. ATTENDANCE MENU */}
+                        {/* 4. OPERATIONS MENU (Shift Roster & Live On-Duty) */}
+                        {hasOperationsMenu && (
+                            <NavParent
+                                id="operations"
+                                icon={<LuCompass />}
+                                label="Operations"
+                                isOpen={openMenus.operations}
+                                onToggle={() => toggleMenu('operations')}
+                                childPaths={operationsPaths}
+                                badge={!openMenus.operations ? activeOnDutyCount : undefined}
+                            >
+                                {canManageSchedulePermission && (
+                                    <NavLink to="/calendar" icon={<LuCalendarDays />} label="Shift Roster" indent={true} />
+                                )}
+                                {canManageActiveOnDutyPermission && (
+                                    <NavLink to="/active-onduty" icon={<LuCar />} label="Live On-Duty" badge={activeOnDutyCount} indent={true} />
+                                )}
+                            </NavParent>
+                        )}
+
+                        {/* 5. ATTENDANCE MENU (Only visible when Attendance Module is enabled) */}
                         {hasAttendanceMenu && (
                             <NavParent
                                 id="attendance"
@@ -486,7 +526,6 @@ const Sidebar = () => {
                                 isOpen={openMenus.attendance}
                                 onToggle={() => toggleMenu('attendance')}
                                 childPaths={attendancePaths}
-                                badge={!openMenus.attendance ? activeOnDutyCount : undefined}
                             >
                                 {canAccessAttendance && (
                                     <NavLink to="/attendance" icon={<LuQrCode />} label="Kiosk Terminal" indent={true} />
@@ -497,16 +536,10 @@ const Sidebar = () => {
                                 {canManageManualAttendancePermission && (
                                     <NavLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Punch Entry" indent={true} />
                                 )}
-                                {canManageSchedulePermission && (
-                                    <NavLink to="/calendar" icon={<LuCalendarDays />} label="Shift Roster" indent={true} />
-                                )}
-                                {canManageActiveOnDutyPermission && (
-                                    <NavLink to="/active-onduty" icon={<LuCar />} label="Live On-Duty" badge={activeOnDutyCount} indent={true} />
-                                )}
                             </NavParent>
                         )}
 
-                        {/* 5. REPORTS MENU */}
+                        {/* 6. REPORTS MENU */}
                         {hasReportsMenu && (
                             <NavParent
                                 id="reports"
@@ -525,7 +558,7 @@ const Sidebar = () => {
                             </NavParent>
                         )}
 
-                        {/* 6. SETTINGS MENU */}
+                        {/* 7. SETTINGS MENU */}
                         {hasSettingsMenu && (
                             <NavParent
                                 id="settings"
@@ -556,11 +589,19 @@ const Sidebar = () => {
                                 <NavLink to="/apk" icon={<LuSmartphone />} label="App Distribution" indent={true} />
                             </NavParent>
                         )}
+
+                        {/* 8. ADMINISTRATION / TOP-LEVEL ITEMS */}
+                        {canManageModulesPermission && (
+                            <div className="pt-2">
+                                <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-6 mb-2 mt-3">Administration</p>
+                                <NavLink to="/module-config" icon={<LuBoxes />} label="Module Configuration" />
+                            </div>
+                        )}
                     </>
                 )}
 
                 {/* ========================================================= */}
-                {/* COLLAPSED VIEW: 4 Core Flyout Menus */}
+                {/* COLLAPSED VIEW: Core Flyout Menus & Admin Links */}
                 {/* ========================================================= */}
                 {isCollapsed && (
                     <div className="space-y-1 pt-1">
@@ -580,23 +621,14 @@ const Sidebar = () => {
                             </CollapsedGroup>
                         )}
 
-                        {/* 4. ATTENDANCE (Collapsed Flyout) */}
-                        {hasAttendanceMenu && (
+                        {/* 4. OPERATIONS (Collapsed Flyout) */}
+                        {hasOperationsMenu && (
                             <CollapsedGroup
-                                icon={<LuCalendarCheck />}
-                                label="Attendance"
-                                childPaths={attendancePaths}
+                                icon={<LuCompass />}
+                                label="Operations"
+                                childPaths={operationsPaths}
                                 badge={activeOnDutyCount}
                             >
-                                {canAccessAttendance && (
-                                    <FlyoutLink to="/attendance" icon={<LuQrCode />} label="Kiosk Terminal" />
-                                )}
-                                {canViewAttendanceReportPermission && (
-                                    <FlyoutLink to="/attendance-report" icon={<LuCalendarDays />} label="Timesheet Review" />
-                                )}
-                                {canManageManualAttendancePermission && (
-                                    <FlyoutLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Punch Entry" />
-                                )}
                                 {canManageSchedulePermission && (
                                     <FlyoutLink to="/calendar" icon={<LuCalendarDays />} label="Shift Roster" />
                                 )}
@@ -606,7 +638,26 @@ const Sidebar = () => {
                             </CollapsedGroup>
                         )}
 
-                        {/* 5. REPORTS (Collapsed Flyout) */}
+                        {/* 5. ATTENDANCE (Collapsed Flyout) */}
+                        {hasAttendanceMenu && (
+                            <CollapsedGroup
+                                icon={<LuCalendarCheck />}
+                                label="Attendance"
+                                childPaths={attendancePaths}
+                            >
+                                {attendanceEnabled && canAccessAttendance && (
+                                    <FlyoutLink to="/attendance" icon={<LuQrCode />} label="Kiosk Terminal" />
+                                )}
+                                {attendanceEnabled && canViewAttendanceReportPermission && (
+                                    <FlyoutLink to="/attendance-report" icon={<LuCalendarDays />} label="Timesheet Review" />
+                                )}
+                                {attendanceEnabled && canManageManualAttendancePermission && (
+                                    <FlyoutLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Punch Entry" />
+                                )}
+                            </CollapsedGroup>
+                        )}
+
+                        {/* 6. REPORTS (Collapsed Flyout) */}
                         {hasReportsMenu && (
                             <CollapsedGroup
                                 icon={<LuFileText />}
@@ -622,7 +673,7 @@ const Sidebar = () => {
                             </CollapsedGroup>
                         )}
 
-                        {/* 6. SETTINGS (Collapsed Flyout) */}
+                        {/* 7. SETTINGS (Collapsed Flyout) */}
                         {hasSettingsMenu && (
                             <CollapsedGroup
                                 icon={<LuSettings />}
@@ -649,6 +700,11 @@ const Sidebar = () => {
                                 )}
                                 <FlyoutLink to="/apk" icon={<LuSmartphone />} label="App Distribution" />
                             </CollapsedGroup>
+                        )}
+
+                        {/* 8. ADMINISTRATION (Collapsed Standalone Links) */}
+                        {canManageModulesPermission && (
+                            <NavLink to="/module-config" icon={<LuBoxes />} label="Module Configuration" />
                         )}
                     </div>
                 )}

@@ -11,7 +11,7 @@ import API_BASE_URL from '../config/api.config';
 import { getRoleDisplayName, canAccessWebApp } from '../utils/roleUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { formatLeaveDuration } from '../utils/dateUtils';
-import { getAttendanceConfig } from '../utils/attendanceConfig';
+import { getAttendanceConfig, isAttendanceEnabled } from '../utils/attendanceConfig';
 import { isMobileClient } from '../utils/deviceFingerprint';
 import { safeGetStoredUser, safeGetStoredSettings } from '../utils/storageUtils';
 
@@ -319,6 +319,9 @@ const MyRequests = () => {
         }
     }, [activeView, activeTab]);
 
+    // Attendance module enabled status
+    const [attendanceEnabled, setAttendanceEnabled] = useState(() => isAttendanceEnabled());
+
     // Handle settingsLoaded event to refresh timezone/settings context
     useEffect(() => {
         const s = safeGetStoredSettings();
@@ -326,6 +329,7 @@ const MyRequests = () => {
         setTimeOffPastDaysAllowed(parseInt(s.time_off_past_days_allowed || '0') || 0);
         const config = getAttendanceConfig(s);
         setOfficeHours({ startTime: config.startTime || '09:30', endTime: config.endTime || '18:30' });
+        setAttendanceEnabled(isAttendanceEnabled(s));
 
         const handleSettingsUpdate = () => {
             const updated = safeGetStoredSettings();
@@ -333,6 +337,7 @@ const MyRequests = () => {
             setTimeOffPastDaysAllowed(parseInt(updated.time_off_past_days_allowed || '0') || 0);
             const updatedConfig = getAttendanceConfig(updated);
             setOfficeHours({ startTime: updatedConfig.startTime || '09:30', endTime: updatedConfig.endTime || '18:30' });
+            setAttendanceEnabled(isAttendanceEnabled(updated));
         };
         window.addEventListener('settingsLoaded', handleSettingsUpdate);
         return () => window.removeEventListener('settingsLoaded', handleSettingsUpdate);
@@ -1135,7 +1140,7 @@ const MyRequests = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {(() => {
+                                {attendanceEnabled && (() => {
                                     const isWfh = isUserWfhToday(user);
 
                                     return isWfh ? (
@@ -1188,7 +1193,7 @@ const MyRequests = () => {
                     </div>
                 ) : (
                     <div className="flex justify-end p-3 bg-white border-b border-slate-100">
-                        {(() => {
+                        {attendanceEnabled && (() => {
                             const isWfh = isUserWfhToday(user);
 
                             return isWfh ? (
@@ -1215,61 +1220,63 @@ const MyRequests = () => {
                 )}
 
                 {/* ── Quick Smart Badge or WFH Punch Access Banner ── */}
-                <div className="px-4 pt-3 pb-1">
-                    {(() => {
-                        const isWfh = isUserWfhToday(user);
+                {attendanceEnabled && (
+                    <div className="px-4 pt-3 pb-1">
+                        {(() => {
+                            const isWfh = isUserWfhToday(user);
 
-                        return isWfh ? (
-                            <div 
-                                onClick={() => navigate('/my-badge')}
-                                className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-700 text-white rounded-2xl p-3.5 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between border border-blue-400/30 group"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
-                                        <LuHouse className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-sm font-bold leading-tight">WFH Attendance Punch</h3>
-                                            <span className="flex h-2 w-2 relative">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-300 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-200"></span>
-                                            </span>
+                            return isWfh ? (
+                                <div 
+                                    onClick={() => navigate('/my-badge')}
+                                    className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-700 text-white rounded-2xl p-3.5 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between border border-blue-400/30 group"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
+                                            <LuHouse className="w-5 h-5" />
                                         </div>
-                                        <p className="text-[11px] text-sky-100 font-medium mt-0.5">Tap to Check-In or Check-Out remotely from home</p>
-                                    </div>
-                                </div>
-                                <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white text-xs font-bold group-hover:translate-x-0.5 transition-transform">
-                                    →
-                                </div>
-                            </div>
-                        ) : (
-                            <div 
-                                onClick={() => navigate('/my-badge')}
-                                className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white rounded-2xl p-3.5 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between border border-emerald-400/30 group"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
-                                        <LuQrCode className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-sm font-bold leading-tight">My Smart Attendance Badge</h3>
-                                            <span className="flex h-2 w-2 relative">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
-                                            </span>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-sm font-bold leading-tight">WFH Attendance Punch</h3>
+                                                <span className="flex h-2 w-2 relative">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-300 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-200"></span>
+                                                </span>
+                                            </div>
+                                            <p className="text-[11px] text-sky-100 font-medium mt-0.5">Tap to Check-In or Check-Out remotely from home</p>
                                         </div>
-                                        <p className="text-[11px] text-emerald-100 font-medium mt-0.5">Tap to show dynamic QR for kiosk terminal scan</p>
+                                    </div>
+                                    <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white text-xs font-bold group-hover:translate-x-0.5 transition-transform">
+                                        →
                                     </div>
                                 </div>
-                                <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white text-xs font-bold group-hover:translate-x-0.5 transition-transform">
-                                    →
+                            ) : (
+                                <div 
+                                    onClick={() => navigate('/my-badge')}
+                                    className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white rounded-2xl p-3.5 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between border border-emerald-400/30 group"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-105 transition-transform shadow-inner">
+                                            <LuQrCode className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-sm font-bold leading-tight">My Smart Attendance Badge</h3>
+                                                <span className="flex h-2 w-2 relative">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
+                                                </span>
+                                            </div>
+                                            <p className="text-[11px] text-emerald-100 font-medium mt-0.5">Tap to show dynamic QR for kiosk terminal scan</p>
+                                        </div>
+                                    </div>
+                                    <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white text-xs font-bold group-hover:translate-x-0.5 transition-transform">
+                                        →
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })()}
-                </div>
+                            );
+                        })()}
+                    </div>
+                )}
 
             {/* ── Pending HR Assignment Notice ── */}
             {(!user.role) && (

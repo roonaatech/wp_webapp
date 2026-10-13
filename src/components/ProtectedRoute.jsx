@@ -5,6 +5,8 @@ import API_BASE_URL from '../config/api.config';
 import { canAccessWebApp, hasAdminPermission, isSelfServiceOnly, canAccessAttendancePortal } from '../utils/roleUtils';
 import { isMobileClient } from '../utils/deviceFingerprint';
 import { safeGetStoredUser } from '../utils/storageUtils';
+import { isAttendanceEnabled } from '../utils/attendanceConfig';
+import ModuleDisabled from '../pages/ModuleDisabled';
 
 // Module-level token verification cache to avoid duplicate verification and flickering
 // when redirecting between routes (e.g. from / to /my-requests on mobile)
@@ -132,6 +134,23 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
         if (mustChangePassword || mustCompleteDeclaration) {
             return <Navigate to="/verify-profile" replace />;
         }
+    }
+
+    // Check if Attendance module is disabled
+    const isAttendanceFeaturePath = (
+        currentPath === '/attendance' ||
+        currentPath.startsWith('/attendance/') ||
+        currentPath === '/attendance-report' ||
+        currentPath.startsWith('/attendance-report/') ||
+        currentPath === '/manual-attendance' ||
+        currentPath.startsWith('/manual-attendance/') ||
+        currentPath === '/my-badge' ||
+        currentPath.startsWith('/my-badge/') ||
+        currentPath === '/badge'
+    );
+
+    if (isAttendanceFeaturePath && !isAttendanceEnabled()) {
+        return <ModuleDisabled module="Attendance" />;
     }
 
     // Service accounts gating checks

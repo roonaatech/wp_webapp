@@ -36,6 +36,7 @@ import CandidateOnboardingFlow from './pages/CandidateOnboardingFlow';
 import Attendance from './pages/Attendance';
 import AttendanceReport from './pages/AttendanceReport';
 import ManualAttendance from './pages/ManualAttendance';
+import ModuleConfig from './pages/ModuleConfig';
 import ForgotPassword from './pages/ForgotPassword';
 import MyBadge from './pages/MyBadge';
 import { PageHeaderProvider } from './context/PageHeaderContext';
@@ -268,6 +269,8 @@ function App() {
             <Route path="/leave-types" element={<ProtectedLayout><LeaveTypes /></ProtectedLayout>} />
             <Route path="/holidays" element={<ProtectedLayout><Holidays /></ProtectedLayout>} />
             <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
+            <Route path="/global-permissions" element={<Navigate to="/roles?tab=global" replace />} />
+            <Route path="/module-config" element={<ProtectedLayout><ModuleConfig /></ProtectedLayout>} />
             <Route path="/active-onduty" element={<ProtectedLayout><ActiveOnDuty /></ProtectedLayout>} />
             <Route path="/email-settings" element={<ProtectedLayout><EmailSettings /></ProtectedLayout>} />
             <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />

@@ -455,6 +455,15 @@ export const canManageSystemSettings = (roleId) => {
 };
 
 /**
+ * Check if user can manage module configuration (global permission - boolean)
+ */
+export const canManageModules = (roleId) => {
+    const role = getRoleById(roleId);
+    if (!role) return false;
+    return role.can_manage_modules === true || role.can_manage_modules === 1 || role.can_manage_modules === 'true';
+};
+
+/**
  * Check if user can access the kiosk attendance scanner terminal (global permission - boolean)
  * Strictly requires can_access_attendance_portal / can_access_kiosk permission to be enabled.
  */
@@ -752,6 +761,7 @@ export default {
     canApproveOnDuty,
     canApproveTimeOff,
     canManageSystemSettings,
+    canManageModules,
     canViewReports,
     canManageUsers,
     canViewUsers,

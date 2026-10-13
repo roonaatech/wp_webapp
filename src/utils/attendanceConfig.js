@@ -75,3 +75,14 @@ export const getAllowedLeavePerMonth = (settingsMap = null) => {
 export const getAllowedTimeOffPerMonth = (settingsMap = null) => {
     return getAttendanceConfig(settingsMap).allowedTimeOffPerMonth;
 };
+
+export const isAttendanceEnabled = (settingsMap = null) => {
+    try {
+        const stored = settingsMap || JSON.parse(localStorage.getItem('settings') || '{}');
+        const val = stored.module_attendance_enabled;
+        if (val === undefined || val === null) return true; // default enabled
+        return String(val).toLowerCase() !== 'false';
+    } catch (e) {
+        return true;
+    }
+};

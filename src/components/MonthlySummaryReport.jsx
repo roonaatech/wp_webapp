@@ -6,7 +6,7 @@ import { getCurrentInAppTimezone, formatDateOnly, formatTimeOnly } from '../util
 import { FiPlusCircle, FiMinusCircle, FiChevronLeft, FiChevronRight, FiDownload, FiAlertTriangle, FiDollarSign, FiCalendar, FiClock, FiTarget, FiFileText, FiCheck, FiX } from 'react-icons/fi';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { getComplianceHours } from '../utils/attendanceConfig';
+import { getComplianceHours, isAttendanceEnabled } from '../utils/attendanceConfig';
 
 const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -27,6 +27,10 @@ const MonthlySummaryReport = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
+    const [apiAttendanceEnabled, setApiAttendanceEnabled] = useState(isAttendanceEnabled());
+    const [, setSettingsVersion] = useState(0);
+    const isAttendanceModuleActive = Boolean(isAttendanceEnabled() && apiAttendanceEnabled);
+
     const toggleRow = (staffId) => {
         setExpandedRows(prev => ({
             ...prev,
@@ -35,6 +39,7 @@ const MonthlySummaryReport = () => {
     };
 
     const setTab = (staffId, tab) => {
+        if (!isAttendanceModuleActive && tab === 'salary') return;
         setExpandedTab(prev => ({
             ...prev,
             [staffId]: tab
@@ -67,8 +72,6 @@ const MonthlySummaryReport = () => {
     const [apiComplianceHours, setApiComplianceHours] = useState(null);
     const [apiAllowedLeave, setApiAllowedLeave] = useState(null);
     const [apiAllowedTimeOff, setApiAllowedTimeOff] = useState(null);
-    const [, setSettingsVersion] = useState(0);
-
     const complianceHours = apiComplianceHours || getComplianceHours();
 
     const getSessionCompliance = (sess, threshold = complianceHours) => {
@@ -178,6 +181,7 @@ const MonthlySummaryReport = () => {
     useEffect(() => {
         const handleSettingsChanged = () => {
             setSettingsVersion(v => v + 1);
+            setApiAttendanceEnabled(isAttendanceEnabled());
             fetchSummary();
         };
 
@@ -196,6 +200,15 @@ const MonthlySummaryReport = () => {
             });
             setSummary(res.data.summary || []);
             setPeriod(res.data.period || '');
+            if (res.data.attendance_enabled !== undefined) {
+                const isEnabled = Boolean(res.data.attendance_enabled);
+                setApiAttendanceEnabled(isEnabled);
+                try {
+                    const stored = JSON.parse(localStorage.getItem('settings') || '{}');
+                    stored.module_attendance_enabled = String(isEnabled);
+                    localStorage.setItem('settings', JSON.stringify(stored));
+                } catch (e) { }
+            }
             if (res.data.compliance_hours) {
                 setApiComplianceHours(parseFloat(res.data.compliance_hours));
             }
@@ -294,17 +307,29 @@ const MonthlySummaryReport = () => {
             // 1. Create Summary Sheet
             const summarySheet = workbook.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 1 }] });
 
-            summarySheet.columns = [
+            const summaryColumns = [
                 { header: 'Employee Name', key: 'name', width: 25 },
-                { header: 'Email', key: 'email', width: 30 },
-                { header: 'Present Days', key: 'present', width: 15 },
-                { header: 'Absent Days', key: 'absent', width: 15 },
+                { header: 'Email', key: 'email', width: 30 }
+            ];
+            if (isAttendanceModuleActive) {
+                summaryColumns.push(
+                    { header: 'Present Days', key: 'present', width: 15 },
+                    { header: 'Absent Days', key: 'absent', width: 15 }
+                );
+            }
+            summaryColumns.push(
                 { header: 'Leave Days', key: 'leave', width: 15 },
                 { header: 'Time-Off', key: 'timeoff', width: 15 },
                 { header: 'On-Duty', key: 'onduty', width: 15 },
-                { header: 'Holidays', key: 'holidays', width: 14 },
-                { header: 'Compliant Days (Salary Days)', key: 'compliant_days', width: 26 }
-            ];
+                { header: 'Holidays', key: 'holidays', width: 14 }
+            );
+            if (isAttendanceModuleActive) {
+                summaryColumns.push(
+                    { header: 'Compliant Days (Salary Days)', key: 'compliant_days', width: 26 }
+                );
+            }
+
+            summarySheet.columns = summaryColumns;
 
             summarySheet.getRow(1).eachCell((cell) => {
                 cell.fill = headerFill;
@@ -350,17 +375,20 @@ const MonthlySummaryReport = () => {
                 const compDays = s.compliant_days !== undefined ? s.compliant_days : 0;
                 totalCompliantDays = Math.round((totalCompliantDays + compDays) * 10) / 10;
 
-                const row = summarySheet.addRow({
+                const rowData = {
                     name: fullName,
                     email: s.email,
-                    present: s.present_days || 0,
-                    absent: s.absent_days || 0,
                     leave: s.leave_days || 0,
                     timeoff: formatHours(s.timeoff_hours, s.timeoff_minutes),
                     onduty: formatHours(s.onduty_hours, s.onduty_minutes),
-                    holidays: s.holidays_count || 0,
-                    compliant_days: compDays
-                });
+                    holidays: s.holidays_count || 0
+                };
+                if (isAttendanceModuleActive) {
+                    rowData.present = s.present_days || 0;
+                    rowData.absent = s.absent_days || 0;
+                    rowData.compliant_days = compDays;
+                }
+                const row = summarySheet.addRow(rowData);
 
                 const nameCell = row.getCell(1);
                 nameCell.value = {
@@ -387,26 +415,29 @@ const MonthlySummaryReport = () => {
                 });
             });
 
-            const totalRow = summarySheet.addRow({
+            const totalRowData = {
                 name: 'TOTAL',
                 email: '',
-                present: totals.present_days,
-                absent: totals.absent_days,
                 leave: totals.leave_days,
                 timeoff: formatHours(0, totals.timeoff_minutes),
                 onduty: formatHours(0, totals.onduty_minutes),
-                holidays: totals.holidays,
-                compliant_days: totals.compliant_days
-            });
+                holidays: totals.holidays
+            };
+            if (isAttendanceModuleActive) {
+                totalRowData.present = totals.present_days;
+                totalRowData.absent = totals.absent_days;
+                totalRowData.compliant_days = totals.compliant_days;
+            }
+            const totalRow = summarySheet.addRow(totalRowData);
             totalRow.font = { bold: true };
             totalRow.eachCell((cell, colNumber) => {
                 cell.border = borderStyle;
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-                if ([3, 4, 5, 6, 7, 8, 9].includes(colNumber)) {
+                if (colNumber >= 3) {
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 }
-                if (colNumber === 4 && totals.absent_days > 0) cell.font = { bold: true, color: { argb: 'FFE11D48' } };
-                if (colNumber === 9) cell.font = { bold: true, color: { argb: 'FF15803D' } };
+                if (isAttendanceModuleActive && colNumber === 4 && totals.absent_days > 0) cell.font = { bold: true, color: { argb: 'FFE11D48' } };
+                if (isAttendanceModuleActive && colNumber === summaryColumns.length) cell.font = { bold: true, color: { argb: 'FF15803D' } };
             });
 
             // 2. Create Individual Sheets
@@ -439,10 +470,11 @@ const MonthlySummaryReport = () => {
                 const allowedLv = s.quota_summary?.allowed_leave_days ?? (apiAllowedLeave || 1);
                 const allowedTo = (s.quota_summary?.allowed_timeoff_minutes ?? ((apiAllowedTimeOff || 2) * 60)) / 60;
                 const holText = s.holidays_count > 0 ? ` | ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : '';
-                salBanner.value = `SALARY CONSIDERATION: ${s.compliant_days || 0} COMPLIANT DAYS (SALARY PAYABLE) | ${s.absent_days || 0} ABSENT DAYS | ${s.non_compliant_days || 0} NON-COMPLIANT DAYS${holText} | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed | Target: ${complianceHours}h/day`;
-                salBanner.font = { bold: true, color: { argb: 'FF065F46' }, size: 10 };
-                salBanner.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
-                salBanner.border = borderStyle;
+                if (isAttendanceModuleActive) {
+                    salBanner.value = `SALARY CONSIDERATION: ${s.compliant_days || 0} COMPLIANT DAYS (SALARY PAYABLE) | ${s.absent_days || 0} ABSENT DAYS | ${s.non_compliant_days || 0} NON-COMPLIANT DAYS${holText} | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed | Target: ${complianceHours}h/day`;
+                } else {
+                    salBanner.value = `MONTHLY SUMMARY: Approved Leaves: ${s.leave_days || 0}d | Approved Time-Off: ${formatHours(s.timeoff_hours, s.timeoff_minutes)} | Approved On-Duty: ${formatHours(s.onduty_hours, s.onduty_minutes)}${holText} | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed`;
+                }
                 salBanner.font = { bold: true, color: { argb: 'FF065F46' }, size: 10 };
                 salBanner.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
                 salBanner.border = borderStyle;
@@ -715,21 +747,25 @@ const MonthlySummaryReport = () => {
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Employees:</span>
                             <span className="text-base font-black text-[#1e1b4b]">{summary.length}</span>
                         </div>
-                        <div className="hidden xl:block h-4 w-px bg-gray-200" />
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Present Days:</span>
-                            <span className="text-base font-black text-blue-600">{totals.present_days}</span>
-                        </div>
-                        <div className="hidden xl:block h-4 w-px bg-gray-200" />
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Absent Days:</span>
-                            <span className="text-base font-black text-rose-600">{totals.absent_days}</span>
-                        </div>
-                        <div className="hidden xl:block h-4 w-px bg-gray-200" />
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salary Processed Days:</span>
-                            <span className="text-base font-black text-emerald-700">{totals.compliant_days} {totals.compliant_days === 1 ? 'day' : 'days'}</span>
-                        </div>
+                        {isAttendanceModuleActive && (
+                            <>
+                                <div className="hidden xl:block h-4 w-px bg-gray-200" />
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Present Days:</span>
+                                    <span className="text-base font-black text-blue-600">{totals.present_days}</span>
+                                </div>
+                                <div className="hidden xl:block h-4 w-px bg-gray-200" />
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Absent Days:</span>
+                                    <span className="text-base font-black text-rose-600">{totals.absent_days}</span>
+                                </div>
+                                <div className="hidden xl:block h-4 w-px bg-gray-200" />
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salary Processed Days:</span>
+                                    <span className="text-base font-black text-emerald-700">{totals.compliant_days} {totals.compliant_days === 1 ? 'day' : 'days'}</span>
+                                </div>
+                            </>
+                        )}
                         <div className="hidden xl:block h-4 w-px bg-gray-200" />
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Approved Leave Days:</span>
@@ -777,12 +813,16 @@ const MonthlySummaryReport = () => {
                                             <span className="text-xs font-black text-white uppercase tracking-widest">Employee<SortIcon col="name" /></span>
                                         </th>
                                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-widest">Email</th>
-                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('present_days')}>
-                                            <span className="text-xs font-black text-white uppercase tracking-widest">Present Days<SortIcon col="present_days" /></span>
-                                        </th>
-                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('absent_days')} title="Unexcused absent working days till current date">
-                                            <span className="text-xs font-black text-white uppercase tracking-widest">Absent Days<SortIcon col="absent_days" /></span>
-                                        </th>
+                                        {isAttendanceModuleActive && (
+                                            <>
+                                                <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('present_days')}>
+                                                    <span className="text-xs font-black text-white uppercase tracking-widest">Present Days<SortIcon col="present_days" /></span>
+                                                </th>
+                                                <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('absent_days')} title="Unexcused absent working days till current date">
+                                                    <span className="text-xs font-black text-white uppercase tracking-widest">Absent Days<SortIcon col="absent_days" /></span>
+                                                </th>
+                                            </>
+                                        )}
                                         <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('leave_days')}>
                                             <span className="text-xs font-black text-white uppercase tracking-widest">Leave Days<SortIcon col="leave_days" /></span>
                                         </th>
@@ -795,9 +835,11 @@ const MonthlySummaryReport = () => {
                                         <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('holidays_count')}>
                                             <span className="text-xs font-black text-white uppercase tracking-widest">Holidays<SortIcon col="holidays_count" /></span>
                                         </th>
-                                        <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('compliant_days')} title="Days considered for salary processing">
-                                            <span className="text-xs font-black text-white uppercase tracking-widest">Compliant Days<SortIcon col="compliant_days" /></span>
-                                        </th>
+                                        {isAttendanceModuleActive && (
+                                            <th className="px-4 py-3 text-center cursor-pointer hover:text-[#0ea5e9] transition-colors" onClick={() => handleSort('compliant_days')} title="Days considered for salary processing">
+                                                <span className="text-xs font-black text-white uppercase tracking-widest">Compliant Days<SortIcon col="compliant_days" /></span>
+                                            </th>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -814,20 +856,24 @@ const MonthlySummaryReport = () => {
                                                 <td className="px-4 py-3 text-sm text-gray-400 font-medium">{startIndex + idx + 1}</td>
                                                 <td className="px-4 py-3 text-sm font-bold text-gray-900">{s.firstname} {s.lastname}</td>
                                                 <td className="px-4 py-3 text-sm text-gray-500">{s.email}</td>
-                                                <td className="px-4 py-3 text-center">
-                                                    {s.present_days > 0 ? (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-blue-50 text-blue-700 border border-blue-200">
-                                                            {s.present_days} {s.present_days === 1 ? 'day' : 'days'}
-                                                        </span>
-                                                    ) : <span className="text-gray-300 text-xs">—</span>}
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    {s.absent_days > 0 ? (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-600 border border-rose-200 shadow-2xs" title={`${s.absent_days} day(s) absent till current date`}>
-                                                            {s.absent_days} {s.absent_days === 1 ? 'day' : 'days'}
-                                                        </span>
-                                                    ) : <span className="text-gray-300 text-xs">—</span>}
-                                                </td>
+                                                {isAttendanceModuleActive && (
+                                                    <>
+                                                        <td className="px-4 py-3 text-center">
+                                                            {s.present_days > 0 ? (
+                                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-blue-50 text-blue-700 border border-blue-200">
+                                                                    {s.present_days} {s.present_days === 1 ? 'day' : 'days'}
+                                                                </span>
+                                                            ) : <span className="text-gray-300 text-xs">—</span>}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            {s.absent_days > 0 ? (
+                                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-600 border border-rose-200 shadow-2xs" title={`${s.absent_days} day(s) absent till current date`}>
+                                                                    {s.absent_days} {s.absent_days === 1 ? 'day' : 'days'}
+                                                                </span>
+                                                            ) : <span className="text-gray-300 text-xs">—</span>}
+                                                        </td>
+                                                    </>
+                                                )}
                                                 <td className="px-4 py-3 text-center">
                                                     {s.leave_days > 0 ? (
                                                         <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-orange-50 text-orange-600 border border-orange-100">
@@ -856,17 +902,19 @@ const MonthlySummaryReport = () => {
                                                         </span>
                                                     ) : <span className="text-gray-300 text-xs">—</span>}
                                                 </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    {s.compliant_days > 0 ? (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs" title="Days considered for salary processing">
-                                                            {s.compliant_days} {s.compliant_days === 1 ? 'day' : 'days'}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-600 border border-rose-200">
-                                                            0 days
-                                                        </span>
-                                                    )}
-                                                </td>
+                                                {isAttendanceModuleActive && (
+                                                    <td className="px-4 py-3 text-center">
+                                                        {s.compliant_days > 0 ? (
+                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs" title="Days considered for salary processing">
+                                                                {s.compliant_days} {s.compliant_days === 1 ? 'day' : 'days'}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-600 border border-rose-200">
+                                                                0 days
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                )}
                                             </tr>
                                             {expandedRows[s.staff_id] && (() => {
                                                 const attSessions = s.attendance_records || (s.records?.find(r => r.type === 'Attendance')?.sessions) || [];
@@ -906,28 +954,41 @@ const MonthlySummaryReport = () => {
                                                         };
                                                     });
                                                 const combinedDays = [...(s.daily_breakdown || []), ...extraDays].sort((a, b) => (a.date > b.date ? 1 : -1));
-                                                const currentTab = (expandedTab[s.staff_id] || 'salary') === 'records' ? 'records' : 'salary';
+                                                const currentTab = !isAttendanceModuleActive ? 'records' : ((expandedTab[s.staff_id] || 'salary') === 'records' ? 'records' : 'salary');
 
                                                 return (
                                                     <tr>
-                                                        <td colSpan={11} className="px-6 py-4 bg-[#f8fafc] border-b border-gray-100">
+                                                        <td colSpan={isAttendanceModuleActive ? 11 : 8} className="px-6 py-4 bg-[#f8fafc] border-b border-gray-100">
                                                             <div className="space-y-4">
                                                             {/* Executive Salary & Quota Summary Cards */}
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                                                <div className="bg-white rounded-xl p-3.5 border border-emerald-200 shadow-2xs flex items-center gap-3">
-                                                                    <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                                                                        <FiDollarSign className="w-5 h-5 text-emerald-700" />
-                                                                    </div>
-                                                                    <div>
-                                                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Salary Consideration</div>
-                                                                        <div className="text-base font-black text-emerald-700">
-                                                                            {s.compliant_days ?? 0} {s.compliant_days === 1 ? 'Day' : 'Days'}
+                                                                {isAttendanceModuleActive ? (
+                                                                    <div className="bg-white rounded-xl p-3.5 border border-emerald-200 shadow-2xs flex items-center gap-3">
+                                                                        <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                                                            <FiDollarSign className="w-5 h-5 text-emerald-700" />
                                                                         </div>
-                                                                        <div className="text-[10px] text-gray-500 font-medium">
-                                                                            {s.non_compliant_days ?? 0} Non-Compliant {s.non_compliant_days === 1 ? 'day' : 'days'}{(s.absent_days || 0) > 0 ? ` (incl. ${s.absent_days} absent)` : ''}{s.holidays_count > 0 ? ` • ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : ''}
+                                                                        <div>
+                                                                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Salary Consideration</div>
+                                                                            <div className="text-base font-black text-emerald-700">
+                                                                                {s.compliant_days ?? 0} {s.compliant_days === 1 ? 'Day' : 'Days'}
+                                                                            </div>
+                                                                            <div className="text-[10px] text-gray-500 font-medium">
+                                                                                {s.non_compliant_days ?? 0} Non-Compliant {s.non_compliant_days === 1 ? 'day' : 'days'}{(s.absent_days || 0) > 0 ? ` (incl. ${s.absent_days} absent)` : ''}{s.holidays_count > 0 ? ` • ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : ''}
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
+                                                                ) : (
+                                                                    <div className="bg-gray-50/70 rounded-xl p-3.5 border border-gray-200 flex items-center gap-3 opacity-60 select-none" title="Attendance module is disabled">
+                                                                        <div className="w-10 h-10 rounded-lg bg-gray-200 text-gray-400 flex items-center justify-center shrink-0">
+                                                                            <FiDollarSign className="w-5 h-5 text-gray-400" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Salary Consideration (Disabled)</div>
+                                                                            <div className="text-base font-bold text-gray-400">—</div>
+                                                                            <div className="text-[10px] text-gray-400 font-medium">Attendance module is disabled</div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
 
                                                                 <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center gap-3">
                                                                     <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
@@ -959,20 +1020,33 @@ const MonthlySummaryReport = () => {
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center gap-3">
-                                                                    <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                                                                        <FiTarget className="w-5 h-5 text-indigo-600" />
-                                                                    </div>
-                                                                    <div>
-                                                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Daily Compliance Target</div>
-                                                                        <div className="text-sm font-bold text-gray-900">
-                                                                            {complianceHours}h / day required
+                                                                {isAttendanceModuleActive ? (
+                                                                    <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center gap-3">
+                                                                        <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                                                                            <FiTarget className="w-5 h-5 text-indigo-600" />
                                                                         </div>
-                                                                        <div className="text-[10px] text-gray-500 font-medium">
-                                                                            Att + OD + Credited Time-Off
+                                                                        <div>
+                                                                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Daily Compliance Target</div>
+                                                                            <div className="text-sm font-bold text-gray-900">
+                                                                                {complianceHours}h / day required
+                                                                            </div>
+                                                                            <div className="text-[10px] text-gray-500 font-medium">
+                                                                                Att + OD + Credited Time-Off
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
+                                                                ) : (
+                                                                    <div className="bg-gray-50/70 rounded-xl p-3.5 border border-gray-200 flex items-center gap-3 opacity-60 select-none" title="Attendance module is disabled">
+                                                                        <div className="w-10 h-10 rounded-lg bg-gray-200 text-gray-400 flex items-center justify-center shrink-0">
+                                                                            <FiTarget className="w-5 h-5 text-gray-400" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Daily Compliance Target (Disabled)</div>
+                                                                            <div className="text-sm font-bold text-gray-400">—</div>
+                                                                            <div className="text-[10px] text-gray-400 font-medium">Attendance module is disabled</div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
 
                                                             {/* Sub-tab Switcher: Daily Breakdown & Attendance vs Leave, Time-off and On-duty Records */}
@@ -980,15 +1054,21 @@ const MonthlySummaryReport = () => {
                                                                 <div className="flex items-center gap-2">
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => setTab(s.staff_id, 'salary')}
-                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
-                                                                            currentTab === 'salary'
-                                                                                ? 'bg-[#1e1b4b] text-white shadow-2xs'
-                                                                                : 'text-gray-600 hover:bg-gray-100'
+                                                                        disabled={!isAttendanceModuleActive}
+                                                                        onClick={() => {
+                                                                            if (isAttendanceModuleActive) setTab(s.staff_id, 'salary');
+                                                                        }}
+                                                                        title={!isAttendanceModuleActive ? 'Attendance module is disabled' : undefined}
+                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
+                                                                            !isAttendanceModuleActive
+                                                                                ? 'opacity-40 bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 select-none'
+                                                                                : currentTab === 'salary'
+                                                                                    ? 'bg-[#1e1b4b] text-white shadow-2xs cursor-pointer'
+                                                                                    : 'text-gray-600 hover:bg-gray-100 cursor-pointer'
                                                                         }`}
                                                                     >
                                                                         <FiCalendar className="w-3.5 h-3.5" />
-                                                                        <span>Daily Breakdown & Attendance ({combinedDays.length})</span>
+                                                                        <span>Daily Breakdown & Attendance {!isAttendanceModuleActive ? '(Disabled)' : `(${combinedDays.length})`}</span>
                                                                     </button>
                                                                     <button
                                                                         type="button"
@@ -1006,7 +1086,7 @@ const MonthlySummaryReport = () => {
                                                             </div>
 
                                                             {/* Tab 1: Combined Daily Breakdown & Attendance Table */}
-                                                            {currentTab === 'salary' && (
+                                                            {isAttendanceModuleActive && currentTab === 'salary' && (
                                                                 <div className="rounded-xl overflow-hidden shadow-2xs border border-gray-200 bg-white">
                                                                     <table className="min-w-full divide-y divide-gray-100 text-xs">
                                                                         <thead className="bg-[#1e1b4b]/5 text-[10px] font-black text-gray-500 uppercase tracking-wider">
@@ -1229,13 +1309,19 @@ const MonthlySummaryReport = () => {
                                     ))}
                                     <tr className="bg-[#1e1b4b]/5 font-black">
                                         <td colSpan={4} className="px-4 py-3 text-sm text-[#1e1b4b] uppercase tracking-widest text-right">Total</td>
-                                        <td className="px-4 py-3 text-center text-sm text-blue-600">{totals.present_days} {totals.present_days === 1 ? 'day' : 'days'}</td>
-                                        <td className="px-4 py-3 text-center text-sm text-rose-600">{totals.absent_days} {totals.absent_days === 1 ? 'day' : 'days'}</td>
+                                        {isAttendanceModuleActive && (
+                                            <>
+                                                <td className="px-4 py-3 text-center text-sm text-blue-600">{totals.present_days} {totals.present_days === 1 ? 'day' : 'days'}</td>
+                                                <td className="px-4 py-3 text-center text-sm text-rose-600">{totals.absent_days} {totals.absent_days === 1 ? 'day' : 'days'}</td>
+                                            </>
+                                        )}
                                         <td className="px-4 py-3 text-center text-sm text-orange-600">{totals.leave_days} {totals.leave_days === 1 ? 'day' : 'days'}</td>
                                         <td className="px-4 py-3 text-center text-sm text-purple-600">{formatHours(0, totals.timeoff_minutes)}</td>
                                         <td className="px-4 py-3 text-center text-sm text-[#0ea5e9]">{formatHours(0, totals.onduty_minutes)}</td>
                                         <td className="px-4 py-3 text-center text-sm text-teal-700">{totals.holidays} {totals.holidays === 1 ? 'day' : 'days'}</td>
-                                        <td className="px-4 py-3 text-center text-sm text-emerald-700">{totals.compliant_days} {totals.compliant_days === 1 ? 'day' : 'days'}</td>
+                                        {isAttendanceModuleActive && (
+                                            <td className="px-4 py-3 text-center text-sm text-emerald-700">{totals.compliant_days} {totals.compliant_days === 1 ? 'day' : 'days'}</td>
+                                        )}
                                     </tr>
                                 </tbody>
                             </table>
