@@ -34,14 +34,14 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, 
 import { isAttendanceEnabled } from '../utils/attendanceConfig';
 
 const LEAVE_TYPE_PALETTES = [
-    { border: 'border-l-blue-500', text: 'text-blue-600' },
-    { border: 'border-l-emerald-500', text: 'text-emerald-600' },
-    { border: 'border-l-amber-500', text: 'text-amber-600' },
-    { border: 'border-l-purple-500', text: 'text-purple-600' },
-    { border: 'border-l-rose-500', text: 'text-rose-600' },
-    { border: 'border-l-teal-500', text: 'text-teal-600' },
-    { border: 'border-l-indigo-500', text: 'text-indigo-600' },
-    { border: 'border-l-cyan-500', text: 'text-cyan-600' },
+    { border: 'border-blue-400 hover:border-blue-500', text: 'text-blue-600' },
+    { border: 'border-emerald-400 hover:border-emerald-500', text: 'text-emerald-600' },
+    { border: 'border-amber-400 hover:border-amber-500', text: 'text-amber-600' },
+    { border: 'border-purple-400 hover:border-purple-500', text: 'text-purple-600' },
+    { border: 'border-rose-400 hover:border-rose-500', text: 'text-rose-600' },
+    { border: 'border-teal-400 hover:border-teal-500', text: 'text-teal-600' },
+    { border: 'border-indigo-400 hover:border-indigo-500', text: 'text-indigo-600' },
+    { border: 'border-cyan-400 hover:border-cyan-500', text: 'text-cyan-600' },
 ];
 
 const getLeavePalette = (name = '', index = 0) => {
@@ -2447,11 +2447,14 @@ const Users = () => {
                                                                                     const balance = lt.balance ?? 0;
                                                                                     const used = lt.used ?? 0;
                                                                                     const total = lt.total_days ?? 0;
+                                                                                    const isNegative = balance < 0;
+                                                                                    const cardBorder = isNegative ? 'border-red-400 hover:border-red-500' : palette.border;
+                                                                                    const numberColor = isNegative ? 'text-red-600' : palette.text;
 
                                                                                     return (
                                                                                         <div
                                                                                             key={lt.id || idx}
-                                                                                            className={`flex-1 min-w-0 bg-white rounded-lg px-2.5 py-2 border border-slate-200 shadow-sm hover:shadow transition-all border-l-4 ${palette.border} flex items-center justify-between gap-2`}
+                                                                                            className={`flex-1 max-w-[220px] min-w-0 bg-white rounded-lg px-2.5 py-2 border ${cardBorder} shadow-sm hover:shadow transition-all flex items-center justify-between gap-2`}
                                                                                         >
                                                                                             <div className="min-w-0 flex-1">
                                                                                                 <div className="text-xs font-bold text-slate-800 truncate" title={lt.name}>
@@ -2462,7 +2465,7 @@ const Users = () => {
                                                                                                 </div>
                                                                                             </div>
                                                                                             <div className="text-right flex-shrink-0 whitespace-nowrap pl-1">
-                                                                                                <span className={`text-base font-extrabold ${balance < 0 ? 'text-red-600' : balance === 0 ? 'text-slate-400' : palette.text}`}>
+                                                                                                <span className={`text-base font-extrabold ${numberColor}`}>
                                                                                                     {balance}
                                                                                                 </span>
                                                                                                 <span className="text-[10px] font-medium text-slate-400 ml-1">left</span>
