@@ -664,7 +664,50 @@ const Approvals = () => {
 
     const getTotalPages = (dataLength) => Math.ceil(dataLength / rowsPerPage);
 
+    const formatDateForModal = (item, type, customHolidaysMap = holidaysMap) => {
+        if (!item) return 'N/A';
 
+        // Time-Off: Show time range and duration in hours
+        if (type === 'timeoff' || item.type === 'timeoff') {
+            const date = item.date ? formatDateOnly(item.date) : '';
+            const startTime = item.start_time ? formatTimeOnly(item.start_time) : '';
+            const endTime = item.end_time ? formatTimeOnly(item.end_time) : '';
+            const duration = calculateTimeOffDuration(item.start_time, item.end_time);
+
+            return (
+                <span>
+                    {startTime} - {endTime} (On {date}) <span className="text-red-600 font-bold ml-1">( {duration} )</span>
+                </span>
+            );
+        }
+
+        // Leave: Show date range with days
+        if (type === 'leave' || item.type === 'leave') {
+            const startFormatted = formatDateOnly(item.start_date);
+            const endFormatted = formatDateOnly(item.end_date);
+            const activeHolidays = customHolidaysMap || holidaysMap || {};
+            const daysCount = calculateLeaveDays(item.start_date, item.end_date, activeHolidays) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
+            const daysText = formatLeaveDuration(daysCount, { lowercase: true });
+
+            if (startFormatted !== endFormatted) {
+                return (
+                    <span>
+                        {startFormatted} - {endFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                    </span>
+                );
+            } else {
+                return (
+                    <span>
+                        {startFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
+                    </span>
+                );
+            }
+        }
+
+        // On-Duty: Show date-time range
+        const startFormatted = formatInTimezone(item.start_time);
+        return startFormatted;
+    };
 
     const DataTablesFooter = ({ pageData, type }) => {
         // Get separate counts based on table type
@@ -1342,7 +1385,8 @@ const Approvals = () => {
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {rejectionModal.item.title || rejectionModal.item.client_name || rejectionModal.item.leave_type || rejectionModal.type}</p>
                                     <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(
                                         rejectionModal.item,
-                                        rejectionModal.type
+                                        rejectionModal.type,
+                                        holidaysMap
                                     )}</p>
                                 </div>
                             )}
@@ -1493,7 +1537,8 @@ const Approvals = () => {
                                     <p className="text-sm text-gray-600"><strong>Title:</strong> {confirmationModal.item.title || confirmationModal.item.client_name || confirmationModal.item.leave_type || confirmationModal.type}</p>
                                     <p className="text-sm text-gray-600"><strong>Date:</strong> {formatDateForModal(
                                         confirmationModal.item,
-                                        confirmationModal.type
+                                        confirmationModal.type,
+                                        holidaysMap
                                     )}</p>
                                 </div>
                             )}
@@ -1776,50 +1821,6 @@ const calculateTimeOffDuration = (startTime, endTime) => {
 const formatApprovalDate = (dateString) => {
     if (!dateString) return '—';
     return formatInTimezone(dateString);
-};
-
-const formatDateForModal = (item, type) => {
-    if (!item) return 'N/A';
-
-    // Time-Off: Show time range and duration in hours
-    if (type === 'timeoff' || item.type === 'timeoff') {
-        const date = item.date ? formatDateOnly(item.date) : '';
-        const startTime = item.start_time ? formatTimeOnly(item.start_time) : '';
-        const endTime = item.end_time ? formatTimeOnly(item.end_time) : '';
-        const duration = calculateTimeOffDuration(item.start_time, item.end_time);
-
-        return (
-            <span>
-                {startTime} - {endTime} (On {date}) <span className="text-red-600 font-bold ml-1">( {duration} )</span>
-            </span>
-        );
-    }
-
-    // Leave: Show date range with days
-    if (type === 'leave' || item.type === 'leave') {
-        const startFormatted = formatDateOnly(item.start_date);
-        const endFormatted = formatDateOnly(item.end_date);
-        const daysCount = calculateLeaveDays(item.start_date, item.end_date, holidaysMap) - (item.is_half_day === true || item.is_half_day === 1 ? 0.5 : 0);
-        const daysText = formatLeaveDuration(daysCount, { lowercase: true });
-
-        if (startFormatted !== endFormatted) {
-            return (
-                <span>
-                    {startFormatted} - {endFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
-                </span>
-            );
-        } else {
-            return (
-                <span>
-                    {startFormatted} <span className="text-red-600 font-bold ml-1">( {daysText} )</span>
-                </span>
-            );
-        }
-    }
-
-    // On-Duty: Show date-time range
-    const startFormatted = formatInTimezone(item.start_time);
-    return startFormatted;
 };
 
 export default Approvals;

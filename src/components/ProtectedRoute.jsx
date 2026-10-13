@@ -51,15 +51,11 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
         (Date.now() - verifiedTokenTime < TOKEN_VERIFY_CACHE_MS)
     );
 
-    const [authState, setAuthState] = useState(() => isRecentlyVerified ? 'valid' : 'checking');
-
-    // Check if user is authenticated
-    if (!token) {
-        return <Navigate to="/login" replace />;
-    }
+    const [authState, setAuthState] = useState(() => (!token ? 'invalid' : (isRecentlyVerified ? 'valid' : 'checking')));
 
     // Validate token with the backend on mount if not recently verified
     useEffect(() => {
+        if (!token) return;
         if (isRecentlyVerified) {
             setAuthState('valid');
             return;
@@ -105,6 +101,11 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
             isMounted = false;
         };
     }, [token, isRecentlyVerified]);
+
+    // Check if user is authenticated
+    if (!token) {
+        return <Navigate to="/login" replace />;
+    }
 
     // Show loading while checking
     if (authState === 'checking') {

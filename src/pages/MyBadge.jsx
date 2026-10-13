@@ -437,9 +437,9 @@ const MyBadge = () => {
     };
 
     const handleUnlock = async () => {
-        if (window.PublicKeyCredential && typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
+        if (typeof window !== 'undefined' && window.PublicKeyCredential && typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
             try {
-                const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
                 if (available) {
                     setIsLocked(false);
                     toast.success('Badge unlocked!');
