@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.1](https://github.com/roonaatech/wp_webapp/compare/v2.18.0...v2.18.1) (2026-10-13)
+
+
+### Code Refactoring
+
+* remove Module Management settings section and unused FiLayers icon in Settings page ([28b91b2](https://github.com/roonaatech/wp_webapp/commit/28b91b2db554b558bf328f317c5fd3ab24fb6b2e))
+
 ## [2.18.0](https://github.com/roonaatech/wp_webapp/compare/v2.17.17...v2.18.0) (2026-10-13)
 
 
