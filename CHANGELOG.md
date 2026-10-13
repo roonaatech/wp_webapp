@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.17](https://github.com/roonaatech/wp_webapp/compare/v2.17.16...v2.17.17) (2026-10-13)
+
+
+### Code Refactoring
+
+* scope formatDateForModal inside Approvals component and fix authentication and linting checks ([2169bff](https://github.com/roonaatech/wp_webapp/commit/2169bffa1ef2166bc0179df2084e6663310786be))
+
 ### [2.17.16](https://github.com/roonaatech/wp_webapp/compare/v2.17.15...v2.17.16) (2026-10-13)
 
 
