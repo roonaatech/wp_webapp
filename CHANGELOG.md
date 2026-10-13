@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.18.0](https://github.com/roonaatech/wp_webapp/compare/v2.17.17...v2.18.0) (2026-10-13)
+
+
+### Features
+
+* add module configuration and conditional attendance feature toggles across pages ([14d6e6f](https://github.com/roonaatech/wp_webapp/commit/14d6e6f835f8d569a55c683a04ec8d5e0bc25de3))
+
 ### [2.17.17](https://github.com/roonaatech/wp_webapp/compare/v2.17.16...v2.17.17) (2026-10-13)
 
 
