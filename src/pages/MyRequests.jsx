@@ -169,6 +169,10 @@ const MyRequests = () => {
         const s = safeGetStoredSettings();
         return parseInt(s.leave_past_days_allowed || '0') || 0;
     });
+    const [timeOffPastDaysAllowed, setTimeOffPastDaysAllowed] = useState(() => {
+        const s = safeGetStoredSettings();
+        return parseInt(s.time_off_past_days_allowed || '0') || 0;
+    });
     const [officeHours, setOfficeHours] = useState(() => {
         const config = getAttendanceConfig();
         return { startTime: config.startTime || '09:30', endTime: config.endTime || '18:30' };
@@ -319,12 +323,14 @@ const MyRequests = () => {
     useEffect(() => {
         const s = safeGetStoredSettings();
         setLeavePastDaysAllowed(parseInt(s.leave_past_days_allowed || '0') || 0);
+        setTimeOffPastDaysAllowed(parseInt(s.time_off_past_days_allowed || '0') || 0);
         const config = getAttendanceConfig(s);
         setOfficeHours({ startTime: config.startTime || '09:30', endTime: config.endTime || '18:30' });
 
         const handleSettingsUpdate = () => {
             const updated = safeGetStoredSettings();
             setLeavePastDaysAllowed(parseInt(updated.leave_past_days_allowed || '0') || 0);
+            setTimeOffPastDaysAllowed(parseInt(updated.time_off_past_days_allowed || '0') || 0);
             const updatedConfig = getAttendanceConfig(updated);
             setOfficeHours({ startTime: updatedConfig.startTime || '09:30', endTime: updatedConfig.endTime || '18:30' });
         };
@@ -507,6 +513,10 @@ const MyRequests = () => {
         }
         if (toDate === nowInApp.date && isCurrentlyCheckedInToday) {
             toast.error('You are currently checked in today. Time-off can only be applied after checking out for the day.');
+            return;
+        }
+        if (toDate < minTimeOffDate) {
+            toast.error(`Time-off cannot be requested for dates more than ${timeOffPastDaysAllowed} working day(s) in the past.`);
             return;
         }
         if (holidaysMap[toDate]) {
@@ -721,6 +731,10 @@ const MyRequests = () => {
             toast.error('You are currently checked in today. Time-off can only be applied after checking out for the day.');
             return;
         }
+        if (editToDate < minTimeOffDate) {
+            toast.error(`Time-off cannot be requested for dates more than ${timeOffPastDaysAllowed} working day(s) in the past.`);
+            return;
+        }
         if (holidaysMap[editToDate]) {
             toast.error(`Selected date is a company holiday (${holidaysMap[editToDate]}). Time-off cannot be requested.`);
             return;
@@ -864,6 +878,20 @@ const MyRequests = () => {
         }
         return `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
     }, [today, leavePastDaysAllowed, holidaysMap]);
+
+    // Earliest selectable date for time-off calendar — walks back N working days (Sundays and holidays not counted)
+    const minTimeOffDate = React.useMemo(() => {
+        if (timeOffPastDaysAllowed <= 0) return today;
+        const [y, m, d] = today.split('-').map(Number);
+        const cursor = new Date(y, m - 1, d);
+        let workingDaysBack = 0;
+        while (workingDaysBack < timeOffPastDaysAllowed) {
+            cursor.setDate(cursor.getDate() - 1);
+            const cStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+            if (cursor.getDay() !== 0 && !holidaysMap[cStr]) workingDaysBack++;
+        }
+        return `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+    }, [today, timeOffPastDaysAllowed, holidaysMap]);
 
     // ── Calendar Logic ──
     const [calendarOpen, setCalendarOpen] = useState(false);
@@ -1968,9 +1996,10 @@ const MyRequests = () => {
                                                 <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Editing Time-Off</span>
                                                 <button onClick={() => setEditingTimeOff(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
                                             </div>
-                                            <input type="date" value={editToDate} onChange={(e) => {
+                                            <input type="date" min={minTimeOffDate} value={editToDate} onChange={(e) => {
                                                 const val = e.target.value;
                                                 if (val) {
+                                                    if (val < minTimeOffDate) { toast.error(`Time-off cannot be requested for dates more than ${timeOffPastDaysAllowed} working day(s) in the past.`); return; }
                                                     const [y, m, d] = val.split('-').map(Number);
                                                     if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
                                                     if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
@@ -2254,7 +2283,17 @@ const MyRequests = () => {
                             <div className="px-4 pb-4">
                                 {/* Month Header */}
                                 <div className="flex items-center justify-between mb-3">
-                                    <button type="button" onClick={() => setToCalendarMonth(new Date(tYear, tMon - 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                    <button
+                                        type="button"
+                                        onClick={() => setToCalendarMonth(new Date(tYear, tMon - 1, 1))}
+                                        disabled={(() => {
+                                            const [minY, minM] = minTimeOffDate.split('-').map(Number);
+                                            const prevY = tMon === 0 ? tYear - 1 : tYear;
+                                            const prevM = tMon === 0 ? 12 : tMon;
+                                            return prevY < minY || (prevY === minY && prevM < minM);
+                                        })()}
+                                        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent"
+                                    >
                                         <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                     </button>
                                     <span className="text-sm font-bold text-gray-800">{tMonthLabel}</span>
@@ -2276,7 +2315,7 @@ const MyRequests = () => {
                                         if (!cell) return <div key={`to-empty-${idx}`} className="h-10"></div>;
 
                                         const { day, dateStr, isSunday, isHoliday, holidayName } = cell;
-                                        const isPast = dateStr < today;
+                                        const isPast = dateStr < minTimeOffDate;
                                         const disabled = isPast || isSunday || isHoliday;
                                         const isSelected = dateStr === toDate;
                                         const isToday = dateStr === today;

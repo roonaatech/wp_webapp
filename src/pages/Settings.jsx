@@ -66,6 +66,7 @@ export default function Settings() {
     // Settings State - organized by category
     const [settings, setSettings] = useState({
         max_time_off_hours: '',
+        time_off_past_days_allowed: '0',
         allowed_time_off_per_month: '2',
         application_timezone: 'America/Chicago',
         leave_past_days_allowed: '0',
@@ -205,6 +206,17 @@ export default function Settings() {
                     step: 0.5,
                     unit: 'hours',
                     placeholder: '4'
+                },
+                {
+                    key: 'time_off_past_days_allowed',
+                    label: 'Past Days Allowed for Time-Off Application',
+                    description: 'How many past days employees can select when applying for time-off (0 = only today and future dates)',
+                    type: 'number',
+                    min: 0,
+                    max: 365,
+                    step: 1,
+                    unit: 'days',
+                    placeholder: '0'
                 },
                 {
                     key: 'allowed_time_off_per_month',
