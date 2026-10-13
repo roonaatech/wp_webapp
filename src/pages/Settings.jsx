@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward, FiCheckCircle, FiShield, FiLayers } from 'react-icons/fi';
+import { FiSave, FiSettings, FiClock, FiGlobe, FiCalendar, FiBell, FiGift, FiAward, FiCheckCircle, FiShield } from 'react-icons/fi';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -136,19 +136,6 @@ export default function Settings() {
                     description: 'API key used to display Google Maps on-duty routes and location details',
                     type: 'text',
                     placeholder: 'Enter Google Maps API Key'
-                }
-            ]
-        },
-        {
-            category: 'Module Management',
-            description: 'Enable or disable core system modules across WorkPulse',
-            icon: <FiLayers className="text-purple-600" />,
-            settings: [
-                {
-                    key: 'module_attendance_enabled',
-                    label: 'Attendance',
-                    description: 'Master switch for staff check-in/out, kiosk smart terminals, timesheet reviews, remote WFH punch, and manual attendance entries.',
-                    type: 'toggle'
                 }
             ]
         },
