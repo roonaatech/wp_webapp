@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.3](https://github.com/roonaatech/wp_webapp/compare/v2.18.2...v2.18.3) (2026-10-13)
+
+
+### Code Refactoring
+
+* update leave type card styling and highlight negative balances in red ([c1a60e4](https://github.com/roonaatech/wp_webapp/commit/c1a60e409a05b9136d4a06cb78e8aab6ce40d7cb))
+
 ### [2.18.2](https://github.com/roonaatech/wp_webapp/compare/v2.18.1...v2.18.2) (2026-10-13)
 
 
