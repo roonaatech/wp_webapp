@@ -675,7 +675,7 @@ const ManualAttendance = () => {
     }
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+        <div className="w-full max-w-[1600px] mx-auto space-y-6">
             {/* Top Navigation & Tabs */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
                 <div className="flex items-center gap-2">

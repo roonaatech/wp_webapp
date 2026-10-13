@@ -956,7 +956,7 @@ const AttendanceReport = () => {
     const isEditDateToday = editDate === nowInApp.date;
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-4">
+        <div className="w-full max-w-[1600px] mx-auto space-y-4">
             {/* Export Action Button */}
             <div className="flex justify-end pb-2">
                 <button
