@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.2](https://github.com/roonaatech/wp_webapp/compare/v2.18.1...v2.18.2) (2026-10-13)
+
+
+### Code Refactoring
+
+* update user details expansion panel tabs and add leave type color palettes ([1ec32c3](https://github.com/roonaatech/wp_webapp/commit/1ec32c378301fd7998e6046be66c7aad95eda8d1))
+
 ### [2.18.1](https://github.com/roonaatech/wp_webapp/compare/v2.18.0...v2.18.1) (2026-10-13)
 
 
