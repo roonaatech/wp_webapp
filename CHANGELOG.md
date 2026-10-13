@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.15](https://github.com/roonaatech/wp_webapp/compare/v2.17.14...v2.17.15) (2026-10-13)
+
+
+### Code Refactoring
+
+* update labels and descriptions for past days settings to specify working days ([aca77bc](https://github.com/roonaatech/wp_webapp/commit/aca77bcc6884962eddbe1d60c809d2f147811ddc))
+
 ### [2.17.14](https://github.com/roonaatech/wp_webapp/compare/v2.17.13...v2.17.14) (2026-10-13)
 
 
