@@ -33,6 +33,29 @@ import { formatInTimezone, parseAppTimezone, formatDateOnly, formatTimeOnly, get
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer } from 'recharts';
 import { isAttendanceEnabled } from '../utils/attendanceConfig';
 
+const LEAVE_TYPE_PALETTES = [
+    { border: 'border-l-blue-500', text: 'text-blue-600' },
+    { border: 'border-l-emerald-500', text: 'text-emerald-600' },
+    { border: 'border-l-amber-500', text: 'text-amber-600' },
+    { border: 'border-l-purple-500', text: 'text-purple-600' },
+    { border: 'border-l-rose-500', text: 'text-rose-600' },
+    { border: 'border-l-teal-500', text: 'text-teal-600' },
+    { border: 'border-l-indigo-500', text: 'text-indigo-600' },
+    { border: 'border-l-cyan-500', text: 'text-cyan-600' },
+];
+
+const getLeavePalette = (name = '', index = 0) => {
+    const lower = (name || '').toLowerCase();
+    if (lower.includes('casual')) return LEAVE_TYPE_PALETTES[0];
+    if (lower.includes('annual') || lower.includes('earned') || lower.includes('vacation')) return LEAVE_TYPE_PALETTES[1];
+    if (lower.includes('loss') || lower.includes('unpaid') || lower.includes('lop')) return LEAVE_TYPE_PALETTES[2];
+    if (lower.includes('matern') || lower.includes('patern')) return LEAVE_TYPE_PALETTES[3];
+    if (lower.includes('sick') || lower.includes('medical') || lower.includes('emergency')) return LEAVE_TYPE_PALETTES[4];
+    if (lower.includes('bereav') || lower.includes('special')) return LEAVE_TYPE_PALETTES[5];
+    if (lower.includes('comp') || lower.includes('duty')) return LEAVE_TYPE_PALETTES[6];
+    return LEAVE_TYPE_PALETTES[index % LEAVE_TYPE_PALETTES.length];
+};
+
 const Users = () => {
     // Permission check state
     const [permissionChecked, setPermissionChecked] = useState(false);
@@ -276,7 +299,7 @@ const Users = () => {
     const [editingUserId, setEditingUserId] = useState(null);
     const [editingUserFromPhp, setEditingUserFromPhp] = useState(false); // Track if user is from PHP app
     const [expandedUserId, setExpandedUserId] = useState(null);
-    const [activeTab, setActiveTab] = useState('leave');
+    const [activeTab, setActiveTab] = useState('history');
     const [leaveBalances, setLeaveBalances] = useState({});
     const [loadingBalance, setLoadingBalance] = useState({});
     const [yearlyHistory, setYearlyHistory] = useState({});
@@ -762,7 +785,7 @@ const Users = () => {
             setExpandedUserId(null);
         } else {
             setExpandedUserId(userId);
-            setActiveTab('leave');
+            setActiveTab('history');
             // Fetch leave balance if not already loaded
             if (!leaveBalances[userId]) {
                 fetchLeaveBalance(userId);
@@ -2292,54 +2315,17 @@ const Users = () => {
                                         {expandedUserId === u.staffid && (
                                             <tr className="bg-slate-200 border-t-2 border-b-2 border-slate-300">
                                                 <td colSpan={canManageUsers ? 9 : 8} className="p-6 bg-slate-200/90 shadow-[inset_0_6px_20px_rgba(0,0,0,0.12)]">
-                                                    {loadingBalance[u.staffid] ? (
-                                                        <div className="flex flex-col items-center justify-center py-8">
-                                                            <ModernLoader size="md" message="Loading leave balance..." />
-                                                        </div>
-                                                    ) : leaveBalances[u.staffid]?.error ? (
-                                                        <div className="flex items-center justify-center p-6 bg-red-50 rounded-xl border border-red-100 text-red-600">
-                                                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                            </svg>
-                                                            <span className="font-medium">{leaveBalances[u.staffid].error}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex flex-col gap-5">
-                                                            <div className="flex flex-col md:flex-row gap-5">
+                                                    <div className="flex flex-col gap-5">
+                                                        <div className="flex flex-col md:flex-row gap-5">
                                                             {/* Modern Vertical Nav */}
                                                             <div className="w-full md:w-48 flex-shrink-0">
                                                                 <nav className="bg-white rounded-2xl shadow-[0_20px_45px_-8px_rgba(0,0,0,0.28),0_8px_20px_-4px_rgba(0,0,0,0.18)] border border-slate-300 p-2 flex flex-col gap-1">
                                                                     <button
-                                                                        onClick={() => setActiveTab('leave')}
-                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
-                                                                            activeTab === 'leave'
-                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
-                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
-                                                                        }`}
-                                                                    >
-                                                                        {activeTab === 'leave' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
-                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'leave' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                                                                        </svg>
-                                                                        Leave Balances
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => setActiveTab('org')}
-                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
-                                                                            activeTab === 'org'
-                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
-                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
-                                                                        }`}
-                                                                    >
-                                                                        {activeTab === 'org' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
-                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'org' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-                                                                        </svg>
-                                                                        Org Structure
-                                                                    </button>
-                                                                    <button
                                                                         onClick={() => {
                                                                             setActiveTab('history');
+                                                                            if (!leaveBalances[u.staffid]) {
+                                                                                fetchLeaveBalance(u.staffid);
+                                                                            }
                                                                             if (attendanceEnabled && !attendanceHistory[u.staffid]) {
                                                                                 fetchAttendanceHistory(u.staffid);
                                                                             }
@@ -2355,6 +2341,20 @@ const Users = () => {
                                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                                         </svg>
                                                                         {attendanceEnabled ? 'Leave & Attendance' : 'Leave History'}
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setActiveTab('org')}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
+                                                                            activeTab === 'org'
+                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
+                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
+                                                                        }`}
+                                                                    >
+                                                                        {activeTab === 'org' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
+                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'org' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                                                                        </svg>
+                                                                        Org Structure
                                                                     </button>
                                                                     {canViewChangeHistory(user.role, u, user.id || user.staffid) && (
                                                                         <button
@@ -2380,65 +2380,6 @@ const Users = () => {
 
                                                             {/* Tab Content Panel */}
                                                             <div className="flex-1 bg-white border border-slate-300 rounded-2xl p-6 shadow-[0_20px_45px_-8px_rgba(0,0,0,0.28),0_8px_20px_-4px_rgba(0,0,0,0.18)] min-w-0">
-                                                            {activeTab === 'leave' && (
-                                                                <div>
-                                                                    <div className="flex items-center justify-between mb-4">
-                                                                        <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
-                                                                            <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
-                                                                            Leave Balances
-                                                                        </h4>
-                                                                        {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 && (
-                                                                            <div className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded shadow-sm border border-gray-100">
-                                                                                Total Available: <span className="font-extrabold text-blue-600 ml-1">{
-                                                                                    leaveBalances[u.staffid].leaveTypes.reduce((sum, lt) => sum + (lt.balance || 0), 0)
-                                                                                }</span>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-
-                                                                    {/* Use user_leave_types for leave balances */}
-                                                                    {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 ? (
-                                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                                            {leaveBalances[u.staffid].leaveTypes.map((lt) => {
-                                                                                const pct = ((lt.used / lt.total_days) * 100) || 0;
-                                                                                let colors = { bar: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-100', muted: 'text-green-400' };
-
-                                                                                if (pct >= 90) colors = { bar: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100', muted: 'text-red-400' };
-                                                                                else if (pct >= 75) colors = { bar: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', muted: 'text-amber-400' };
-                                                                                else if (pct >= 50) colors = { bar: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-100', muted: 'text-blue-400' };
-
-                                                                                return (
-                                                                                    <div key={lt.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
-                                                                                        {/* Left: Info & Progress */}
-                                                                                        <div className="flex-1 mr-4">
-                                                                                            <div className="flex justify-between items-end mb-1.5">
-                                                                                                <span className="font-bold text-gray-800 text-sm">{lt.name}</span>
-                                                                                                <span className="text-xs text-gray-500">{lt.used} / {lt.total_days}</span>
-                                                                                            </div>
-                                                                                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                                                                                <div
-                                                                                                    className={`h-1.5 rounded-full ${colors.bar} transition-all duration-500`}
-                                                                                                    style={{ width: `${pct}%` }}
-                                                                                                ></div>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                        {/* Right: Balance Circle */}
-                                                                                        <div className={`flex flex-col items-center justify-center ${colors.bg} ${colors.text} w-12 h-12 rounded-lg border ${colors.border}`}>
-                                                                                            <span className="text-base font-bold leading-none">{lt.balance}</span>
-                                                                                            <span className={`text-[9px] uppercase font-bold ${colors.muted} mt-0.5`}>Left</span>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="text-center py-8 bg-white rounded-xl border border-dashed border-gray-300">
-                                                                            <p className="text-gray-500 text-sm">No leave types assigned.</p>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-
                                                             {activeTab === 'org' && (
                                                                 <div className="h-full flex flex-col min-h-[400px]">
                                                                     <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center justify-between">
@@ -2467,6 +2408,73 @@ const Users = () => {
 
                                                             {activeTab === 'history' && (
                                                                 <div className="animate-fadeIn">
+                                                                    {/* Simple Leave Balances Summary */}
+                                                                    <div className="mb-5 p-3.5 bg-slate-50/70 rounded-xl border border-slate-200/80">
+                                                                        <div className="flex items-center justify-between mb-2.5">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="w-1 h-3.5 bg-blue-600 rounded-full"></span>
+                                                                                <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Leave Balance</span>
+                                                                            </div>
+                                                                            {leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 && (
+                                                                                <div className="text-xs font-medium text-slate-500">
+                                                                                    Total Available: <strong className="text-slate-800 font-bold ml-1">{
+                                                                                        leaveBalances[u.staffid].leaveTypes.reduce((sum, lt) => sum + (lt.balance || 0), 0)
+                                                                                    }</strong> days
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {loadingBalance[u.staffid] ? (
+                                                                            <div className="flex items-center justify-center py-3 text-xs text-gray-500 gap-2">
+                                                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></div>
+                                                                                <span>Loading leave balances...</span>
+                                                                            </div>
+                                                                        ) : leaveBalances[u.staffid]?.error ? (
+                                                                            <div className="flex items-center justify-between text-xs text-red-600 bg-red-50 p-2.5 rounded-lg border border-red-100">
+                                                                                <span>{leaveBalances[u.staffid].error}</span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => fetchLeaveBalance(u.staffid)}
+                                                                                    className="text-red-700 underline font-semibold hover:text-red-800"
+                                                                                >
+                                                                                    Retry
+                                                                                </button>
+                                                                            </div>
+                                                                        ) : leaveBalances[u.staffid]?.leaveTypes && leaveBalances[u.staffid].leaveTypes.length > 0 ? (
+                                                                            <div className="flex items-stretch gap-2 overflow-x-auto pb-0.5">
+                                                                                {leaveBalances[u.staffid].leaveTypes.map((lt, idx) => {
+                                                                                    const palette = getLeavePalette(lt.name, idx);
+                                                                                    const balance = lt.balance ?? 0;
+                                                                                    const used = lt.used ?? 0;
+                                                                                    const total = lt.total_days ?? 0;
+
+                                                                                    return (
+                                                                                        <div
+                                                                                            key={lt.id || idx}
+                                                                                            className={`flex-1 min-w-0 bg-white rounded-lg px-2.5 py-2 border border-slate-200 shadow-sm hover:shadow transition-all border-l-4 ${palette.border} flex items-center justify-between gap-2`}
+                                                                                        >
+                                                                                            <div className="min-w-0 flex-1">
+                                                                                                <div className="text-xs font-bold text-slate-800 truncate" title={lt.name}>
+                                                                                                    {lt.name}
+                                                                                                </div>
+                                                                                                <div className="text-[10px] text-slate-400 mt-0.5 truncate" title={total ? `${used} used · ${total} total` : `${used} used`}>
+                                                                                                    {total ? `${used} used · ${total} total` : `${used} used`}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <div className="text-right flex-shrink-0 whitespace-nowrap pl-1">
+                                                                                                <span className={`text-base font-extrabold ${balance < 0 ? 'text-red-600' : balance === 0 ? 'text-slate-400' : palette.text}`}>
+                                                                                                    {balance}
+                                                                                                </span>
+                                                                                                <span className="text-[10px] font-medium text-slate-400 ml-1">left</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <p className="text-xs text-slate-500 italic py-1">No leave types assigned.</p>
+                                                                        )}
+                                                                    </div>
                                                                     <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center justify-between gap-3">
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
@@ -2924,8 +2932,8 @@ const Users = () => {
                                                                     {/* Filter Pills */}
                                                                     {(() => {
                                                                         const histData = changeHistory[u.staffid] || {};
-                                                                        const allItems = histData.history || [];
-                                                                        const currentFilter = changeHistoryFilter[u.staffid] || 'all';
+                                                                        const allItems = (histData.history || []).filter(e => attendanceEnabled || e.category !== 'attendance');
+                                                                        const currentFilter = (!attendanceEnabled && changeHistoryFilter[u.staffid] === 'attendance') ? 'all' : (changeHistoryFilter[u.staffid] || 'all');
                                                                         const activeDuration = changeHistoryDuration[u.staffid] || '30d';
                                                                         const customDates = changeHistoryCustomDates[u.staffid] || {};
                                                                         const now = new Date();
@@ -2976,7 +2984,7 @@ const Users = () => {
                                                                             { id: 'leave', label: 'Leave & Balances', count: counts.leave },
                                                                             { id: 'org', label: 'Org Structure', count: counts.org },
                                                                             { id: 'profile', label: 'Profile & Account', count: counts.profile },
-                                                                            { id: 'attendance', label: 'Attendance & OD', count: counts.attendance },
+                                                                            ...(attendanceEnabled ? [{ id: 'attendance', label: 'Attendance & OD', count: counts.attendance }] : []),
                                                                         ];
 
                                                                         return (
@@ -3023,8 +3031,8 @@ const Users = () => {
                                                                         </div>
                                                                     ) : (() => {
                                                                         const histData = changeHistory[u.staffid] || {};
-                                                                        const allItems = histData.history || [];
-                                                                        const currentFilter = changeHistoryFilter[u.staffid] || 'all';
+                                                                        const allItems = (histData.history || []).filter(e => attendanceEnabled || e.category !== 'attendance');
+                                                                        const currentFilter = (!attendanceEnabled && changeHistoryFilter[u.staffid] === 'attendance') ? 'all' : (changeHistoryFilter[u.staffid] || 'all');
                                                                         const activeDuration = changeHistoryDuration[u.staffid] || '30d';
                                                                         const customDates = changeHistoryCustomDates[u.staffid] || {};
                                                                         const searchQuery = (changeHistorySearch[u.staffid] || '').toLowerCase().trim();
@@ -3481,7 +3489,6 @@ const Users = () => {
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    )}
                                                 </td>
                                                 </tr>
                                             )}
