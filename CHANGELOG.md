@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.17.16](https://github.com/roonaatech/wp_webapp/compare/v2.17.15...v2.17.16) (2026-10-13)
+
+
+### Code Refactoring
+
+* update container layout width and padding in attendance pages ([d6b6fbf](https://github.com/roonaatech/wp_webapp/commit/d6b6fbfd83ab9f88870934c210404621664f8f91))
+
 ### [2.17.15](https://github.com/roonaatech/wp_webapp/compare/v2.17.14...v2.17.15) (2026-10-13)
 
 
