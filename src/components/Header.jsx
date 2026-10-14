@@ -182,6 +182,14 @@ const Header = () => {
     });
     const menuRef = useRef(null);
     const notificationsRef = useRef(null);
+    const staticDataRef = useRef({
+        incompleteProfiles: [],
+        birthdays: [],
+        pendingWishCount: 0,
+        anniversaries: [],
+        pendingAnniversaryWishCount: 0
+    });
+    const lastFetchRef = useRef(0);
     const navigate = useNavigate();
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{"email":"Admin User"}');
@@ -216,71 +224,25 @@ const Header = () => {
         };
     }, [showMenu, showNotifications]);
 
-    useEffect(() => {
-        fetchPendingCount();
-        // Refresh pending count every 30 seconds
-        const interval = setInterval(fetchPendingCount, 30000);
+    // Recalculate total badge count from approvals + static alerts
+    const syncTotalBadgeCount = (pendingLeavesCount = 0, pendingOnDutyCount = 0) => {
+        const staticData = staticDataRef.current;
+        const incompleteCount = staticData.incompleteProfiles.length > 0 ? 1 : 0;
+        const birthdayCount = staticData.birthdays.length > 0 ? 1 : 0;
+        const anniversaryCount = staticData.anniversaries.length > 0 ? 1 : 0;
+        const approvalCount = pendingLeavesCount + pendingOnDutyCount;
+        setPendingCount(approvalCount + incompleteCount + birthdayCount + anniversaryCount);
+    };
 
-        // Listen for approval events to refresh count immediately
-        const handleApprovalChange = () => {
-            fetchPendingCount();
-        };
-        window.addEventListener('approvalStatusChanged', handleApprovalChange);
-
-        return () => {
-            clearInterval(interval);
-            window.removeEventListener('approvalStatusChanged', handleApprovalChange);
-        };
-    }, []);
-
-    // Refetch count whenever route changes
-    useEffect(() => {
-        fetchPendingCount();
-    }, [location.pathname]);
-
-    const fetchPendingCount = async () => {
+    // 1. Fetch birthdays, anniversaries, and incomplete profiles ONLY ONCE on mount / login
+    const fetchStaticNotifications = async () => {
         try {
-            setLoadingCount(true);
             const token = localStorage.getItem('token');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-
+            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
             if (!token) return;
 
-            // Get pending leaves count and details if allowed
-            let pendingLeaves = 0;
-            let leaves = [];
-            if (canApproveLeave(user.role)) {
-                try {
-                    const response = await axios.get(`${API_BASE_URL}/api/leave/requests`,
-                        {
-                            params: { status: 'Pending', limit: 5, page: 1 },
-                            headers: { 'x-access-token': token }
-                        }
-                    );
-                    leaves = response.data.data || [];
-                    pendingLeaves = response.data.pagination?.totalCount || 0;
-                } catch (e) { console.error('Error fetching leave count:', e); }
-            }
-
-            // Get pending on-duty count and details if allowed
-            let pendingOnDuty = 0;
-            let onDuty = [];
-            if (canApproveOnDuty(user.role)) {
-                try {
-                    const onDutyResponse = await axios.get(`${API_BASE_URL}/api/onduty`,
-                        {
-                            params: { status: 'Pending', limit: 5, page: 1 },
-                            headers: { 'x-access-token': token }
-                        }
-                    );
-                    onDuty = onDutyResponse.data.data || [];
-                    pendingOnDuty = onDutyResponse.data.pagination?.totalCount || 0;
-                } catch (e) { console.error('Error fetching on-duty count:', e); }
-            }
-
-            // Get incomplete profiles if allowed
             let incompleteProfiles = [];
-            if (canManageUsers(user.role)) {
+            if (canManageUsers(currentUser.role)) {
                 try {
                     const response = await axios.get(`${API_BASE_URL}/api/admin/incomplete-profiles`, {
                         headers: { 'x-access-token': token }
@@ -291,10 +253,9 @@ const Header = () => {
                 }
             }
 
-            // Get birthdays if allowed
             let birthdays = [];
             let pendingWishCount = 0;
-            if (canViewBirthdays(user.role)) {
+            if (canViewBirthdays(currentUser.role)) {
                 try {
                     const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard/birthdays`, {
                         headers: { 'x-access-token': token }
@@ -308,10 +269,9 @@ const Header = () => {
                 }
             }
 
-            // Get anniversaries if allowed
             let anniversaries = [];
             let pendingAnniversaryWishCount = 0;
-            if (canViewAnniversaries(user.role)) {
+            if (canViewAnniversaries(currentUser.role)) {
                 try {
                     const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard/anniversaries`, {
                         headers: { 'x-access-token': token }
@@ -325,28 +285,136 @@ const Header = () => {
                 }
             }
 
-            setNotifications({
-                leaves,
-                onDuty,
+            staticDataRef.current = {
                 incompleteProfiles,
                 birthdays,
                 pendingWishCount,
                 anniversaries,
                 pendingAnniversaryWishCount
-            });
+            };
 
-            // Calculate total count (approvals count + 1 if there are incomplete profiles + 1 if there are birthdays + 1 if there are anniversaries)
-            const approvalCount = pendingLeaves + pendingOnDuty;
-            const incompleteCount = incompleteProfiles.length > 0 ? 1 : 0;
-            const birthdayCount = birthdays.length > 0 ? 1 : 0;
-            const anniversaryCount = anniversaries.length > 0 ? 1 : 0;
-            setPendingCount(approvalCount + incompleteCount + birthdayCount + anniversaryCount);
+            setNotifications(prev => ({
+                ...prev,
+                incompleteProfiles,
+                birthdays,
+                pendingWishCount,
+                anniversaries,
+                pendingAnniversaryWishCount
+            }));
+
+            // Sync badge with current approvals count
+            setNotifications(curr => {
+                const leavesCount = curr.leaves.length;
+                const onDutyCount = curr.onDuty.length;
+                syncTotalBadgeCount(leavesCount, onDutyCount);
+                return curr;
+            });
+        } catch (err) {
+            console.error('Error fetching static notifications:', err);
+        }
+    };
+
+    // 2. Fetch dynamic pending approvals (leaves & on-duty)
+    const fetchPendingApprovals = async (forceRefresh = false) => {
+        if (document.hidden && !forceRefresh) return;
+
+        try {
+            setLoadingCount(true);
+            lastFetchRef.current = Date.now();
+            const token = localStorage.getItem('token');
+            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+            if (!token) return;
+
+            let pendingLeaves = 0;
+            let leaves = [];
+            if (canApproveLeave(currentUser.role)) {
+                try {
+                    const response = await axios.get(`${API_BASE_URL}/api/leave/requests`, {
+                        params: { status: 'Pending', limit: 5, page: 1 },
+                        headers: { 'x-access-token': token }
+                    });
+                    leaves = response.data.data || [];
+                    pendingLeaves = response.data.pagination?.totalCount || 0;
+                } catch (e) {
+                    console.error('Error fetching leave count:', e);
+                }
+            }
+
+            let pendingOnDuty = 0;
+            let onDuty = [];
+            if (canApproveOnDuty(currentUser.role)) {
+                try {
+                    const onDutyResponse = await axios.get(`${API_BASE_URL}/api/onduty`, {
+                        params: { status: 'Pending', limit: 5, page: 1 },
+                        headers: { 'x-access-token': token }
+                    });
+                    onDuty = onDutyResponse.data.data || [];
+                    pendingOnDuty = onDutyResponse.data.pagination?.totalCount || 0;
+                } catch (e) {
+                    console.error('Error fetching on-duty count:', e);
+                }
+            }
+
+            // Broadcast approval count so Sidebar doesn't make duplicate requests
+            window.dispatchEvent(new CustomEvent('approvalsCountUpdated', {
+                detail: { count: pendingLeaves + pendingOnDuty, pendingLeaves, pendingOnDuty }
+            }));
+
+            setNotifications(prev => ({
+                ...prev,
+                leaves,
+                onDuty
+            }));
+
+            syncTotalBadgeCount(pendingLeaves, pendingOnDuty);
         } catch (error) {
-            console.error('Error fetching pending count:', error);
+            console.error('Error fetching pending approvals:', error);
         } finally {
             setLoadingCount(false);
         }
     };
+
+    useEffect(() => {
+        // Fetch static celebrations & incomplete profiles ONLY ONCE on mount / login
+        fetchStaticNotifications();
+
+        // Fetch dynamic approvals on mount
+        fetchPendingApprovals(true);
+
+        // Periodically refresh ONLY pending approvals every 60 seconds (when tab is visible)
+        const interval = setInterval(() => {
+            if (!document.hidden) {
+                fetchPendingApprovals(false);
+            }
+        }, 60000);
+
+        // Listen for approval changes to refresh approvals count immediately
+        const handleApprovalChange = () => {
+            fetchPendingApprovals(true);
+        };
+        window.addEventListener('approvalStatusChanged', handleApprovalChange);
+
+        // Listen for wish events to refresh celebrations
+        const handleCelebrationsUpdate = () => {
+            fetchStaticNotifications();
+        };
+        window.addEventListener('celebrationsUpdated', handleCelebrationsUpdate);
+
+        // Refresh when returning to tab after being away for > 60 seconds
+        const handleVisibilityChange = () => {
+            if (!document.hidden && Date.now() - lastFetchRef.current >= 60000) {
+                fetchPendingApprovals(false);
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('approvalStatusChanged', handleApprovalChange);
+            window.removeEventListener('celebrationsUpdated', handleCelebrationsUpdate);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
 
     const handleLogout = async () => {
         setIsLoggingOut(true);

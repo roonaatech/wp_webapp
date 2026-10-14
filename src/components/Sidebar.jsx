@@ -100,6 +100,7 @@ const Sidebar = () => {
 
     const [activeOnDutyCount, setActiveOnDutyCount] = useState(0);
     const [approvalsCount, setApprovalsCount] = useState(0);
+    const lastActiveOnDutyFetchRef = useRef(0);
     const [, setRoleVersion] = useState(0);
 
     // Sidebar collapsed state
@@ -156,16 +157,46 @@ const Sidebar = () => {
     }, [isCollapsed]);
 
     useEffect(() => {
+        // Listen to approvals count broadcast from Header.jsx to avoid duplicate requests
+        const handleApprovalsCount = (e) => {
+            if (typeof e?.detail?.count === 'number') {
+                setApprovalsCount(e.detail.count);
+            }
+        };
+        window.addEventListener('approvalsCountUpdated', handleApprovalsCount);
+
         fetchActiveOnDutyCount();
-        fetchApprovalsCount();
+
+        // Refresh active on-duty count every 60 seconds (only when tab is visible)
         const interval = setInterval(() => {
+            if (!document.hidden) {
+                fetchActiveOnDutyCount();
+            }
+        }, 60000);
+
+        // Refresh when returning to tab after being away for more than 60 seconds
+        const handleVisibilityChange = () => {
+            if (!document.hidden && Date.now() - lastActiveOnDutyFetchRef.current >= 60000) {
+                fetchActiveOnDutyCount();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        const handleApprovalChange = () => {
             fetchActiveOnDutyCount();
-            fetchApprovalsCount();
-        }, 30000);
-        return () => clearInterval(interval);
+        };
+        window.addEventListener('approvalStatusChanged', handleApprovalChange);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('approvalsCountUpdated', handleApprovalsCount);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('approvalStatusChanged', handleApprovalChange);
+        };
     }, []);
 
     const fetchActiveOnDutyCount = async () => {
+        if (document.hidden) return;
         try {
             const token = localStorage.getItem('token');
             if (!token || !canManageActiveOnDuty(user.role)) {
@@ -173,6 +204,7 @@ const Sidebar = () => {
                 return;
             }
 
+            lastActiveOnDutyFetchRef.current = Date.now();
             const response = await axios.get(
                 `${API_BASE_URL}/api/onduty/active-all`,
                 { headers: { 'x-access-token': token } }
@@ -182,31 +214,6 @@ const Sidebar = () => {
             setActiveOnDutyCount(count);
         } catch (err) {
             console.error('Error fetching active on-duty count:', err);
-        }
-    };
-
-    const fetchApprovalsCount = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const hasLeavePermission = canApproveLeave(user.role);
-            const hasOnDutyPermission = canApproveOnDuty(user.role);
-
-            if (!hasLeavePermission && !hasOnDutyPermission) {
-                setApprovalsCount(0);
-                return;
-            }
-
-            const response = await axios.get(
-                `${API_BASE_URL}/api/leave/requests?status=Pending&limit=1000`,
-                { headers: { 'x-access-token': token } }
-            );
-
-            const count = (response.data.items || []).length;
-            setApprovalsCount(count);
-        } catch (err) {
-            console.error('Error fetching approvals count:', err);
         }
     };
 
