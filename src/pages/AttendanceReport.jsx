@@ -1109,8 +1109,7 @@ const AttendanceReport = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-100">
-                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Employee</th>
-                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                                    <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Employee / Date</th>
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-In</th>
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check-Out</th>
                                     <th className="px-4 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</th>
@@ -1166,14 +1165,13 @@ const AttendanceReport = () => {
                                                                 <p className="font-bold text-slate-800 leading-tight">
                                                                     {emp.firstname} {emp.lastname}
                                                                 </p>
-                                                                <p className="text-xs text-slate-400 mt-0.5">{emp.email}</p>
+                                                                <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
+                                                                    <span>{emp.email}</span>
+                                                                    <span>•</span>
+                                                                    <span className="font-semibold text-slate-600">{formatDateOnly(log.date)}</span>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </td>
-
-                                                    {/* Date */}
-                                                    <td className="px-4 py-2.5 text-sm font-semibold text-slate-600">
-                                                        {formatDateOnly(log.date)}
                                                     </td>
 
                                                     {/* Check-In */}
@@ -1308,9 +1306,6 @@ const AttendanceReport = () => {
                                                                 </div>
                                                             </div>
                                                         </td>
-                                                        <td className="px-4 py-3 text-xs text-slate-400 font-semibold italic">
-                                                            Multiple Dates
-                                                        </td>
                                                         <td className="px-4 py-3 text-slate-350">—</td>
                                                         <td className="px-4 py-3 text-slate-350">—</td>
                                                         <td className="px-4 py-3">
@@ -1388,13 +1383,10 @@ const AttendanceReport = () => {
                                                         return (
                                                             <tr key={log.id} className="bg-slate-50/20 hover:bg-slate-50/50 border-l-2 border-indigo-500/30 transition">
                                                                 <td className="px-4 py-2.5 pl-10">
-                                                                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+                                                                    <div className="flex items-center gap-2 text-xs font-semibold">
                                                                         <span className="font-mono text-slate-300">{isLast ? '└─' : '├─'}</span>
-                                                                        <span>Log #{index + 1}</span>
+                                                                        <span className="font-semibold text-slate-700">{formatDateOnly(log.date)}</span>
                                                                     </div>
-                                                                </td>
-                                                                <td className="px-4 py-2.5 text-sm font-semibold text-slate-600">
-                                                                    {formatDateOnly(log.date)}
                                                                 </td>
                                                                 <td className="px-4 py-2.5">
                                                                     <p className="text-sm font-semibold text-slate-700">

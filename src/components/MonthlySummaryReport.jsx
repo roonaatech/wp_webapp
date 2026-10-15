@@ -961,8 +961,8 @@ const MonthlySummaryReport = () => {
                                                         <td colSpan={isAttendanceModuleActive ? 11 : 8} className="px-6 py-4 bg-[#f8fafc] border-b border-gray-100">
                                                             <div className="space-y-4">
                                                             {/* Executive Salary & Quota Summary Cards */}
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                                                {isAttendanceModuleActive ? (
+                                                            <div className={`grid grid-cols-1 sm:grid-cols-2 ${isAttendanceModuleActive ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-3`}>
+                                                                {isAttendanceModuleActive && (
                                                                     <div className="bg-white rounded-xl p-3.5 border border-emerald-200 shadow-2xs flex items-center gap-3">
                                                                         <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                                                                             <FiDollarSign className="w-5 h-5 text-emerald-700" />
@@ -975,17 +975,6 @@ const MonthlySummaryReport = () => {
                                                                             <div className="text-[10px] text-gray-500 font-medium">
                                                                                 {s.non_compliant_days ?? 0} Non-Compliant {s.non_compliant_days === 1 ? 'day' : 'days'}{(s.absent_days || 0) > 0 ? ` (incl. ${s.absent_days} absent)` : ''}{s.holidays_count > 0 ? ` • ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : ''}
                                                                             </div>
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="bg-gray-50/70 rounded-xl p-3.5 border border-gray-200 flex items-center gap-3 opacity-60 select-none" title="Attendance module is disabled">
-                                                                        <div className="w-10 h-10 rounded-lg bg-gray-200 text-gray-400 flex items-center justify-center shrink-0">
-                                                                            <FiDollarSign className="w-5 h-5 text-gray-400" />
-                                                                        </div>
-                                                                        <div>
-                                                                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Salary Consideration (Disabled)</div>
-                                                                            <div className="text-base font-bold text-gray-400">—</div>
-                                                                            <div className="text-[10px] text-gray-400 font-medium">Attendance module is disabled</div>
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -1020,7 +1009,7 @@ const MonthlySummaryReport = () => {
                                                                     </div>
                                                                 </div>
 
-                                                                {isAttendanceModuleActive ? (
+                                                                {isAttendanceModuleActive && (
                                                                     <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center gap-3">
                                                                         <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
                                                                             <FiTarget className="w-5 h-5 text-indigo-600" />
@@ -1035,41 +1024,26 @@ const MonthlySummaryReport = () => {
                                                                             </div>
                                                                         </div>
                                                                     </div>
-                                                                ) : (
-                                                                    <div className="bg-gray-50/70 rounded-xl p-3.5 border border-gray-200 flex items-center gap-3 opacity-60 select-none" title="Attendance module is disabled">
-                                                                        <div className="w-10 h-10 rounded-lg bg-gray-200 text-gray-400 flex items-center justify-center shrink-0">
-                                                                            <FiTarget className="w-5 h-5 text-gray-400" />
-                                                                        </div>
-                                                                        <div>
-                                                                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Daily Compliance Target (Disabled)</div>
-                                                                            <div className="text-sm font-bold text-gray-400">—</div>
-                                                                            <div className="text-[10px] text-gray-400 font-medium">Attendance module is disabled</div>
-                                                                        </div>
-                                                                    </div>
                                                                 )}
                                                             </div>
 
                                                             {/* Sub-tab Switcher: Daily Breakdown & Attendance vs Leave, Time-off and On-duty Records */}
                                                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-2">
                                                                 <div className="flex items-center gap-2">
-                                                                    <button
-                                                                        type="button"
-                                                                        disabled={!isAttendanceModuleActive}
-                                                                        onClick={() => {
-                                                                            if (isAttendanceModuleActive) setTab(s.staff_id, 'salary');
-                                                                        }}
-                                                                        title={!isAttendanceModuleActive ? 'Attendance module is disabled' : undefined}
-                                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
-                                                                            !isAttendanceModuleActive
-                                                                                ? 'opacity-40 bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 select-none'
-                                                                                : currentTab === 'salary'
-                                                                                    ? 'bg-[#1e1b4b] text-white shadow-2xs cursor-pointer'
-                                                                                    : 'text-gray-600 hover:bg-gray-100 cursor-pointer'
-                                                                        }`}
-                                                                    >
-                                                                        <FiCalendar className="w-3.5 h-3.5" />
-                                                                        <span>Daily Breakdown & Attendance {!isAttendanceModuleActive ? '(Disabled)' : `(${combinedDays.length})`}</span>
-                                                                    </button>
+                                                                    {isAttendanceModuleActive && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setTab(s.staff_id, 'salary')}
+                                                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                                                                                currentTab === 'salary'
+                                                                                    ? 'bg-[#1e1b4b] text-white shadow-2xs'
+                                                                                    : 'text-gray-600 hover:bg-gray-100'
+                                                                            }`}
+                                                                        >
+                                                                            <FiCalendar className="w-3.5 h-3.5" />
+                                                                            <span>Daily Breakdown & Attendance ({combinedDays.length})</span>
+                                                                        </button>
+                                                                    )}
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => setTab(s.staff_id, 'records')}
