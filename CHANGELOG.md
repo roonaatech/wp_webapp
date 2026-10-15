@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.5](https://github.com/roonaatech/wp_webapp/compare/v2.18.4...v2.18.5) (2026-10-15)
+
+
+### Code Refactoring
+
+* hide disabled attendance module cards and tabs in monthly summary and reports ([e1a886b](https://github.com/roonaatech/wp_webapp/commit/e1a886b3eeff275fbc680efa4e8bf870a0399bab))
+
 ### [2.18.4](https://github.com/roonaatech/wp_webapp/compare/v2.18.3...v2.18.4) (2026-10-14)
 
 
