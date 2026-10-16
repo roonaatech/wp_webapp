@@ -517,10 +517,14 @@ const MonthlySummaryReport = () => {
 
                     dailyList.forEach((day, idx) => {
                         const row = sheet.getRow(curRowIdx);
-                        const statusText = day.is_compliant 
+                        const statusText = day.type === 'Sunday'
+                            ? 'Weekly Off'
+                            : day.is_compliant 
                             ? 'Compliant (1 Day)' 
                             : (day.compliant_day_value > 0 ? `Partial (${day.compliant_day_value} Day)` : 'Non-Compliant (0 Days)');
-                        const fullRemark = `[${statusText}] ${day.remarks || ''}`;
+                        const fullRemark = day.type === 'Sunday'
+                            ? (day.remarks || 'Sunday (Weekly Off)')
+                            : `[${statusText}] ${day.remarks || ''}`;
 
                         row.values = [
                             idx + 1,
@@ -530,7 +534,7 @@ const MonthlySummaryReport = () => {
                             day.onduty_minutes > 0 ? formatHours(0, day.onduty_minutes) : '—',
                             day.timeoff_requested_minutes > 0 ? formatHours(0, day.timeoff_requested_minutes) : '—',
                             day.timeoff_credited_minutes > 0 ? formatHours(0, day.timeoff_credited_minutes) : '—',
-                            day.type === 'Leave' || day.type === 'Holiday' ? '—' : formatHours(0, day.effective_work_minutes),
+                            day.type === 'Leave' || day.type === 'Holiday' || day.type === 'Sunday' ? '—' : formatHours(0, day.effective_work_minutes),
                             fullRemark
                         ];
 
@@ -543,7 +547,9 @@ const MonthlySummaryReport = () => {
                         });
 
                         const statusCell = row.getCell(9);
-                        if (day.is_compliant) {
+                        if (day.type === 'Sunday') {
+                            statusCell.font = { color: { argb: 'FF475569' } };
+                        } else if (day.is_compliant) {
                             statusCell.font = { color: { argb: 'FF15803D' }, bold: true };
                         } else if (day.compliant_day_value > 0) {
                             statusCell.font = { color: { argb: 'FFB45309' }, bold: true };
@@ -1096,6 +1102,10 @@ const MonthlySummaryReport = () => {
                                                                                                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
                                                                                                         Company Holiday
                                                                                                     </span>
+                                                                                                ) : day.type === 'Sunday' && daySessions.length === 0 ? (
+                                                                                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                                                                                        Weekly Off
+                                                                                                    </span>
                                                                                                 ) : daySessions.length === 0 ? (
                                                                                                     <span className="text-gray-400 font-mono text-[11px]">—</span>
                                                                                                 ) : (
@@ -1129,6 +1139,8 @@ const MonthlySummaryReport = () => {
                                                                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
                                                                                                     day.type === 'Holiday'
                                                                                                         ? 'bg-teal-50 text-teal-700 border-teal-200'
+                                                                                                        : day.type === 'Sunday'
+                                                                                                        ? 'bg-slate-100 text-slate-700 border-slate-300'
                                                                                                         : day.type === 'Absent'
                                                                                                         ? 'bg-rose-50 text-rose-600 border-rose-200'
                                                                                                         : day.type === 'Leave'
@@ -1149,6 +1161,11 @@ const MonthlySummaryReport = () => {
                                                                                                     {day.type === 'Holiday' && (
                                                                                                         <span className="font-semibold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
                                                                                                             Holiday: {day.holiday_name || 'Paid Holiday'}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {day.type === 'Sunday' && (
+                                                                                                        <span className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                                                                                            Weekly Off
                                                                                                         </span>
                                                                                                     )}
                                                                                                     {day.type === 'Absent' && (
@@ -1183,10 +1200,14 @@ const MonthlySummaryReport = () => {
                                                                                                 </div>
                                                                                             </td>
                                                                                             <td className="px-3 py-2.5 text-center font-bold text-gray-800 whitespace-nowrap">
-                                                                                                {day.type === 'Leave' || day.type === 'Holiday' || day.type === 'Absent' ? '—' : formatHours(0, day.effective_work_minutes)}
+                                                                                                {day.type === 'Leave' || day.type === 'Holiday' || day.type === 'Absent' || day.type === 'Sunday' ? '—' : formatHours(0, day.effective_work_minutes)}
                                                                                             </td>
                                                                                             <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                                                                                {day.type === 'Absent' ? (
+                                                                                                {day.type === 'Sunday' ? (
+                                                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
+                                                                                                        Weekly Off
+                                                                                                    </span>
+                                                                                                ) : day.type === 'Absent' ? (
                                                                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">
                                                                                                         <FiX className="w-3 h-3 text-rose-700" /> Absent (0 Days)
                                                                                                     </span>
