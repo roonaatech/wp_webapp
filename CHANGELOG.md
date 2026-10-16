@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.8](https://github.com/roonaatech/wp_webapp/compare/v2.18.7...v2.18.8) (2026-10-16)
+
+
+### Features
+
+* add compliance filter to attendance report UI and export functionality ([6de444b](https://github.com/roonaatech/wp_webapp/commit/6de444b0662b2ca951dc9c6f86febd970ff59027))
+
 ### [2.18.7](https://github.com/roonaatech/wp_webapp/compare/v2.18.6...v2.18.7) (2026-10-16)
 
 
