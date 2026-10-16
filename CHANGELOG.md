@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.6](https://github.com/roonaatech/wp_webapp/compare/v2.18.5...v2.18.6) (2026-10-16)
+
+
+### Features
+
+* add Weekly Off handling and UI styling for Sundays in MonthlySummaryReport ([2e7d6f4](https://github.com/roonaatech/wp_webapp/commit/2e7d6f4c4c1d02de1753a4b67fdf81280d2e8e27))
+
 ### [2.18.5](https://github.com/roonaatech/wp_webapp/compare/v2.18.4...v2.18.5) (2026-10-15)
 
 
