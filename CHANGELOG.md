@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.9](https://github.com/roonaatech/wp_webapp/compare/v2.18.8...v2.18.9) (2026-10-16)
+
+
+### Features
+
+* add SingleSelectDropdown component and integrate punch source and compliance filters in AttendanceReport ([d880acd](https://github.com/roonaatech/wp_webapp/commit/d880acd8912e48e5b934b7f32c2612b05426f321))
+
 ### [2.18.8](https://github.com/roonaatech/wp_webapp/compare/v2.18.7...v2.18.8) (2026-10-16)
 
 
