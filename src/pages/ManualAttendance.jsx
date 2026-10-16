@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -100,7 +100,10 @@ const ManualAttendance = () => {
     const [datePreset, setDatePreset] = useState('today');
     const [startDate, setStartDate] = useState(todayStr);
     const [endDate, setEndDate] = useState(todayStr);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedStaffIds, setSelectedStaffIds] = useState([]);
+    const [isStaffDropdownOpen, setIsStaffDropdownOpen] = useState(false);
+    const [staffDropdownSearch, setStaffDropdownSearch] = useState('');
+    const staffDropdownRef = useRef(null);
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'MISSING_ALL', 'MISSING_CHECKOUT'
 
     // Data State
@@ -204,13 +207,16 @@ const ManualAttendance = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
+            const params = {
+                startDate,
+                endDate
+            };
+            if (selectedStaffIds.length > 0) {
+                params.staff_ids = selectedStaffIds.join(',');
+            }
             const res = await axios.get(`${API_BASE_URL}/api/attendance/missed`, {
                 headers: { 'x-access-token': token },
-                params: {
-                    startDate,
-                    endDate,
-                    search: searchTerm
-                }
+                params
             });
 
             if (res.data) {
@@ -294,7 +300,7 @@ const ManualAttendance = () => {
         } finally {
             setLoading(false);
         }
-    }, [hasPermission, startDate, endDate, searchTerm, defaultStartTime, defaultEndTime, calculateEndTime, complianceHours]);
+    }, [hasPermission, startDate, endDate, selectedStaffIds, defaultStartTime, defaultEndTime, calculateEndTime, complianceHours]);
 
     // Fetch on filter changes
     useEffect(() => {
@@ -323,8 +329,8 @@ const ManualAttendance = () => {
         }
     };
 
-    // Load staff list for the "Add Individual" modal (only active employees)
-    const fetchStaffListForModal = async () => {
+    // Load staff list for the dropdown and modal (only active employees)
+    const fetchStaffListForModal = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get(`${API_BASE_URL}/api/admin/users?limit=all&status=active`, {
@@ -336,6 +342,69 @@ const ManualAttendance = () => {
         } catch (err) {
             console.error("Failed to fetch staff list:", err);
         }
+    }, []);
+
+    // Load active staff on mount for the employee multi-select dropdown
+    useEffect(() => {
+        if (hasPermission) {
+            fetchStaffListForModal();
+        }
+    }, [hasPermission, fetchStaffListForModal]);
+
+    // Close employee dropdown on click outside or escape key
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (staffDropdownRef.current && !staffDropdownRef.current.contains(e.target)) {
+                setIsStaffDropdownOpen(false);
+            }
+        };
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                setIsStaffDropdownOpen(false);
+            }
+        };
+        if (isStaffDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('keydown', handleKeyDown);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isStaffDropdownOpen]);
+
+    // Filter staff options based on search query inside the dropdown
+    const filteredStaffOptions = useMemo(() => {
+        const q = staffDropdownSearch.trim().toLowerCase();
+        if (!q) return allStaffList;
+        return allStaffList.filter(s => {
+            const fullName = `${s.firstname || ''} ${s.lastname || ''}`.toLowerCase();
+            const email = (s.email || '').toLowerCase();
+            const idStr = String(s.staffid || '');
+            return fullName.includes(q) || email.includes(q) || idStr.includes(q);
+        });
+    }, [allStaffList, staffDropdownSearch]);
+
+    const handleToggleStaff = (staffId) => {
+        const id = Number(staffId);
+        setSelectedStaffIds(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAllStaff = () => {
+        const visibleIds = filteredStaffOptions.map(s => Number(s.staffid));
+        const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedStaffIds.includes(id));
+        if (allVisibleSelected) {
+            setSelectedStaffIds(prev => prev.filter(id => !visibleIds.includes(id)));
+        } else {
+            setSelectedStaffIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+        }
+    };
+
+    const handleClearStaff = (e) => {
+        if (e) e.stopPropagation();
+        setSelectedStaffIds([]);
     };
 
     const openAddModal = () => {
@@ -803,22 +872,159 @@ const ManualAttendance = () => {
                                 />
                             </div>
 
-                            {/* Search */}
-                            <div>
+                            {/* Employee Multi-Select Dropdown */}
+                            <div className="relative" ref={staffDropdownRef}>
                                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                                     Search Employee
                                 </label>
-                                <div className="relative">
-                                    <LuSearch className="absolute left-3 top-2.5 text-slate-400 text-sm" />
-                                    <input
-                                        type="text"
-                                        placeholder="Name, email, or ID..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && fetchMissedAttendance()}
-                                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    />
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsStaffDropdownOpen(prev => !prev)}
+                                    className="w-full h-[37px] px-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-left shadow-2xs"
+                                >
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        <LuUser className="text-slate-400 text-sm shrink-0" />
+                                        {selectedStaffIds.length === 0 ? (
+                                            <span className="text-slate-400 font-normal truncate">All Employees</span>
+                                        ) : selectedStaffIds.length === 1 ? (
+                                            <span className="font-semibold text-slate-800 truncate">
+                                                {(() => {
+                                                    const emp = allStaffList.find(s => Number(s.staffid) === selectedStaffIds[0]);
+                                                    return emp ? `${emp.firstname} ${emp.lastname}` : `Employee #${selectedStaffIds[0]}`;
+                                                })()}
+                                            </span>
+                                        ) : (
+                                            <div className="flex items-center gap-1.5 truncate">
+                                                <span className="px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 font-bold text-[10px] shrink-0">
+                                                    {selectedStaffIds.length} Selected
+                                                </span>
+                                                <span className="text-slate-600 truncate text-[11px]">
+                                                    {allStaffList
+                                                        .filter(s => selectedStaffIds.includes(Number(s.staffid)))
+                                                        .slice(0, 2)
+                                                        .map(s => s.firstname)
+                                                        .join(', ')}
+                                                    {selectedStaffIds.length > 2 ? ` +${selectedStaffIds.length - 2}` : ''}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        {selectedStaffIds.length > 0 && (
+                                            <span
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={handleClearStaff}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleClearStaff(e)}
+                                                className="p-1 hover:bg-slate-200 rounded-md text-slate-400 hover:text-slate-700 transition-colors"
+                                                title="Clear selection"
+                                            >
+                                                <LuX className="text-xs" />
+                                            </span>
+                                        )}
+                                        <LuChevronDown className={`text-slate-400 text-xs transition-transform duration-200 ${isStaffDropdownOpen ? 'rotate-180' : ''}`} />
+                                    </div>
+                                </button>
+
+                                {/* Dropdown Menu */}
+                                {isStaffDropdownOpen && (
+                                    <div className="absolute left-0 right-0 sm:right-auto sm:w-[320px] top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                                        {/* Search Filter Input inside Dropdown */}
+                                        <div className="p-2 border-b border-slate-100 bg-slate-50/70">
+                                            <div className="relative">
+                                                <LuSearch className="absolute left-2.5 top-2.5 text-slate-400 text-xs" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search by name, email, or ID..."
+                                                    value={staffDropdownSearch}
+                                                    onChange={(e) => setStaffDropdownSearch(e.target.value)}
+                                                    className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                    autoFocus
+                                                />
+                                                {staffDropdownSearch && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setStaffDropdownSearch('')}
+                                                        className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                                                    >
+                                                        <LuX className="text-xs" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Action Bar */}
+                                        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-100/60 border-b border-slate-100 text-[11px] font-semibold text-slate-500">
+                                            <span>
+                                                {selectedStaffIds.length === 0 ? 'All Employees' : `${selectedStaffIds.length} selected`}
+                                            </span>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSelectAllStaff}
+                                                    className="text-indigo-600 hover:text-indigo-800 hover:underline font-bold"
+                                                >
+                                                    {(() => {
+                                                        const visibleIds = filteredStaffOptions.map(s => Number(s.staffid));
+                                                        const allVis = visibleIds.length > 0 && visibleIds.every(id => selectedStaffIds.includes(id));
+                                                        return allVis ? 'Deselect All' : 'Select All';
+                                                    })()}
+                                                </button>
+                                                {selectedStaffIds.length > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleClearStaff}
+                                                        className="text-slate-500 hover:text-slate-700 hover:underline"
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Scrollable Employee Checkboxes */}
+                                        <div className="max-h-60 overflow-y-auto divide-y divide-slate-50 p-1">
+                                            {filteredStaffOptions.length === 0 ? (
+                                                <div className="py-6 text-center text-xs text-slate-400 italic">
+                                                    No employees found matching "{staffDropdownSearch}"
+                                                </div>
+                                            ) : (
+                                                filteredStaffOptions.map(staff => {
+                                                    const sid = Number(staff.staffid);
+                                                    const isChecked = selectedStaffIds.includes(sid);
+                                                    const initials = `${(staff.firstname || '')[0] || ''}${(staff.lastname || '')[0] || ''}`.toUpperCase();
+
+                                                    return (
+                                                        <label
+                                                            key={sid}
+                                                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition-colors ${
+                                                                isChecked ? 'bg-indigo-50/70 text-indigo-950 font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                                                            }`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                onChange={() => handleToggleStaff(sid)}
+                                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                                                            />
+                                                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                                                {initials || <LuUser className="text-xs" />}
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="truncate">
+                                                                    {staff.firstname} {staff.lastname}
+                                                                </div>
+                                                                <div className="text-[10px] text-slate-400 font-normal truncate">
+                                                                    {staff.email || `ID: ${sid}`}
+                                                                </div>
+                                                            </div>
+                                                        </label>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Refresh Button */}
