@@ -7,7 +7,7 @@ import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
 import { fetchRoles, canViewAttendanceReport, canManageAttendance, canEditAttendance, canDeleteAttendance, canEditAttendanceAll, canDeleteAttendanceAll } from '../utils/roleUtils';
 import { formatDateOnly, formatTimeOnly, formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
-import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet } from 'react-icons/lu';
+import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet, LuShieldCheck } from 'react-icons/lu';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { getComplianceHours } from '../utils/attendanceConfig';
@@ -24,6 +24,7 @@ const AttendanceReport = () => {
     const [startDate, setStartDate] = useState(defaultToday);
     const [endDate, setEndDate] = useState(defaultToday);
     const [punchSource, setPunchSource] = useState('');
+    const [complianceFilter, setComplianceFilter] = useState('');
 
     const getDatePresetRange = (presetKey) => {
         const nowInApp = getCurrentInAppTimezone();
@@ -234,7 +235,7 @@ const AttendanceReport = () => {
         if (hasPermission) {
             fetchAttendanceLogs();
         }
-    }, [hasPermission, selectedUserId, startDate, endDate, page, limit, punchSource]);
+    }, [hasPermission, selectedUserId, startDate, endDate, page, limit, punchSource, complianceFilter]);
 
     const fetchUsersList = async () => {
         try {
@@ -263,7 +264,8 @@ const AttendanceReport = () => {
                 userId: selectedUserId,
                 startDate,
                 endDate,
-                punchSource: punchSource || undefined
+                punchSource: punchSource || undefined,
+                compliance: complianceFilter || undefined
             };
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/attendance-logs`, {
@@ -535,7 +537,9 @@ const AttendanceReport = () => {
                 limit: exportLimit,
                 userId: selectedUserId,
                 startDate,
-                endDate
+                endDate,
+                punchSource: punchSource || undefined,
+                compliance: complianceFilter || undefined
             };
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/attendance-logs`, {
@@ -594,9 +598,16 @@ const AttendanceReport = () => {
             // Subtitle metadata
             sheet.mergeCells('A2:K2');
             const metaCell = sheet.getCell('A2');
+            const compLabel = complianceFilter === 'compliant'
+                ? `Compliant (≥${complianceHours}h)`
+                : complianceFilter === 'non_compliant'
+                ? `Non-Compliant (<${complianceHours}h)`
+                : complianceFilter === 'in_progress'
+                ? 'In Progress'
+                : 'All';
             const filterDesc = selectedUserId
-                ? `Filtered by Employee ID: ${selectedUserId} | Date Range: ${startDate || 'Start'} to ${endDate || 'End'}`
-                : `Filter: All Employees | Date Range: ${startDate || 'Start'} to ${endDate || 'End'}`;
+                ? `Filtered by Employee ID: ${selectedUserId} | Date Range: ${startDate || 'Start'} to ${endDate || 'End'} | Compliance: ${compLabel}`
+                : `Filter: All Employees | Date Range: ${startDate || 'Start'} to ${endDate || 'End'} | Compliance: ${compLabel}`;
             const complianceSummaryText = `Compliant: ${exportCompliantCount} | Non-Compliant: ${exportNonCompliantCount}${exportInProgressCount > 0 ? ` | In Progress: ${exportInProgressCount}` : ''}`;
             metaCell.value = `${filterDesc} | Total Records: ${exportLogs.length} (${complianceSummaryText}) | Exported: ${formatInTimezone(new Date())}`;
             metaCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF64748B' } };
@@ -775,6 +786,7 @@ const AttendanceReport = () => {
     const handleClearFilters = () => {
         setSelectedUserId('');
         setPunchSource('');
+        setComplianceFilter('');
         const today = getCurrentInAppTimezone().date;
         setDatePreset('today');
         setStartDate(today);
@@ -1056,17 +1068,42 @@ const AttendanceReport = () => {
                     {/* Punch Source Filter */}
                     <div className="flex flex-col gap-1.5 flex-1 min-w-[170px]">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Punch Source</label>
-                        <select
-                            value={punchSource}
-                            onChange={(e) => { setPunchSource(e.target.value); setPage(1); }}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
-                        >
-                            <option value="">All Sources</option>
-                            <option value="KIOSK_QR">🏢 Kiosk QR</option>
-                            <option value="MOBILE_WFH">🏠 Mobile WFH</option>
-                            <option value="WEB_WFH">💻 Web WFH</option>
-                            <option value="MANUAL">✏️ Manual Regularized</option>
-                        </select>
+                        <div className="relative">
+                            <select
+                                value={punchSource}
+                                onChange={(e) => { setPunchSource(e.target.value); setPage(1); }}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
+                            >
+                                <option value="">All Sources</option>
+                                <option value="KIOSK_QR">🏢 Kiosk QR</option>
+                                <option value="MOBILE_WFH">🏠 Mobile WFH</option>
+                                <option value="WEB_WFH">💻 Web WFH</option>
+                                <option value="MANUAL">✏️ Manual Regularized</option>
+                            </select>
+                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                <LuChevronDown size={16} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Compliance Filter */}
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-[190px]">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Compliance</label>
+                        <div className="relative">
+                            <select
+                                value={complianceFilter}
+                                onChange={(e) => { setComplianceFilter(e.target.value); setPage(1); }}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
+                            >
+                                <option value="">All Compliance</option>
+                                <option value="compliant">Compliant (≥ {complianceHours}h)</option>
+                                <option value="non_compliant">Non-Compliant (&lt; {complianceHours}h)</option>
+                                <option value="in_progress">In Progress</option>
+                            </select>
+                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                <LuShieldCheck size={16} />
+                            </div>
+                        </div>
                     </div>
 
                     {/* Clear Filters */}
