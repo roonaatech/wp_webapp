@@ -5,12 +5,54 @@ import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
+import SingleSelectDropdown from '../components/SingleSelectDropdown';
 import { fetchRoles, canViewAttendanceReport, canManageAttendance, canEditAttendance, canDeleteAttendance, canEditAttendanceAll, canDeleteAttendanceAll } from '../utils/roleUtils';
 import { formatDateOnly, formatTimeOnly, formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
-import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet, LuShieldCheck } from 'react-icons/lu';
+import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet, LuShieldCheck, LuQrCode, LuSmartphone, LuLaptop, LuLayers, LuShield, LuShieldAlert, LuClock } from 'react-icons/lu';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { getComplianceHours } from '../utils/attendanceConfig';
+
+const PUNCH_SOURCE_OPTIONS = [
+    { value: '', label: 'All Sources', icon: LuLayers, iconClass: 'text-slate-400' },
+    { value: 'KIOSK_QR', label: 'Kiosk QR', icon: LuQrCode, iconClass: 'text-emerald-600' },
+    { value: 'MOBILE_WFH', label: 'Mobile WFH', icon: LuSmartphone, iconClass: 'text-blue-600' },
+    { value: 'WEB_WFH', label: 'Web WFH', icon: LuLaptop, iconClass: 'text-sky-600' },
+    { value: 'MANUAL', label: 'Manual Regularized', icon: LuPencil, iconClass: 'text-amber-600' }
+];
+
+const renderPunchSourceBadge = (source) => {
+    if (source === 'MOBILE_WFH') {
+        return (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-0.5">
+                <LuSmartphone size={11} className="text-blue-600 shrink-0" />
+                <span>WFH (Mob)</span>
+            </span>
+        );
+    }
+    if (source === 'WEB_WFH') {
+        return (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 mt-0.5">
+                <LuLaptop size={11} className="text-sky-600 shrink-0" />
+                <span>WFH (Web)</span>
+            </span>
+        );
+    }
+    if (source === 'MANUAL') {
+        return (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 mt-0.5">
+                <LuPencil size={11} className="text-amber-600 shrink-0" />
+                <span>Manual</span>
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-0.5">
+            <LuQrCode size={11} className="text-emerald-600 shrink-0" />
+            <span>Kiosk QR</span>
+        </span>
+    );
+};
 
 const AttendanceReport = () => {
     const navigate = useNavigate();
@@ -401,6 +443,13 @@ const AttendanceReport = () => {
     };
 
     const complianceHours = apiComplianceHours || getComplianceHours();
+
+    const complianceOptions = [
+        { value: '', label: 'All Compliance', icon: LuShield, iconClass: 'text-slate-400' },
+        { value: 'compliant', label: `Compliant (≥ ${complianceHours}h)`, icon: LuShieldCheck, iconClass: 'text-emerald-600' },
+        { value: 'non_compliant', label: `Non-Compliant (< ${complianceHours}h)`, icon: LuShieldAlert, iconClass: 'text-rose-600' },
+        { value: 'in_progress', label: 'In Progress', icon: LuClock, iconClass: 'text-amber-600' }
+    ];
 
     const getAttendanceCompliance = (checkInStr, checkOutStr, threshold = complianceHours) => {
         if (!checkInStr) {
@@ -1068,42 +1117,23 @@ const AttendanceReport = () => {
                     {/* Punch Source Filter */}
                     <div className="flex flex-col gap-1.5 flex-1 min-w-[170px]">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Punch Source</label>
-                        <div className="relative">
-                            <select
-                                value={punchSource}
-                                onChange={(e) => { setPunchSource(e.target.value); setPage(1); }}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
-                            >
-                                <option value="">All Sources</option>
-                                <option value="KIOSK_QR">🏢 Kiosk QR</option>
-                                <option value="MOBILE_WFH">🏠 Mobile WFH</option>
-                                <option value="WEB_WFH">💻 Web WFH</option>
-                                <option value="MANUAL">✏️ Manual Regularized</option>
-                            </select>
-                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                <LuChevronDown size={16} />
-                            </div>
-                        </div>
+                        <SingleSelectDropdown
+                            value={punchSource}
+                            onChange={(val) => { setPunchSource(val); setPage(1); }}
+                            options={PUNCH_SOURCE_OPTIONS}
+                            placeholder="All Sources"
+                        />
                     </div>
 
                     {/* Compliance Filter */}
                     <div className="flex flex-col gap-1.5 flex-1 min-w-[190px]">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Compliance</label>
-                        <div className="relative">
-                            <select
-                                value={complianceFilter}
-                                onChange={(e) => { setComplianceFilter(e.target.value); setPage(1); }}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
-                            >
-                                <option value="">All Compliance</option>
-                                <option value="compliant">Compliant (≥ {complianceHours}h)</option>
-                                <option value="non_compliant">Non-Compliant (&lt; {complianceHours}h)</option>
-                                <option value="in_progress">In Progress</option>
-                            </select>
-                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                <LuShieldCheck size={16} />
-                            </div>
-                        </div>
+                        <SingleSelectDropdown
+                            value={complianceFilter}
+                            onChange={(val) => { setComplianceFilter(val); setPage(1); }}
+                            options={complianceOptions}
+                            placeholder="All Compliance"
+                        />
                     </div>
 
                     {/* Clear Filters */}
@@ -1216,23 +1246,7 @@ const AttendanceReport = () => {
                                                         <p className="text-sm font-semibold text-slate-700">
                                                             {log.check_in_time ? formatTimeOnly(log.check_in_time) : '-'}
                                                         </p>
-                                                        {log.punch_source === 'MOBILE_WFH' ? (
-                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-0.5">
-                                                                🏠 WFH (Mob)
-                                                            </span>
-                                                        ) : log.punch_source === 'WEB_WFH' ? (
-                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 mt-0.5">
-                                                                💻 WFH (Web)
-                                                            </span>
-                                                        ) : log.punch_source === 'MANUAL' ? (
-                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 mt-0.5">
-                                                                ✏️ Manual
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-0.5">
-                                                                🏢 Kiosk QR
-                                                            </span>
-                                                        )}
+                                                        {renderPunchSourceBadge(log.punch_source)}
                                                     </td>
 
                                                     {/* Check-Out */}
@@ -1429,23 +1443,7 @@ const AttendanceReport = () => {
                                                                     <p className="text-sm font-semibold text-slate-700">
                                                                         {log.check_in_time ? formatTimeOnly(log.check_in_time) : '-'}
                                                                     </p>
-                                                                    {log.punch_source === 'MOBILE_WFH' ? (
-                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-0.5">
-                                                                            🏠 WFH (Mob)
-                                                                        </span>
-                                                                    ) : log.punch_source === 'WEB_WFH' ? (
-                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 mt-0.5">
-                                                                            💻 WFH (Web)
-                                                                        </span>
-                                                                    ) : log.punch_source === 'MANUAL' ? (
-                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 mt-0.5">
-                                                                            ✏️ Manual
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-0.5">
-                                                                            🏢 Kiosk QR
-                                                                        </span>
-                                                                    )}
+                                                                    {renderPunchSourceBadge(log.punch_source)}
                                                                 </td>
                                                                 <td className="px-4 py-2.5">
                                                                     <p className="text-sm font-semibold text-slate-700">
