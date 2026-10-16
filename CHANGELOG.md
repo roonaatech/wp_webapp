@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.7](https://github.com/roonaatech/wp_webapp/compare/v2.18.6...v2.18.7) (2026-10-16)
+
+
+### Features
+
+* replace employee search input with multi-select dropdown in ManualAttendance ([dc41fc3](https://github.com/roonaatech/wp_webapp/commit/dc41fc3729be265e04a464a51c295baeaa2e03b2))
+
 ### [2.18.6](https://github.com/roonaatech/wp_webapp/compare/v2.18.5...v2.18.6) (2026-10-16)
 
 
