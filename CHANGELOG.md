@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.11](https://github.com/roonaatech/wp_webapp/compare/v2.18.10...v2.18.11) (2026-10-17)
+
+
+### Features
+
+* add custom dismiss button to hot-toast notifications in App component ([0304269](https://github.com/roonaatech/wp_webapp/commit/0304269140a2dd2e8e457eb93e5b9b8f1d74df4a))
+
 ### [2.18.10](https://github.com/roonaatech/wp_webapp/compare/v2.18.9...v2.18.10) (2026-10-17)
 
 
