@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.14](https://github.com/roonaatech/wp_webapp/compare/v2.18.13...v2.18.14) (2026-10-17)
+
+
+### Features
+
+* add editable end time and date functionality for on-duty requests ([029d8e7](https://github.com/roonaatech/wp_webapp/commit/029d8e78d08e9bff31da639b17914e17b8db633a))
+
 ### [2.18.13](https://github.com/roonaatech/wp_webapp/compare/v2.18.12...v2.18.13) (2026-10-17)
 
 ### [2.18.12](https://github.com/roonaatech/wp_webapp/compare/v2.18.11...v2.18.12) (2026-10-17)
