@@ -5,7 +5,8 @@ import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import AxiosInterceptorSetup from './components/AxiosInterceptorSetup';
 import InactivityGuard from './components/InactivityGuard';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster, ToastBar } from 'react-hot-toast';
+import { LuX } from 'react-icons/lu';
 import axios from 'axios';
 import API_BASE_URL from './config/api.config';
 import Login from './pages/Login';
@@ -213,39 +214,62 @@ function App() {
         <GlobalInit>
           <PageHeaderProvider>
             <Toaster
-            position="top-right"
-            reverseOrder={false}
-            toastOptions={{
-              duration: 4000,
-              style: {
-                padding: '12px 16px',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '500',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-              },
-              success: {
+              position="top-right"
+              reverseOrder={false}
+              toastOptions={{
+                duration: 4000,
                 style: {
-                  background: '#059669',
-                  color: '#ffffff',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
                 },
-                iconTheme: {
-                  primary: '#ffffff',
-                  secondary: '#059669',
+                success: {
+                  style: {
+                    background: '#059669',
+                    color: '#ffffff',
+                  },
+                  iconTheme: {
+                    primary: '#ffffff',
+                    secondary: '#059669',
+                  },
                 },
-              },
-              error: {
-                style: {
-                  background: '#dc2626',
-                  color: '#ffffff',
+                error: {
+                  style: {
+                    background: '#dc2626',
+                    color: '#ffffff',
+                  },
+                  iconTheme: {
+                    primary: '#ffffff',
+                    secondary: '#dc2626',
+                  },
                 },
-                iconTheme: {
-                  primary: '#ffffff',
-                  secondary: '#dc2626',
-                },
-              },
-            }}
-          />
+              }}
+            >
+              {(t) => (
+                <ToastBar toast={t} style={{ ...t.style }}>
+                  {({ icon, message }) => (
+                    <>
+                      {icon}
+                      {message}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast.dismiss(t.id);
+                        }}
+                        className="ml-auto -mr-1 p-1 rounded-md text-current opacity-70 hover:opacity-100 hover:bg-black/15 dark:hover:bg-white/20 transition-all duration-150 focus:outline-none cursor-pointer inline-flex items-center justify-center shrink-0"
+                        aria-label="Close notification"
+                        title="Close"
+                      >
+                        <LuX className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </ToastBar>
+              )}
+            </Toaster>
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
