@@ -193,6 +193,10 @@ const MyRequests = () => {
     const [editOdPurpose, setEditOdPurpose] = useState('');
     const [editOdSubmitting, setEditOdSubmitting] = useState(false);
     const [editOdEndLocation, setEditOdEndLocation] = useState('');
+    const [editOdEndTime, setEditOdEndTime] = useState('');
+    const [editOdEndDate, setEditOdEndDate] = useState('');
+    const [editOdOriginalEndTime, setEditOdOriginalEndTime] = useState(null);
+    const [editOdStartTime, setEditOdStartTime] = useState(null);
 
     const [editingTimeOff, setEditingTimeOff] = useState(null);
     const [editToDate, setEditToDate] = useState('');
@@ -696,6 +700,31 @@ const MyRequests = () => {
         setEditOdLocation(od.location || parts[0] || '');
         setEditOdPurpose(od.purpose || parts.slice(1).join(' - ') || '');
         setEditOdEndLocation(od.end_location || '');
+
+        const startRaw = od.start_time || od.start || od.start_date;
+        const endRaw = od.end_time || od.end || od.end_date;
+        const completedRaw = od.completed_end_time || endRaw;
+
+        const mirroredStart = parseAppTimezone(startRaw);
+        const mirroredEnd = parseAppTimezone(endRaw);
+        const mirroredCompleted = parseAppTimezone(completedRaw);
+
+        setEditOdStartTime(mirroredStart);
+        setEditOdOriginalEndTime(mirroredCompleted || mirroredEnd);
+
+        if (mirroredEnd && !isNaN(mirroredEnd.getTime())) {
+            const h = String(mirroredEnd.getHours()).padStart(2, '0');
+            const m = String(mirroredEnd.getMinutes()).padStart(2, '0');
+            setEditOdEndTime(`${h}:${m}`);
+
+            const y = mirroredEnd.getFullYear();
+            const mo = String(mirroredEnd.getMonth() + 1).padStart(2, '0');
+            const d = String(mirroredEnd.getDate()).padStart(2, '0');
+            setEditOdEndDate(`${y}-${mo}-${d}`);
+        } else {
+            setEditOdEndTime('');
+            setEditOdEndDate('');
+        }
     };
 
     const handleEditOnDuty = async (id) => {
@@ -703,14 +732,44 @@ const MyRequests = () => {
             toast.error('Please fill all fields');
             return;
         }
+
+        let formattedEndTime = null;
+        if (editOdEndTime) {
+            if (!editOdEndDate) {
+                toast.error('Please select an end date');
+                return;
+            }
+
+            const [y, m, d] = editOdEndDate.split('-').map(Number);
+            const [hh, mm] = editOdEndTime.split(':').map(Number);
+            const selectedEnd = new Date(y, m - 1, d, hh, mm, 0);
+
+            if (editOdStartTime && selectedEnd <= editOdStartTime) {
+                toast.error(`End time must be after the start time (${formatDate(editOdStartTime)} ${formatTime12(editOdStartTime)})`);
+                return;
+            }
+
+            if (editOdOriginalEndTime && selectedEnd > editOdOriginalEndTime) {
+                toast.error(`End time cannot be greater than the end time already completed (${formatDate(editOdOriginalEndTime)} ${formatTime12(editOdOriginalEndTime)})`);
+                return;
+            }
+
+            formattedEndTime = `${editOdEndDate} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`;
+        }
+
         setEditOdSubmitting(true);
         try {
-            await axios.put(`${API_BASE_URL}/api/onduty/${id}`, {
+            const payload = {
                 client_name: editOdClient.trim(),
                 location: editOdLocation.trim(),
                 purpose: editOdPurpose.trim(),
                 end_location: editOdEndLocation.trim()
-            }, { headers });
+            };
+            if (formattedEndTime) {
+                payload.end_time = formattedEndTime;
+            }
+
+            await axios.put(`${API_BASE_URL}/api/onduty/${id}`, payload, { headers });
             toast.success('On-Duty updated!');
             setEditingOnDuty(null);
             fetchMyOnDuty();
@@ -1788,6 +1847,46 @@ const MyRequests = () => {
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><FiFlag className="w-4 h-4" /></span>
                                                 <input type="text" value={editOdEndLocation} onChange={(e) => setEditOdEndLocation(e.target.value)} placeholder="End Location" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
                                             </div>
+                                            {/* End Time Selection */}
+                                            <div className="bg-purple-50/60 border border-purple-100/90 rounded-xl p-3 space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[11px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1.5">
+                                                        <FiClock className="w-3.5 h-3.5 text-purple-600" />
+                                                        End Time
+                                                    </label>
+                                                    {editOdOriginalEndTime && (
+                                                        <span className="text-[10px] text-gray-500 font-medium">
+                                                            Completed at: <span className="font-bold text-gray-700">{formatTime12(editOdOriginalEndTime)}</span>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-500 font-semibold mb-1 block">End Date</label>
+                                                        <input
+                                                            type="date"
+                                                            value={editOdEndDate}
+                                                            min={editOdStartTime ? `${editOdStartTime.getFullYear()}-${String(editOdStartTime.getMonth() + 1).padStart(2, '0')}-${String(editOdStartTime.getDate()).padStart(2, '0')}` : undefined}
+                                                            max={editOdOriginalEndTime ? `${editOdOriginalEndTime.getFullYear()}-${String(editOdOriginalEndTime.getMonth() + 1).padStart(2, '0')}-${String(editOdOriginalEndTime.getDate()).padStart(2, '0')}` : undefined}
+                                                            onChange={(e) => setEditOdEndDate(e.target.value)}
+                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-500 font-semibold mb-1 block">End Time</label>
+                                                        <input
+                                                            type="time"
+                                                            value={editOdEndTime}
+                                                            onChange={(e) => setEditOdEndTime(e.target.value)}
+                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <p className="text-[10px] text-purple-600/90 italic flex items-center gap-1">
+                                                    <FiAlertCircle className="w-3 h-3 shrink-0" />
+                                                    Forgot to complete on time? You can adjust the end time earlier, but not beyond the completed time.
+                                                </p>
+                                            </div>
                                             <div className="relative">
                                                 <span className="absolute left-3 top-3 text-gray-400"><FiFileText className="w-4 h-4" /></span>
                                                 <textarea value={editOdPurpose} onChange={(e) => setEditOdPurpose(e.target.value)} rows={2} placeholder="Purpose" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all resize-none" />
@@ -2443,9 +2542,16 @@ const MyRequests = () => {
                                         {formatDate(selectedDetail.date)} · {formatTime12(selectedDetail.start_time)} - {formatTime12(selectedDetail.end_time)}
                                     </p>
                                 ) : detailType === 'onduty' ? (
-                                    <p className="text-sm font-semibold text-gray-800">
-                                        {formatDate(selectedDetail.start)} · {formatTime12(selectedDetail.start)} → {selectedDetail.end ? `${formatDate(selectedDetail.end)} · ${formatTime12(selectedDetail.end)}` : 'Active'}
-                                    </p>
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-800">
+                                            {formatDate(selectedDetail.start)} · {formatTime12(selectedDetail.start)} → {selectedDetail.end ? `${formatDate(selectedDetail.end)} · ${formatTime12(selectedDetail.end)}` : 'Active'}
+                                        </p>
+                                        {selectedDetail.completed_end_time && selectedDetail.end && (selectedDetail.completed_end_time !== selectedDetail.end) && (
+                                            <p className="text-[11px] text-gray-500 mt-1">
+                                                Originally completed at: <span className="font-semibold text-gray-700">{formatTime12(selectedDetail.completed_end_time)}</span>
+                                            </p>
+                                        )}
+                                    </div>
                                 ) : (
                                     <p className="text-sm font-semibold text-gray-800">
                                         {formatDate(selectedDetail.start_date || selectedDetail.start)} → {formatDate(selectedDetail.end_date || selectedDetail.end)}

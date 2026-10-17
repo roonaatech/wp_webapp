@@ -394,7 +394,7 @@ const Approvals = () => {
             console.error('Error updating status:', error);
             const errorMsg = error.response?.data?.message || 'Failed to update request';
             setError(errorMsg);
-            // Removed extra toast popup per user request
+            toast.error(errorMsg);
         } finally {
             setProcessingId(null);
         }

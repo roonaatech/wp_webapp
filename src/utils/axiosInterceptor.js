@@ -60,8 +60,9 @@ export const setupAxiosInterceptors = (navigate) => {
             const isPasswordChangeRequest = error.config?.url?.includes('auth/change-password');
             const isYearlyHistoryRequest = error.config?.url?.includes('yearly-history');
             const isAttendanceVerifyRequest = error.config?.url?.includes('attendance/scan-qr-badge');
+            const isStatusAction = error.config?.url?.includes('/status');
             
-            if (isLoginRequest || isPasswordChangeRequest || isAttendanceVerifyRequest) {
+            if (isLoginRequest || isPasswordChangeRequest || isAttendanceVerifyRequest || isStatusAction) {
                 return Promise.reject(error);
             }
 
@@ -187,6 +188,7 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
             const isPasswordChangeRequest = requestUrl.includes('auth/change-password');
             const isYearlyHistoryRequest = requestUrl.includes('yearly-history');
             const isAttendanceVerifyRequest = requestUrl.includes('attendance/scan-qr-badge');
+            const isStatusAction = requestUrl.includes('/status');
 
             // Debug logging
             if (status === 401) {
@@ -199,7 +201,7 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
                 });
             }
 
-            if (isLoginRequest || isPasswordChangeRequest || isAttendanceVerifyRequest || isDeviceViolation) {
+            if (isLoginRequest || isPasswordChangeRequest || isAttendanceVerifyRequest || isDeviceViolation || isStatusAction) {
                 console.log('✅ Skipping redirect for:', requestUrl);
                 return Promise.reject(error);
             }
