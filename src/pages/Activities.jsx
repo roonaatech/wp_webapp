@@ -367,7 +367,9 @@ const Activities = () => {
     const CHANGE_FIELD_LABELS = {
         date: 'Date',
         check_in_time: 'Check-In',
-        check_out_time: 'Check-Out'
+        check_out_time: 'Check-Out',
+        reason: 'Reason',
+        notes: 'Notes'
     };
 
     const formatChangeValue = (key, value) => {
@@ -394,6 +396,7 @@ const Activities = () => {
 
         const changes = Object.keys(newValues)
             .map((key) => {
+                if (key === 'staff_id' || key === 'id' || key === 'admin_id' || key === 'affected_user_id') return null;
                 const before = formatChangeValue(key, oldValues ? oldValues[key] : undefined);
                 const after = formatChangeValue(key, newValues[key]);
                 if (before === after) return null; // skip unchanged fields
