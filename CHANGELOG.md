@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.10](https://github.com/roonaatech/wp_webapp/compare/v2.18.9...v2.18.10) (2026-10-17)
+
+
+### Features
+
+* add support for reason and notes fields and filter out internal IDs in activity change logs ([dc0b7f1](https://github.com/roonaatech/wp_webapp/commit/dc0b7f146e2906280eeb44dfeed39b7065786633))
+
 ### [2.18.9](https://github.com/roonaatech/wp_webapp/compare/v2.18.8...v2.18.9) (2026-10-16)
 
 
