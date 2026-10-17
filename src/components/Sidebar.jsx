@@ -250,14 +250,14 @@ const Sidebar = () => {
                         flex items-center gap-3 px-4 py-2.5 transition-colors duration-200 relative
                         ${isCollapsed ? 'justify-center mx-4 rounded-lg' : ''}
                         ${!isCollapsed && active
-                            ? (indent 
-                                ? 'bg-[var(--bg-primary)] text-[#1e1b4b] font-bold rounded-l-xl ml-8 rounded-r-none soft-arc-active' 
+                            ? (indent
+                                ? 'bg-[var(--bg-primary)] text-[#1e1b4b] font-bold rounded-l-xl ml-8 rounded-r-none soft-arc-active'
                                 : 'bg-[var(--bg-primary)] text-[#1e1b4b] font-bold rounded-l-xl ml-4 rounded-r-none soft-arc-active')
                             : ''
                         }
                         ${!isCollapsed && !active
-                            ? (indent 
-                                ? 'text-slate-300 hover:bg-white/5 hover:text-white rounded-lg ml-8 mr-4' 
+                            ? (indent
+                                ? 'text-slate-300 hover:bg-white/5 hover:text-white rounded-lg ml-8 mr-4'
                                 : 'text-slate-200 hover:bg-white/5 hover:text-white rounded-lg mx-4')
                             : ''
                         }
@@ -329,9 +329,8 @@ const Sidebar = () => {
 
                 {/* Submenu Accordion */}
                 <div
-                    className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isOpen ? 'max-h-[600px] opacity-100 mt-1 mb-2 space-y-0.5' : 'max-h-0 opacity-0'
-                    }`}
+                    className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[600px] opacity-100 mt-1 mb-2 space-y-0.5' : 'max-h-0 opacity-0'
+                        }`}
                 >
                     {children}
                 </div>
@@ -359,10 +358,10 @@ const Sidebar = () => {
         };
 
         return (
-            <div 
+            <div
                 ref={containerRef}
-                onMouseEnter={handleMouseEnter} 
-                onMouseLeave={handleMouseLeave} 
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
                 className="relative flex justify-center py-1"
             >
                 <div
@@ -381,7 +380,7 @@ const Sidebar = () => {
 
                 {/* Floating Flyout Menu */}
                 {isHovered && (
-                    <div 
+                    <div
                         className="fixed left-[76px] z-50 bg-[#1e1b4b] border border-indigo-800/90 rounded-xl shadow-2xl py-2 min-w-[210px] animate-in fade-in zoom-in-95 duration-150"
                         style={{ top: `${Math.max(10, Math.min(flyoutTop, window.innerHeight - 340))}px` }}
                     >
@@ -410,8 +409,8 @@ const Sidebar = () => {
                 to={to}
                 className={`
                     flex items-center gap-2.5 px-4 py-2 text-sm transition-colors
-                    ${active 
-                        ? 'bg-blue-600/30 text-cyan-300 font-semibold border-l-2 border-cyan-400' 
+                    ${active
+                        ? 'bg-blue-600/30 text-cyan-300 font-semibold border-l-2 border-cyan-400'
                         : 'text-slate-200 hover:bg-white/10 hover:text-white font-medium'}
                 `}
             >
@@ -453,7 +452,7 @@ const Sidebar = () => {
 
             {/* Navigation Menus */}
             <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
-                
+
                 {/* 1. OVERVIEW / DASHBOARD */}
                 {!user.isServiceAccount && (
                     <div>
@@ -541,7 +540,7 @@ const Sidebar = () => {
                                     <NavLink to="/attendance-report" icon={<LuCalendarDays />} label="Timesheet Review" indent={true} />
                                 )}
                                 {canManageManualAttendancePermission && (
-                                    <NavLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Punch Entry" indent={true} />
+                                    <NavLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Attendance Entry" indent={true} />
                                 )}
                             </NavParent>
                         )}
@@ -659,7 +658,7 @@ const Sidebar = () => {
                                     <FlyoutLink to="/attendance-report" icon={<LuCalendarDays />} label="Timesheet Review" />
                                 )}
                                 {attendanceEnabled && canManageManualAttendancePermission && (
-                                    <FlyoutLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Punch Entry" />
+                                    <FlyoutLink to="/manual-attendance" icon={<LuCalendarPlus />} label="Manual Attendance Entry" />
                                 )}
                             </CollapsedGroup>
                         )}
