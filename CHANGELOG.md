@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.12](https://github.com/roonaatech/wp_webapp/compare/v2.18.11...v2.18.12) (2026-10-17)
+
+
+### Code Refactoring
+
+* update manual attendance menu labels and format Sidebar component styles ([a8307b8](https://github.com/roonaatech/wp_webapp/commit/a8307b874b73bdf5d598b7231216e9ef7b85746b))
+
 ### [2.18.11](https://github.com/roonaatech/wp_webapp/compare/v2.18.10...v2.18.11) (2026-10-17)
 
 
