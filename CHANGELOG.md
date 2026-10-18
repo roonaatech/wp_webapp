@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.16](https://github.com/roonaatech/wp_webapp/compare/v2.18.15...v2.18.16) (2026-10-18)
+
+
+### Code Refactoring
+
+* extract ChangePasswordModal into portal component and update MyRequests integration ([a998f0d](https://github.com/roonaatech/wp_webapp/commit/a998f0d80dae6a546b29a61f8803d8058cfce56a))
+
 ### [2.18.15](https://github.com/roonaatech/wp_webapp/compare/v2.18.14...v2.18.15) (2026-10-18)
 
 
