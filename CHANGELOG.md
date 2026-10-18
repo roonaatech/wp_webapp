@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.17](https://github.com/roonaatech/wp_webapp/compare/v2.18.16...v2.18.17) (2026-10-18)
+
+
+### Features
+
+* prevent leave and time-off request submissions on company holidays and display alert banners ([fa32bb8](https://github.com/roonaatech/wp_webapp/commit/fa32bb883e6c031a8787c30657cb0981fe0b06ed))
+
 ### [2.18.16](https://github.com/roonaatech/wp_webapp/compare/v2.18.15...v2.18.16) (2026-10-18)
 
 
