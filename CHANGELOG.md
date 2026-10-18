@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.15](https://github.com/roonaatech/wp_webapp/compare/v2.18.14...v2.18.15) (2026-10-18)
+
+
+### Features
+
+* add approval restrictions for self requests and higher authorities in Approvals page ([7afbc5c](https://github.com/roonaatech/wp_webapp/commit/7afbc5ce9d7f48f3edf3826501bd140075af7b3e))
+
 ### [2.18.14](https://github.com/roonaatech/wp_webapp/compare/v2.18.13...v2.18.14) (2026-10-17)
 
 
