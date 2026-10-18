@@ -392,6 +392,10 @@ const MyRequests = () => {
     // ─── Submit Handlers ───────────────────────────────────
     const handleLeaveSubmit = async (e) => {
         e.preventDefault();
+        if (holidaysMap[today]) {
+            toast.error(`Today is a company holiday (${holidaysMap[today]}). Leave requests cannot be submitted today.`);
+            return;
+        }
         if (!selectedLeaveType || !leaveStartDate || !leaveEndDate || !leaveReason.trim()) {
             toast.error('Please fill all fields');
             return;
@@ -519,6 +523,10 @@ const MyRequests = () => {
         e.preventDefault();
         if (!toDate || !toStartTime || !toEndTime || !toReason.trim()) {
             toast.error('Please fill all fields');
+            return;
+        }
+        if (holidaysMap[today] && (!toDate || toDate === today || toDate === nowInApp.date)) {
+            toast.error(`Today is a company holiday (${holidaysMap[today]}). Time-off requests cannot be submitted today.`);
             return;
         }
         if (toDate === nowInApp.date && isCurrentlyCheckedInToday) {
@@ -1405,6 +1413,13 @@ const MyRequests = () => {
                 {/* ═══════════════════════════════════════════ */}
                 {activeTab === 'leave' && activeView === 'apply' && (
                     <form onSubmit={handleLeaveSubmit} className="space-y-4 animate-fadeIn">
+                        {holidaysMap[today] && (
+                            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-purple-800 text-xs font-semibold flex items-center gap-2.5">
+                                <FiAlertCircle className="w-5 h-5 flex-shrink-0 text-purple-600" />
+                                <span>Today is a company holiday (<strong>{holidaysMap[today]}</strong>). Leave requests cannot be submitted today.</span>
+                            </div>
+                        )}
+
                         {/* Leave Type */}
                         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Leave Type</label>
@@ -1494,7 +1509,7 @@ const MyRequests = () => {
                         {/* Submit */}
                         <button
                             type="submit"
-                            disabled={leaveSubmitting || Boolean(leaveAttendedConflictDate)}
+                            disabled={leaveSubmitting || Boolean(holidaysMap[today]) || Boolean(leaveAttendedConflictDate) || Boolean(holidaysMap[leaveStartDate] || holidaysMap[leaveEndDate])}
                             className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3 mt-4"
                         >
                             {leaveSubmitting ? (
@@ -1946,7 +1961,18 @@ const MyRequests = () => {
                 {/* ═══════════════════════════════════════════ */}
                 {activeTab === 'timeoff' && activeView === 'apply' && (
                     <form onSubmit={handleTimeOffSubmit} className="space-y-4 animate-fadeIn">
-
+                        {(holidaysMap[today] || (toDate && holidaysMap[toDate])) && (
+                            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-purple-800 text-xs font-semibold flex items-center gap-2.5">
+                                <FiAlertCircle className="w-5 h-5 flex-shrink-0 text-purple-600" />
+                                <span>
+                                    {toDate && toDate !== today && holidaysMap[toDate] ? (
+                                        <>Selected date is a company holiday (<strong>{holidaysMap[toDate]}</strong>). Time-off requests cannot be submitted for holidays.</>
+                                    ) : (
+                                        <>Today is a company holiday (<strong>{holidaysMap[today] || holidaysMap[toDate]}</strong>). Time-off requests cannot be submitted today.</>
+                                    )}
+                                </span>
+                            </div>
+                        )}
 
                         {/* Date - Tappable field that opens calendar popup */}
                         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
@@ -2051,7 +2077,7 @@ const MyRequests = () => {
                         {/* Submit */}
                         <button
                             type="submit"
-                            disabled={toSubmitting || Boolean(toDate === nowInApp.date && isCurrentlyCheckedInToday) || Boolean((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) || (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)))}
+                            disabled={toSubmitting || Boolean(holidaysMap[today]) || Boolean(toDate && holidaysMap[toDate]) || Boolean(toDate === nowInApp.date && isCurrentlyCheckedInToday) || Boolean((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) || (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)))}
                             className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                         >
                             {toSubmitting ? (
