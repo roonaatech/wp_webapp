@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 import { getRoleDisplayName, canAccessWebApp } from '../utils/roleUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { formatLeaveDuration } from '../utils/dateUtils';
@@ -1353,7 +1354,7 @@ const MyRequests = () => {
             )}
 
             {/* ── Tab Selector ── */}
-            <div className="bg-white border-b border-gray-100 sticky top-[60px] z-40 shadow-sm">
+            <div className={`bg-white border-b border-gray-100 sticky ${isDesktopWithLayout ? 'top-0' : 'top-[60px]'} z-20 shadow-sm`}>
                 <div className="flex">
                     {tabs.map(tab => (
                         <button
@@ -2756,88 +2757,7 @@ const MyRequests = () => {
 
             {/* ── Change Password Modal ── */}
             {showChangePasswordModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 confirm-backdrop">
-                    <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl border border-gray-100 confirm-modal relative">
-                        <button
-                            onClick={() => {
-                                setShowChangePasswordModal(false);
-                                setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
-                                setChangePasswordError('');
-                            }}
-                            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50 transition-all font-bold"
-                            title="Close"
-                        >
-                            <FiX className="w-5 h-5" />
-                        </button>
-                        
-                        <div className="flex flex-col items-center mb-6">
-                            <div className="w-12 h-12 bg-indigo-50 text-[#1e1b4b] rounded-2xl flex items-center justify-center mb-3 shadow-inner">
-                                <svg className="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                            </div>
-                            <h3 className="text-lg font-black text-[#1e1b4b] uppercase tracking-tight">Change Password</h3>
-                            <p className="text-xs text-gray-400 text-center mt-1">Protect your account by creating a new secure password.</p>
-                        </div>
-
-                        {changePasswordError && (
-                            <div className="bg-rose-50 border-l-4 border-rose-500 p-3.5 rounded-r-xl mb-4">
-                                <p className="text-rose-700 text-xs font-bold flex items-center gap-1.5">
-                                    <FiAlertTriangle className="w-4 h-4 text-rose-600 shrink-0" /> {changePasswordError}
-                                </p>
-                            </div>
-                        )}
-
-                        <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Current Password</label>
-                                <input
-                                    type="password"
-                                    value={changePasswordData.oldPassword}
-                                    onChange={(e) => setChangePasswordData(prev => ({ ...prev, oldPassword: e.target.value }))}
-                                    placeholder="Enter current password"
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all text-gray-800 placeholder-gray-400"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">New Password</label>
-                                <input
-                                    type="password"
-                                    value={changePasswordData.newPassword}
-                                    onChange={(e) => setChangePasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                                    placeholder="Minimum 6 characters"
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all text-gray-800 placeholder-gray-400"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Confirm New Password</label>
-                                <input
-                                    type="password"
-                                    value={changePasswordData.confirmPassword}
-                                    onChange={(e) => setChangePasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                                    placeholder="Confirm new password"
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all text-gray-800 placeholder-gray-400"
-                                    required
-                                />
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={changePasswordSubmitting}
-                                className="w-full py-3.5 bg-[#1e1b4b] text-white font-black rounded-xl shadow-lg active:scale-[0.97] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-2 mt-2"
-                            >
-                                {changePasswordSubmitting ? (
-                                    <>
-                                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                        Updating...
-                                    </>
-                                ) : 'Save New Password'}
-                            </button>
-                        </form>
-                    </div>
-                </div>
+                <ChangePasswordModal onClose={() => setShowChangePasswordModal(false)} />
             )}
 
             </div>
