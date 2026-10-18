@@ -11,7 +11,7 @@ import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, parseAppTimezone } from '../utils/timezone.util';
 
-import { fetchRoles, canApproveLeave, canApproveOnDuty, canApproveTimeOff } from '../utils/roleUtils';
+import { fetchRoles, canApproveLeave, canApproveOnDuty, canApproveTimeOff, getHierarchyLevel } from '../utils/roleUtils';
 import TableSortIcon from '../components/TableSortIcon';
 
 // Helper to format dates without timezone conversion
@@ -86,6 +86,35 @@ const Approvals = () => {
     const [bulkProcessing, setBulkProcessing] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
     const [holidaysMap, setHolidaysMap] = useState({});
+
+    // Check if current user cannot approve this item (self request or higher authority)
+    const getApprovalRestriction = (item) => {
+        if (!currentUser || !item) return null;
+        const currentStaffId = Number(currentUser.staffid || currentUser.id);
+        const itemStaffId = Number(item.staff_id);
+        if (currentStaffId && itemStaffId && currentStaffId === itemStaffId) {
+            return {
+                reason: 'self',
+                label: 'Self Request',
+                tooltip: 'You cannot approve or reject your own request',
+                badgeClass: 'bg-amber-50 text-amber-700 border-amber-200'
+            };
+        }
+        const requestingUserRole = item.tblstaff?.role;
+        if (requestingUserRole && currentUser.role) {
+            const approverLevel = getHierarchyLevel(currentUser.role);
+            const requesterLevel = getHierarchyLevel(requestingUserRole);
+            if (approverLevel > requesterLevel) {
+                return {
+                    reason: 'higher_authority',
+                    label: 'Higher Authority',
+                    tooltip: 'You cannot approve or reject requests from a higher role member',
+                    badgeClass: 'bg-purple-50 text-purple-700 border-purple-200'
+                };
+            }
+        }
+        return null;
+    };
 
     useEffect(() => {
         const fetchHolidays = async () => {
@@ -408,7 +437,8 @@ const Approvals = () => {
         });
     };
 
-    const handleSelectItem = (key) => {
+    const handleSelectItem = (key, item = null) => {
+        if (item && getApprovalRestriction(item)) return;
         const newSelected = new Set(selectedItems);
         if (newSelected.has(key)) {
             newSelected.delete(key);
@@ -421,13 +451,16 @@ const Approvals = () => {
     const handleSelectAll = (type) => {
         // type: 'leave', 'onduty', 'timeoff'
         let items = [];
-        if (type === 'leave') items = leaveApprovals;
-        else if (type === 'timeoff') items = timeOffApprovals;
-        else items = onDutyApprovals;
+        if (type === 'leave') items = sortedAndFilteredLeaveApprovals;
+        else if (type === 'timeoff') items = sortedAndFilteredTimeOffApprovals;
+        else items = sortedAndFilteredOnDutyApprovals;
+
+        const approvableItems = items.filter(item => !getApprovalRestriction(item));
+        const allKeys = approvableItems.map(item => `${type}-${item.id}`);
+
+        if (allKeys.length === 0) return;
 
         const newSelected = new Set(selectedItems);
-
-        const allKeys = items.map(item => `${type}-${item.id}`);
         const allSelected = allKeys.every(key => newSelected.has(key));
 
         if (allSelected) {
@@ -476,7 +509,7 @@ const Approvals = () => {
 
                 const item = items.find(i => i.id === parseInt(id));
                 return { item, type };
-            }).filter(u => u.item); // Filter out any undefined items
+            }).filter(u => u.item && !getApprovalRestriction(u.item)); // Filter out unapprovable items
 
             for (const { item, type } of updates) {
                 let endpoint = '';
@@ -949,7 +982,10 @@ const Approvals = () => {
                                                     <input
                                                         type="checkbox"
                                                         onChange={() => handleSelectAll('leave')}
-                                                        checked={leaveApprovals.length > 0 && selectedItems.size === leaveApprovals.map(i => `leave-${i.id}`).filter(k => selectedItems.has(k)).length}
+                                                        checked={(() => {
+                                                            const approvable = sortedAndFilteredLeaveApprovals.filter(i => !getApprovalRestriction(i));
+                                                            return approvable.length > 0 && approvable.every(i => selectedItems.has(`leave-${i.id}`));
+                                                        })()}
                                                         className="w-4 h-4 rounded accent-blue-600"
                                                     />
                                                 </th>
@@ -974,12 +1010,19 @@ const Approvals = () => {
                                                 >
                                                     {statusFilter === 'Pending' && (
                                                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedItems.has(`leave-${req.id}`)}
-                                                                onChange={() => handleSelectItem(`leave-${req.id}`)}
-                                                                className="w-4 h-4 rounded accent-[#2E5090]"
-                                                            />
+                                                            {(() => {
+                                                                const restriction = getApprovalRestriction(req);
+                                                                return (
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedItems.has(`leave-${req.id}`)}
+                                                                        onChange={() => handleSelectItem(`leave-${req.id}`, req)}
+                                                                        disabled={!!restriction}
+                                                                        className="w-4 h-4 rounded accent-[#2E5090] disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                        title={restriction ? restriction.tooltip : "Select"}
+                                                                    />
+                                                                );
+                                                            })()}
                                                         </td>
                                                     )}
                                                     <td className="px-3 py-2">
@@ -1025,47 +1068,69 @@ const Approvals = () => {
                                                     )}
                                                     <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                                         {!isHistory ? (
-                                                            <div className="flex justify-end gap-2">
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(req, 'approved', 'leave')}
-                                                                    disabled={processingId === `leave-${req.id}-approved`}
-                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
-                                                                >
-                                                                    {processingId === `leave-${req.id}-approved` ? '...' : 'Approve'}
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(req, 'rejected', 'leave')}
-                                                                    disabled={processingId === `leave-${req.id}-rejected`}
-                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
-                                                                >
-                                                                    {processingId === `leave-${req.id}-rejected` ? '...' : 'Reject'}
-                                                                </button>
-                                                            </div>
+                                                            (() => {
+                                                                const restriction = getApprovalRestriction(req);
+                                                                if (restriction) {
+                                                                    return (
+                                                                        <div className="flex justify-end">
+                                                                            <span
+                                                                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${restriction.badgeClass}`}
+                                                                                title={restriction.tooltip}
+                                                                            >
+                                                                                {restriction.label}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <div className="flex justify-end gap-2">
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(req, 'approved', 'leave')}
+                                                                            disabled={processingId === `leave-${req.id}-approved`}
+                                                                            className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
+                                                                        >
+                                                                            {processingId === `leave-${req.id}-approved` ? '...' : 'Approve'}
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(req, 'rejected', 'leave')}
+                                                                            disabled={processingId === `leave-${req.id}-rejected`}
+                                                                            className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
+                                                                        >
+                                                                            {processingId === `leave-${req.id}-rejected` ? '...' : 'Reject'}
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })()
                                                         ) : (
-                                                            <div className="flex items-center justify-end gap-3">
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(req, 'pending', 'leave')}
-                                                                    disabled={processingId === `leave-${req.id}-pending`}
-                                                                    className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 transition-colors"
-                                                                    title="Revert to Pending"
-                                                                >
-                                                                    Revert
-                                                                </button>
-                                                                {statusFilter === 'Rejected' && req.manager_id && currentUser && (Number(currentUser.id) === Number(req.manager_id) || Number(currentUser.staffid) === Number(req.manager_id)) && (
-                                                                    <button
-                                                                        onClick={() => setEditReasonModal({
-                                                                            show: true,
-                                                                            item: req,
-                                                                            type: 'leave',
-                                                                            reason: req.rejection_reason || ''
-                                                                        })}
-                                                                        className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
-                                                                    >
-                                                                        Edit Reason
-                                                                    </button>
-                                                                )}
+                                                            (() => {
+                                                                const restriction = getApprovalRestriction(req);
+                                                                return (
+                                                                    <div className="flex items-center justify-end gap-3">
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(req, 'pending', 'leave')}
+                                                                            disabled={processingId === `leave-${req.id}-pending` || !!restriction}
+                                                                            className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                                            title={restriction ? restriction.tooltip : "Revert to Pending"}
+                                                                        >
+                                                                            Revert
+                                                                        </button>
+                                                                        {statusFilter === 'Rejected' && req.manager_id && currentUser && (Number(currentUser.id) === Number(req.manager_id) || Number(currentUser.staffid) === Number(req.manager_id)) && (
+                                                                            <button
+                                                                                onClick={() => setEditReasonModal({
+                                                                                    show: true,
+                                                                                    item: req,
+                                                                                    type: 'leave',
+                                                                                    reason: req.rejection_reason || ''
+                                                                                })}
+                                                                                className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
+                                                                            >
+                                                                                Edit Reason
+                                                                            </button>
+                                                                        )}
 
-                                                            </div>
+                                                                    </div>
+                                                                );
+                                                            })()
                                                         )}
                                                     </td>
                                                 </tr>
@@ -1092,7 +1157,10 @@ const Approvals = () => {
                                                     <input
                                                         type="checkbox"
                                                         onChange={() => handleSelectAll('timeoff')}
-                                                        checked={timeOffApprovals.length > 0 && selectedItems.size === timeOffApprovals.map(i => `timeoff-${i.id}`).filter(k => selectedItems.has(k)).length}
+                                                        checked={(() => {
+                                                            const approvable = sortedAndFilteredTimeOffApprovals.filter(i => !getApprovalRestriction(i));
+                                                            return approvable.length > 0 && approvable.every(i => selectedItems.has(`timeoff-${i.id}`));
+                                                        })()}
                                                         className="w-4 h-4 rounded accent-blue-600"
                                                     />
                                                 </th>
@@ -1117,12 +1185,19 @@ const Approvals = () => {
                                                 >
                                                     {statusFilter === 'Pending' && (
                                                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedItems.has(`timeoff-${req.id}`)}
-                                                                onChange={() => handleSelectItem(`timeoff-${req.id}`)}
-                                                                className="w-4 h-4 rounded accent-[#2E5090]"
-                                                            />
+                                                            {(() => {
+                                                                const restriction = getApprovalRestriction(req);
+                                                                return (
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedItems.has(`timeoff-${req.id}`)}
+                                                                        onChange={() => handleSelectItem(`timeoff-${req.id}`, req)}
+                                                                        disabled={!!restriction}
+                                                                        className="w-4 h-4 rounded accent-[#2E5090] disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                        title={restriction ? restriction.tooltip : "Select"}
+                                                                    />
+                                                                );
+                                                            })()}
                                                         </td>
                                                     )}
                                                     <td className="px-3 py-2">
@@ -1166,47 +1241,69 @@ const Approvals = () => {
                                                     )}
                                                     <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                                         {!isHistory ? (
-                                                            <div className="flex justify-end gap-2">
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(req, 'approved', 'timeoff')}
-                                                                    disabled={processingId === `timeoff-${req.id}-approved`}
-                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
-                                                                >
-                                                                    {processingId === `timeoff-${req.id}-approved` ? '...' : 'Approve'}
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(req, 'rejected', 'timeoff')}
-                                                                    disabled={processingId === `timeoff-${req.id}-rejected`}
-                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
-                                                                >
-                                                                    {processingId === `timeoff-${req.id}-rejected` ? '...' : 'Reject'}
-                                                                </button>
-                                                            </div>
+                                                            (() => {
+                                                                const restriction = getApprovalRestriction(req);
+                                                                if (restriction) {
+                                                                    return (
+                                                                        <div className="flex justify-end">
+                                                                            <span
+                                                                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${restriction.badgeClass}`}
+                                                                                title={restriction.tooltip}
+                                                                            >
+                                                                                {restriction.label}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <div className="flex justify-end gap-2">
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(req, 'approved', 'timeoff')}
+                                                                            disabled={processingId === `timeoff-${req.id}-approved`}
+                                                                            className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
+                                                                        >
+                                                                            {processingId === `timeoff-${req.id}-approved` ? '...' : 'Approve'}
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(req, 'rejected', 'timeoff')}
+                                                                            disabled={processingId === `timeoff-${req.id}-rejected`}
+                                                                            className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
+                                                                        >
+                                                                            {processingId === `timeoff-${req.id}-rejected` ? '...' : 'Reject'}
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })()
                                                         ) : (
-                                                            <div className="flex items-center justify-end gap-3">
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(req, 'pending', 'timeoff')}
-                                                                    disabled={processingId === `timeoff-${req.id}-pending`}
-                                                                    className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 transition-colors"
-                                                                    title="Revert to Pending"
-                                                                >
-                                                                    Revert
-                                                                </button>
-                                                                {statusFilter === 'Rejected' && req.manager_id && currentUser && (Number(currentUser.id) === Number(req.manager_id) || Number(currentUser.staffid) === Number(req.manager_id)) && (
-                                                                    <button
-                                                                        onClick={() => setEditReasonModal({
-                                                                            show: true,
-                                                                            item: req,
-                                                                            type: 'timeoff',
-                                                                            reason: req.rejection_reason || ''
-                                                                        })}
-                                                                        className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
-                                                                    >
-                                                                        Edit Reason
-                                                                    </button>
-                                                                )}
+                                                            (() => {
+                                                                const restriction = getApprovalRestriction(req);
+                                                                return (
+                                                                    <div className="flex items-center justify-end gap-3">
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(req, 'pending', 'timeoff')}
+                                                                            disabled={processingId === `timeoff-${req.id}-pending` || !!restriction}
+                                                                            className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                                            title={restriction ? restriction.tooltip : "Revert to Pending"}
+                                                                        >
+                                                                            Revert
+                                                                        </button>
+                                                                        {statusFilter === 'Rejected' && req.manager_id && currentUser && (Number(currentUser.id) === Number(req.manager_id) || Number(currentUser.staffid) === Number(req.manager_id)) && (
+                                                                            <button
+                                                                                onClick={() => setEditReasonModal({
+                                                                                    show: true,
+                                                                                    item: req,
+                                                                                    type: 'timeoff',
+                                                                                    reason: req.rejection_reason || ''
+                                                                                })}
+                                                                                className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
+                                                                            >
+                                                                                Edit Reason
+                                                                            </button>
+                                                                        )}
 
-                                                            </div>
+                                                                    </div>
+                                                                );
+                                                            })()
                                                         )}
                                                     </td>
                                                 </tr>
@@ -1232,8 +1329,11 @@ const Approvals = () => {
                                                 <th className="px-3 py-2 w-10">
                                                     <input
                                                         type="checkbox"
-                                                        onChange={() => handleSelectAll(false)}
-                                                        checked={onDutyApprovals.length > 0 && selectedItems.size === onDutyApprovals.map(i => `onduty-${i.id}`).filter(k => selectedItems.has(k)).length}
+                                                        onChange={() => handleSelectAll('onduty')}
+                                                        checked={(() => {
+                                                            const approvable = sortedAndFilteredOnDutyApprovals.filter(i => !getApprovalRestriction(i));
+                                                            return approvable.length > 0 && approvable.every(i => selectedItems.has(`onduty-${i.id}`));
+                                                        })()}
                                                         className="w-4 h-4 rounded accent-blue-600"
                                                     />
                                                 </th>
@@ -1257,12 +1357,19 @@ const Approvals = () => {
                                                 >
                                                     {statusFilter === 'Pending' && (
                                                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedItems.has(`onduty-${req.id}`)}
-                                                                onChange={() => handleSelectItem(`onduty-${req.id}`)}
-                                                                className="w-4 h-4 rounded accent-[#2E5090]"
-                                                            />
+                                                            {(() => {
+                                                                const restriction = getApprovalRestriction(req);
+                                                                return (
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedItems.has(`onduty-${req.id}`)}
+                                                                        onChange={() => handleSelectItem(`onduty-${req.id}`, req)}
+                                                                        disabled={!!restriction}
+                                                                        className="w-4 h-4 rounded accent-[#2E5090] disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                        title={restriction ? restriction.tooltip : "Select"}
+                                                                    />
+                                                                );
+                                                            })()}
                                                         </td>
                                                     )}
                                                     <td className="px-3 py-2">
@@ -1305,47 +1412,69 @@ const Approvals = () => {
                                                     )}
                                                     <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                                         {!isHistory ? (
-                                                            <div className="flex justify-end gap-2">
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(req, 'approved', 'onduty')}
-                                                                    disabled={processingId === `onduty-${req.id}-approved`}
-                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
-                                                                >
-                                                                    {processingId === `onduty-${req.id}-approved` ? '...' : 'Approve'}
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(req, 'rejected', 'onduty')}
-                                                                    disabled={processingId === `onduty-${req.id}-rejected`}
-                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
-                                                                >
-                                                                    {processingId === `onduty-${req.id}-rejected` ? '...' : 'Reject'}
-                                                                </button>
-                                                            </div>
+                                                            (() => {
+                                                                const restriction = getApprovalRestriction(req);
+                                                                if (restriction) {
+                                                                    return (
+                                                                        <div className="flex justify-end">
+                                                                            <span
+                                                                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${restriction.badgeClass}`}
+                                                                                title={restriction.tooltip}
+                                                                            >
+                                                                                {restriction.label}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <div className="flex justify-end gap-2">
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(req, 'approved', 'onduty')}
+                                                                            disabled={processingId === `onduty-${req.id}-approved`}
+                                                                            className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium"
+                                                                        >
+                                                                            {processingId === `onduty-${req.id}-approved` ? '...' : 'Approve'}
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(req, 'rejected', 'onduty')}
+                                                                            disabled={processingId === `onduty-${req.id}-rejected`}
+                                                                            className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-sm font-medium"
+                                                                        >
+                                                                            {processingId === `onduty-${req.id}-rejected` ? '...' : 'Reject'}
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })()
                                                         ) : (
-                                                            <div className="flex items-center justify-end gap-3">
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(req, 'pending', 'onduty')}
-                                                                    disabled={processingId === `onduty-${req.id}-pending`}
-                                                                    className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 transition-colors"
-                                                                    title="Revert to Pending"
-                                                                >
-                                                                    Revert
-                                                                </button>
-                                                                {statusFilter === 'Rejected' && req.manager_id && currentUser && (Number(currentUser.id) === Number(req.manager_id) || Number(currentUser.staffid) === Number(req.manager_id)) && (
-                                                                    <button
-                                                                        onClick={() => setEditReasonModal({
-                                                                            show: true,
-                                                                            item: req,
-                                                                            type: 'onduty',
-                                                                            reason: req.rejection_reason || ''
-                                                                        })}
-                                                                        className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
-                                                                    >
-                                                                        Edit Reason
-                                                                    </button>
-                                                                )}
+                                                            (() => {
+                                                                const restriction = getApprovalRestriction(req);
+                                                                return (
+                                                                    <div className="flex items-center justify-end gap-3">
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(req, 'pending', 'onduty')}
+                                                                            disabled={processingId === `onduty-${req.id}-pending` || !!restriction}
+                                                                            className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                                            title={restriction ? restriction.tooltip : "Revert to Pending"}
+                                                                        >
+                                                                            Revert
+                                                                        </button>
+                                                                        {statusFilter === 'Rejected' && req.manager_id && currentUser && (Number(currentUser.id) === Number(req.manager_id) || Number(currentUser.staffid) === Number(req.manager_id)) && (
+                                                                            <button
+                                                                                onClick={() => setEditReasonModal({
+                                                                                    show: true,
+                                                                                    item: req,
+                                                                                    type: 'onduty',
+                                                                                    reason: req.rejection_reason || ''
+                                                                                })}
+                                                                                className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-sm font-medium transition-colors"
+                                                                            >
+                                                                                Edit Reason
+                                                                            </button>
+                                                                        )}
 
-                                                            </div>
+                                                                    </div>
+                                                                );
+                                                            })()
                                                         )}
                                                     </td>
                                                 </tr>
@@ -1757,26 +1886,43 @@ const Approvals = () => {
                                     Cancel
                                 </button>
                                 {detailsModal.item.status === 'Pending' && (
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => {
-                                                handleUpdateStatus(detailsModal.item, 'rejected', detailsModal.type);
-                                                setDetailsModal({ ...detailsModal, show: false });
-                                            }}
-                                            className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md"
-                                        >
-                                            Reject
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                handleUpdateStatus(detailsModal.item, 'approved', detailsModal.type);
-                                                setDetailsModal({ ...detailsModal, show: false });
-                                            }}
-                                            className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-green-700 transition-all shadow-md shadow-green-100"
-                                        >
-                                            Approve Request
-                                        </button>
-                                    </div>
+                                    (() => {
+                                        const restriction = getApprovalRestriction(detailsModal.item);
+                                        if (restriction) {
+                                            return (
+                                                <div className="flex items-center">
+                                                    <span
+                                                        className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider border ${restriction.badgeClass}`}
+                                                        title={restriction.tooltip}
+                                                    >
+                                                        {restriction.label}
+                                                    </span>
+                                                </div>
+                                            );
+                                        }
+                                        return (
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        handleUpdateStatus(detailsModal.item, 'rejected', detailsModal.type);
+                                                        setDetailsModal({ ...detailsModal, show: false });
+                                                    }}
+                                                    className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md"
+                                                >
+                                                    Reject
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        handleUpdateStatus(detailsModal.item, 'approved', detailsModal.type);
+                                                        setDetailsModal({ ...detailsModal, show: false });
+                                                    }}
+                                                    className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-green-700 transition-all shadow-md shadow-green-100"
+                                                >
+                                                    Approve Request
+                                                </button>
+                                            </div>
+                                        );
+                                    })()
                                 )}
                             </div>
                         </div>
