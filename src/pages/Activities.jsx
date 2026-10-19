@@ -369,13 +369,70 @@ const Activities = () => {
         check_in_time: 'Check-In',
         check_out_time: 'Check-Out',
         reason: 'Reason',
-        notes: 'Notes'
+        notes: 'Notes',
+        holiday_date: 'Holiday Date',
+        holiday_name: 'Holiday Name',
+        status: 'Status',
+        allocations: 'Leave Quotas',
+        reordered_roles: 'Role Order',
+        rejection_reason: 'Rejection Reason',
+        gender_restriction: 'Gender Restriction',
+        days_allowed: 'Allowed Days',
+        is_half_day: 'Half Day',
+        hierarchy_level: 'Hierarchy Level',
+        display_name: 'Display Name',
+        role: 'Role',
+        approving_manager: 'Reporting Manager',
+        work_mode: 'Work Mode',
+        hybrid_office_days: 'Hybrid Office Days',
+        active: 'Account Status',
+        firstname: 'First Name',
+        lastname: 'Last Name',
+        email: 'Email',
+        secondary_email: 'Secondary Email'
+    };
+
+    const formatAllocationItem = (item) => {
+        if (!item) return '';
+        const name = item.name || (item.leave_type_id ? `Type #${item.leave_type_id}` : 'Leave');
+        const days = item.days_allowed !== undefined ? `${item.days_allowed}d` : '';
+        return days ? `${name}: ${days}` : name;
     };
 
     const formatChangeValue = (key, value) => {
         if (value === null || value === undefined || value === '') return '—';
         if (key === 'date') return formatDateOnly(value);
         if (key === 'check_in_time' || key === 'check_out_time') return formatTimeOnly(value);
+        if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+
+        // Handle arrays
+        if (Array.isArray(value)) {
+            if (value.length === 0) return 'None';
+            return value.map((item) => {
+                if (typeof item === 'object' && item !== null) {
+                    if (item.name || item.days_allowed !== undefined) {
+                        return formatAllocationItem(item);
+                    }
+                    if (item.display_name) return item.display_name;
+                    return Object.entries(item)
+                        .filter(([k]) => k !== 'id' && k !== 'leave_type_id' && k !== 'staff_id')
+                        .map(([k, v]) => `${CHANGE_FIELD_LABELS[k] || k}: ${v}`)
+                        .join(', ') || JSON.stringify(item);
+                }
+                return String(item);
+            }).join(', ');
+        }
+
+        // Handle generic objects
+        if (typeof value === 'object' && value !== null) {
+            const entries = Object.entries(value)
+                .filter(([k]) => k !== 'id' && k !== 'staff_id' && k !== 'admin_id' && k !== 'affected_user_id');
+            if (entries.length === 0) return '—';
+            return entries
+                .map(([k, v]) => `${CHANGE_FIELD_LABELS[k] || k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+                .join(', ');
+        }
+
         return String(value);
     };
 
@@ -396,7 +453,58 @@ const Activities = () => {
 
         const changes = Object.keys(newValues)
             .map((key) => {
-                if (key === 'staff_id' || key === 'id' || key === 'admin_id' || key === 'affected_user_id') return null;
+                if (key === 'staff_id' || key === 'id' || key === 'admin_id' || key === 'affected_user_id' || key === 'login_device') return null;
+
+                // Smart diff for leave allocations array
+                if (key === 'allocations' && Array.isArray(newValues.allocations)) {
+                    const oldArr = Array.isArray(oldValues?.allocations) ? oldValues.allocations : [];
+                    const newArr = newValues.allocations;
+
+                    if (oldArr.length === 0) {
+                        return {
+                            key,
+                            label: CHANGE_FIELD_LABELS.allocations || 'Leave Quotas',
+                            before: 'None',
+                            after: formatChangeValue('allocations', newArr)
+                        };
+                    }
+
+                    const oldMap = new Map(oldArr.map(a => [a.leave_type_id || a.name, a]));
+                    const newMap = new Map(newArr.map(a => [a.leave_type_id || a.name, a]));
+
+                    const changedOld = [];
+                    const changedNew = [];
+
+                    newArr.forEach(newItem => {
+                        const id = newItem.leave_type_id || newItem.name;
+                        const oldItem = oldMap.get(id);
+                        if (!oldItem) {
+                            changedOld.push(`None`);
+                            changedNew.push(`${newItem.name}: ${newItem.days_allowed}d`);
+                        } else if (oldItem.days_allowed !== newItem.days_allowed) {
+                            changedOld.push(`${oldItem.name}: ${oldItem.days_allowed}d`);
+                            changedNew.push(`${newItem.name}: ${newItem.days_allowed}d`);
+                        }
+                    });
+
+                    oldArr.forEach(oldItem => {
+                        const id = oldItem.leave_type_id || oldItem.name;
+                        if (!newMap.has(id)) {
+                            changedOld.push(`${oldItem.name}: ${oldItem.days_allowed}d`);
+                            changedNew.push(`Removed`);
+                        }
+                    });
+
+                    if (changedOld.length === 0 && changedNew.length === 0) return null;
+
+                    return {
+                        key,
+                        label: CHANGE_FIELD_LABELS.allocations || 'Leave Quotas',
+                        before: changedOld.join(', '),
+                        after: changedNew.join(', ')
+                    };
+                }
+
                 const before = formatChangeValue(key, oldValues ? oldValues[key] : undefined);
                 const after = formatChangeValue(key, newValues[key]);
                 if (before === after) return null; // skip unchanged fields
@@ -451,6 +559,7 @@ const Activities = () => {
             'UserDeclaration': 'bg-emerald-50 text-emerald-700 border-emerald-200',
             'BirthdayWish': 'bg-pink-50 text-pink-700 border-pink-200',
             'AnniversaryWish': 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
+            'Holiday': 'bg-amber-50 text-amber-700 border-amber-200',
             'ServiceAccount': 'bg-slate-100 text-slate-700 border-slate-200'
         };
         return colors[entity] || 'bg-gray-100 text-gray-700 border-gray-200';
@@ -1092,6 +1201,7 @@ const Activities = () => {
                                 <option value="TimeOffRequest">Time-Off Request</option>
                                 <option value="LeaveType">Leave Type</option>
                                 <option value="UserLeaveType">User Leave Policy</option>
+                                <option value="Holiday">Company Holiday</option>
                                 <option value="Approval">Approval Decision</option>
                             </optgroup>
 
@@ -1110,7 +1220,7 @@ const Activities = () => {
                             {summary?.entityCounts && (() => {
                                 const standardEntities = new Set([
                                     'User', 'Role', 'UserOnboarding', 'UserDeclaration',
-                                    'AttendanceLog', 'LeaveRequest', 'OnDutyLog', 'TimeOffRequest', 'LeaveType', 'UserLeaveType', 'Approval',
+                                    'AttendanceLog', 'LeaveRequest', 'OnDutyLog', 'TimeOffRequest', 'LeaveType', 'UserLeaveType', 'Approval', 'Holiday',
                                     'Setting', 'ApkVersion', 'EmailConfig', 'EmailTemplate', 'DeviceViolation', 'BirthdayWish', 'AnniversaryWish', 'ServiceAccount'
                                 ]);
                                 const otherEntities = summary.entityCounts.filter(e => e.entity && !standardEntities.has(e.entity));
