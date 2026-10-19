@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.18](https://github.com/roonaatech/wp_webapp/compare/v2.18.17...v2.18.18) (2026-10-19)
+
+
+### Features
+
+* enhance activity change logs with detailed formatting and holiday support ([85031f5](https://github.com/roonaatech/wp_webapp/commit/85031f56306e42de0e6e1bc1d446e97d6945a5af))
+
 ### [2.18.17](https://github.com/roonaatech/wp_webapp/compare/v2.18.16...v2.18.17) (2026-10-18)
 
 
