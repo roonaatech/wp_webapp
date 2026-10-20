@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.20](https://github.com/roonaatech/wp_webapp/compare/v2.18.19...v2.18.20) (2026-10-20)
+
+
+### Features
+
+* improve user list row interactions and add escape key handler for user details view ([2abbbe5](https://github.com/roonaatech/wp_webapp/commit/2abbbe575c6065834eb069797e77689627d8de93))
+
 ### [2.18.19](https://github.com/roonaatech/wp_webapp/compare/v2.18.18...v2.18.19) (2026-10-19)
 
 
