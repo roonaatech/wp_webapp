@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
-import { FiEdit2, FiTrash2, FiPlus, FiX, FiAlertTriangle, FiKey, FiLink, FiChevronDown, FiChevronRight, FiInfo, FiLock } from 'react-icons/fi';
-import { LuSparkles, LuBuilding2, LuHouse, LuBriefcase, LuCalendar, LuCheck, LuHistory, LuClock, LuSearch, LuRefreshCw, LuUserCheck, LuShield, LuArrowRight, LuTag } from 'react-icons/lu';
+import { FiEdit2, FiTrash2, FiPlus, FiX, FiAlertTriangle, FiKey, FiLink, FiChevronDown, FiInfo, FiLock } from 'react-icons/fi';
+import { LuSparkles, LuBuilding2, LuHouse, LuBriefcase, LuCalendar, LuCheck, LuHistory, LuClock, LuSearch, LuRefreshCw, LuUserCheck, LuShield, LuArrowRight, LuTag, LuMail } from 'react-icons/lu';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -299,6 +299,7 @@ const Users = () => {
     const [editingUserId, setEditingUserId] = useState(null);
     const [editingUserFromPhp, setEditingUserFromPhp] = useState(false); // Track if user is from PHP app
     const [expandedUserId, setExpandedUserId] = useState(null);
+    const [selectedUserForModal, setSelectedUserForModal] = useState(null);
     const [activeTab, setActiveTab] = useState('history');
     const [leaveBalances, setLeaveBalances] = useState({});
     const [loadingBalance, setLoadingBalance] = useState({});
@@ -783,7 +784,10 @@ const Users = () => {
     const handleExpandUser = (userId) => {
         if (expandedUserId === userId) {
             setExpandedUserId(null);
+            setSelectedUserForModal(null);
         } else {
+            const targetUser = users.find(usr => usr.staffid === userId);
+            setSelectedUserForModal(targetUser || null);
             setExpandedUserId(userId);
             setActiveTab('history');
             // Fetch leave balance if not already loaded
@@ -801,14 +805,32 @@ const Users = () => {
                 fetchAllUsersForChart();
             }
             // Pre-fetch staff change history (default to 30 days)
-            const targetUser = users.find(usr => usr.staffid === userId);
-            if (canViewChangeHistory(user.role, targetUser, user.id || user.staffid)) {
+            if (targetUser && canViewChangeHistory(user.role, targetUser, user.id || user.staffid)) {
                 if (!changeHistory[userId]) {
                     fetchStaffChangeHistory(userId, 'all', '30d');
                 }
             }
         }
     };
+
+    const handleCloseUserModal = () => {
+        setExpandedUserId(null);
+        setSelectedUserForModal(null);
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                if (fullScreenChart) {
+                    handleCloseFullScreen();
+                } else if (expandedUserId) {
+                    handleCloseUserModal();
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [fullScreenChart, expandedUserId]);
 
     const handleAddUserClick = () => {
         setShowAddModal(true);
@@ -1584,6 +1606,8 @@ const Users = () => {
         );
     }
 
+    const selectedUserModal = users.find(usr => usr.staffid === expandedUserId) || selectedUserForModal;
+
     return (
         <div>
             {canManageOnboarding(user.role) && (
@@ -2097,7 +2121,6 @@ const Users = () => {
                     <table className="w-full">
                         <thead className="bg-[#1e1b4b] text-white border-b border-[#1e1b4b]">
                             <tr>
-                                <th className="px-3 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest w-12"></th>
                                 <th
                                     className="px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:text-[#0ea5e9] transition-colors"
                                     onClick={() => handleSort('staffid')}
@@ -2169,54 +2192,49 @@ const Users = () => {
                         <tbody className="divide-y divide-gray-200">
                             {filteredUsers.length > 0 ? (
                                 filteredUsers.map((u) => (
-                                    <React.Fragment key={u.staffid}>
-                                        <tr className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-3 py-4 text-center">
-                                                <button
-                                                    onClick={() => handleExpandUser(u.staffid)}
-                                                    className="p-1 hover:bg-blue-100 rounded transition-colors text-blue-600 flex items-center justify-center mx-auto"
-                                                    title={expandedUserId === u.staffid ? "Collapse" : "Expand"}
-                                                >
-                                                    {expandedUserId === u.staffid ? <FiChevronDown className="w-4 h-4" /> : <FiChevronRight className="w-4 h-4" />}
-                                                </button>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
-                                                #{u.staffid}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    {(() => {
-                                                        const profileImg = u.profile_info?.image_path || u.documents?.find(d => d.document_type === 'photo')?.file_path;
-                                                        return profileImg ? (
-                                                            <img
-                                                                src={`${API_BASE_URL}/${profileImg.replace(/\\/g, '/')}`}
-                                                                alt={`${u.firstname} ${u.lastname}`}
-                                                                className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold">
-                                                                {u.firstname.charAt(0)}{u.lastname.charAt(0)}
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                    <div>
-                                                        <p className="font-medium text-gray-900">
-                                                            {u.firstname} {u.lastname}
-                                                        </p>
-                                                        {u.profile_info?.onboarding_status === 'Pending_HR_Approval' && (
-                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold rounded-md">
-                                                                Pending HR Approval
-                                                            </span>
-                                                        )}
-                                                        {/* Update Required: missing gender, reporting manager, email, date of birth, or declaration */}
-                                                        {((!u.gender || !u.approving_manager_id || !u.email || !u.profile_info?.date_of_birth || !u.profile_info?.consent_given || u.profile_info?.onboarding_status === 'Pending_Candidate') && u.profile_info?.onboarding_status !== 'Pending_HR_Approval') && (
-                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-orange-50 border border-orange-200 text-orange-700 text-[10px] font-bold rounded-md">
-                                                                Update Required
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                    <tr key={u.staffid} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4 text-sm text-gray-600 font-mono">
+                                            #{u.staffid}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleExpandUser(u.staffid)}
+                                                className="group flex items-center gap-3 text-left focus:outline-none cursor-pointer"
+                                                title={`View details for ${u.firstname} ${u.lastname}`}
+                                            >
+                                                {(() => {
+                                                    const profileImg = u.profile_info?.image_path || u.documents?.find(d => d.document_type === 'photo')?.file_path;
+                                                    return profileImg ? (
+                                                        <img
+                                                            src={`${API_BASE_URL}/${profileImg.replace(/\\/g, '/')}`}
+                                                            alt={`${u.firstname} ${u.lastname}`}
+                                                            className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm group-hover:ring-2 group-hover:ring-indigo-500 transition-all shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold group-hover:ring-2 group-hover:ring-indigo-500 transition-all shrink-0">
+                                                            {u.firstname.charAt(0)}{u.lastname.charAt(0)}
+                                                        </div>
+                                                    );
+                                                })()}
+                                                <div>
+                                                    <p className="font-semibold text-gray-900 group-hover:text-indigo-600 group-hover:underline transition-colors">
+                                                        {u.firstname} {u.lastname}
+                                                    </p>
+                                                    {u.profile_info?.onboarding_status === 'Pending_HR_Approval' && (
+                                                        <span className="inline-block mt-0.5 px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold rounded-md">
+                                                            Pending HR Approval
+                                                        </span>
+                                                    )}
+                                                    {/* Update Required: missing gender, reporting manager, email, date of birth, or declaration */}
+                                                    {((!u.gender || !u.approving_manager_id || !u.email || !u.profile_info?.date_of_birth || !u.profile_info?.consent_given || u.profile_info?.onboarding_status === 'Pending_Candidate') && u.profile_info?.onboarding_status !== 'Pending_HR_Approval') && (
+                                                        <span className="inline-block mt-0.5 px-2 py-0.5 bg-orange-50 border border-orange-200 text-orange-700 text-[10px] font-bold rounded-md">
+                                                            Update Required
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            </td>
+                                            </button>
+                                        </td>
                                             <td className="px-6 py-4 text-sm text-gray-600">{u.email}</td>
                                             <td className="px-6 py-4">
                                                 <span className={'px-3 py-1 rounded-full text-xs font-medium ' + getRoleColor(u.role)}>
@@ -2273,6 +2291,13 @@ const Users = () => {
                                                                 <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
                                                                     <div className="py-1">
                                                                         <button
+                                                                            onClick={() => { handleExpandUser(u.staffid); setOpenActionMenu(null); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors font-semibold cursor-pointer"
+                                                                        >
+                                                                            <LuCalendar className="w-3.5 h-3.5 text-indigo-500" />
+                                                                            View Details
+                                                                        </button>
+                                                                        <button
                                                                             onClick={() => { navigate(`/staff-profile/${u.staffid}`); setOpenActionMenu(null); }}
                                                                             className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors font-semibold"
                                                                         >
@@ -2311,75 +2336,207 @@ const Users = () => {
                                                 </td>
                                             )}
                                         </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={canManageUsers ? 8 : 7} className="px-6 py-8 text-center text-gray-500">
+                                        No users found
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
 
-                                        {expandedUserId === u.staffid && (
-                                            <tr className="bg-slate-200 border-t-2 border-b-2 border-slate-300">
-                                                <td colSpan={canManageUsers ? 9 : 8} className="p-6 bg-slate-200/90 shadow-[inset_0_6px_20px_rgba(0,0,0,0.12)]">
-                                                    <div className="flex flex-col gap-5">
-                                                        <div className="flex flex-col md:flex-row gap-5">
-                                                            {/* Modern Vertical Nav */}
-                                                            <div className="w-full md:w-48 flex-shrink-0">
-                                                                <nav className="bg-white rounded-2xl shadow-[0_20px_45px_-8px_rgba(0,0,0,0.28),0_8px_20px_-4px_rgba(0,0,0,0.18)] border border-slate-300 p-2 flex flex-col gap-1">
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setActiveTab('history');
-                                                                            if (!leaveBalances[u.staffid]) {
-                                                                                fetchLeaveBalance(u.staffid);
-                                                                            }
-                                                                            if (attendanceEnabled && !attendanceHistory[u.staffid]) {
-                                                                                fetchAttendanceHistory(u.staffid);
-                                                                            }
-                                                                        }}
-                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
-                                                                            activeTab === 'history'
-                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
-                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
-                                                                        }`}
-                                                                    >
-                                                                        {activeTab === 'history' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
-                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                        </svg>
-                                                                        {attendanceEnabled ? 'Leave & Attendance' : 'Leave History'}
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => setActiveTab('org')}
-                                                                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
-                                                                            activeTab === 'org'
-                                                                                ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
-                                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
-                                                                        }`}
-                                                                    >
-                                                                        {activeTab === 'org' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
-                                                                        <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'org' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-                                                                        </svg>
-                                                                        Org Structure
-                                                                    </button>
-                                                                    {canViewChangeHistory(user.role, u, user.id || user.staffid) && (
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                setActiveTab('change_history');
-                                                                                if (!changeHistory[u.staffid]) {
-                                                                                    fetchStaffChangeHistory(u.staffid, 'all', changeHistoryDuration[u.staffid] || '30d');
-                                                                                }
-                                                                            }}
-                                                                            className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 text-left relative overflow-hidden ${
-                                                                                activeTab === 'change_history'
-                                                                                    ? 'bg-gradient-to-r from-indigo-50 to-blue-50/50 text-indigo-700 font-semibold shadow-sm'
-                                                                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/80 font-medium'
-                                                                            }`}
-                                                                        >
-                                                                            {activeTab === 'change_history' && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b from-indigo-500 to-blue-500"></span>}
-                                                                            <LuHistory className={`w-4 h-4 flex-shrink-0 transition-colors ${activeTab === 'change_history' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'}`} />
-                                                                            Change History
-                                                                        </button>
-                                                                    )}
-                                                                </nav>
-                                                            </div>
+                {/* Pagination */}
+                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <span>Show</span>
+                            <select
+                                value={pageSize}
+                                onChange={(e) => {
+                                    setPageSize(Number(e.target.value));
+                                }}
+                                className="border border-gray-300 rounded text-sm py-1 px-2 focus:outline-none focus:border-blue-500 bg-white"
+                            >
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>per page</span>
+                        </div>
+                        <p className="text-sm text-gray-600 border-l border-gray-300 pl-4">
+                            Showing <span className="font-medium">{totalItems > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to <span className="font-medium">{Math.min(currentPage * pageSize, totalItems)}</span> of <span className="font-medium">{totalItems}</span> users
+                        </p>
+                    </div>
 
-                                                            {/* Tab Content Panel */}
-                                                            <div className="flex-1 bg-white border border-slate-300 rounded-2xl p-6 shadow-[0_20px_45px_-8px_rgba(0,0,0,0.28),0_8px_20px_-4px_rgba(0,0,0,0.18)] min-w-0">
+                    <div className="flex gap-2 items-center">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className={`px-3 py-1 border border-gray-300 rounded text-sm transition-colors ${currentPage === 1 ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-700'}`}
+                        >
+                            Previous
+                        </button>
+                        <span className="text-sm text-gray-600 px-2 flex items-center gap-1">
+                            Page
+                            <span className="font-medium text-gray-900">{currentPage}</span>
+                            of
+                            <span className="font-medium text-gray-900">{Math.max(totalPages, 1)}</span>
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage >= totalPages}
+                            className={`px-3 py-1 border border-gray-300 rounded text-sm transition-colors ${currentPage >= totalPages ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-700'}`}
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {/* User Details Popup Modal */}
+            {expandedUserId && selectedUserModal && (() => {
+                const u = selectedUserModal;
+                return (
+                    <div
+                        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 z-50 animate-in fade-in duration-200"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) {
+                                handleCloseUserModal();
+                            }
+                        }}
+                    >
+                        <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-7xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                            {/* Modal Header */}
+                            <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 flex-shrink-0">
+                                <div className="flex items-center gap-4 min-w-0">
+                                    {(() => {
+                                        const profileImg = u.profile_info?.image_path || u.documents?.find(d => d.document_type === 'photo')?.file_path;
+                                        return profileImg ? (
+                                            <img
+                                                src={`${API_BASE_URL}/${profileImg.replace(/\\/g, '/')}`}
+                                                alt={`${u.firstname} ${u.lastname}`}
+                                                className="w-12 h-12 rounded-full object-cover border-2 border-indigo-100 shadow-sm shrink-0"
+                                            />
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0">
+                                                {u.firstname?.charAt(0)}{u.lastname?.charAt(0)}
+                                            </div>
+                                        );
+                                    })()}
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h2 className="text-lg sm:text-xl font-bold text-slate-900 truncate">
+                                                {u.firstname} {u.lastname}
+                                            </h2>
+                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs font-mono font-semibold rounded-md border border-slate-200">
+                                                #{u.staffid}
+                                            </span>
+                                            <span className={'px-2.5 py-0.5 rounded-full text-xs font-medium ' + getRoleColor(u.role)}>
+                                                {getRoleName(u.role)}
+                                            </span>
+                                            {renderWorkModeBadge(u)}
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                                u.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+                                            }`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${u.active ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                                                {u.active ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-500 font-medium">
+                                            <span className="flex items-center gap-1.5 truncate">
+                                                <LuMail className="w-3.5 h-3.5 text-slate-400" />
+                                                {u.email}
+                                            </span>
+                                            <span className="text-slate-300 hidden sm:inline">•</span>
+                                            <span className="flex items-center gap-1.5">
+                                                <LuUserCheck className="w-3.5 h-3.5 text-slate-400" />
+                                                Reporting to: <strong className="text-slate-700 font-semibold">{getManagerName(u.approving_manager_id)}</strong>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                                    <button
+                                        onClick={() => {
+                                            handleCloseUserModal();
+                                            navigate(`/staff-profile/${u.staffid}`);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 rounded-lg transition cursor-pointer"
+                                    >
+                                        <span>Full Profile</span>
+                                        <LuArrowRight className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                        onClick={handleCloseUserModal}
+                                        className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                                        title="Close modal (Esc)"
+                                    >
+                                        <FiX className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Tabs Navigation */}
+                            <div className="bg-slate-100/80 border-b border-slate-200 px-6 pt-2 flex items-center gap-2 overflow-x-auto flex-shrink-0">
+                                <button
+                                    onClick={() => {
+                                        setActiveTab('history');
+                                        if (!leaveBalances[u.staffid]) fetchLeaveBalance(u.staffid);
+                                        if (attendanceEnabled && !attendanceHistory[u.staffid]) fetchAttendanceHistory(u.staffid);
+                                        if (!yearlyHistory[u.staffid]) fetchYearlyHistory(u.staffid);
+                                    }}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold transition-all border-t border-l border-r cursor-pointer ${
+                                        activeTab === 'history'
+                                            ? 'bg-white text-indigo-600 border-slate-200 shadow-xs -mb-px'
+                                            : 'text-slate-600 hover:text-slate-900 border-transparent hover:bg-white/50'
+                                    }`}
+                                >
+                                    <LuCalendar className={`w-4 h-4 ${activeTab === 'history' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                    <span>{attendanceEnabled ? 'Leave & Attendance' : 'Leave History'}</span>
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setActiveTab('org');
+                                        if (allUsersRef.length === 0) fetchAllUsersForChart();
+                                    }}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold transition-all border-t border-l border-r cursor-pointer ${
+                                        activeTab === 'org'
+                                            ? 'bg-white text-indigo-600 border-slate-200 shadow-xs -mb-px'
+                                            : 'text-slate-600 hover:text-slate-900 border-transparent hover:bg-white/50'
+                                    }`}
+                                >
+                                    <LuBuilding2 className={`w-4 h-4 ${activeTab === 'org' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                    <span>Organization Structure</span>
+                                </button>
+
+                                {canViewChangeHistory(user.role, u, user.id || user.staffid) && (
+                                    <button
+                                        onClick={() => {
+                                            setActiveTab('change_history');
+                                            if (!changeHistory[u.staffid]) {
+                                                fetchStaffChangeHistory(u.staffid, 'all', changeHistoryDuration[u.staffid] || '30d');
+                                            }
+                                        }}
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold transition-all border-t border-l border-r cursor-pointer ${
+                                            activeTab === 'change_history'
+                                                ? 'bg-white text-indigo-600 border-slate-200 shadow-xs -mb-px'
+                                                : 'text-slate-600 hover:text-slate-900 border-transparent hover:bg-white/50'
+                                        }`}
+                                    >
+                                        <LuHistory className={`w-4 h-4 ${activeTab === 'change_history' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                        <span>Change &amp; Audit History</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="flex-1 overflow-y-auto p-5 sm:p-6 bg-slate-50/50">
                                                             {activeTab === 'org' && (
                                                                 <div className="h-full flex flex-col min-h-[400px]">
                                                                     <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2 flex items-center justify-between">
@@ -3489,74 +3646,12 @@ const Users = () => {
                                                                     })()}
                                                                 </div>
                                                             )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                </td>
-                                                </tr>
-                                            )}
-                                    </React.Fragment>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={canManageUsers ? 9 : 8} className="px-6 py-8 text-center text-gray-500">
-                                        No users found
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
 
-                {/* Pagination */}
-                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <span>Show</span>
-                            <select
-                                value={pageSize}
-                                onChange={(e) => {
-                                    setPageSize(Number(e.target.value));
-                                }}
-                                className="border border-gray-300 rounded text-sm py-1 px-2 focus:outline-none focus:border-blue-500 bg-white"
-                            >
-                                <option value="5">5</option>
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
-                            </select>
-                            <span>per page</span>
+                            </div>
                         </div>
-                        <p className="text-sm text-gray-600 border-l border-gray-300 pl-4">
-                            Showing <span className="font-medium">{totalItems > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to <span className="font-medium">{Math.min(currentPage * pageSize, totalItems)}</span> of <span className="font-medium">{totalItems}</span> users
-                        </p>
                     </div>
-
-                    <div className="flex gap-2 items-center">
-                        <button
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                            className={`px-3 py-1 border border-gray-300 rounded text-sm transition-colors ${currentPage === 1 ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-700'}`}
-                        >
-                            Previous
-                        </button>
-                        <span className="text-sm text-gray-600 px-2 flex items-center gap-1">
-                            Page
-                            <span className="font-medium text-gray-900">{currentPage}</span>
-                            of
-                            <span className="font-medium text-gray-900">{Math.max(totalPages, 1)}</span>
-                        </span>
-                        <button
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage >= totalPages}
-                            className={`px-3 py-1 border border-gray-300 rounded text-sm transition-colors ${currentPage >= totalPages ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-700'}`}
-                        >
-                            Next
-                        </button>
-                    </div>
-                </div>
-            </div>
+                );
+            })()}
 
             {/* Yearly History Hover Tooltip */}
             {historyTooltip.show && historyTooltip.events.length > 0 && (
@@ -4296,7 +4391,7 @@ const Users = () => {
 
             {/* Full Screen Chart Modal */}
             {fullScreenChart && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+                <div className="fixed inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 z-[70]">
                     <div className="bg-white rounded-lg shadow-2xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
                         {/* Header */}
                         <div className="flex items-center justify-between p-6 border-b border-gray-200">
