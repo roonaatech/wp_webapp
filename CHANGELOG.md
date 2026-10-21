@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.21](https://github.com/roonaatech/wp_webapp/compare/v2.18.20...v2.18.21) (2026-10-21)
+
+
+### Bug Fixes
+
+* validate that start date is not after end date in Activities filter ([7ae636f](https://github.com/roonaatech/wp_webapp/commit/7ae636f19394db67a1b8189fb726c8ea5c157414))
+
 ### [2.18.20](https://github.com/roonaatech/wp_webapp/compare/v2.18.19...v2.18.20) (2026-10-20)
 
 
