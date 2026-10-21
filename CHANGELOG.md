@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.22](https://github.com/roonaatech/wp_webapp/compare/v2.18.21...v2.18.22) (2026-10-21)
+
+
+### Features
+
+* enhance DateFilterInput component and expand timezone date formatting options ([523cbb9](https://github.com/roonaatech/wp_webapp/commit/523cbb9a644429a97081ca128190da087e389390))
+
 ### [2.18.21](https://github.com/roonaatech/wp_webapp/compare/v2.18.20...v2.18.21) (2026-10-21)
 
 
