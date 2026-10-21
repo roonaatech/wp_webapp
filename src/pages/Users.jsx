@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import DateFilterInput from '../components/DateFilterInput';
 import MermaidChart from '../components/MermaidChart';
 import {
     hasAdminPermission,
@@ -3007,33 +3008,33 @@ const Users = () => {
                                                                             {/* Custom Date Range Picker */}
                                                                             {changeHistoryDuration[u.staffid] === 'custom' && (
                                                                                 <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
-                                                                                    <input
-                                                                                        type="date"
-                                                                                        value={changeHistoryCustomDates[u.staffid]?.start || ''}
-                                                                                        onChange={(e) => {
-                                                                                            const s = e.target.value;
-                                                                                            setChangeHistoryCustomDates(prev => ({
-                                                                                                ...prev,
-                                                                                                [u.staffid]: { ...(prev[u.staffid] || {}), start: s }
-                                                                                            }));
-                                                                                        }}
-                                                                                        className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-indigo-500"
-                                                                                        title="From Date"
-                                                                                    />
+                                                                                    <div className="w-28">
+                                                                                        <DateFilterInput
+                                                                                            value={changeHistoryCustomDates[u.staffid]?.start || ''}
+                                                                                            onChange={(s) => {
+                                                                                                setChangeHistoryCustomDates(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [u.staffid]: { ...(prev[u.staffid] || {}), start: s }
+                                                                                                }));
+                                                                                            }}
+                                                                                            className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-indigo-500 w-full"
+                                                                                            title="From Date"
+                                                                                        />
+                                                                                    </div>
                                                                                     <span className="text-slate-400 text-xs">to</span>
-                                                                                    <input
-                                                                                        type="date"
-                                                                                        value={changeHistoryCustomDates[u.staffid]?.end || ''}
-                                                                                        onChange={(e) => {
-                                                                                            const ed = e.target.value;
-                                                                                            setChangeHistoryCustomDates(prev => ({
-                                                                                                ...prev,
-                                                                                                [u.staffid]: { ...(prev[u.staffid] || {}), end: ed }
-                                                                                            }));
-                                                                                        }}
-                                                                                        className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-indigo-500"
-                                                                                        title="To Date"
-                                                                                    />
+                                                                                    <div className="w-28">
+                                                                                        <DateFilterInput
+                                                                                            value={changeHistoryCustomDates[u.staffid]?.end || ''}
+                                                                                            onChange={(ed) => {
+                                                                                                setChangeHistoryCustomDates(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [u.staffid]: { ...(prev[u.staffid] || {}), end: ed }
+                                                                                                }));
+                                                                                            }}
+                                                                                            className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-indigo-500 w-full"
+                                                                                            title="To Date"
+                                                                                        />
+                                                                                    </div>
                                                                                     <button
                                                                                         type="button"
                                                                                         onClick={() => {
@@ -3397,11 +3398,7 @@ const Users = () => {
 
                                                                                             // Parse date
                                                                                             const eventDate = item.createdAt ? new Date(item.createdAt) : null;
-                                                                                            const datePart = eventDate ? formatInTimezone(eventDate, null, {
-                                                                                                month: 'short',
-                                                                                                day: 'numeric',
-                                                                                                year: 'numeric'
-                                                                                            }) : '--';
+                                                                                            const datePart = eventDate ? formatDateOnly(eventDate) : '--';
                                                                                             const timePart = eventDate ? formatInTimezone(eventDate, null, {
                                                                                                 hour: 'numeric',
                                                                                                 minute: '2-digit',

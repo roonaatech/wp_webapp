@@ -11,6 +11,7 @@ import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartL
 import { Doughnut } from 'react-chartjs-2';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import DateFilterInput from '../components/DateFilterInput';
 import OnDutyLocationMap from '../components/OnDutyLocationMap';
 import { calculateLeaveDays, formatLeaveDuration } from '../utils/dateUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
@@ -1531,20 +1532,18 @@ const Dashboard = () => {
                                         <div className="flex flex-wrap items-end gap-3 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
                                             <div>
                                                 <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">Start Date</label>
-                                                <input
-                                                    type="date"
+                                                <DateFilterInput
                                                     value={trendStartDate || ''}
-                                                    onChange={e => setTrendStartDate(e.target.value)}
-                                                    className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    onChange={val => setTrendStartDate(val)}
+                                                    className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none w-36"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">End Date</label>
-                                                <input
-                                                    type="date"
+                                                <DateFilterInput
                                                     value={trendEndDate || ''}
-                                                    onChange={e => setTrendEndDate(e.target.value)}
-                                                    className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    onChange={val => setTrendEndDate(val)}
+                                                    className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none w-36"
                                                 />
                                             </div>
                                             <button

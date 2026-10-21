@@ -11,6 +11,7 @@ import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezo
 
 import TableSortIcon from '../components/TableSortIcon';
 import MonthlySummaryReport from '../components/MonthlySummaryReport';
+import DateFilterInput from '../components/DateFilterInput';
 
 const Reports = () => {
     const navigate = useNavigate();
@@ -635,8 +636,20 @@ const Reports = () => {
 
                                     {datePreset === 'custom' && (
                                         <div className="flex gap-2 mt-2">
-                                            <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} className="w-1/2 px-2 py-1 border border-gray-300 rounded" />
-                                            <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} className="w-1/2 px-2 py-1 border border-gray-300 rounded" />
+                                            <div className="w-1/2">
+                                                <DateFilterInput
+                                                    value={startDate}
+                                                    onChange={(val) => { setStartDate(val); setPage(1); }}
+                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                />
+                                            </div>
+                                            <div className="w-1/2">
+                                                <DateFilterInput
+                                                    value={endDate}
+                                                    onChange={(val) => { setEndDate(val); setPage(1); }}
+                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                />
+                                            </div>
                                         </div>
                                     )}
                                 </div>

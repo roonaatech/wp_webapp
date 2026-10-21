@@ -1060,7 +1060,7 @@ const ManualAttendance = () => {
                                     <p className="text-xs text-amber-800 mt-1 leading-relaxed">
                                         The following employee{pendingLeaves.length > 1 ? 's have' : ' has'} applied for leave on the selected date(s):{' '}
                                         <span className="font-semibold text-amber-950">
-                                            {pendingLeaves.map(p => `${p.employee_name} (${p.leave_type} - ${p.date})`).join(', ')}
+                                            {pendingLeaves.map(p => `${p.employee_name} (${p.leave_type} - ${formatDateOnly(p.date)})`).join(', ')}
                                         </span>.
                                     </p>
                                 </div>
@@ -1281,7 +1281,7 @@ const ManualAttendance = () => {
 
                                                     {/* Date */}
                                                     <td className="p-3.5 font-medium text-slate-700 whitespace-nowrap">
-                                                        {item.date}
+                                                        {formatDateOnly(item.date)}
                                                     </td>
 
                                                     {/* Missed Status */}
@@ -1502,7 +1502,7 @@ const ManualAttendance = () => {
                                                     </span>
                                                 </td>
                                                 <td className="p-3.5 font-medium text-slate-700 whitespace-nowrap">
-                                                    {log.date}
+                                                    {formatDateOnly(log.date)}
                                                 </td>
                                                 <td className="p-3.5 font-semibold text-slate-800">
                                                     {log.check_in_time || '—'}
@@ -1588,10 +1588,9 @@ const ManualAttendance = () => {
                                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                     Attendance Date *
                                 </label>
-                                <input
-                                    type="date"
+                                <DateFilterInput
                                     value={modalData.date}
-                                    onChange={(e) => setModalData({ ...modalData, date: e.target.value })}
+                                    onChange={(val) => setModalData({ ...modalData, date: val })}
                                     required
                                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 />

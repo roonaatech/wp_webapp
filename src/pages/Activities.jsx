@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
+import DateFilterInput from '../components/DateFilterInput';
 import { canViewActivities, fetchRoles } from '../utils/roleUtils';
 import { formatInTimezone, getCurrentInAppTimezone, formatTimeOnly, formatDateOnly } from '../utils/timezone.util';
 import TableSortIcon from '../components/TableSortIcon';
@@ -1088,7 +1089,7 @@ const Activities = () => {
                         )}
                         {startDate && (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-blue-200 text-blue-800 font-medium shadow-2xs">
-                                From: <strong className="font-bold">{startDate}</strong>
+                                From: <strong className="font-bold">{formatDateOnly(startDate)}</strong>
                                 <button type="button" onClick={() => { setStartDate(''); fetchActivities(1, { action: actionFilter, entity: entityFilter, startDate: '', endDate, adminId: adminIdFilter }); fetchSummary({ startDate: '', endDate }); }} className="hover:text-rose-600 transition-colors cursor-pointer">
                                     <LuX size={12} />
                                 </button>
@@ -1096,7 +1097,7 @@ const Activities = () => {
                         )}
                         {endDate && (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-blue-200 text-blue-800 font-medium shadow-2xs">
-                                To: <strong className="font-bold">{endDate}</strong>
+                                To: <strong className="font-bold">{formatDateOnly(endDate)}</strong>
                                 <button type="button" onClick={() => { setEndDate(''); fetchActivities(1, { action: actionFilter, entity: entityFilter, startDate, endDate: '', adminId: adminIdFilter }); fetchSummary({ startDate, endDate: '' }); }} className="hover:text-rose-600 transition-colors cursor-pointer">
                                     <LuX size={12} />
                                 </button>
@@ -1249,11 +1250,9 @@ const Activities = () => {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                        <input
-                            type="date"
+                        <DateFilterInput
                             value={startDate}
-                            onChange={(e) => {
-                                const newValue = e.target.value;
+                            onChange={(newValue) => {
                                 setStartDate(newValue);
                                 setCurrentPage(1);
                                 fetchActivities(1, {
@@ -1271,11 +1270,9 @@ const Activities = () => {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                        <input
-                            type="date"
+                        <DateFilterInput
                             value={endDate}
-                            onChange={(e) => {
-                                const newValue = e.target.value;
+                            onChange={(newValue) => {
                                 setEndDate(newValue);
                                 setCurrentPage(1);
                                 fetchActivities(1, {

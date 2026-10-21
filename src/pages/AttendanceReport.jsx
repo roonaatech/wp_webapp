@@ -1606,9 +1606,9 @@ const AttendanceReport = () => {
                                     <LuLock size={11} /> Date
                                 </label>
                                 <input
-                                    type="date"
+                                    type="text"
                                     disabled
-                                    value={editDate}
+                                    value={editDate ? formatDateOnly(editDate) : ''}
                                     className="bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-500 w-full cursor-not-allowed"
                                 />
                             </div>

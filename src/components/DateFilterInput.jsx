@@ -17,7 +17,21 @@ import {
  * Native <input type="date"> always renders in the browser locale and cannot
  * honour the app's date-format setting, so we use a formatted text input instead.
  */
-const DateFilterInput = ({ value, onChange, className = '' }) => {
+const DateFilterInput = ({
+    value,
+    onChange,
+    className = '',
+    wrapperClassName = 'flex flex-col gap-1',
+    disabled = false,
+    min,
+    max,
+    placeholder,
+    required = false,
+    id,
+    name,
+    title,
+    autoFocus = false
+}) => {
     const [display, setDisplay] = useState(isoToDisplayDate(value));
     const [error, setError] = useState('');
     const nativeRef = useRef(null);
@@ -41,12 +55,13 @@ const DateFilterInput = ({ value, onChange, className = '' }) => {
     }, [value]);
 
     const handleChange = (e) => {
+        if (disabled) return;
         const formatted = autoFormatDateInput(e.target.value);
         setDisplay(formatted);
 
         if (formatted.length === 0) {
             setError('');
-            onChange('');
+            if (onChange) onChange('');
             return;
         }
 
@@ -61,25 +76,44 @@ const DateFilterInput = ({ value, onChange, className = '' }) => {
             const { parsed, error: parseError } = validateAndParseDate(formatted, { allowFuture: true });
             if (parseError) {
                 setError(parseError);
+            } else if (min && parsed < min) {
+                setError(`Date cannot be before ${isoToDisplayDate(min)}`);
+            } else if (max && parsed > max) {
+                setError(`Date cannot be after ${isoToDisplayDate(max)}`);
             } else {
-                onChange(parsed);
+                if (onChange) onChange(parsed);
             }
         }
     };
 
     // Native date picker (calendar) selection — emits an ISO date directly.
     const handleNativeChange = (e) => {
+        if (disabled) return;
         const iso = e.target.value; // '' or 'YYYY-MM-DD'
+        if (min && iso && iso < min) {
+            setError(`Date cannot be before ${isoToDisplayDate(min)}`);
+            return;
+        }
+        if (max && iso && iso > max) {
+            setError(`Date cannot be after ${isoToDisplayDate(max)}`);
+            return;
+        }
         setError('');
         setDisplay(iso ? isoToDisplayDate(iso) : '');
-        onChange(iso || '');
+        if (onChange) onChange(iso || '');
     };
 
     const openPicker = () => {
+        if (disabled) return;
         const el = nativeRef.current;
         if (!el) return;
         if (typeof el.showPicker === 'function') {
-            el.showPicker();
+            try {
+                el.showPicker();
+            } catch (_) {
+                el.focus();
+                el.click();
+            }
         } else {
             el.focus();
             el.click();
@@ -87,33 +121,46 @@ const DateFilterInput = ({ value, onChange, className = '' }) => {
     };
 
     return (
-        <div className="flex flex-col gap-1">
-            <div className="relative">
+        <div className={wrapperClassName}>
+            <div className="relative w-full">
                 <input
+                    id={id}
+                    name={name}
+                    title={title}
                     type="text"
                     inputMode="numeric"
+                    disabled={disabled}
+                    required={required}
+                    autoFocus={autoFocus}
                     value={display}
                     onChange={handleChange}
-                    placeholder={getDateInputPlaceholder()}
+                    placeholder={placeholder || getDateInputPlaceholder()}
                     maxLength={getDateInputMaxLength()}
                     className={className}
                 />
                 {/* Transparent native date input overlaid on the calendar icon so
                     clicking the icon opens the browser's native calendar picker. */}
-                <input
-                    ref={nativeRef}
-                    type="date"
-                    value={value || ''}
-                    onChange={handleNativeChange}
-                    tabIndex={-1}
-                    aria-label="Open calendar"
-                    className="absolute right-0 top-0 h-full w-10 opacity-0 cursor-pointer"
-                />
+                {!disabled && (
+                    <input
+                        ref={nativeRef}
+                        type="date"
+                        min={min}
+                        max={max}
+                        value={value || ''}
+                        onChange={handleNativeChange}
+                        tabIndex={-1}
+                        aria-label="Open calendar"
+                        className="absolute right-0 top-0 h-full w-10 opacity-0 cursor-pointer"
+                    />
+                )}
                 <button
                     type="button"
+                    disabled={disabled}
                     onClick={openPicker}
                     aria-label="Open calendar"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-indigo-600 transition"
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 transition ${
+                        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:text-indigo-600 cursor-pointer'
+                    }`}
                 >
                     <LuCalendar size={16} />
                 </button>

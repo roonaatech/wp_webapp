@@ -129,9 +129,14 @@ export const formatInTimezone = (date, timezone = null, customOptions = null) =>
 
         let dateString = `${shortMonthStr} ${day}, ${year}`; // Fallback Default
         if (dateFmt === 'DD/MM/YYYY') dateString = `${day}/${month}/${year}`;
-        if (dateFmt === 'MM/DD/YYYY') dateString = `${month}/${day}/${year}`;
-        if (dateFmt === 'YYYY-MM-DD') dateString = `${year}-${month}-${day}`;
-        if (dateFmt === 'MMM DD, YYYY') dateString = `${shortMonthStr} ${day}, ${year}`;
+        else if (dateFmt === 'DD-MM-YYYY') dateString = `${day}-${month}-${year}`;
+        else if (dateFmt === 'MM/DD/YYYY') dateString = `${month}/${day}/${year}`;
+        else if (dateFmt === 'MM-DD-YYYY') dateString = `${month}-${day}-${year}`;
+        else if (dateFmt === 'YYYY-MM-DD') dateString = `${year}-${month}-${day}`;
+        else if (dateFmt === 'YYYY/MM/DD') dateString = `${year}/${month}/${day}`;
+        else if (dateFmt === 'MMM DD, YYYY') dateString = `${shortMonthStr} ${day}, ${year}`;
+        else if (dateFmt === 'DD MMM YYYY') dateString = `${day} ${shortMonthStr} ${year}`;
+        else if (dateFmt === 'DD MMM, YYYY') dateString = `${day} ${shortMonthStr}, ${year}`;
 
         const hr = mirrored.getHours();
         const mn = String(mirrored.getMinutes()).padStart(2, '0');
@@ -167,8 +172,14 @@ export const formatDateOnly = (date, timezone = null) => {
         const shortMonthStr = shortMonths[mirrored.getMonth()];
 
         if (dateFmt === 'DD/MM/YYYY') return `${day}/${month}/${year}`;
+        if (dateFmt === 'DD-MM-YYYY') return `${day}-${month}-${year}`;
         if (dateFmt === 'MM/DD/YYYY') return `${month}/${day}/${year}`;
+        if (dateFmt === 'MM-DD-YYYY') return `${month}-${day}-${year}`;
         if (dateFmt === 'YYYY-MM-DD') return `${year}-${month}-${day}`;
+        if (dateFmt === 'YYYY/MM/DD') return `${year}/${month}/${day}`;
+        if (dateFmt === 'MMM DD, YYYY') return `${shortMonthStr} ${day}, ${year}`;
+        if (dateFmt === 'DD MMM YYYY') return `${day} ${shortMonthStr} ${year}`;
+        if (dateFmt === 'DD MMM, YYYY') return `${day} ${shortMonthStr}, ${year}`;
         return `${shortMonthStr} ${day}, ${year}`;
     } catch (e) {
         return String(date);
@@ -307,24 +318,25 @@ export const parseAppTimezone = (dateStr, timezone = null) => {
 // application's configured date format (DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, etc.)
 
 /**
+ * Get the separator character used in the date format.
+ */
+const getDateSeparator = () => {
+    const fmt = getAppDateFormat();
+    if (fmt.includes('-')) return '-';
+    if (fmt.includes('.')) return '.';
+    return '/';
+};
+
+/**
  * Get the placeholder string for date input fields based on system date format.
  * @returns {string} e.g. "dd/mm/yyyy", "mm/dd/yyyy", "yyyy-mm-dd"
  */
 export const getDateInputPlaceholder = () => {
     const fmt = getAppDateFormat();
-    if (fmt === 'MM/DD/YYYY') return 'mm/dd/yyyy';
-    if (fmt === 'YYYY-MM-DD') return 'yyyy-mm-dd';
-    // DD/MM/YYYY and MMM DD, YYYY both use dd/mm/yyyy for input
-    return 'dd/mm/yyyy';
-};
-
-/**
- * Get the separator character used in the date format.
- */
-const getDateSeparator = () => {
-    const fmt = getAppDateFormat();
-    if (fmt === 'YYYY-MM-DD') return '-';
-    return '/';
+    const sep = getDateSeparator();
+    if (fmt.startsWith('MM') || fmt.startsWith('mm')) return `mm${sep}dd${sep}yyyy`;
+    if (fmt.startsWith('YYYY') || fmt.startsWith('yyyy')) return `yyyy${sep}mm${sep}dd`;
+    return `dd${sep}mm${sep}yyyy`;
 };
 
 /**
@@ -339,9 +351,9 @@ export const isoToDisplayDate = (isoDate) => {
     const [y, m, d] = parts;
     const fmt = getAppDateFormat();
     const sep = getDateSeparator();
-    if (fmt === 'MM/DD/YYYY') return `${m}${sep}${d}${sep}${y}`;
-    if (fmt === 'YYYY-MM-DD') return `${y}${sep}${m}${sep}${d}`;
-    // DD/MM/YYYY (default)
+    if (fmt.startsWith('MM') || fmt.startsWith('mm')) return `${m}${sep}${d}${sep}${y}`;
+    if (fmt.startsWith('YYYY') || fmt.startsWith('yyyy')) return `${y}${sep}${m}${sep}${d}`;
+    // DD/MM/YYYY or MMM DD, YYYY (default)
     return `${d}${sep}${m}${sep}${y}`;
 };
 
@@ -356,7 +368,7 @@ export const autoFormatDateInput = (rawValue) => {
     const sep = getDateSeparator();
     let digits = rawValue.replace(/\D/g, '');
 
-    if (fmt === 'YYYY-MM-DD') {
+    if (fmt.startsWith('YYYY') || fmt.startsWith('yyyy')) {
         // Format: YYYY-MM-DD (4-2-2 grouping)
         if (digits.length > 8) digits = digits.substring(0, 8);
         if (digits.length > 4 && digits.length <= 6) {
@@ -393,14 +405,13 @@ export const getDateInputMaxLength = () => {
 export const parseDisplayDateParts = (displayDate) => {
     if (!displayDate || displayDate.length < 10) return null;
     const fmt = getAppDateFormat();
-    const sep = getDateSeparator();
-    const parts = displayDate.split(sep);
+    const parts = displayDate.split(/[/\-.]/);
     if (parts.length !== 3) return null;
 
-    if (fmt === 'YYYY-MM-DD') {
+    if (fmt.startsWith('YYYY') || fmt.startsWith('yyyy')) {
         return { year: parseInt(parts[0], 10), month: parseInt(parts[1], 10), day: parseInt(parts[2], 10) };
     }
-    if (fmt === 'MM/DD/YYYY') {
+    if (fmt.startsWith('MM') || fmt.startsWith('mm')) {
         return { month: parseInt(parts[0], 10), day: parseInt(parts[1], 10), year: parseInt(parts[2], 10) };
     }
     // DD/MM/YYYY (default)
@@ -415,9 +426,8 @@ export const parseDisplayDateParts = (displayDate) => {
  */
 export const validatePartialDateInput = (formatted) => {
     const fmt = getAppDateFormat();
-    const sep = getDateSeparator();
 
-    if (fmt === 'YYYY-MM-DD') {
+    if (fmt.startsWith('YYYY') || fmt.startsWith('yyyy')) {
         // Validate year prefix (first 4 digits)
         if (formatted.length >= 4) {
             const year = parseInt(formatted.substring(0, 4), 10);
@@ -433,7 +443,7 @@ export const validatePartialDateInput = (formatted) => {
             const day = parseInt(formatted.substring(8, 10), 10);
             if (day < 1 || day > 31) return "Day must be between 01 and 31";
         }
-    } else if (fmt === 'MM/DD/YYYY') {
+    } else if (fmt.startsWith('MM') || fmt.startsWith('mm')) {
         if (formatted.length >= 2) {
             const month = parseInt(formatted.substring(0, 2), 10);
             if (month < 1 || month > 12) return "Month must be between 01 and 12";

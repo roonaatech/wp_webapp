@@ -115,7 +115,9 @@ export default function Settings() {
                         { value: 'MMM DD, YYYY', label: 'Feb 28, 2026 (MMM DD, YYYY)' },
                         { value: 'DD/MM/YYYY', label: '28/02/2026 (DD/MM/YYYY)' },
                         { value: 'MM/DD/YYYY', label: '02/28/2026 (MM/DD/YYYY)' },
-                        { value: 'YYYY-MM-DD', label: '2026-02-28 (YYYY-MM-DD)' }
+                        { value: 'YYYY-MM-DD', label: '2026-02-28 (YYYY-MM-DD)' },
+                        { value: 'DD-MM-YYYY', label: '28-02-2026 (DD-MM-YYYY)' },
+                        { value: 'MM-DD-YYYY', label: '02-28-2026 (MM-DD-YYYY)' }
                     ],
                     placeholder: 'Select date format'
                 },
@@ -592,6 +594,12 @@ export default function Settings() {
                 } else if (dateFmt === 'YYYY-MM-DD') {
                     const numMonth = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: '2-digit' }).format(now);
                     dateStr = `${p.weekday}, ${p.year}-${numMonth}-${p.day}`;
+                } else if (dateFmt === 'DD-MM-YYYY') {
+                    const numMonth = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: '2-digit' }).format(now);
+                    dateStr = `${p.weekday}, ${p.day}-${numMonth}-${p.year}`;
+                } else if (dateFmt === 'MM-DD-YYYY') {
+                    const numMonth = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: '2-digit' }).format(now);
+                    dateStr = `${p.weekday}, ${numMonth}-${p.day}-${p.year}`;
                 }
 
                 const timeStr = timeFmt === '24h'

@@ -9,6 +9,7 @@ import {
 import toast from 'react-hot-toast';
 import API_BASE_URL from '../config/api.config';
 import ChangePasswordModal from '../components/ChangePasswordModal';
+import DateFilterInput from '../components/DateFilterInput';
 import { getRoleDisplayName, canAccessWebApp } from '../utils/roleUtils';
 import { formatInTimezone, formatTimeOnly, formatDateOnly, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
 import { formatLeaveDuration } from '../utils/dateUtils';
@@ -1573,24 +1574,31 @@ const MyRequests = () => {
                                                 ))}
                                             </select>
                                             <div className="grid grid-cols-2 gap-2">
-                                                <input type="date" value={editLeaveStart} onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val) {
-                                                        const [y, m, d] = val.split('-').map(Number);
-                                                        if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
-                                                        if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
-                                                    }
-                                                    setEditLeaveStart(val);
-                                                }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
-                                                <input type="date" value={editLeaveEnd} min={editLeaveStart} onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val) {
-                                                        const [y, m, d] = val.split('-').map(Number);
-                                                        if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
-                                                        if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
-                                                    }
-                                                    setEditLeaveEnd(val);
-                                                }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all" />
+                                                <DateFilterInput
+                                                    value={editLeaveStart}
+                                                    onChange={(val) => {
+                                                        if (val) {
+                                                            const [y, m, d] = val.split('-').map(Number);
+                                                            if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
+                                                            if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
+                                                        }
+                                                        setEditLeaveStart(val);
+                                                    }}
+                                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                                                />
+                                                <DateFilterInput
+                                                    value={editLeaveEnd}
+                                                    min={editLeaveStart}
+                                                    onChange={(val) => {
+                                                        if (val) {
+                                                            const [y, m, d] = val.split('-').map(Number);
+                                                            if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
+                                                            if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
+                                                        }
+                                                        setEditLeaveEnd(val);
+                                                    }}
+                                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                                                />
                                             </div>
                                             <div className="grid grid-cols-1 gap-2">
                                                 <label className="flex items-center gap-2 cursor-pointer mt-1 mb-2">
@@ -1879,12 +1887,11 @@ const MyRequests = () => {
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <div>
                                                         <label className="text-[10px] text-gray-500 font-semibold mb-1 block">End Date</label>
-                                                        <input
-                                                            type="date"
+                                                        <DateFilterInput
                                                             value={editOdEndDate}
                                                             min={editOdStartTime ? `${editOdStartTime.getFullYear()}-${String(editOdStartTime.getMonth() + 1).padStart(2, '0')}-${String(editOdStartTime.getDate()).padStart(2, '0')}` : undefined}
                                                             max={editOdOriginalEndTime ? `${editOdOriginalEndTime.getFullYear()}-${String(editOdOriginalEndTime.getMonth() + 1).padStart(2, '0')}-${String(editOdOriginalEndTime.getDate()).padStart(2, '0')}` : undefined}
-                                                            onChange={(e) => setEditOdEndDate(e.target.value)}
+                                                            onChange={(val) => setEditOdEndDate(val)}
                                                             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
                                                         />
                                                     </div>
@@ -2129,16 +2136,20 @@ const MyRequests = () => {
                                                 <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Editing Time-Off</span>
                                                 <button onClick={() => setEditingTimeOff(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
                                             </div>
-                                            <input type="date" min={minTimeOffDate} value={editToDate} onChange={(e) => {
-                                                const val = e.target.value;
-                                                if (val) {
-                                                    if (val < minTimeOffDate) { toast.error(`Time-off cannot be requested for dates more than ${timeOffPastDaysAllowed} working day(s) in the past.`); return; }
-                                                    const [y, m, d] = val.split('-').map(Number);
-                                                    if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
-                                                    if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
-                                                }
-                                                setEditToDate(val);
-                                            }} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all" />
+                                            <DateFilterInput
+                                                min={minTimeOffDate}
+                                                value={editToDate}
+                                                onChange={(val) => {
+                                                    if (val) {
+                                                        if (val < minTimeOffDate) { toast.error(`Time-off cannot be requested for dates more than ${timeOffPastDaysAllowed} working day(s) in the past.`); return; }
+                                                        const [y, m, d] = val.split('-').map(Number);
+                                                        if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
+                                                        if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
+                                                    }
+                                                    setEditToDate(val);
+                                                }}
+                                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
+                                            />
                                             <div className="space-y-1.5">
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <div>

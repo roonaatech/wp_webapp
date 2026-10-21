@@ -212,6 +212,8 @@ const Attendance = () => {
             if (dateFmt === 'DD/MM/YYYY') return `${p.weekday}, ${p.day}/${p.month}/${p.year}`;
             if (dateFmt === 'MM/DD/YYYY') return `${p.weekday}, ${p.month}/${p.day}/${p.year}`;
             if (dateFmt === 'YYYY-MM-DD') return `${p.weekday}, ${p.year}-${p.month}-${p.day}`;
+            if (dateFmt === 'DD-MM-YYYY') return `${p.weekday}, ${p.day}-${p.month}-${p.year}`;
+            if (dateFmt === 'MM-DD-YYYY') return `${p.weekday}, ${p.month}-${p.day}-${p.year}`;
             return `${p.weekday}, ${p.month} ${p.day}, ${p.year}`;
         } catch (_) {
             return formatDateOnly(date);

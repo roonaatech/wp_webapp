@@ -17,6 +17,8 @@ import { LuCalendarHeart } from 'react-icons/lu';
 import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import TableSortIcon from '../components/TableSortIcon';
+import DateFilterInput from '../components/DateFilterInput';
+import { formatDateOnly } from '../utils/timezone.util';
 import { fetchRoles, canManageHolidays } from '../utils/roleUtils';
 
 export default function Holidays() {
@@ -54,19 +56,10 @@ export default function Holidays() {
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-    // Format YYYY-MM-DD or ISO timestamp to DD-MM-YYYY
+    // Format YYYY-MM-DD or ISO timestamp to configured application date format
     const formatDisplayDate = (dateVal) => {
         if (!dateVal) return '-';
-        if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateVal)) {
-            const [y, m, d] = dateVal.substring(0, 10).split('-');
-            return `${d}-${m}-${y}`;
-        }
-        const d = new Date(dateVal);
-        if (isNaN(d.getTime())) return String(dateVal);
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return `${day}-${month}-${year}`;
+        return formatDateOnly(dateVal);
     };
 
     // Helper to get abbreviated day of the week
@@ -672,11 +665,10 @@ export default function Holidays() {
                                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                                     Holiday Date <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="date"
+                                <DateFilterInput
                                     value={formData.holiday_date}
-                                    onChange={(e) => {
-                                        setFormData(prev => ({ ...prev, holiday_date: e.target.value }));
+                                    onChange={(val) => {
+                                        setFormData(prev => ({ ...prev, holiday_date: val }));
                                         if (formErrors.holiday_date) {
                                             setFormErrors(prev => ({ ...prev, holiday_date: '' }));
                                         }
