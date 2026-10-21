@@ -193,6 +193,10 @@ const Activities = () => {
     };
 
     const handleFilterChange = () => {
+        if (startDate && endDate && startDate > endDate) {
+            toast.error('Start date cannot be after end date');
+            return;
+        }
         setCurrentPage(1);
         fetchActivities(1);
         fetchSummary();
