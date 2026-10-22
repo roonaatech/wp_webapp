@@ -624,11 +624,12 @@ const Attendance = () => {
         triggerPanelNotification('info', `${actionLabel} Cancelled`, 'Badge verification was cancelled.');
     };
 
-    const handleAcceptConfirmation = async () => {
+    const handleAcceptConfirmation = async (options = {}) => {
         if (!qrConfirmation) return;
         resetInactivityTimer();
         if (confirmTimerRef.current) clearInterval(confirmTimerRef.current);
         const pendingToken = qrConfirmation.confirmationToken;
+        const cancelTimeOff = options.cancelTimeOff || false;
         setQrConfirmation(null);
         setStatusMessage("Recording attendance...");
 
@@ -636,7 +637,8 @@ const Attendance = () => {
             const token = localStorage.getItem('token');
             const response = await axios.post(`${API_BASE_URL}/api/attendance/scan-qr-badge`, {
                 confirmed: true,
-                confirmationToken: pendingToken
+                confirmationToken: pendingToken,
+                cancelTimeOff
             }, {
                 headers: { 'x-access-token': token }
             });
@@ -1383,9 +1385,37 @@ const Attendance = () => {
                             )}
                         </div>
 
+                        {/* Scheduled Time-Off Notice (if applicable on check-in) */}
+                        {qrConfirmation.todayTimeOff && qrConfirmation.type === 'CHECK_IN' ? (
+                            <div className="mt-3.5 p-3 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-left">
+                                <div className="flex items-center justify-between text-xs font-bold text-amber-300 mb-1">
+                                    <span className="flex items-center gap-1.5">
+                                        <LuClock size={14} className="text-amber-400" />
+                                        Scheduled Time-Off Today
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-200 border border-amber-500/30">
+                                        {qrConfirmation.todayTimeOff.status}
+                                    </span>
+                                </div>
+                                <div className="text-white font-mono font-extrabold text-sm">
+                                    {qrConfirmation.todayTimeOff.timeRange}
+                                </div>
+                                {qrConfirmation.todayTimeOff.reason && (
+                                    <div className="text-slate-400 text-[11px] mt-0.5 italic">
+                                        "{qrConfirmation.todayTimeOff.reason}"
+                                    </div>
+                                )}
+                                <div className="text-amber-200/90 text-[11px] mt-1 font-medium">
+                                    Would you like to keep this time-off or cancel it to preserve your quota?
+                                </div>
+                            </div>
+                        ) : null}
+
                         {/* Confirmation Question */}
                         <p className="text-sm font-medium text-slate-300 mt-4 leading-relaxed">
-                            {qrConfirmation.type === 'CHECK_IN'
+                            {qrConfirmation.todayTimeOff && qrConfirmation.type === 'CHECK_IN'
+                                ? 'Choose an option to confirm attendance check-in:'
+                                : qrConfirmation.type === 'CHECK_IN'
                                 ? 'Would you like to record Check-In for this employee?'
                                 : 'Would you like to record Check-Out for this employee?'}
                         </p>
@@ -1395,30 +1425,69 @@ const Attendance = () => {
                             Auto-cancelling in <span className="text-amber-400 font-black">{confirmCountdown}s</span>
                         </div>
 
-                        {/* Two Big Action Buttons: CANCEL (NO) and PROCEED (YES) */}
-                        <div className="grid grid-cols-2 gap-3.5 sm:gap-4 mt-6 pt-2">
-                            <button
-                                type="button"
-                                onClick={handleCancelConfirmation}
-                                className="w-full py-4 px-4 rounded-2xl border-2 border-slate-700 bg-slate-800 hover:bg-slate-750 hover:border-slate-600 text-slate-200 font-bold text-sm sm:text-base transition-all active:scale-95 shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                                <LuX size={20} className="text-rose-400" />
-                                <span>NO, Cancel</span>
-                            </button>
+                        {/* Action Buttons */}
+                        {qrConfirmation.todayTimeOff && qrConfirmation.type === 'CHECK_IN' ? (
+                            <div className="space-y-2.5 mt-5 pt-2">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAcceptConfirmation({ cancelTimeOff: true })}
+                                        className="py-3 px-3 rounded-2xl text-white font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all active:scale-95 shadow-lg shadow-emerald-950 flex flex-col items-center justify-center gap-1 cursor-pointer border border-emerald-400/30"
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <LuCheck size={18} strokeWidth={3} />
+                                            <span>Cancel Time-Off</span>
+                                        </div>
+                                        <span className="text-[10px] font-normal text-emerald-100">Preserves Quota</span>
+                                    </button>
 
-                            <button
-                                type="button"
-                                onClick={handleAcceptConfirmation}
-                                className={`w-full py-4 px-4 rounded-2xl text-white font-black text-sm sm:text-base transition-all active:scale-95 shadow-xl flex items-center justify-center gap-2 cursor-pointer ${
-                                    qrConfirmation.type === 'CHECK_IN'
-                                        ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/50'
-                                        : 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/50'
-                                }`}
-                            >
-                                <LuCheck size={22} strokeWidth={3} />
-                                <span>YES, Proceed</span>
-                            </button>
-                        </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAcceptConfirmation({ cancelTimeOff: false })}
+                                        className="py-3 px-3 rounded-2xl text-white font-black text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all active:scale-95 shadow-lg shadow-blue-950 flex flex-col items-center justify-center gap-1 cursor-pointer border border-blue-400/30"
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <LuClock size={16} />
+                                            <span>Keep Time-Off</span>
+                                        </div>
+                                        <span className="text-[10px] font-normal text-blue-100">Step Out Later</span>
+                                    </button>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleCancelConfirmation}
+                                    className="w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                    <LuX size={16} className="text-rose-400" />
+                                    <span>Don't Check In (Cancel)</span>
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3.5 sm:gap-4 mt-6 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={handleCancelConfirmation}
+                                    className="w-full py-4 px-4 rounded-2xl border-2 border-slate-700 bg-slate-800 hover:bg-slate-750 hover:border-slate-600 text-slate-200 font-bold text-sm sm:text-base transition-all active:scale-95 shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                    <LuX size={20} className="text-rose-400" />
+                                    <span>NO, Cancel</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => handleAcceptConfirmation()}
+                                    className={`w-full py-4 px-4 rounded-2xl text-white font-black text-sm sm:text-base transition-all active:scale-95 shadow-xl flex items-center justify-center gap-2 cursor-pointer ${
+                                        qrConfirmation.type === 'CHECK_IN'
+                                            ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/50'
+                                            : 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/50'
+                                    }`}
+                                >
+                                    <LuCheck size={22} strokeWidth={3} />
+                                    <span>YES, Proceed</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
