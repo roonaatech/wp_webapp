@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.23](https://github.com/roonaatech/wp_webapp/compare/v2.18.22...v2.18.23) (2026-10-22)
+
+
+### Features
+
+* add time-off handling options to attendance check-in confirmation modal ([26024db](https://github.com/roonaatech/wp_webapp/commit/26024db9b93eae037071a188d1382ebc2bfdea23))
+
 ### [2.18.22](https://github.com/roonaatech/wp_webapp/compare/v2.18.21...v2.18.22) (2026-10-21)
 
 
