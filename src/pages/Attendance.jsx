@@ -118,7 +118,7 @@ const Attendance = () => {
     // Status & Results
     const [statusMessage, setStatusMessage] = useState('QR Scanner Ready. Scan your badge.');
     const [qrConfirmation, setQrConfirmation] = useState(null); // { confirmationToken, type, employeeName, time, avatarUrl, duration, message }
-    const [confirmCountdown, setConfirmCountdown] = useState(15);
+    const [confirmCountdown, setConfirmCountdown] = useState(30);
     const confirmTimerRef = useRef(null);
     const qrProcessingRef = useRef(false);
     const lastScannedQrRef = useRef('');
@@ -565,7 +565,7 @@ const Attendance = () => {
                     avatarUrl: data.avatarUrl,
                     time: formattedTime
                 });
-                setConfirmCountdown(15);
+                setConfirmCountdown(30);
                 if (confirmTimerRef.current) clearInterval(confirmTimerRef.current);
                 confirmTimerRef.current = setInterval(() => {
                     setConfirmCountdown(prev => {

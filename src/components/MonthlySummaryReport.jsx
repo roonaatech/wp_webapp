@@ -517,14 +517,11 @@ const MonthlySummaryReport = () => {
 
                     dailyList.forEach((day, idx) => {
                         const row = sheet.getRow(curRowIdx);
-                        const statusText = day.type === 'Sunday'
-                            ? 'Weekly Off'
-                            : day.is_compliant 
+                        const isCompliantDay = day.is_compliant || day.type === 'Sunday';
+                        const statusText = isCompliantDay
                             ? 'Compliant (1 Day)' 
                             : (day.compliant_day_value > 0 ? `Partial (${day.compliant_day_value} Day)` : 'Non-Compliant (0 Days)');
-                        const fullRemark = day.type === 'Sunday'
-                            ? (day.remarks || 'Sunday (Weekly Off)')
-                            : `[${statusText}] ${day.remarks || ''}`;
+                        const fullRemark = `[${statusText}] ${day.remarks || (day.type === 'Sunday' ? 'Sunday (Weekly Off - Compliant)' : '')}`;
 
                         row.values = [
                             idx + 1,
@@ -547,9 +544,7 @@ const MonthlySummaryReport = () => {
                         });
 
                         const statusCell = row.getCell(9);
-                        if (day.type === 'Sunday') {
-                            statusCell.font = { color: { argb: 'FF475569' } };
-                        } else if (day.is_compliant) {
+                        if (isCompliantDay) {
                             statusCell.font = { color: { argb: 'FF15803D' }, bold: true };
                         } else if (day.compliant_day_value > 0) {
                             statusCell.font = { color: { argb: 'FFB45309' }, bold: true };
@@ -979,7 +974,7 @@ const MonthlySummaryReport = () => {
                                                                                 {s.compliant_days ?? 0} {s.compliant_days === 1 ? 'Day' : 'Days'}
                                                                             </div>
                                                                             <div className="text-[10px] text-gray-500 font-medium">
-                                                                                {s.non_compliant_days ?? 0} Non-Compliant {s.non_compliant_days === 1 ? 'day' : 'days'}{(s.absent_days || 0) > 0 ? ` (incl. ${s.absent_days} absent)` : ''}{s.holidays_count > 0 ? ` • ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : ''}
+                                                                                {s.non_compliant_days ?? 0} Non-Compliant {s.non_compliant_days === 1 ? 'day' : 'days'}{(s.absent_days || 0) > 0 ? ` (incl. ${s.absent_days} absent)` : ''}{s.holidays_count > 0 ? ` • ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : ''}{s.sundays_count > 0 ? ` • ${s.sundays_count} Weekly Off${s.sundays_count === 1 ? '' : 's'}` : ''}
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -1203,21 +1198,17 @@ const MonthlySummaryReport = () => {
                                                                                                 {day.type === 'Leave' || day.type === 'Holiday' || day.type === 'Absent' || day.type === 'Sunday' ? '—' : formatHours(0, day.effective_work_minutes)}
                                                                                             </td>
                                                                                             <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                                                                                {day.type === 'Sunday' ? (
-                                                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
-                                                                                                        Weekly Off
-                                                                                                    </span>
-                                                                                                ) : day.type === 'Absent' ? (
-                                                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">
-                                                                                                        <FiX className="w-3 h-3 text-rose-700" /> Absent (0 Days)
-                                                                                                    </span>
-                                                                                                ) : day.is_compliant ? (
+                                                                                                {day.is_compliant || day.type === 'Sunday' ? (
                                                                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
                                                                                                         <FiCheck className="w-3 h-3 text-emerald-700" /> Compliant (1 Day)
                                                                                                     </span>
                                                                                                 ) : day.compliant_day_value > 0 ? (
                                                                                                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
                                                                                                         Partial ({day.compliant_day_value} Day)
+                                                                                                    </span>
+                                                                                                ) : day.type === 'Absent' ? (
+                                                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">
+                                                                                                        <FiX className="w-3 h-3 text-rose-700" /> Absent (0 Days)
                                                                                                     </span>
                                                                                                 ) : (
                                                                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">
