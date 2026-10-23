@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.19.0](https://github.com/roonaatech/wp_webapp/compare/v2.18.24...v2.19.0) (2026-10-23)
+
+
+### Code Refactoring
+
+* update employee onboarding work configuration options and remove face ID registration page ([7e8b46a](https://github.com/roonaatech/wp_webapp/commit/7e8b46ac16c76aefef766af613ddf27f7db1f494))
+
 ### [2.18.24](https://github.com/roonaatech/wp_webapp/compare/v2.18.23...v2.18.24) (2026-10-23)
 
 
