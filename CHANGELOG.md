@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.18.24](https://github.com/roonaatech/wp_webapp/compare/v2.18.23...v2.18.24) (2026-10-23)
+
+
+### Code Refactoring
+
+* extend QR confirmation countdown to 30 seconds and treat Sundays as compliant in monthly summary reports ([783c528](https://github.com/roonaatech/wp_webapp/commit/783c528966ca6660db2e8ccda9342c517b7c9195))
+
 ### [2.18.23](https://github.com/roonaatech/wp_webapp/compare/v2.18.22...v2.18.23) (2026-10-22)
 
 
