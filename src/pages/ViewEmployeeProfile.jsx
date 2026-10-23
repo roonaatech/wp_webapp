@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuSmartphone, LuRefreshCw, LuX, LuHouse, LuBriefcase } from "react-icons/lu";
+import { LuArrowLeft, LuFileText, LuUser, LuMapPin, LuBuilding2, LuGraduationCap, LuFileUp, LuCheck, LuInfo, LuDownload, LuMail, LuCalendar, LuCamera, LuTrash2, LuSmartphone, LuRefreshCw, LuX, LuHouse, LuBriefcase, LuClock } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { canManageOnboarding, isAdminOrAbove, getHierarchyLevel, isSuperAdmin } from '../utils/roleUtils';
 import { formatDateOnly, formatInTimezone, getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, parseAppTimezone, getCurrentInAppTimezone } from '../utils/timezone.util';
@@ -127,7 +127,8 @@ const ViewEmployeeProfile = () => {
         casual_leave_days: 6,
         sick_leave_days: 6,
         work_mode: 'Office',
-        hybrid_office_days: []
+        hybrid_office_days: [],
+        employment_type: 'Full-time'
     });
     const [approvalErrors, setApprovalErrors] = useState({});
     const [approving, setApproving] = useState(false);
@@ -183,6 +184,7 @@ const ViewEmployeeProfile = () => {
                 abis_access: response.data.abis_access || false,
                 work_mode: response.data.work_mode === 'Regular' ? 'Office' : (response.data.work_mode || 'Office'),
                 hybrid_office_days: days,
+                employment_type: response.data.employment_type || 'Full-time',
                 date_of_joining: response.data.profile_info?.date_of_joining || '',
                 allocate_leaves: true,
                 casual_leave_days: 6,
@@ -334,7 +336,8 @@ const ViewEmployeeProfile = () => {
                     casual_leave_days: approvalForm.allocate_leaves ? parseInt(approvalForm.casual_leave_days || 6) : 0,
                     sick_leave_days: approvalForm.allocate_leaves ? parseInt(approvalForm.sick_leave_days || 6) : 0,
                     work_mode: approvalForm.work_mode || 'Office',
-                    hybrid_office_days: approvalForm.work_mode === 'Hybrid' ? (approvalForm.hybrid_office_days || []) : null
+                    hybrid_office_days: approvalForm.work_mode === 'Hybrid' ? (approvalForm.hybrid_office_days || []) : null,
+                    employment_type: approvalForm.employment_type || 'Full-time'
                 },
                 {
                     headers: { 'x-access-token': token }
@@ -499,6 +502,14 @@ const ViewEmployeeProfile = () => {
                             <h1 className="text-2xl font-black text-[#1e1b4b]">{employee.firstname} {employee.lastname}</h1>
                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${employee.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
                                 {employee.active ? 'Active' : 'Inactive'}
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                employee.employment_type === 'Part-time'
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}>
+                                <LuClock className="w-3 h-3" />
+                                {employee.employment_type === 'Part-time' ? 'Part Time' : 'Full Time'}
                             </span>
                             {employee.abis_access && (
                                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
@@ -1292,6 +1303,42 @@ const ViewEmployeeProfile = () => {
                                     )}
                                 </div>
                             )}
+
+                            {/* Employment Type Selection */}
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                                    Employment Type <span className="text-rose-500">*</span>
+                                </label>
+                                <div className="grid grid-cols-2 gap-2.5">
+                                    {[
+                                        { value: 'Full-time', label: 'Full Time', desc: 'Standard full-time employment' },
+                                        { value: 'Part-time', label: 'Part Time', desc: 'Flexible / reduced schedule' }
+                                    ].map((type) => {
+                                        const currentType = approvalForm.employment_type || 'Full-time';
+                                        const isSelected = currentType === type.value;
+                                        return (
+                                            <button
+                                                key={type.value}
+                                                type="button"
+                                                onClick={() => setApprovalForm(prev => ({ ...prev, employment_type: type.value }))}
+                                                className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                                                    isSelected
+                                                        ? 'border-purple-600 bg-purple-50/70 text-purple-950 font-bold shadow-sm ring-1 ring-purple-500/30'
+                                                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                                }`}
+                                            >
+                                                <div className={`p-2 rounded-lg ${isSelected ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                                    <LuClock className="w-4 h-4" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <span className="text-xs leading-tight font-bold block">{type.label}</span>
+                                                    <span className="text-[10px] text-slate-400 block truncate">{type.desc}</span>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
 
                             <div className={`p-3.5 rounded-xl border transition-all ${approvalForm.abis_access ? 'bg-blue-50/60 border-blue-200' : 'bg-slate-50 border-slate-200'}`}>
                                 <label htmlFor="abis_access" className="flex items-center justify-between cursor-pointer select-none">

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { LuUser, LuContact, LuGraduationCap, LuCoins, LuFileUp, LuPlus, LuTrash2, LuSave, LuArrowLeft, LuShieldAlert, LuCamera, LuCalendar, LuTriangleAlert, LuInfo, LuBuilding2, LuHouse, LuBriefcase, LuMail, LuCalendarCheck, LuServer, LuSend, LuShieldCheck } from "react-icons/lu";
+import { LuUser, LuContact, LuGraduationCap, LuCoins, LuFileUp, LuPlus, LuTrash2, LuSave, LuArrowLeft, LuShieldAlert, LuCamera, LuCalendar, LuTriangleAlert, LuInfo, LuBuilding2, LuHouse, LuBriefcase, LuMail, LuCalendarCheck, LuServer, LuSend, LuShieldCheck, LuClock, LuSun, LuHeartPulse } from "react-icons/lu";
 import API_BASE_URL from '../config/api.config';
 import { fetchRoles as fetchRolesUtil, getRoleById } from '../utils/roleUtils';
 import { getDateInputPlaceholder, isoToDisplayDate, autoFormatDateInput, validatePartialDateInput, validateAndParseDate, getCurrentInAppTimezone } from '../utils/timezone.util';
@@ -2048,359 +2048,444 @@ const OnboardEmployee = () => {
                             <div className="space-y-6">
                                 <div className="border-b border-slate-100 pb-4 mb-4">
                                     <h2 className="text-lg font-black text-[#1e1b4b]">Work &amp; Permissions</h2>
-                                    <p className="text-xs text-slate-400">Configure attendance work arrangement, external system access, welcome invitations, and starting leave quotas.</p>
+                                    <p className="text-xs text-slate-400">Configure employment category, attendance work arrangement, external system access, welcome invitations, and starting leave quotas.</p>
                                 </div>
 
                                 <div className="space-y-6">
-                                    {/* Box 1: Work Arrangement & Location (Indigo Theme) */}
-                                    <div className="bg-gradient-to-br from-indigo-50/80 via-purple-50/40 to-indigo-50/20 border border-indigo-200/80 rounded-3xl p-6 sm:p-7 shadow-sm space-y-4">
-                                        <div className="flex items-center justify-between pb-3 border-b border-indigo-100/90">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 rounded-2xl bg-white text-indigo-600 border border-indigo-200/80 shadow-2xs">
-                                                    <LuBriefcase className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
-                                                        Work Arrangement &amp; Location <span className="text-red-500 font-black">*</span>
-                                                    </h3>
-                                                    <p className="text-xs text-slate-500">
-                                                        Defines physical workplace presence and attendance punching requirements
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <span className="text-xs font-bold px-3.5 py-1 rounded-full bg-indigo-600 text-white border border-indigo-600 shadow-2xs">
-                                                {formData.work_mode || 'Office'}
-                                            </span>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                            {[
-                                                { value: 'Office', label: 'Office', desc: 'In Office (Physical punch / biometric)', icon: <LuBuilding2 className="w-5 h-5" /> },
-                                                { value: 'Work from home', label: 'Work from home', desc: 'Remote (Geo-location punch)', icon: <LuHouse className="w-5 h-5" /> },
-                                                { value: 'Hybrid', label: 'Hybrid', desc: 'Office & Remote schedule', icon: <LuBriefcase className="w-5 h-5" /> }
-                                            ].map((mode) => {
-                                                const currentMode = (formData.work_mode === 'Regular' ? 'Office' : formData.work_mode) || 'Office';
-                                                const isSelected = currentMode === mode.value;
-                                                return (
-                                                    <button
-                                                        key={mode.value}
-                                                        type="button"
-                                                        onClick={() => setFormData(prev => ({ ...prev, work_mode: mode.value }))}
-                                                        className={`flex items-center gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer ${
-                                                            isSelected
-                                                                ? 'border-indigo-600 bg-white text-indigo-950 shadow-md ring-2 ring-indigo-500/20'
-                                                                : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50 shadow-2xs'
-                                                        }`}
-                                                    >
-                                                        <div className={`p-2.5 rounded-xl transition-colors ${isSelected ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-indigo-50 text-indigo-600'}`}>
-                                                            {mode.icon}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="block text-xs font-bold text-slate-800">{mode.label}</span>
-                                                                {isSelected && <span className="w-2 h-2 rounded-full bg-indigo-600"></span>}
-                                                            </div>
-                                                            <span className="text-[11px] text-slate-400 block truncate">{mode.desc}</span>
-                                                        </div>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Hybrid In-Office Days Multi-Select */}
-                                        {formData.work_mode === 'Hybrid' && (
-                                            <div className="bg-white border border-slate-300 rounded-2xl p-5 sm:p-6 space-y-4 mt-3 shadow-sm">
-                                                <div className="flex items-center justify-between flex-wrap gap-3 pb-1">
+                                    {/* ROW 1: Core Employment & Work Arrangement (2 boxes) */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                                        {/* Box 1: Employment Type / Category */}
+                                        <div className="bg-slate-100/70 border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
+                                            <div className="flex items-center justify-between pb-3 border-b border-slate-200/70">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2.5 rounded-2xl bg-purple-50 text-purple-600 border border-purple-200/60 shadow-2xs">
+                                                        <LuClock className="w-5 h-5" />
+                                                    </div>
                                                     <div>
-                                                        <label className="block text-xs font-bold text-slate-900 uppercase tracking-wider">
-                                                            In-Office Days (Monday to Saturday) <span className="text-red-500 font-bold">*</span>
-                                                        </label>
-                                                        <p className="text-[11px] text-slate-500 mt-0.5">
-                                                            Scheduled office days. Hybrid employees can punch WFH remotely with GPS or scan QR badge in the office.
+                                                        <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                                                            Employment Type <span className="text-red-500 font-black">*</span>
+                                                        </h3>
+                                                        <p className="text-xs text-slate-500">
+                                                            Classify employee as Full-Time or Part-Time
                                                         </p>
                                                     </div>
-                                                    <div className="flex items-center gap-2 text-xs">
+                                                </div>
+                                                <span className="text-xs font-bold px-3.5 py-1 rounded-full bg-purple-600 text-white border border-purple-600 shadow-2xs">
+                                                    {formData.employment_type === 'Part-time' ? 'Part Time' : 'Full Time'}
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                                {[
+                                                    { value: 'Full-time', label: 'Full Time', desc: 'Standard full-time hours and regular attendance' },
+                                                    { value: 'Part-time', label: 'Part Time', desc: 'Flexible / reduced schedule engagement' }
+                                                ].map((type) => {
+                                                    const isSelected = (formData.employment_type || 'Full-time') === type.value;
+                                                    return (
                                                         <button
+                                                            key={type.value}
                                                             type="button"
-                                                            onClick={() => setFormData(prev => ({ ...prev, hybrid_office_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }))}
-                                                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-50 border border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400 transition-colors shadow-sm cursor-pointer"
+                                                            onClick={() => setFormData(prev => ({ ...prev, employment_type: type.value }))}
+                                                            className={`flex items-center gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                                                                isSelected
+                                                                    ? 'border-purple-600 bg-white text-purple-950 shadow-md ring-2 ring-purple-500/20'
+                                                                    : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50 shadow-2xs'
+                                                            }`}
                                                         >
-                                                            Mon - Fri
+                                                            <div className={`p-2.5 rounded-xl transition-colors ${isSelected ? 'bg-purple-600 text-white shadow-2xs' : 'bg-purple-50 text-purple-600'}`}>
+                                                                <LuClock className="w-5 h-5" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="block text-xs font-bold text-slate-800">{type.label}</span>
+                                                                    {isSelected && <span className="w-2 h-2 rounded-full bg-purple-600"></span>}
+                                                                </div>
+                                                                <span className="text-[11px] text-slate-400 block truncate">{type.desc}</span>
+                                                            </div>
                                                         </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setFormData(prev => ({ ...prev, hybrid_office_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] }))}
-                                                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-50 border border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400 transition-colors shadow-sm cursor-pointer"
-                                                        >
-                                                            Mon - Sat
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setFormData(prev => ({ ...prev, hybrid_office_days: [] }))}
-                                                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors shadow-sm cursor-pointer"
-                                                        >
-                                                            Clear
-                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Box 2: Work Arrangement & Location */}
+                                        <div className="bg-slate-100/70 border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
+                                            <div className="flex items-center justify-between pb-3 border-b border-slate-200/70">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200/60 shadow-2xs">
+                                                        <LuBriefcase className="w-5 h-5" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                                                            Work Arrangement &amp; Location <span className="text-red-500 font-black">*</span>
+                                                        </h3>
+                                                        <p className="text-xs text-slate-500">
+                                                            Defines physical workplace presence and attendance punching requirements
+                                                        </p>
                                                     </div>
                                                 </div>
+                                                <span className="text-xs font-bold px-3.5 py-1 rounded-full bg-indigo-600 text-white border border-indigo-600 shadow-2xs">
+                                                    {formData.work_mode || 'Office'}
+                                                </span>
+                                            </div>
 
-                                                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 pt-1">
-                                                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => {
-                                                        const isSelected = (formData.hybrid_office_days || []).includes(day);
-                                                        return (
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                                                {[
+                                                    { value: 'Office', label: 'Office', desc: 'In Office punch', icon: <LuBuilding2 className="w-5 h-5" /> },
+                                                    { value: 'Work from home', label: 'Work from home', desc: 'Remote GPS punch', icon: <LuHouse className="w-5 h-5" /> },
+                                                    { value: 'Hybrid', label: 'Hybrid', desc: 'Office & Remote schedule', icon: <LuBriefcase className="w-5 h-5" /> }
+                                                ].map((mode) => {
+                                                    const currentMode = (formData.work_mode === 'Regular' ? 'Office' : formData.work_mode) || 'Office';
+                                                    const isSelected = currentMode === mode.value;
+                                                    return (
+                                                        <button
+                                                            key={mode.value}
+                                                            type="button"
+                                                            onClick={() => setFormData(prev => ({ ...prev, work_mode: mode.value }))}
+                                                            className={`flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                                                                isSelected
+                                                                    ? 'border-indigo-600 bg-white text-indigo-950 shadow-md ring-2 ring-indigo-500/20'
+                                                                    : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50 shadow-2xs'
+                                                            }`}
+                                                        >
+                                                            <div className={`p-2.5 rounded-xl transition-colors shrink-0 ${isSelected ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-indigo-50 text-indigo-600'}`}>
+                                                                {mode.icon}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="block text-xs font-bold text-slate-800">{mode.label}</span>
+                                                                    {isSelected && <span className="w-2 h-2 rounded-full bg-indigo-600"></span>}
+                                                                </div>
+                                                                <span className="text-[11px] text-slate-400 block truncate">{mode.desc}</span>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Hybrid In-Office Days Multi-Select */}
+                                            {formData.work_mode === 'Hybrid' && (
+                                                <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-3 mt-2 shadow-xs">
+                                                    <div className="flex items-center justify-between flex-wrap gap-2 pb-1">
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-900 uppercase tracking-wider">
+                                                                In-Office Days (Monday to Saturday) <span className="text-red-500 font-bold">*</span>
+                                                            </label>
+                                                            <p className="text-[11px] text-slate-500 mt-0.5">
+                                                                Scheduled office days. Hybrid employees can punch WFH remotely with GPS or scan QR badge in the office.
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-xs">
                                                             <button
-                                                                key={day}
                                                                 type="button"
-                                                                onClick={() => {
-                                                                    setFormData(prev => {
-                                                                        const current = prev.hybrid_office_days || [];
-                                                                        const next = current.includes(day)
-                                                                            ? current.filter(d => d !== day)
-                                                                            : [...current, day];
-                                                                        return { ...prev, hybrid_office_days: next };
-                                                                    });
-                                                                }}
-                                                                className={`px-3 py-3 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                                                                    isSelected
-                                                                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                                                                        : 'bg-white border-slate-300 text-slate-800 hover:border-slate-400 hover:bg-slate-50'
-                                                                }`}
+                                                                onClick={() => setFormData(prev => ({ ...prev, hybrid_office_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }))}
+                                                                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400 transition-colors shadow-2xs cursor-pointer"
                                                             >
-                                                                <span className="text-xs font-bold">{day.slice(0, 3)}</span>
-                                                                <span className="text-[10px] font-normal opacity-80">{day}</span>
+                                                                Mon - Fri
                                                             </button>
-                                                        );
-                                                    })}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setFormData(prev => ({ ...prev, hybrid_office_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] }))}
+                                                                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400 transition-colors shadow-2xs cursor-pointer"
+                                                            >
+                                                                Mon - Sat
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setFormData(prev => ({ ...prev, hybrid_office_days: [] }))}
+                                                                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors shadow-2xs cursor-pointer"
+                                                            >
+                                                                Clear
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-1">
+                                                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => {
+                                                            const isSelected = (formData.hybrid_office_days || []).includes(day);
+                                                            return (
+                                                                <button
+                                                                    key={day}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setFormData(prev => {
+                                                                            const current = prev.hybrid_office_days || [];
+                                                                            const next = current.includes(day)
+                                                                                ? current.filter(d => d !== day)
+                                                                                : [...current, day];
+                                                                            return { ...prev, hybrid_office_days: next };
+                                                                        });
+                                                                    }}
+                                                                    className={`px-2 py-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                                                                        isSelected
+                                                                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                                                            : 'bg-white border-slate-300 text-slate-800 hover:border-slate-400 hover:bg-slate-50'
+                                                                    }`}
+                                                                >
+                                                                    <span className="text-xs font-bold">{day.slice(0, 3)}</span>
+                                                                    <span className="text-[10px] font-normal opacity-80">{day}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+
+                                                    {errors.hybrid_office_days && (
+                                                        <p className="text-red-500 text-xs font-semibold">{errors.hybrid_office_days}</p>
+                                                    )}
+                                                    {formData.hybrid_office_days && formData.hybrid_office_days.length > 0 && (
+                                                        <p className="text-xs text-indigo-900 font-medium">
+                                                            Office days ({formData.hybrid_office_days.length} days/week): <span className="font-bold">{formData.hybrid_office_days.join(', ')}</span>
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* ROW 2: Credentials, External Access & Leave Quotas (3 boxes) */}
+                                    <div className={`grid grid-cols-1 ${(!id && onboardingMode === 'manual') ? 'lg:grid-cols-3' : 'lg:grid-cols-1 max-w-xl'} gap-6 items-stretch`}>
+                                        {/* Box 3: Employee Invitation & Credentials (Manual onboarding only) */}
+                                        {!id && onboardingMode === 'manual' && (
+                                            <div className="bg-slate-100/70 border border-slate-200 rounded-3xl p-6 shadow-xs flex flex-col justify-between space-y-4">
+                                                <div className="flex items-center justify-between pb-3 border-b border-slate-200/70">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="p-2.5 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/60 shadow-2xs">
+                                                            <LuMail className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                                                                Invitation &amp; Credentials
+                                                            </h3>
+                                                            <p className="text-xs text-slate-500 line-clamp-1">
+                                                                Deliver system login credentials
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <span className={`text-[11px] font-bold px-3 py-1 rounded-full border shadow-2xs shrink-0 ${
+                                                        formData.send_welcome_email
+                                                            ? 'bg-amber-500 text-white border-amber-500'
+                                                            : 'bg-white text-slate-500 border-slate-200'
+                                                    }`}>
+                                                        {formData.send_welcome_email ? 'Enabled' : 'Do Not Send'}
+                                                    </span>
                                                 </div>
 
-                                                {errors.hybrid_office_days && (
-                                                    <p className="text-red-500 text-xs font-semibold">{errors.hybrid_office_days}</p>
-                                                )}
-                                                {formData.hybrid_office_days && formData.hybrid_office_days.length > 0 && (
-                                                    <p className="text-xs text-indigo-900 font-medium">
-                                                        Office days ({formData.hybrid_office_days.length} days/week): <span className="font-bold">{formData.hybrid_office_days.join(', ')}</span>
-                                                    </p>
-                                                )}
+                                                <div className={`p-4 rounded-2xl border transition-all ${
+                                                    formData.send_welcome_email 
+                                                        ? 'bg-amber-50/30 border-amber-300 ring-2 ring-amber-500/10 shadow-xs' 
+                                                        : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
+                                                }`}>
+                                                    <label htmlFor="send_welcome_email" className="flex items-start gap-3.5 cursor-pointer select-none">
+                                                        <div className="pt-0.5">
+                                                            <input
+                                                                type="checkbox"
+                                                                name="send_welcome_email"
+                                                                id="send_welcome_email"
+                                                                checked={formData.send_welcome_email}
+                                                                onChange={handleInputChange}
+                                                                className="w-5 h-5 text-amber-600 border-slate-300 rounded focus:ring-amber-500 cursor-pointer"
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <span className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                                                Send Welcome Email with Temporary Password
+                                                            </span>
+                                                            <p className="text-[11px] text-slate-500 mt-1">
+                                                                Automatically emails employee login credentials, a temporary password, and a profile completion link upon creation.
+                                                            </p>
+                                                        </div>
+                                                    </label>
+                                                </div>
                                             </div>
                                         )}
-                                    </div>
 
-                                    {/* Box 2: External Application Access (Blue Theme) */}
-                                    <div className="bg-gradient-to-br from-blue-50/80 via-sky-50/40 to-blue-50/20 border border-blue-200/80 rounded-3xl p-6 sm:p-7 shadow-sm">
-                                        <div className="flex items-center justify-between pb-3 border-b border-blue-100/90 mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 rounded-2xl bg-white text-blue-600 border border-blue-200/80 shadow-2xs">
-                                                    <LuServer className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                                                        External Application Access
-                                                    </h3>
-                                                    <p className="text-xs text-slate-500">
-                                                        Grant login credentials and single sign-on access to integrated systems
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <span className={`text-[11px] font-bold px-3.5 py-1 rounded-full border shadow-2xs ${
-                                                formData.abis_access
-                                                    ? 'bg-blue-600 text-white border-blue-600'
-                                                    : 'bg-white text-slate-500 border-slate-200'
-                                            }`}>
-                                                {formData.abis_access ? 'Active Access' : 'Disabled'}
-                                            </span>
-                                        </div>
-
-                                        <div className={`p-4 rounded-2xl border transition-all ${
-                                            formData.abis_access 
-                                                ? 'bg-white border-blue-300 shadow-sm ring-2 ring-blue-500/10' 
-                                                : 'bg-white/80 border-blue-100/90 hover:border-blue-200 hover:bg-white shadow-2xs'
-                                        }`}>
-                                            <label htmlFor="abis_access" className="flex items-start gap-3.5 cursor-pointer select-none">
-                                                <div className="pt-0.5">
-                                                    <input
-                                                        type="checkbox"
-                                                        name="abis_access"
-                                                        id="abis_access"
-                                                        checked={formData.abis_access}
-                                                        onChange={handleInputChange}
-                                                        className="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
-                                                    />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <span className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                                        Grant ABIS Application Access
-                                                    </span>
-                                                    <p className="text-[11px] text-slate-500 mt-1">
-                                                        Allows the user to authenticate into the external PHP ABIS CRM &amp; enterprise operations system.
-                                                    </p>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    {/* Box 3: Employee Invitation & Credentials (Amber Theme - Manual onboarding only) */}
-                                    {!id && onboardingMode === 'manual' && (
-                                        <div className="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-amber-50/20 border border-amber-200/80 rounded-3xl p-6 sm:p-7 shadow-sm">
-                                            <div className="flex items-center justify-between pb-3 border-b border-amber-100/90 mb-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2.5 rounded-2xl bg-white text-amber-600 border border-amber-200/80 shadow-2xs">
-                                                        <LuMail className="w-5 h-5" />
+                                        {/* Box 4: External Application Access */}
+                                        <div className="bg-slate-100/70 border border-slate-200 rounded-3xl p-6 shadow-xs flex flex-col justify-between space-y-4">
+                                            <div className="flex items-center justify-between pb-3 border-b border-slate-200/70">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="p-2.5 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200/60 shadow-2xs">
+                                                        <LuServer className="w-5 h-5" />
                                                     </div>
                                                     <div>
                                                         <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                                                            Employee Invitation &amp; Credentials
+                                                            External Application Access
                                                         </h3>
-                                                        <p className="text-xs text-slate-500">
-                                                            Deliver system login credentials and onboarding guidance to the employee
+                                                        <p className="text-xs text-slate-500 line-clamp-1">
+                                                            Single sign-on access to systems
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <span className={`text-[11px] font-bold px-3.5 py-1 rounded-full border shadow-2xs ${
-                                                    formData.send_welcome_email
-                                                        ? 'bg-amber-500 text-white border-amber-500'
+                                                <span className={`text-[11px] font-bold px-3 py-1 rounded-full border shadow-2xs shrink-0 ${
+                                                    formData.abis_access
+                                                        ? 'bg-blue-600 text-white border-blue-600'
                                                         : 'bg-white text-slate-500 border-slate-200'
                                                 }`}>
-                                                    {formData.send_welcome_email ? 'Auto-Send Enabled' : 'Do Not Send'}
+                                                    {formData.abis_access ? 'Active Access' : 'Disabled'}
                                                 </span>
                                             </div>
 
                                             <div className={`p-4 rounded-2xl border transition-all ${
-                                                formData.send_welcome_email 
-                                                    ? 'bg-white border-amber-300 shadow-sm ring-2 ring-amber-500/10' 
-                                                    : 'bg-white/80 border-amber-100/90 hover:border-amber-200 hover:bg-white shadow-2xs'
+                                                formData.abis_access 
+                                                    ? 'bg-blue-50/30 border-blue-300 ring-2 ring-blue-500/10 shadow-xs' 
+                                                    : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
                                             }`}>
-                                                <label htmlFor="send_welcome_email" className="flex items-start gap-3.5 cursor-pointer select-none">
+                                                <label htmlFor="abis_access" className="flex items-start gap-3.5 cursor-pointer select-none">
                                                     <div className="pt-0.5">
                                                         <input
                                                             type="checkbox"
-                                                            name="send_welcome_email"
-                                                            id="send_welcome_email"
-                                                            checked={formData.send_welcome_email}
+                                                            name="abis_access"
+                                                            id="abis_access"
+                                                            checked={formData.abis_access}
                                                             onChange={handleInputChange}
-                                                            className="w-5 h-5 text-amber-600 border-slate-300 rounded focus:ring-amber-500 cursor-pointer"
+                                                            className="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                                                         />
                                                     </div>
                                                     <div className="flex-1">
                                                         <span className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                                            Send Welcome Email with Temporary Password
+                                                            Grant ABIS Application Access
                                                         </span>
                                                         <p className="text-[11px] text-slate-500 mt-1">
-                                                            Automatically emails employee login credentials, a temporary password, and a profile completion link upon creation.
+                                                            Allows the user to authenticate into the external PHP ABIS CRM &amp; enterprise operations system.
                                                         </p>
                                                     </div>
                                                 </label>
                                             </div>
                                         </div>
-                                    )}
 
-                                    {/* Box 4: Initial Leave Quota Allocation (Emerald Theme - Manual onboarding only) */}
-                                    {!id && onboardingMode === 'manual' && (
-                                        <div className="bg-gradient-to-br from-emerald-50/80 via-teal-50/40 to-emerald-50/20 border border-emerald-200/80 rounded-3xl p-6 sm:p-7 shadow-sm space-y-4">
-                                            <div className="flex items-center justify-between pb-3 border-b border-emerald-100/90">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2.5 rounded-2xl bg-white text-emerald-600 border border-emerald-200/80 shadow-2xs">
-                                                        <LuCalendarCheck className="w-5 h-5" />
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                                                            Initial Leave Quota Allocation
-                                                        </h3>
-                                                        <p className="text-xs text-slate-500">
-                                                            Seed starting annual leave balances for the employee's first employment cycle
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <span className="text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 border border-emerald-600 px-3.5 py-1 rounded-full shadow-2xs shrink-0">
-                                                    {(parseInt(formData.casual_leave_days) || 0) + (parseInt(formData.sick_leave_days) || 0)} Days Total
-                                                </span>
-                                            </div>
-
-                                            <div className={`p-4 rounded-2xl border transition-all ${
-                                                formData.allocate_leaves 
-                                                    ? 'bg-white border-emerald-300 shadow-sm ring-2 ring-emerald-500/10' 
-                                                    : 'bg-white/80 border-emerald-100/90 hover:border-emerald-200 hover:bg-white shadow-2xs'
-                                            }`}>
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <label htmlFor="allocate_leaves" className="flex items-start gap-3.5 cursor-pointer flex-1 select-none">
-                                                        <div className="pt-0.5">
-                                                            <input
-                                                                type="checkbox"
-                                                                name="allocate_leaves"
-                                                                id="allocate_leaves"
-                                                                checked={formData.allocate_leaves}
-                                                                onChange={handleInputChange}
-                                                                className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
-                                                            />
+                                        {/* Box 5: Initial Leave Quota Allocation (Manual onboarding only) */}
+                                        {!id && onboardingMode === 'manual' && (
+                                            <div className="bg-slate-100/70 border border-slate-200 rounded-3xl p-6 shadow-xs flex flex-col justify-between space-y-4">
+                                                {/* Header */}
+                                                <div className="flex items-center justify-between pb-3 border-b border-slate-200/70 flex-wrap gap-2">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 shadow-2xs">
+                                                            <LuCalendarCheck className="w-5 h-5" />
                                                         </div>
                                                         <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                                                    Allocate Initial Leaves
-                                                                </span>
-                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                                                    formData.allocate_leaves
-                                                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                                                        : 'bg-slate-100 text-slate-500 border-slate-200'
-                                                                }`}>
-                                                                    {formData.allocate_leaves ? 'Allocating Quota' : 'No Allocation'}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-[11px] text-slate-500 mt-1">
-                                                                Allocate Casual Leave and Sick Leave balances upon onboarding. Default is 6 days each.
+                                                            <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                                                                Leave Quota Allocation
+                                                            </h3>
+                                                            <p className="text-xs text-slate-500 line-clamp-1">
+                                                                Seed starting leave balances
                                                             </p>
                                                         </div>
-                                                    </label>
+                                                    </div>
+                                                    <div className="flex items-center gap-2.5 shrink-0">
+                                                        <span className={`text-xs font-bold px-3 py-1 rounded-full border shadow-2xs ${
+                                                            formData.allocate_leaves 
+                                                                ? 'bg-emerald-600 text-white border-emerald-600' 
+                                                                : 'bg-white text-slate-500 border-slate-200'
+                                                        }`}>
+                                                            {formData.allocate_leaves 
+                                                                ? `${(parseInt(formData.casual_leave_days) || 0) + (parseInt(formData.sick_leave_days) || 0)} Days Total`
+                                                                : 'Disabled'}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={formData.allocate_leaves}
+                                                            onClick={() => setFormData(prev => ({
+                                                                ...prev,
+                                                                allocate_leaves: !prev.allocate_leaves,
+                                                                casual_leave_days: prev.casual_leave_days || 6,
+                                                                sick_leave_days: prev.sick_leave_days || 6
+                                                            }))}
+                                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                                                                formData.allocate_leaves ? 'bg-emerald-600' : 'bg-slate-300'
+                                                            }`}
+                                                            title={formData.allocate_leaves ? 'Disable leave allocation' : 'Enable leave allocation'}
+                                                        >
+                                                            <span
+                                                                aria-hidden="true"
+                                                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                                                    formData.allocate_leaves ? 'translate-x-5' : 'translate-x-0'
+                                                                }`}
+                                                            />
+                                                        </button>
+                                                    </div>
                                                 </div>
 
-                                                {formData.allocate_leaves && (
-                                                    <div className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200/80 space-y-3 mt-4 animate-in fade-in duration-150">
-                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                            <div>
-                                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
-                                                                    <span>Casual Leave</span>
-                                                                    <span className="text-[10px] text-emerald-700 font-bold bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs">Standard: 6d</span>
-                                                                </label>
-                                                                <div className="relative">
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        max="365"
-                                                                        name="casual_leave_days"
-                                                                        value={formData.casual_leave_days}
-                                                                        onChange={handleInputChange}
-                                                                        className="w-full pl-3.5 pr-14 py-2.5 bg-white border border-emerald-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm transition shadow-2xs"
-                                                                        placeholder="6"
-                                                                    />
-                                                                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">days</span>
+                                                {/* Body */}
+                                                {formData.allocate_leaves ? (
+                                                    <div className="space-y-2.5">
+                                                        {/* Casual Leave */}
+                                                        <div className="bg-white border border-slate-200 hover:border-emerald-300 rounded-2xl p-3 shadow-2xs transition-all flex items-center justify-between gap-3">
+                                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/80 flex items-center justify-center shrink-0">
+                                                                    <LuSun className="w-4.5 h-4.5" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="text-xs font-bold text-slate-800">Casual Leave</span>
+                                                                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                                                            Std: 6d
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="text-[11px] text-slate-400 block truncate">Personal &amp; unplanned breaks</span>
                                                                 </div>
                                                             </div>
-                                                            <div>
-                                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
-                                                                    <span>Sick Leave</span>
-                                                                    <span className="text-[10px] text-emerald-700 font-bold bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs">Standard: 6d</span>
-                                                                </label>
-                                                                <div className="relative">
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        max="365"
-                                                                        name="sick_leave_days"
-                                                                        value={formData.sick_leave_days}
-                                                                        onChange={handleInputChange}
-                                                                        className="w-full pl-3.5 pr-14 py-2.5 bg-white border border-emerald-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm transition shadow-2xs"
-                                                                        placeholder="6"
-                                                                    />
-                                                                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">days</span>
-                                                                </div>
+                                                            <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    max="365"
+                                                                    name="casual_leave_days"
+                                                                    value={formData.casual_leave_days}
+                                                                    onChange={handleInputChange}
+                                                                    className="w-9 text-center font-bold text-slate-800 text-sm bg-transparent focus:outline-none"
+                                                                    placeholder="6"
+                                                                />
+                                                                <span className="text-xs font-semibold text-slate-400 select-none">days</span>
                                                             </div>
                                                         </div>
+
+                                                        {/* Sick Leave */}
+                                                        <div className="bg-white border border-slate-200 hover:border-teal-300 rounded-2xl p-3 shadow-2xs transition-all flex items-center justify-between gap-3">
+                                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                                <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 border border-teal-200/80 flex items-center justify-center shrink-0">
+                                                                    <LuHeartPulse className="w-4.5 h-4.5" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="text-xs font-bold text-slate-800">Sick Leave</span>
+                                                                        <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                                                                            Std: 6d
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="text-[11px] text-slate-400 block truncate">Medical &amp; health recovery</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 focus-within:bg-white focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/20 transition-all">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    max="365"
+                                                                    name="sick_leave_days"
+                                                                    value={formData.sick_leave_days}
+                                                                    onChange={handleInputChange}
+                                                                    className="w-9 text-center font-bold text-slate-800 text-sm bg-transparent focus:outline-none"
+                                                                    placeholder="6"
+                                                                />
+                                                                <span className="text-xs font-semibold text-slate-400 select-none">days</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between text-xs text-slate-500 shadow-2xs">
+                                                        <span>Leave quota is disabled. Employee starts with 0.</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setFormData(prev => ({ ...prev, allocate_leaves: true, casual_leave_days: prev.casual_leave_days || 6, sick_leave_days: prev.sick_leave_days || 6 }))}
+                                                            className="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer shrink-0 ml-2"
+                                                        >
+                                                            Enable
+                                                        </button>
                                                     </div>
                                                 )}
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
-
                                 {/* Work & Permissions Footer */}
                                 <div className="border-t border-slate-100 pt-6 mt-8 flex justify-between items-center">
                                     <div>

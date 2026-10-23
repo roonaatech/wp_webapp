@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
-import { FiEdit2, FiTrash2, FiPlus, FiX, FiAlertTriangle, FiKey, FiLink, FiChevronDown, FiInfo, FiLock } from 'react-icons/fi';
-import { LuSparkles, LuBuilding2, LuHouse, LuBriefcase, LuCalendar, LuCheck, LuHistory, LuClock, LuSearch, LuRefreshCw, LuUserCheck, LuShield, LuArrowRight, LuTag, LuMail } from 'react-icons/lu';
+import { FiEdit2, FiTrash2, FiPlus, FiX, FiAlertTriangle, FiKey, FiChevronDown, FiInfo, FiLock } from 'react-icons/fi';
+import { LuSparkles, LuBuilding2, LuHouse, LuBriefcase, LuCalendar, LuCheck, LuHistory, LuClock, LuSearch, LuRefreshCw, LuUserCheck, LuShield, LuArrowRight, LuTag, LuMail, LuUser } from 'react-icons/lu';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -275,19 +275,22 @@ const Users = () => {
     const [showStatusDropdown, setShowStatusDropdown] = useState(false); // Toggle status dropdown
     const [roleFilter, setRoleFilter] = useState([]); // Array of selected role ids
     const [showRoleDropdown, setShowRoleDropdown] = useState(false); // Toggle role dropdown
-    const [userTypeFilter, setUserTypeFilter] = useState(''); // '' = all, 'workpulse' = WorkPulse-only, 'external' = PHP app users
-    const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false); // Toggle user type dropdown
     const [managerFilter, setManagerFilter] = useState([]); // Array of selected manager ids
     const [showManagerDropdown, setShowManagerDropdown] = useState(false); // Toggle manager dropdown
     const [workModeFilter, setWorkModeFilter] = useState([]); // Array of selected work modes: 'Office', 'Work from home', 'Hybrid'
     const [showWorkModeDropdown, setShowWorkModeDropdown] = useState(false); // Toggle work mode dropdown
+    const [employmentTypeFilter, setEmploymentTypeFilter] = useState([]); // Array of selected employment types: 'Full-time', 'Part-time'
+    const [showEmploymentTypeDropdown, setShowEmploymentTypeDropdown] = useState(false); // Toggle employment type dropdown
+    const [genderFilter, setGenderFilter] = useState([]); // Array of selected genders: 'Male', 'Female', 'Transgender', 'Unspecified'
+    const [showGenderDropdown, setShowGenderDropdown] = useState(false); // Toggle gender dropdown
 
     // Refs for click-outside detection
     const statusDropdownRef = useRef(null);
     const roleDropdownRef = useRef(null);
-    const userTypeDropdownRef = useRef(null);
     const managerDropdownRef = useRef(null);
     const workModeDropdownRef = useRef(null);
+    const employmentTypeDropdownRef = useRef(null);
+    const genderDropdownRef = useRef(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
@@ -390,7 +393,8 @@ const Users = () => {
         approving_manager_id: '',
         gender: '',
         work_mode: 'Office',
-        hybrid_office_days: []
+        hybrid_office_days: [],
+        employment_type: 'Full-time'
     });
     const [formError, setFormError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
@@ -504,7 +508,7 @@ const Users = () => {
     // Reset page on filter change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter, managerFilter, workModeFilter]);
+    }, [searchTerm, statusFilter, pageSize, letterFilter, roleFilter, managerFilter, workModeFilter, employmentTypeFilter, genderFilter]);
 
     // Fetch Users when params change
     useEffect(() => {
@@ -514,7 +518,7 @@ const Users = () => {
             }, 300); // Debounce
             return () => clearTimeout(timeoutId);
         }
-    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter, userTypeFilter, managerFilter, workModeFilter]);
+    }, [isAllowed, currentPage, searchTerm, statusFilter, pageSize, letterFilter, roleFilter, managerFilter, workModeFilter, employmentTypeFilter, genderFilter]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -525,19 +529,22 @@ const Users = () => {
             if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target)) {
                 setShowRoleDropdown(false);
             }
-            if (userTypeDropdownRef.current && !userTypeDropdownRef.current.contains(event.target)) {
-                setShowUserTypeDropdown(false);
-            }
             if (managerDropdownRef.current && !managerDropdownRef.current.contains(event.target)) {
                 setShowManagerDropdown(false);
             }
             if (workModeDropdownRef.current && !workModeDropdownRef.current.contains(event.target)) {
                 setShowWorkModeDropdown(false);
             }
+            if (employmentTypeDropdownRef.current && !employmentTypeDropdownRef.current.contains(event.target)) {
+                setShowEmploymentTypeDropdown(false);
+            }
+            if (genderDropdownRef.current && !genderDropdownRef.current.contains(event.target)) {
+                setShowGenderDropdown(false);
+            }
         };
 
         // Add event listener when any dropdown is open
-        if (showStatusDropdown || showRoleDropdown || showUserTypeDropdown || showManagerDropdown || showWorkModeDropdown) {
+        if (showStatusDropdown || showRoleDropdown || showManagerDropdown || showWorkModeDropdown || showEmploymentTypeDropdown || showGenderDropdown) {
             document.addEventListener('mousedown', handleClickOutside);
         }
 
@@ -545,7 +552,7 @@ const Users = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [showStatusDropdown, showRoleDropdown, showUserTypeDropdown, showManagerDropdown, showWorkModeDropdown]);
+    }, [showStatusDropdown, showRoleDropdown, showManagerDropdown, showWorkModeDropdown, showEmploymentTypeDropdown, showGenderDropdown]);
 
     // Close action dropdown when clicking outside
     useEffect(() => {
@@ -584,11 +591,6 @@ const Users = () => {
                 queryParams.append('role', roleFilter.join(','));
             }
 
-            // Add user type filter
-            if (userTypeFilter) {
-                queryParams.append('userType', userTypeFilter);
-            }
-
             // Add manager filter
             if (managerFilter.length > 0) {
                 queryParams.append('manager', managerFilter.join(','));
@@ -597,6 +599,16 @@ const Users = () => {
             // Add work mode filter
             if (workModeFilter.length > 0) {
                 queryParams.append('work_mode', workModeFilter.join(','));
+            }
+
+            // Add employment type filter
+            if (employmentTypeFilter.length > 0) {
+                queryParams.append('employment_type', employmentTypeFilter.join(','));
+            }
+
+            // Add gender filter
+            if (genderFilter.length > 0) {
+                queryParams.append('gender', genderFilter.join(','));
             }
 
             const response = await axios.get(`${API_BASE_URL}/api/admin/users?${queryParams.toString()}`, {
@@ -903,7 +915,8 @@ const Users = () => {
             approving_manager_id: editUser.approving_manager_id || '',
             gender: editUser.gender || '',
             work_mode: editUser.work_mode === 'Regular' ? 'Office' : (editUser.work_mode || 'Office'),
-            hybrid_office_days: days
+            hybrid_office_days: days,
+            employment_type: editUser.employment_type || 'Full-time'
         });
     };
 
@@ -987,7 +1000,7 @@ const Users = () => {
 
         if (mode === 'Work from home') {
             return (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Work from home">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Work from home">
                     <LuHouse className="w-3.5 h-3.5" />
                     WFH
                 </span>
@@ -996,23 +1009,33 @@ const Users = () => {
         if (mode === 'Hybrid') {
             const shortDays = formatHybridDays(days);
             return (
-                <div className="flex flex-col gap-0.5">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 w-fit">
-                        <LuBriefcase className="w-3.5 h-3.5" />
-                        Hybrid
-                    </span>
-                    {shortDays && (
-                        <span className="text-[11px] font-semibold text-slate-500 pl-0.5" title={days.length > 0 ? `Office: ${days.join(', ')}` : ''}>
-                            {shortDays}
-                        </span>
-                    )}
-                </div>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200" title={days.length > 0 ? `Office days: ${days.join(', ')}` : ''}>
+                    <LuBriefcase className="w-3.5 h-3.5" />
+                    <span>Hybrid{shortDays ? ` (${shortDays})` : ''}</span>
+                </span>
             );
         }
         return (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                 <LuBuilding2 className="w-3.5 h-3.5" />
                 Office
+            </span>
+        );
+    };
+
+    const renderEmploymentTypeBadge = (u) => {
+        const type = u?.employment_type || 'Full-time';
+        const isPartTime = type === 'Part-time';
+        return (
+            <span
+                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                    isPartTime
+                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                        : 'bg-purple-100 text-purple-800 border border-purple-200'
+                }`}
+                title={isPartTime ? 'Part-Time Employee' : 'Full-Time Employee'}
+            >
+                {isPartTime ? 'Part' : 'Full'}
             </span>
         );
     };
@@ -1151,7 +1174,8 @@ const Users = () => {
                 role: roleNum, // Must be an integer
                 gender: formData.gender,
                 work_mode: formData.work_mode || 'Office',
-                hybrid_office_days: formData.work_mode === 'Hybrid' ? (formData.hybrid_office_days || []) : null
+                hybrid_office_days: formData.work_mode === 'Hybrid' ? (formData.hybrid_office_days || []) : null,
+                employment_type: formData.employment_type || 'Full-time'
             };
 
             // Only include password if provided
@@ -1391,6 +1415,10 @@ const Users = () => {
             case 'work_mode':
                 aValue = (a.work_mode === 'Regular' ? 'Office' : a.work_mode || 'Office').toLowerCase();
                 bValue = (b.work_mode === 'Regular' ? 'Office' : b.work_mode || 'Office').toLowerCase();
+                break;
+            case 'employment_type':
+                aValue = (a.employment_type || 'Full-time').toLowerCase();
+                bValue = (b.employment_type || 'Full-time').toLowerCase();
                 break;
             case 'status':
                 aValue = a.active ? 1 : 0;
@@ -1900,82 +1928,6 @@ const Users = () => {
                         )}
                     </div>
 
-                    {/* User Type Filter Dropdown */}
-                    <div className="relative" ref={userTypeDropdownRef}>
-                        <button
-                            onClick={() => setShowUserTypeDropdown(!showUserTypeDropdown)}
-                            className="px-4 py-2.5 rounded-lg font-medium transition-all bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-400 hover:shadow-md flex items-center gap-2.5"
-                        >
-                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                            </svg>
-                            <span className="text-sm">Access</span>
-                            {userTypeFilter !== '' && (
-                                <span className="px-2 py-0.5 bg-teal-100 text-teal-700 text-xs font-semibold rounded-full">
-                                    1
-                                </span>
-                            )}
-                            <svg className={`w-4 h-4 ml-1 transition-transform ${showUserTypeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-
-                        {showUserTypeDropdown && (
-                            <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-10 w-72 overflow-hidden">
-                                <div className="p-2">
-                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                                        Filter by Access Type
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setUserTypeFilter('');
-                                            setShowUserTypeDropdown(false);
-                                        }}
-                                        className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors ${userTypeFilter === '' ? 'bg-blue-50 border-l-2 border-blue-500' : 'hover:bg-gray-50'}`}
-                                    >
-                                        <div className="text-sm font-medium text-gray-900">All Users</div>
-                                        <div className="text-xs text-gray-500 mt-0.5">Show both WorkPulse and external users</div>
-                                    </button>
-                                    <div className="my-2 border-t border-gray-100"></div>
-                                    <button
-                                        onClick={() => {
-                                            setUserTypeFilter('workpulse');
-                                            setShowUserTypeDropdown(false);
-                                        }}
-                                        className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors ${userTypeFilter === 'workpulse' ? 'bg-teal-50 border-l-2 border-teal-500' : 'hover:bg-teal-50'}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-teal-700">
-                                                <FiKey className="w-4 h-4" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="text-sm font-medium text-gray-900">WorkPulse Only</div>
-                                                <div className="text-xs text-gray-500 mt-0.5">Native users with password access</div>
-                                            </div>
-                                        </div>
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setUserTypeFilter('external');
-                                            setShowUserTypeDropdown(false);
-                                        }}
-                                        className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors ${userTypeFilter === 'external' ? 'bg-amber-50 border-l-2 border-amber-500' : 'hover:bg-amber-50'}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700">
-                                                <FiLink className="w-4 h-4" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="text-sm font-medium text-gray-900">External System</div>
-                                                <div className="text-xs text-gray-500 mt-0.5">Synced from legacy PHP application</div>
-                                            </div>
-                                        </div>
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
                     {/* Work Mode Filter Dropdown */}
                     <div className="relative" ref={workModeDropdownRef}>
                         <button
@@ -2073,6 +2025,151 @@ const Users = () => {
                                             <div className="text-xs text-gray-500">Office & Remote</div>
                                         </div>
                                     </label>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Employment Type Filter Dropdown */}
+                    <div className="relative" ref={employmentTypeDropdownRef}>
+                        <button
+                            onClick={() => setShowEmploymentTypeDropdown(!showEmploymentTypeDropdown)}
+                            className="px-4 py-2.5 rounded-lg font-medium transition-all bg-white border-2 border-gray-200 text-gray-700 hover:border-purple-400 hover:shadow-md flex items-center gap-2.5"
+                        >
+                            <LuClock className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">Type</span>
+                            {employmentTypeFilter.length > 0 && (
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                                    {employmentTypeFilter.length}
+                                </span>
+                            )}
+                            <svg className={`w-4 h-4 ml-1 transition-transform ${showEmploymentTypeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {showEmploymentTypeDropdown && (
+                            <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-10 w-64 overflow-hidden flex flex-col">
+                                <div className="p-2">
+                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        Filter by Employment Type
+                                    </div>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-gray-50 rounded-lg transition-colors ${employmentTypeFilter.length === 0 ? 'bg-blue-50' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={employmentTypeFilter.length === 0}
+                                            onChange={() => setEmploymentTypeFilter([])}
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm font-medium text-gray-900">All Types</span>
+                                    </label>
+                                    <div className="my-2 border-t border-gray-100"></div>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-purple-50 rounded-lg transition-colors ${employmentTypeFilter.includes('Full-time') ? 'bg-purple-50 border-l-2 border-purple-500' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={employmentTypeFilter.includes('Full-time')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setEmploymentTypeFilter([...employmentTypeFilter, 'Full-time']);
+                                                } else {
+                                                    setEmploymentTypeFilter(employmentTypeFilter.filter(t => t !== 'Full-time'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-2 focus:ring-purple-500"
+                                        />
+                                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-700">
+                                            <LuClock className="w-4 h-4" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="text-sm font-medium text-gray-900">Full Time</div>
+                                            <div className="text-xs text-gray-500">Standard Schedule</div>
+                                        </div>
+                                    </label>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-amber-50 rounded-lg transition-colors ${employmentTypeFilter.includes('Part-time') ? 'bg-amber-50 border-l-2 border-amber-500' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={employmentTypeFilter.includes('Part-time')}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setEmploymentTypeFilter([...employmentTypeFilter, 'Part-time']);
+                                                } else {
+                                                    setEmploymentTypeFilter(employmentTypeFilter.filter(t => t !== 'Part-time'));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-2 focus:ring-amber-500"
+                                        />
+                                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700">
+                                            <LuClock className="w-4 h-4" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="text-sm font-medium text-gray-900">Part Time</div>
+                                            <div className="text-xs text-gray-500">Flexible / Reduced</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Gender Filter Dropdown */}
+                    <div className="relative" ref={genderDropdownRef}>
+                        <button
+                            onClick={() => setShowGenderDropdown(!showGenderDropdown)}
+                            className="px-4 py-2.5 rounded-lg font-medium transition-all bg-white border-2 border-gray-200 text-gray-700 hover:border-pink-400 hover:shadow-md flex items-center gap-2.5"
+                        >
+                            <LuUser className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">Gender</span>
+                            {genderFilter.length > 0 && (
+                                <span className="px-2 py-0.5 bg-pink-100 text-pink-700 text-xs font-semibold rounded-full">
+                                    {genderFilter.length}
+                                </span>
+                            )}
+                            <svg className={`w-4 h-4 ml-1 transition-transform ${showGenderDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {showGenderDropdown && (
+                            <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-10 w-64 overflow-hidden flex flex-col">
+                                <div className="p-2">
+                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        Filter by Gender
+                                    </div>
+                                    <label className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-gray-50 rounded-lg transition-colors ${genderFilter.length === 0 ? 'bg-blue-50' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={genderFilter.length === 0}
+                                            onChange={() => setGenderFilter([])}
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm font-medium text-gray-900">All Genders</span>
+                                    </label>
+                                    <div className="my-2 border-t border-gray-100"></div>
+                                    {[
+                                        { id: 'Male', label: 'Male', desc: 'Male employees' },
+                                        { id: 'Female', label: 'Female', desc: 'Female employees' },
+                                        { id: 'Transgender', label: 'Transgender', desc: 'Transgender employees' },
+                                        { id: 'Unspecified', label: 'Not Specified', desc: 'Profile missing gender' }
+                                    ].map((g) => (
+                                        <label key={g.id} className={`flex items-center gap-3 cursor-pointer px-3 py-2.5 hover:bg-pink-50 rounded-lg transition-colors ${genderFilter.includes(g.id) ? 'bg-pink-50 border-l-2 border-pink-500' : ''}`}>
+                                            <input
+                                                type="checkbox"
+                                                checked={genderFilter.includes(g.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setGenderFilter([...genderFilter, g.id]);
+                                                    } else {
+                                                        setGenderFilter(genderFilter.filter(item => item !== g.id));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded border-gray-300 text-pink-600 focus:ring-2 focus:ring-pink-500"
+                                            />
+                                            <div className="flex-1">
+                                                <div className="text-sm font-medium text-gray-900">{g.label}</div>
+                                                <div className="text-xs text-gray-500">{g.desc}</div>
+                                            </div>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
                         )}
@@ -2219,9 +2316,12 @@ const Users = () => {
                                                     );
                                                 })()}
                                                 <div>
-                                                    <p className="font-semibold text-gray-900 group-hover:text-indigo-600 group-hover:underline transition-colors">
-                                                        {u.firstname} {u.lastname}
-                                                    </p>
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <p className="font-semibold text-gray-900 group-hover:text-indigo-600 group-hover:underline transition-colors">
+                                                            {u.firstname} {u.lastname}
+                                                        </p>
+                                                        {renderEmploymentTypeBadge(u)}
+                                                    </div>
                                                     {u.profile_info?.onboarding_status === 'Pending_HR_Approval' && (
                                                         <span className="inline-block mt-0.5 px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold rounded-md">
                                                             Pending HR Approval
@@ -2291,13 +2391,6 @@ const Users = () => {
                                                             {openActionMenu === u.staffid && (
                                                                 <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
                                                                     <div className="py-1">
-                                                                        <button
-                                                                            onClick={() => { handleExpandUser(u.staffid); setOpenActionMenu(null); }}
-                                                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors font-semibold cursor-pointer"
-                                                                        >
-                                                                            <LuCalendar className="w-3.5 h-3.5 text-indigo-500" />
-                                                                            View Details
-                                                                        </button>
                                                                         <button
                                                                             onClick={() => { navigate(`/staff-profile/${u.staffid}`); setOpenActionMenu(null); }}
                                                                             className="w-full flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors font-semibold"
@@ -2439,6 +2532,7 @@ const Users = () => {
                                             <span className={'px-2.5 py-0.5 rounded-full text-xs font-medium ' + getRoleColor(u.role)}>
                                                 {getRoleName(u.role)}
                                             </span>
+                                            {renderEmploymentTypeBadge(u)}
                                             {renderWorkModeBadge(u)}
                                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                                                 u.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
@@ -4173,6 +4267,42 @@ const Users = () => {
                                         )}
                                     </div>
                                 )}
+
+                                {/* Employment Type Selection */}
+                                <div className="mt-4">
+                                    <label className="block text-base font-medium text-gray-700 mb-1.5">
+                                        Employment Type <span className="text-red-600 font-black text-lg ml-0.5 select-none">*</span>
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {[
+                                            { value: 'Full-time', label: 'Full Time', desc: 'Standard full-time employment' },
+                                            { value: 'Part-time', label: 'Part Time', desc: 'Flexible / reduced schedule' }
+                                        ].map((type) => {
+                                            const currentType = formData.employment_type || 'Full-time';
+                                            const isSelected = currentType === type.value;
+                                            return (
+                                                <button
+                                                    key={type.value}
+                                                    type="button"
+                                                    onClick={() => setFormData(prev => ({ ...prev, employment_type: type.value }))}
+                                                    className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                                                        isSelected
+                                                            ? 'border-purple-600 bg-purple-50/70 text-purple-900 shadow-sm ring-2 ring-purple-500/20'
+                                                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    <div className={`p-2 rounded-lg ${isSelected ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                                        <LuClock className="w-4 h-4" />
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-xs font-bold block">{type.label}</span>
+                                                        <span className="text-[10px] text-gray-400 block">{type.desc}</span>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
 
                                 {/* Only show password fields for new users */}
                                 {!editingUserId && (
