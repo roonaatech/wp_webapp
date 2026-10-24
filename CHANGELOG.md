@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.19.1](https://github.com/roonaatech/wp_webapp/compare/v2.19.0...v2.19.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* resolve sidebar submenu clipping and z-index overlap issues ([2899076](https://github.com/roonaatech/wp_webapp/commit/289907600ba06a3e5cf323f7f540dd0a0c11911a))
+
 ## [2.19.0](https://github.com/roonaatech/wp_webapp/compare/v2.18.24...v2.19.0) (2026-10-23)
 
 
