@@ -241,7 +241,7 @@ const Sidebar = () => {
     const NavLink = ({ to, icon, label, badge, indent = false }) => {
         const active = isActive(to);
         return (
-            <div className="relative group">
+            <div className={`relative group ${active ? 'z-20' : 'z-0'}`}>
                 <Link
                     to={to}
                     onMouseEnter={(e) => handleMouseEnter(to, e)}
@@ -305,7 +305,7 @@ const Sidebar = () => {
         const isChildActive = childPaths.some(p => location.pathname === p);
 
         return (
-            <div className="relative mb-1">
+            <div className={`relative mb-1 ${isChildActive ? 'z-20' : 'z-0'}`}>
                 <button
                     type="button"
                     onClick={onToggle}
@@ -329,8 +329,9 @@ const Sidebar = () => {
 
                 {/* Submenu Accordion */}
                 <div
-                    className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[600px] opacity-100 mt-1 mb-2 space-y-0.5' : 'max-h-0 opacity-0'
-                        }`}
+                    className={`transition-all duration-300 ease-in-out ${
+                        isOpen ? 'max-h-[800px] opacity-100 mt-1 mb-2 space-y-0.5 overflow-visible' : 'max-h-0 opacity-0 overflow-hidden'
+                    }`}
                 >
                     {children}
                 </div>
@@ -451,7 +452,7 @@ const Sidebar = () => {
             </div>
 
             {/* Navigation Menus */}
-            <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-visible hide-scrollbar py-2">
+            <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-visible hide-scrollbar pt-2 pb-8">
 
                 {/* 1. OVERVIEW / DASHBOARD */}
                 {!user.isServiceAccount && (
