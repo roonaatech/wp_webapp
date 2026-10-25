@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.19.2](https://github.com/roonaatech/wp_webapp/compare/v2.19.1...v2.19.2) (2026-10-25)
+
+
+### Features
+
+* add support for part-time attendance compliance hours in configuration and reports ([521bb31](https://github.com/roonaatech/wp_webapp/commit/521bb310ffc09d9f1810db05506eeb532bf934dd))
+
 ### [2.19.1](https://github.com/roonaatech/wp_webapp/compare/v2.19.0...v2.19.1) (2026-10-24)
 
 
