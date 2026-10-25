@@ -8,7 +8,7 @@ import DateFilterInput from '../components/DateFilterInput';
 import { canManageManualAttendance, getCachedRoles, getRoleById, fetchRoles } from '../utils/roleUtils';
 import { getCurrentInAppTimezone, formatDateOnly, formatInTimezone } from '../utils/timezone.util';
 import { usePageHeader } from '../context/PageHeaderContext';
-import { getAttendanceConfig } from '../utils/attendanceConfig';
+import { getAttendanceConfig, getFullTimeComplianceHours, getPartTimeComplianceHours } from '../utils/attendanceConfig';
 import {
     LuCalendar,
     LuClock,
@@ -74,7 +74,8 @@ const ManualAttendance = () => {
     }, [user.role]);
 
     // Compliance hours & timezone dynamically from settings
-    const [complianceHours, setComplianceHours] = useState(() => getAttendanceConfig().complianceHours);
+    const [complianceHours, setComplianceHours] = useState(() => getFullTimeComplianceHours());
+    const [complianceHoursPartTime, setComplianceHoursPartTime] = useState(() => getPartTimeComplianceHours());
 
     // Default office timings dynamically from settings (Attendance Configuration)
     const [defaultStartTime, setDefaultStartTime] = useState(() => getAttendanceConfig().startTime);
@@ -141,7 +142,8 @@ const ManualAttendance = () => {
             const config = getAttendanceConfig();
             if (config.startTime) setDefaultStartTime(config.startTime);
             if (config.endTime) setDefaultEndTime(config.endTime);
-            if (config.complianceHours) setComplianceHours(config.complianceHours);
+            if (config.complianceHours) setComplianceHours(config.complianceHoursFullTime || config.complianceHours);
+            if (config.complianceHoursPartTime) setComplianceHoursPartTime(config.complianceHoursPartTime);
         };
         window.addEventListener('settingsLoaded', handleSettingsLoaded);
         return () => window.removeEventListener('settingsLoaded', handleSettingsLoaded);
@@ -159,7 +161,8 @@ const ManualAttendance = () => {
                 const config = getAttendanceConfig(res.data?.map);
                 if (config.startTime) setDefaultStartTime(config.startTime);
                 if (config.endTime) setDefaultEndTime(config.endTime);
-                if (config.complianceHours) setComplianceHours(config.complianceHours);
+                if (config.complianceHours) setComplianceHours(config.complianceHoursFullTime || config.complianceHours);
+                if (config.complianceHoursPartTime) setComplianceHoursPartTime(config.complianceHoursPartTime);
             } catch (err) {
                 console.error("Failed to load settings:", err);
             }
@@ -223,21 +226,28 @@ const ManualAttendance = () => {
                 const configStart = res.data.default_check_in || defaultStartTime || getAttendanceConfig().startTime;
                 const configEnd = res.data.default_check_out || defaultEndTime || getAttendanceConfig().endTime;
                 const configHours = res.data.compliance_hours || complianceHours;
+                const configHoursPartTime = res.data.compliance_hours_part_time || complianceHoursPartTime;
 
                 if (res.data.default_check_in) setDefaultStartTime(res.data.default_check_in);
                 if (res.data.default_check_out) setDefaultEndTime(res.data.default_check_out);
                 if (res.data.compliance_hours) setComplianceHours(res.data.compliance_hours);
+                if (res.data.compliance_hours_part_time) setComplianceHoursPartTime(res.data.compliance_hours_part_time);
 
                 let formatted = [];
                 if (res.data.items) {
                     // Initialize editable row fields matching Attendance configuration from settings
-                    formatted = res.data.items.map(item => ({
-                        ...item,
-                        in_time: item.check_in_time || configStart,
-                        out_time: item.check_out_time || (item.existing_check_in_time ? calculateEndTime(item.existing_check_in_time, configHours) : configEnd),
-                        row_reason: item.reason || 'Work From Home',
-                        row_notes: item.notes || ''
-                    }));
+                    formatted = res.data.items.map(item => {
+                        const isPt = item.employment_type === 'Part-time';
+                        const targetHrs = item.target_compliance_hours || (isPt ? configHoursPartTime : configHours);
+                        const defaultOut = isPt ? calculateEndTime(configStart, targetHrs) : configEnd;
+                        return {
+                            ...item,
+                            in_time: item.check_in_time || configStart,
+                            out_time: item.check_out_time || (item.existing_check_in_time ? calculateEndTime(item.existing_check_in_time, targetHrs) : defaultOut),
+                            row_reason: item.reason || 'Work From Home',
+                            row_notes: item.notes || ''
+                        };
+                    });
                     setMissedItems(formatted);
                     setSelectedIds(new Set()); // reset selections
                 }
@@ -300,7 +310,7 @@ const ManualAttendance = () => {
         } finally {
             setLoading(false);
         }
-    }, [hasPermission, startDate, endDate, selectedStaffIds, defaultStartTime, defaultEndTime, calculateEndTime, complianceHours]);
+    }, [hasPermission, startDate, endDate, selectedStaffIds, defaultStartTime, defaultEndTime, calculateEndTime, complianceHours, complianceHoursPartTime]);
 
     // Fetch on filter changes
     useEffect(() => {
@@ -320,6 +330,8 @@ const ManualAttendance = () => {
             });
             if (res.data && res.data.recent) {
                 setRecentLogs(res.data.recent);
+                if (res.data.compliance_hours) setComplianceHours(res.data.compliance_hours);
+                if (res.data.compliance_hours_part_time) setComplianceHoursPartTime(res.data.compliance_hours_part_time);
             }
         } catch (err) {
             console.error("Error fetching recent logs:", err);
@@ -488,10 +500,12 @@ const ManualAttendance = () => {
 
             // If check_in time changed, auto-recalculate checkout time if user hasn't explicitly set it
             if (field === 'in_time' && value) {
-                if (value === defaultStartTime && defaultEndTime) {
+                const isPt = item.employment_type === 'Part-time';
+                const targetHrs = item.target_compliance_hours || (isPt ? complianceHoursPartTime : complianceHours);
+                if (value === defaultStartTime && defaultEndTime && !isPt) {
                     updated.out_time = defaultEndTime;
                 } else {
-                    updated.out_time = calculateEndTime(value, complianceHours);
+                    updated.out_time = calculateEndTime(value, targetHrs);
                 }
             }
 
@@ -500,15 +514,16 @@ const ManualAttendance = () => {
     };
 
     // Calculate duration in hours and minutes between two HH:mm strings
-    const getDurationMeta = (inTime, outTime) => {
-        if (!inTime || !outTime) return { text: '—', hours: 0, isCompliant: false };
+    const getDurationMeta = (inTime, outTime, targetHours = null) => {
+        const reqHours = targetHours !== null && targetHours !== undefined ? targetHours : complianceHours;
+        if (!inTime || !outTime) return { text: '—', hours: 0, isCompliant: false, targetHours: reqHours };
         try {
             const [inH, inM] = inTime.split(':').map(Number);
             const [outH, outM] = outTime.split(':').map(Number);
             const startTotal = inH * 60 + (inM || 0);
             const endTotal = outH * 60 + (outM || 0);
             const diff = endTotal - startTotal;
-            if (diff <= 0) return { text: 'Invalid', hours: 0, isCompliant: false };
+            if (diff <= 0) return { text: 'Invalid', hours: 0, isCompliant: false, targetHours: reqHours };
 
             const h = Math.floor(diff / 60);
             const m = diff % 60;
@@ -517,10 +532,11 @@ const ManualAttendance = () => {
             return {
                 text,
                 hours: hoursDec,
-                isCompliant: hoursDec >= complianceHours
+                isCompliant: hoursDec >= reqHours,
+                targetHours: reqHours
             };
         } catch (e) {
-            return { text: '—', hours: 0, isCompliant: false };
+            return { text: '—', hours: 0, isCompliant: false, targetHours: reqHours };
         }
     };
 
@@ -536,17 +552,20 @@ const ManualAttendance = () => {
 
         setMissedItems(prev => prev.map(item => {
             if (selectedIds.has(item.id) && !isItemFullDayLeave(item)) {
+                const isPt = item.employment_type === 'Part-time';
+                const targetHrs = item.target_compliance_hours || (isPt ? complianceHoursPartTime : complianceHours);
+                const itemOut = isPt ? calculateEndTime(effStart, targetHrs) : effEnd;
                 return {
                     ...item,
                     in_time: effStart,
-                    out_time: effEnd,
+                    out_time: itemOut,
                     row_reason: bulkReason || item.row_reason
                 };
             }
             return item;
         }));
 
-        toast.success(`Applied default office hours (${effStart} – ${effEnd}) to ${selectedIds.size} employee(s).`);
+        toast.success(`Applied default hours to ${selectedIds.size} employee(s).`);
     };
 
     // Bulk Action: Submit Selected Records
@@ -1216,7 +1235,8 @@ const ManualAttendance = () => {
                                             const isPendingLeave = isItemPendingLeave(item);
                                             const isHalfDayLeave = isItemHalfDayLeave(item);
                                             const isFullDayLeave = isItemFullDayLeave(item);
-                                            const dur = getDurationMeta(item.in_time, item.out_time);
+                                            const targetHrs = item.target_compliance_hours || (item.employment_type === 'Part-time' ? complianceHoursPartTime : complianceHours);
+                                            const dur = getDurationMeta(item.in_time, item.out_time, targetHrs);
                                             const isRowSubmitting = submittingRowId === item.id;
 
                                             return (
@@ -1269,9 +1289,18 @@ const ManualAttendance = () => {
                                                                 </div>
                                                             )}
                                                             <div className="min-w-0">
-                                                                <p className="font-bold text-slate-900 truncate">
-                                                                    {item.employee_name}
-                                                                </p>
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    <p className="font-bold text-slate-900 truncate">
+                                                                        {item.employee_name}
+                                                                    </p>
+                                                                    <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                                                                        item.employment_type === 'Part-time'
+                                                                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                                                            : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                                                    }`}>
+                                                                        {item.employment_type === 'Part-time' ? `PT (${complianceHoursPartTime}h)` : `FT (${complianceHours}h)`}
+                                                                    </span>
+                                                                </div>
                                                                 <p className="text-[11px] text-slate-500 truncate">
                                                                     {item.email}
                                                                 </p>
@@ -1383,7 +1412,7 @@ const ManualAttendance = () => {
                                                                                 ? 'bg-amber-50 text-amber-700 border border-amber-200'
                                                                                 : 'bg-slate-100 text-slate-400'
                                                                     }`}
-                                                                    title={dur.isCompliant ? `Meets compliance (${complianceHours}h)` : `Below compliance threshold (${complianceHours}h)`}
+                                                                    title={dur.isCompliant ? `Meets compliance (${dur.targetHours}h)` : `Below compliance threshold (${dur.targetHours}h)`}
                                                                 >
                                                                     {dur.text}
                                                                 </span>
@@ -1492,11 +1521,22 @@ const ManualAttendance = () => {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 text-xs">
                                     {recentLogs.map((log) => {
-                                        const dur = getDurationMeta(log.check_in_time, log.check_out_time);
+                                        const isPt = log.employment_type === 'Part-time';
+                                        const targetHrs = isPt ? complianceHoursPartTime : complianceHours;
+                                        const dur = getDurationMeta(log.check_in_time, log.check_out_time, targetHrs);
                                         return (
                                             <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
                                                 <td className="p-3.5 pl-4 font-bold text-slate-900">
-                                                    {log.employee_name}
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span>{log.employee_name}</span>
+                                                        <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                                                            isPt 
+                                                                ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                                                                : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                                        }`}>
+                                                            {isPt ? `PT (${complianceHoursPartTime}h)` : `FT (${complianceHours}h)`}
+                                                        </span>
+                                                    </div>
                                                     <span className="block font-normal text-[11px] text-slate-400">
                                                         {log.email}
                                                     </span>
@@ -1511,9 +1551,12 @@ const ManualAttendance = () => {
                                                     {log.check_out_time || '—'}
                                                 </td>
                                                 <td className="p-3.5">
-                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                                        dur.isCompliant ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                                                    }`}>
+                                                    <span 
+                                                        className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                                            dur.isCompliant ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                                                        }`}
+                                                        title={dur.isCompliant ? `Meets compliance (${dur.targetHours}h)` : `Below compliance threshold (${dur.targetHours}h)`}
+                                                    >
                                                         {dur.text}
                                                     </span>
                                                 </td>
@@ -1597,57 +1640,81 @@ const ManualAttendance = () => {
                             </div>
 
                             {/* Check-In & Check-Out Timings */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                        Check-In Time *
-                                    </label>
-                                    <input
-                                        type="time"
-                                        value={modalData.check_in_time}
-                                        onChange={(e) => {
-                                            const inT = e.target.value;
-                                            setModalData({
-                                                ...modalData,
-                                                check_in_time: inT,
-                                                check_out_time: (inT === defaultStartTime && defaultEndTime)
-                                                    ? defaultEndTime
-                                                    : calculateEndTime(inT, complianceHours)
-                                            });
-                                        }}
-                                        required
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                        Check-Out Time *
-                                    </label>
-                                    <input
-                                        type="time"
-                                        value={modalData.check_out_time}
-                                        onChange={(e) => setModalData({ ...modalData, check_out_time: e.target.value })}
-                                        required
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    />
-                                </div>
-                            </div>
+                            {(() => {
+                                const selectedStaff = allStaffList.find(s => String(s.staffid) === String(modalData.staff_id));
+                                const isPtModal = selectedStaff?.employment_type === 'Part-time';
+                                const targetHrsModal = isPtModal ? complianceHoursPartTime : complianceHours;
+                                const defaultOut = isPtModal
+                                    ? calculateEndTime(defaultStartTime || getAttendanceConfig().startTime, targetHrsModal)
+                                    : (defaultEndTime || getAttendanceConfig().endTime);
+                                const modalDur = getDurationMeta(modalData.check_in_time, modalData.check_out_time, targetHrsModal);
 
-                            {/* Compliance Helper Button */}
-                            <div className="flex items-center justify-between text-xs bg-emerald-50 text-emerald-800 p-2 rounded-xl border border-emerald-200">
-                                <span>Duration: <strong>{getDurationMeta(modalData.check_in_time, modalData.check_out_time).text}</strong></span>
-                                <button
-                                    type="button"
-                                    onClick={() => setModalData({
-                                        ...modalData,
-                                        check_in_time: defaultStartTime || getAttendanceConfig().startTime,
-                                        check_out_time: defaultEndTime || getAttendanceConfig().endTime
-                                    })}
-                                    className="font-bold text-emerald-700 underline hover:text-emerald-900"
-                                >
-                                    Apply Default ({defaultStartTime || getAttendanceConfig().startTime} - {defaultEndTime || getAttendanceConfig().endTime})
-                                </button>
-                            </div>
+                                return (
+                                    <>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <div className="flex justify-between items-center mb-1.5">
+                                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                                        Check-In Time *
+                                                    </label>
+                                                    <span className="text-[10px] text-indigo-600 font-semibold">
+                                                        Office start: {defaultStartTime || getAttendanceConfig().startTime}
+                                                    </span>
+                                                </div>
+                                                <input
+                                                    type="time"
+                                                    value={modalData.check_in_time}
+                                                    onChange={(e) => {
+                                                        const inT = e.target.value;
+                                                        setModalData({
+                                                            ...modalData,
+                                                            check_in_time: inT,
+                                                            check_out_time: (inT === defaultStartTime && defaultEndTime && !isPtModal)
+                                                                ? defaultEndTime
+                                                                : calculateEndTime(inT, targetHrsModal)
+                                                        });
+                                                    }}
+                                                    required
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                                    Check-Out Time *
+                                                </label>
+                                                <input
+                                                    type="time"
+                                                    value={modalData.check_out_time}
+                                                    onChange={(e) => setModalData({ ...modalData, check_out_time: e.target.value })}
+                                                    required
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Compliance Helper Button */}
+                                        <div className="flex items-center justify-between text-xs bg-emerald-50 text-emerald-800 p-2 rounded-xl border border-emerald-200">
+                                            <span>
+                                                Duration: <strong>{modalDur.text}</strong>
+                                                <span className="text-[10px] text-emerald-600 ml-1.5">
+                                                    (Target: {targetHrsModal}h {isPtModal ? 'PT' : 'FT'})
+                                                </span>
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setModalData({
+                                                    ...modalData,
+                                                    check_in_time: defaultStartTime || getAttendanceConfig().startTime,
+                                                    check_out_time: defaultOut
+                                                })}
+                                                className="font-bold text-emerald-700 underline hover:text-emerald-900 cursor-pointer"
+                                            >
+                                                Apply Default ({defaultStartTime || getAttendanceConfig().startTime} - {defaultOut})
+                                            </button>
+                                        </div>
+                                    </>
+                                );
+                            })()}
 
                             {/* Reason */}
                             <div>

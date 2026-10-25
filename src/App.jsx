@@ -126,6 +126,10 @@ const GlobalInit = ({ children }) => {
           const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
           if (diff > 0) map.attendance_compliance_hours = String(Math.round((diff / 60) * 100) / 100);
         }
+        if (!map.attendance_compliance_hours_part_time) {
+          const ft = parseFloat(map.attendance_compliance_hours) || 9;
+          map.attendance_compliance_hours_part_time = String(Math.round((ft / 2) * 100) / 100 || 4.5);
+        }
         localStorage.setItem('settings', JSON.stringify(map));
         // Dispatch event to notify components that settings are loaded
         window.dispatchEvent(new Event('settingsLoaded'));

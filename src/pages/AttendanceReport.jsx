@@ -11,7 +11,7 @@ import { formatDateOnly, formatTimeOnly, formatInTimezone, getCurrentInAppTimezo
 import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet, LuShieldCheck, LuQrCode, LuSmartphone, LuLaptop, LuLayers, LuShield, LuShieldAlert, LuClock } from 'react-icons/lu';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { getComplianceHours } from '../utils/attendanceConfig';
+import { getComplianceHours, getFullTimeComplianceHours, getPartTimeComplianceHours } from '../utils/attendanceConfig';
 
 const PUNCH_SOURCE_OPTIONS = [
     { value: '', label: 'All Sources', icon: LuLayers, iconClass: 'text-slate-400' },
@@ -171,6 +171,7 @@ const AttendanceReport = () => {
     const [deletingLogId, setDeletingLogId] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [apiComplianceHours, setApiComplianceHours] = useState(null);
+    const [apiComplianceHoursPartTime, setApiComplianceHoursPartTime] = useState(null);
     const [, setSettingsVersion] = useState(0);
 
     useEffect(() => {
@@ -318,8 +319,11 @@ const AttendanceReport = () => {
             setLogs(response.data.reports || []);
             setTotalItems(response.data.totalItems || 0);
             setTotalPages(response.data.totalPages || 1);
-            if (response.data.compliance_hours) {
-                setApiComplianceHours(parseFloat(response.data.compliance_hours));
+            if (response.data.compliance_hours_full_time || response.data.compliance_hours) {
+                setApiComplianceHours(parseFloat(response.data.compliance_hours_full_time || response.data.compliance_hours));
+            }
+            if (response.data.compliance_hours_part_time) {
+                setApiComplianceHoursPartTime(parseFloat(response.data.compliance_hours_part_time));
             }
         } catch (err) {
             console.error('Error fetching attendance logs:', err);
@@ -442,18 +446,27 @@ const AttendanceReport = () => {
         return `${hours}h ${mins}m / day`;
     };
 
-    const complianceHours = apiComplianceHours || getComplianceHours();
+    const fullTimeComplianceHours = apiComplianceHours || getFullTimeComplianceHours();
+    const partTimeComplianceHours = apiComplianceHoursPartTime || getPartTimeComplianceHours();
+    const complianceHours = fullTimeComplianceHours;
+
+    const getEmployeeTargetHours = (userOrType) => {
+        const t = typeof userOrType === 'string' ? userOrType : (userOrType?.employment_type || 'Full-time');
+        const isPt = String(t).trim().toLowerCase().replace(/[\s_-]+/g, '') === 'parttime';
+        return isPt ? partTimeComplianceHours : fullTimeComplianceHours;
+    };
 
     const complianceOptions = [
         { value: '', label: 'All Compliance', icon: LuShield, iconClass: 'text-slate-400' },
-        { value: 'compliant', label: `Compliant (≥ ${complianceHours}h)`, icon: LuShieldCheck, iconClass: 'text-emerald-600' },
-        { value: 'non_compliant', label: `Non-Compliant (< ${complianceHours}h)`, icon: LuShieldAlert, iconClass: 'text-rose-600' },
+        { value: 'compliant', label: `Compliant (≥${fullTimeComplianceHours}h FT / ≥${partTimeComplianceHours}h PT)`, icon: LuShieldCheck, iconClass: 'text-emerald-600' },
+        { value: 'non_compliant', label: `Non-Compliant (< Required)`, icon: LuShieldAlert, iconClass: 'text-rose-600' },
         { value: 'in_progress', label: 'In Progress', icon: LuClock, iconClass: 'text-amber-600' }
     ];
 
-    const getAttendanceCompliance = (checkInStr, checkOutStr, threshold = complianceHours) => {
+    const getAttendanceCompliance = (checkInStr, checkOutStr, threshold = null, employee = null, dayExtraMinutes = 0) => {
+        const targetThreshold = threshold !== null && threshold !== undefined ? threshold : getEmployeeTargetHours(employee);
         if (!checkInStr) {
-            return { isCompliant: false, isActive: false, hours: 0, label: '—' };
+            return { isCompliant: false, isActive: false, hours: 0, targetHours: targetThreshold, label: '—' };
         }
 
         // Active check-in: checked in, but checkout has not been completed
@@ -462,6 +475,7 @@ const AttendanceReport = () => {
                 isCompliant: false,
                 isActive: true,
                 hours: 0,
+                targetHours: targetThreshold,
                 label: 'In Progress'
             };
         }
@@ -470,7 +484,7 @@ const AttendanceReport = () => {
             const checkIn = parseAppTimezone(checkInStr);
             const checkOut = parseAppTimezone(checkOutStr);
             if (!checkIn || !checkOut || isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
-                return { isCompliant: false, isActive: false, hours: 0, label: 'Non-Compliant' };
+                return { isCompliant: false, isActive: false, hours: 0, targetHours: targetThreshold, label: 'Non-Compliant' };
             }
 
             let diffMs = checkOut.getTime() - checkIn.getTime();
@@ -483,22 +497,26 @@ const AttendanceReport = () => {
                 }
             }
 
-            if (diffMs <= 0) return { isCompliant: false, isActive: false, hours: 0, label: 'Non-Compliant' };
+            if (diffMs <= 0) return { isCompliant: false, isActive: false, hours: 0, targetHours: targetThreshold, label: 'Non-Compliant' };
 
-            const hours = diffMs / (1000 * 60 * 60);
-            const isCompliant = hours >= threshold;
+            const totalMins = Math.floor(diffMs / 60000) + (Number(dayExtraMinutes) || 0);
+            const hours = totalMins / 60;
+            const isCompliant = hours >= targetThreshold;
             return {
                 isCompliant,
                 isActive: false,
                 hours,
+                targetHours: targetThreshold,
                 label: isCompliant ? 'Compliant' : 'Non-Compliant'
             };
         } catch (e) {
-            return { isCompliant: false, isActive: false, hours: 0, label: 'Non-Compliant' };
+            return { isCompliant: false, isActive: false, hours: 0, targetHours: targetThreshold, label: 'Non-Compliant' };
         }
     };
 
-    const getGroupCompliance = (userLogs, threshold = complianceHours) => {
+    const getGroupCompliance = (userLogs, threshold = null, employee = null) => {
+        const emp = employee || userLogs[0]?.user;
+        const targetThreshold = threshold !== null && threshold !== undefined ? threshold : getEmployeeTargetHours(emp);
         const dayTotals = {};
         const activeDays = new Set();
         userLogs.forEach(log => {
@@ -522,13 +540,14 @@ const AttendanceReport = () => {
             } else if (log.check_in_time && !log.check_out_time) {
                 activeDays.add(d);
             }
-            dayTotals[d] += mins;
+            const extraMins = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+            dayTotals[d] += mins + extraMins;
         });
 
         let compliantDays = 0;
         let nonCompliantDays = 0;
         let inProgressDays = 0;
-        const thresholdMins = threshold * 60;
+        const thresholdMins = Math.round(targetThreshold * 60);
 
         Object.entries(dayTotals).forEach(([d, totalMins]) => {
             if (totalMins >= thresholdMins) {
@@ -562,7 +581,8 @@ const AttendanceReport = () => {
         let nonCompliantCount = 0;
         let inProgressCount = 0;
         logs.forEach(log => {
-            const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+            const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+            const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time, null, log.user, extra);
             if (comp.isActive) inProgressCount++;
             else if (comp.isCompliant) compliantCount++;
             else nonCompliantCount++;
@@ -638,19 +658,20 @@ const AttendanceReport = () => {
             let exportNonCompliantCount = 0;
             let exportInProgressCount = 0;
             exportLogs.forEach((log) => {
-                const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+                const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+                const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time, null, log.user, extra);
                 if (comp.isActive) exportInProgressCount++;
                 else if (comp.isCompliant) exportCompliantCount++;
                 else exportNonCompliantCount++;
             });
 
             // Subtitle metadata
-            sheet.mergeCells('A2:K2');
+            sheet.mergeCells('A2:L2');
             const metaCell = sheet.getCell('A2');
             const compLabel = complianceFilter === 'compliant'
-                ? `Compliant (≥${complianceHours}h)`
+                ? `Compliant (≥${fullTimeComplianceHours}h FT / ≥${partTimeComplianceHours}h PT)`
                 : complianceFilter === 'non_compliant'
-                ? `Non-Compliant (<${complianceHours}h)`
+                ? `Non-Compliant (< Required)`
                 : complianceFilter === 'in_progress'
                 ? 'In Progress'
                 : 'All';
@@ -675,6 +696,7 @@ const AttendanceReport = () => {
             const headers = [
                 'Staff ID',
                 'Employee Name',
+                'Employment Type',
                 'Email',
                 'Date',
                 'Check-In Time',
@@ -710,12 +732,14 @@ const AttendanceReport = () => {
                 const emp = log.user || {};
                 const name = `${emp.firstname || ''} ${emp.lastname || ''}`.trim() || 'Unknown';
                 const staffId = emp.staffid || log.staff_id || '—';
+                const empType = emp.employment_type || 'Full-time';
                 const email = emp.email || '—';
                 const date = log.date ? formatDateOnly(log.date) : '—';
                 const checkIn = log.check_in_time ? formatTimeOnly(log.check_in_time) : '-';
                 const checkOut = log.check_out_time ? formatTimeOnly(log.check_out_time) : '-';
                 const duration = calculateDuration(log.check_in_time, log.check_out_time);
-                const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+                const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+                const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time, null, log.user, extra);
                 const complianceStr = comp.label;
                 const status = log.check_out_time ? 'Completed' : 'Active Check-In';
                 const fullCheckIn = log.check_in_time || '—';
@@ -724,6 +748,7 @@ const AttendanceReport = () => {
                 const r = sheet.addRow([
                     staffId,
                     name,
+                    empType,
                     email,
                     date,
                     checkIn,
@@ -745,13 +770,13 @@ const AttendanceReport = () => {
                         right: { style: 'thin', color: { argb: 'FFF1F5F9' } }
                     };
 
-                    if ([1, 4, 5, 6, 7, 8, 9].includes(colNumber)) {
+                    if ([1, 3, 5, 6, 7, 8, 9, 10].includes(colNumber)) {
                         cell.alignment = { horizontal: 'center', vertical: 'middle' };
                     } else {
                         cell.alignment = { horizontal: 'left', vertical: 'middle' };
                     }
 
-                    if (colNumber === 8) { // Compliance
+                    if (colNumber === 9) { // Compliance
                         if (complianceStr === 'Compliant') {
                             cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF15803D' } }; // Emerald
                         } else if (complianceStr === 'In Progress') {
@@ -761,7 +786,7 @@ const AttendanceReport = () => {
                         }
                     }
 
-                    if (colNumber === 9) { // Status
+                    if (colNumber === 10) { // Status
                         if (status === 'Completed') {
                             cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF15803D' } };
                         } else {
@@ -775,6 +800,7 @@ const AttendanceReport = () => {
             const summaryRow = sheet.addRow([
                 'TOTAL',
                 `${exportLogs.length} Records`,
+                '',
                 '',
                 '',
                 '',
@@ -799,7 +825,7 @@ const AttendanceReport = () => {
                     bottom: { style: 'medium', color: { argb: 'FFCBD5E1' } },
                     right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
                 };
-                if ([1, 8].includes(colNumber)) {
+                if ([1, 9].includes(colNumber)) {
                     cell.alignment = { horizontal: 'center', vertical: 'middle' };
                 }
             });
@@ -807,6 +833,7 @@ const AttendanceReport = () => {
             sheet.columns = [
                 { key: 'staffId', width: 12 },
                 { key: 'name', width: 25 },
+                { key: 'employmentType', width: 16 },
                 { key: 'email', width: 28 },
                 { key: 'date', width: 15 },
                 { key: 'checkIn', width: 14 },
@@ -1229,9 +1256,18 @@ const AttendanceReport = () => {
                                                                 </div>
                                                             )}
                                                             <div>
-                                                                <p className="font-bold text-slate-800 leading-tight">
-                                                                    {emp.firstname} {emp.lastname}
-                                                                </p>
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    <p className="font-bold text-slate-800 leading-tight">
+                                                                        {emp.firstname} {emp.lastname}
+                                                                    </p>
+                                                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                                                        emp.employment_type === 'Part-time' 
+                                                                            ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                                                                            : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                                                    }`}>
+                                                                        {emp.employment_type === 'Part-time' ? `PT (${partTimeComplianceHours}h)` : `FT (${fullTimeComplianceHours}h)`}
+                                                                    </span>
+                                                                </div>
                                                                 <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
                                                                     <span>{emp.email}</span>
                                                                     <span>•</span>
@@ -1270,22 +1306,33 @@ const AttendanceReport = () => {
                                                     {/* Compliance */}
                                                     <td className="px-4 py-2.5">
                                                         {(() => {
-                                                            const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+                                                            const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+                                                            const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time, null, log.user, extra);
+                                                            const targetHrs = (log.user?.employment_type === 'Part-time' ? partTimeComplianceHours : fullTimeComplianceHours);
                                                             if (comp.isActive) {
                                                                 return (
-                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                    <span 
+                                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200"
+                                                                        title={`Target: ${targetHrs}h/day`}
+                                                                    >
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                                                                         In Progress
                                                                     </span>
                                                                 );
                                                             }
                                                             return comp.isCompliant ? (
-                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                <span 
+                                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                                    title={`Meets threshold of ${targetHrs}h (${log.user?.employment_type || 'Full-time'})${extra > 0 ? ` [inc. ${Math.round(extra/60*10)/10}h OD/Time-off]` : ''}`}
+                                                                >
                                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                                                     Compliant
                                                                 </span>
                                                             ) : (
-                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                                <span 
+                                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200"
+                                                                    title={`Below threshold of ${targetHrs}h (${log.user?.employment_type || 'Full-time'})`}
+                                                                >
                                                                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                                                                     Non-Compliant
                                                                 </span>
@@ -1345,10 +1392,17 @@ const AttendanceReport = () => {
                                                                     </div>
                                                                 )}
                                                                 <div>
-                                                                    <div className="flex items-center gap-2">
+                                                                    <div className="flex items-center gap-2 flex-wrap">
                                                                         <p className="font-bold text-slate-800 leading-tight">
                                                                             {emp.firstname} {emp.lastname}
                                                                         </p>
+                                                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                                                            emp.employment_type === 'Part-time' 
+                                                                                ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                                                                                : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                                                        }`}>
+                                                                            {emp.employment_type === 'Part-time' ? `PT (${partTimeComplianceHours}h)` : `FT (${fullTimeComplianceHours}h)`}
+                                                                        </span>
                                                                         <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider animate-pulse">
                                                                             {group.logs.length} entries
                                                                         </span>
@@ -1376,7 +1430,7 @@ const AttendanceReport = () => {
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             {(() => {
-                                                                const comp = getGroupCompliance(group.logs);
+                                                                const comp = getGroupCompliance(group.logs, null, emp);
                                                                 if (comp.isOnlyInProgress) {
                                                                     return (
                                                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
@@ -1432,7 +1486,7 @@ const AttendanceReport = () => {
                                                     {isExpanded && group.logs.map((log, index) => {
                                                         const isLast = index === group.logs.length - 1;
                                                         return (
-                                                            <tr key={log.id} className="bg-slate-50/20 hover:bg-slate-50/50 border-l-2 border-indigo-500/30 transition">
+                                                             <tr key={log.id} className="bg-slate-50/20 hover:bg-slate-50/50 border-l-2 border-indigo-500/30 transition">
                                                                 <td className="px-4 py-2.5 pl-10">
                                                                     <div className="flex items-center gap-2 text-xs font-semibold">
                                                                         <span className="font-mono text-slate-300">{isLast ? '└─' : '├─'}</span>
@@ -1461,22 +1515,33 @@ const AttendanceReport = () => {
                                                                 </td>
                                                                 <td className="px-4 py-2.5">
                                                                     {(() => {
-                                                                        const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time);
+                                                                        const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+                                                                        const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time, null, log.user, extra);
+                                                                        const targetHrs = (log.user?.employment_type === 'Part-time' ? partTimeComplianceHours : fullTimeComplianceHours);
                                                                         if (comp.isActive) {
                                                                             return (
-                                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                                <span 
+                                                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200"
+                                                                                    title={`Target: ${targetHrs}h/day`}
+                                                                                >
                                                                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                                                                                     In Progress
                                                                                 </span>
                                                                             );
                                                                         }
                                                                         return comp.isCompliant ? (
-                                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                            <span 
+                                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                                                title={`Meets threshold of ${targetHrs}h (${log.user?.employment_type || 'Full-time'})${extra > 0 ? ` [inc. ${Math.round(extra/60*10)/10}h OD/Time-off]` : ''}`}
+                                                                            >
                                                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                                                                 Compliant
                                                                             </span>
                                                                         ) : (
-                                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                                            <span 
+                                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200"
+                                                                                title={`Below threshold of ${targetHrs}h (${log.user?.employment_type || 'Full-time'})`}
+                                                                            >
                                                                                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                                                                                 Non-Compliant
                                                                             </span>

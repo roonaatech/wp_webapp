@@ -86,6 +86,7 @@ export default function Settings() {
         session_timeout: '168',
         inactivity_timeout: '5',
         attendance_compliance_hours: String(getAttendanceConfig().complianceHours),
+        attendance_compliance_hours_part_time: String(getAttendanceConfig().complianceHoursPartTime || 4.5),
         office_start_time: getAttendanceConfig().startTime,
         office_end_time: getAttendanceConfig().endTime,
         module_attendance_enabled: 'true'
@@ -183,14 +184,36 @@ export default function Settings() {
         },
         {
             category: 'Attendance Configuration',
-            description: 'Manage attendance compliance and daily office hour requirements',
+            description: 'Manage attendance compliance and daily office hour requirements for full-time and part-time employees',
             icon: <FiCheckCircle className="text-emerald-600" />,
             settings: [
                 {
                     key: 'office_hours',
                     label: 'Office Hours',
-                    description: 'Set the office start and end times. Daily compliance hours are auto-calculated from the difference. Employees with logged hours below this threshold will be marked Non-Compliant.',
+                    description: 'Set the company office start and end times. Full-time daily compliance hours can be auto-calculated from the difference.',
                     type: 'office-hours'
+                },
+                {
+                    key: 'attendance_compliance_hours',
+                    label: 'Full-Time Accepted Hours',
+                    description: 'Daily minimum accepted hours (attendance + time-off + on-duty) for full-time employees to be marked Compliant for salary calculation (default: auto-calculated from office hours or 9 hours)',
+                    type: 'number',
+                    min: 1,
+                    max: 24,
+                    step: 0.5,
+                    unit: 'hours',
+                    placeholder: '9'
+                },
+                {
+                    key: 'attendance_compliance_hours_part_time',
+                    label: 'Part-Time Accepted Hours',
+                    description: 'Daily minimum accepted hours (attendance + time-off + on-duty) for part-time employees to be marked Compliant for salary calculation (default: 4.5 hours)',
+                    type: 'number',
+                    min: 0.5,
+                    max: 24,
+                    step: 0.5,
+                    unit: 'hours',
+                    placeholder: '4.5'
                 }
             ]
         },
@@ -422,7 +445,7 @@ export default function Settings() {
             });
             if (response.data && response.data.map) {
                 const map = { ...response.data.map };
-                if (map.office_start_time && map.office_end_time) {
+                if (!map.attendance_compliance_hours && map.office_start_time && map.office_end_time) {
                     map.attendance_compliance_hours = String(calculateHoursBetween(map.office_start_time, map.office_end_time));
                 }
                 setSettings(prev => ({
@@ -474,7 +497,7 @@ export default function Settings() {
         const configItem = settingsConfig
             .flatMap(c => c.settings)
             .find(s => s.key === key);
-            
+
         if (configItem && configItem.type === 'number') {
             const num = parseFloat(value);
             if (!isNaN(num)) {
@@ -510,23 +533,29 @@ export default function Settings() {
                     return;
                 }
 
-                // Save all three settings
-                await Promise.all([
+                // Save office start and end time settings
+                const savePromises = [
                     axios.post(`${API_BASE_URL}/api/settings`, { key: 'office_start_time', value: startTime, is_public: true, category: 'attendance' }, { headers: { 'x-access-token': token } }),
-                    axios.post(`${API_BASE_URL}/api/settings`, { key: 'office_end_time', value: endTime, is_public: true, category: 'attendance' }, { headers: { 'x-access-token': token } }),
-                    axios.post(`${API_BASE_URL}/api/settings`, { key: 'attendance_compliance_hours', value: String(hours), is_public: true, category: 'attendance' }, { headers: { 'x-access-token': token } })
-                ]);
+                    axios.post(`${API_BASE_URL}/api/settings`, { key: 'office_end_time', value: endTime, is_public: true, category: 'attendance' }, { headers: { 'x-access-token': token } })
+                ];
+
+                if (!settings.attendance_compliance_hours) {
+                    savePromises.push(
+                        axios.post(`${API_BASE_URL}/api/settings`, { key: 'attendance_compliance_hours', value: String(hours), is_public: true, category: 'attendance' }, { headers: { 'x-access-token': token } })
+                    );
+                }
+
+                await Promise.all(savePromises);
 
                 // Update localStorage
                 const existingSettings = JSON.parse(localStorage.getItem('settings') || '{}');
                 existingSettings.office_start_time = startTime;
                 existingSettings.office_end_time = endTime;
-                existingSettings.attendance_compliance_hours = String(hours);
+                if (!existingSettings.attendance_compliance_hours) {
+                    existingSettings.attendance_compliance_hours = String(hours);
+                }
                 localStorage.setItem('settings', JSON.stringify(existingSettings));
                 window.dispatchEvent(new Event('settingsLoaded'));
-
-                // Update local state
-                setSettings(prev => ({ ...prev, attendance_compliance_hours: String(hours) }));
 
                 toast.success('Office hours saved successfully');
                 setSavingKey(null);
@@ -536,8 +565,8 @@ export default function Settings() {
             await axios.post(`${API_BASE_URL}/api/settings`, {
                 key: key,
                 value: String(value),
-                is_public: key.startsWith('module_') || key === 'application_timezone' || key === 'application_date_format' || key === 'application_time_format',
-                category: key.startsWith('module_') ? 'modules' : undefined
+                is_public: key.startsWith('module_') || key.startsWith('attendance_') || key.startsWith('office_') || key.startsWith('allowed_') || key === 'application_timezone' || key === 'application_date_format' || key === 'application_time_format',
+                category: key.startsWith('module_') ? 'modules' : (key.startsWith('attendance_') || key.startsWith('office_') ? 'attendance' : undefined)
             }, {
                 headers: { 'x-access-token': token }
             });
@@ -739,12 +768,11 @@ export default function Settings() {
                                                                         settings.office_end_time || '18:30'
                                                                     );
                                                                     return (
-                                                                        <div className={`text-xs font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1.5 ${
-                                                                            hrs > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
-                                                                        }`}>
+                                                                        <div className={`text-xs font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1.5 ${hrs > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+                                                                            }`}>
                                                                             <FiClock size={12} />
                                                                             {hrs > 0
-                                                                                ? `Daily Compliance: ${hrs} hour${hrs !== 1 ? 's' : ''}`
+                                                                                ? `Approved Office Hours: ${hrs} hour${hrs !== 1 ? 's' : ''}`
                                                                                 : 'End time must be after start time'
                                                                             }
                                                                         </div>
@@ -853,22 +881,19 @@ export default function Settings() {
                                                                         saveSetting(setting.key, nextVal);
                                                                     }}
                                                                     disabled={savingKey === setting.key}
-                                                                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:ring-offset-2 ${
-                                                                        (settings[setting.key] === 'true' || settings[setting.key] === true) ? 'bg-purple-600' : 'bg-gray-300'
-                                                                    } ${savingKey === setting.key ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:ring-offset-2 ${(settings[setting.key] === 'true' || settings[setting.key] === true) ? 'bg-purple-600' : 'bg-gray-300'
+                                                                        } ${savingKey === setting.key ? 'opacity-60 cursor-not-allowed' : ''}`}
                                                                 >
                                                                     <span
                                                                         aria-hidden="true"
-                                                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                                                            (settings[setting.key] === 'true' || settings[setting.key] === true) ? 'translate-x-5' : 'translate-x-0'
-                                                                        }`}
+                                                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${(settings[setting.key] === 'true' || settings[setting.key] === true) ? 'translate-x-5' : 'translate-x-0'
+                                                                            }`}
                                                                     />
                                                                 </button>
-                                                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                                                                    (settings[setting.key] === 'true' || settings[setting.key] === true)
+                                                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${(settings[setting.key] === 'true' || settings[setting.key] === true)
                                                                         ? 'text-purple-700 bg-purple-50 border border-purple-200'
                                                                         : 'text-gray-600 bg-gray-100 border border-gray-200'
-                                                                }`}>
+                                                                    }`}>
                                                                     {(settings[setting.key] === 'true' || settings[setting.key] === true) ? 'Enabled' : 'Disabled'}
                                                                 </span>
                                                             </div>

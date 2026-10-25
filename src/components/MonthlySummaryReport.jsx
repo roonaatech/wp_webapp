@@ -6,7 +6,7 @@ import { getCurrentInAppTimezone, formatDateOnly, formatTimeOnly } from '../util
 import { FiPlusCircle, FiMinusCircle, FiChevronLeft, FiChevronRight, FiDownload, FiAlertTriangle, FiDollarSign, FiCalendar, FiClock, FiTarget, FiFileText, FiCheck, FiX } from 'react-icons/fi';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { getComplianceHours, isAttendanceEnabled } from '../utils/attendanceConfig';
+import { getComplianceHours, getFullTimeComplianceHours, getPartTimeComplianceHours, isAttendanceEnabled } from '../utils/attendanceConfig';
 
 const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -70,9 +70,11 @@ const MonthlySummaryReport = () => {
     for (let y = now.getFullYear(); y >= now.getFullYear() - 5; y--) years.push(y);
 
     const [apiComplianceHours, setApiComplianceHours] = useState(null);
+    const [apiComplianceHoursPartTime, setApiComplianceHoursPartTime] = useState(null);
     const [apiAllowedLeave, setApiAllowedLeave] = useState(null);
     const [apiAllowedTimeOff, setApiAllowedTimeOff] = useState(null);
-    const complianceHours = apiComplianceHours || getComplianceHours();
+    const complianceHours = apiComplianceHours || getFullTimeComplianceHours();
+    const complianceHoursPartTime = apiComplianceHoursPartTime || getPartTimeComplianceHours();
 
     const getSessionCompliance = (sess, threshold = complianceHours) => {
         // Active session: currently checked in without checkout
@@ -212,6 +214,9 @@ const MonthlySummaryReport = () => {
             if (res.data.compliance_hours) {
                 setApiComplianceHours(parseFloat(res.data.compliance_hours));
             }
+            if (res.data.compliance_hours_part_time) {
+                setApiComplianceHoursPartTime(parseFloat(res.data.compliance_hours_part_time));
+            }
             if (res.data.allowed_leave_per_month !== undefined) {
                 setApiAllowedLeave(parseFloat(res.data.allowed_leave_per_month));
             }
@@ -309,6 +314,7 @@ const MonthlySummaryReport = () => {
 
             const summaryColumns = [
                 { header: 'Employee Name', key: 'name', width: 25 },
+                { header: 'Employment Type', key: 'employment_type', width: 16 },
                 { header: 'Email', key: 'email', width: 30 }
             ];
             if (isAttendanceModuleActive) {
@@ -377,6 +383,7 @@ const MonthlySummaryReport = () => {
 
                 const rowData = {
                     name: fullName,
+                    employment_type: s.employment_type || 'Full-time',
                     email: s.email,
                     leave: s.leave_days || 0,
                     timeoff: formatHours(s.timeoff_hours, s.timeoff_minutes),
@@ -403,20 +410,27 @@ const MonthlySummaryReport = () => {
 
                 row.eachCell((cell, colNumber) => {
                     cell.border = borderStyle;
-                    if ([3, 4, 5, 6, 7, 8, 9].includes(colNumber)) {
-                        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                    }
-                    if (colNumber === 4 && (s.absent_days || 0) > 0) {
-                        cell.font = { color: { argb: 'FFE11D48' }, bold: true };
-                    }
-                    if (colNumber === 9 && compDays > 0) {
-                        cell.font = { color: { argb: 'FF15803D' }, bold: true };
+                    if (isAttendanceModuleActive) {
+                        if ([2, 4, 5, 6, 7, 8, 9, 10].includes(colNumber)) {
+                            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                        }
+                        if (colNumber === 5 && (s.absent_days || 0) > 0) {
+                            cell.font = { color: { argb: 'FFE11D48' }, bold: true };
+                        }
+                        if (colNumber === 10 && compDays > 0) {
+                            cell.font = { color: { argb: 'FF15803D' }, bold: true };
+                        }
+                    } else {
+                        if ([2, 4, 5, 6, 7].includes(colNumber)) {
+                            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                        }
                     }
                 });
             });
 
             const totalRowData = {
                 name: 'TOTAL',
+                employment_type: '',
                 email: '',
                 leave: totals.leave_days,
                 timeoff: formatHours(0, totals.timeoff_minutes),
@@ -433,10 +447,10 @@ const MonthlySummaryReport = () => {
             totalRow.eachCell((cell, colNumber) => {
                 cell.border = borderStyle;
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-                if (colNumber >= 3) {
+                if (colNumber >= 2 && colNumber !== 3) {
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 }
-                if (isAttendanceModuleActive && colNumber === 4 && totals.absent_days > 0) cell.font = { bold: true, color: { argb: 'FFE11D48' } };
+                if (isAttendanceModuleActive && colNumber === 5 && totals.absent_days > 0) cell.font = { bold: true, color: { argb: 'FFE11D48' } };
                 if (isAttendanceModuleActive && colNumber === summaryColumns.length) cell.font = { bold: true, color: { argb: 'FF15803D' } };
             });
 
@@ -457,7 +471,7 @@ const MonthlySummaryReport = () => {
                 backCell.alignment = { vertical: 'middle', horizontal: 'left' };
 
                 sheet.mergeCells('A3:C3');
-                sheet.getCell('A3').value = `Employee: ${s.firstname} ${s.lastname}`;
+                sheet.getCell('A3').value = `Employee: ${s.firstname} ${s.lastname} (${s.employment_type || 'Full-time'})`;
                 sheet.getCell('A3').font = { bold: true, size: 12, color: { argb: 'FF1E1B4B' } };
 
                 sheet.mergeCells('D3:G3');
@@ -470,8 +484,9 @@ const MonthlySummaryReport = () => {
                 const allowedLv = s.quota_summary?.allowed_leave_days ?? (apiAllowedLeave || 1);
                 const allowedTo = (s.quota_summary?.allowed_timeoff_minutes ?? ((apiAllowedTimeOff || 2) * 60)) / 60;
                 const holText = s.holidays_count > 0 ? ` | ${s.holidays_count} Paid Holiday${s.holidays_count === 1 ? '' : 's'}` : '';
+                const empTargetHours = s.target_compliance_hours || (s.employment_type === 'Part-time' ? complianceHoursPartTime : complianceHours);
                 if (isAttendanceModuleActive) {
-                    salBanner.value = `SALARY CONSIDERATION: ${s.compliant_days || 0} COMPLIANT DAYS (SALARY PAYABLE) | ${s.absent_days || 0} ABSENT DAYS | ${s.non_compliant_days || 0} NON-COMPLIANT DAYS${holText} | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed | Target: ${complianceHours}h/day`;
+                    salBanner.value = `SALARY CONSIDERATION: ${s.compliant_days || 0} COMPLIANT DAYS (SALARY PAYABLE) | ${s.absent_days || 0} ABSENT DAYS | ${s.non_compliant_days || 0} NON-COMPLIANT DAYS${holText} | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed | Target: ${empTargetHours}h/day (${s.employment_type || 'Full-time'})`;
                 } else {
                     salBanner.value = `MONTHLY SUMMARY: Approved Leaves: ${s.leave_days || 0}d | Approved Time-Off: ${formatHours(s.timeoff_hours, s.timeoff_minutes)} | Approved On-Duty: ${formatHours(s.onduty_hours, s.onduty_minutes)}${holText} | Monthly Quotas: ${allowedLv}d Leave Allowed, ${allowedTo}h Time-Off Allowed`;
                 }
@@ -565,7 +580,7 @@ const MonthlySummaryReport = () => {
                 if (attSessions.length > 0) {
                     sheet.mergeCells(`A${curRowIdx}:I${curRowIdx}`);
                     const attTitle = sheet.getCell(`A${curRowIdx}`);
-                    const compCounts = getModalComplianceDayCounts(attSessions, complianceHours);
+                    const compCounts = getModalComplianceDayCounts(attSessions, empTargetHours);
                     attTitle.value = `ATTENDANCE SESSIONS (${s.present_days || 0} Present Days | ${s.absent_days || 0} Absent Days | ${compCounts.compliantDays} Compliant | ${compCounts.nonCompliantDays} Non-Compliant${compCounts.inProgressDays > 0 ? ` | ${compCounts.inProgressDays} In Progress` : ''} | Total Work Time: ${formatHours(s.work_hours, s.work_minutes)})`;
                     attTitle.font = { bold: true, color: { argb: 'FF065F46' }, size: 10 };
                     attTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
@@ -583,7 +598,7 @@ const MonthlySummaryReport = () => {
                     curRowIdx++;
 
                     attSessions.forEach((sess, idx) => {
-                        const comp = getSessionCompliance(sess);
+                        const comp = getSessionCompliance(sess, empTargetHours);
                         const row = sheet.getRow(curRowIdx);
                         row.values = [
                             idx + 1,
@@ -855,7 +870,18 @@ const MonthlySummaryReport = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-400 font-medium">{startIndex + idx + 1}</td>
-                                                <td className="px-4 py-3 text-sm font-bold text-gray-900">{s.firstname} {s.lastname}</td>
+                                                <td className="px-4 py-3 text-sm font-bold text-gray-900">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{s.firstname} {s.lastname}</span>
+                                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                                            s.employment_type === 'Part-time' 
+                                                                ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                                                                : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                                        }`}>
+                                                            {s.employment_type === 'Part-time' ? `PT (${complianceHoursPartTime}h)` : `FT (${complianceHours}h)`}
+                                                        </span>
+                                                    </div>
+                                                </td>
                                                 <td className="px-4 py-3 text-sm text-gray-500">{s.email}</td>
                                                 {isAttendanceModuleActive && (
                                                     <>
@@ -932,6 +958,7 @@ const MonthlySummaryReport = () => {
                                                 });
 
                                                 // Combined daily list: Ensure all daily_breakdown days, plus any attendance sessions not in daily_breakdown
+                                                const targetHrs = s.target_compliance_hours || (s.employment_type === 'Part-time' ? complianceHoursPartTime : complianceHours);
                                                 const dailyDates = new Set((s.daily_breakdown || []).map(d => d.date));
                                                 const extraDays = Object.keys(sessionsByDate)
                                                     .filter(d => !dailyDates.has(d))
@@ -949,9 +976,10 @@ const MonthlySummaryReport = () => {
                                                             leave_days: 0,
                                                             leave_credited: 0,
                                                             leave_excess: 0,
-                                                            is_compliant: dayMins >= (complianceHours * 60),
-                                                            compliant_day_value: dayMins >= (complianceHours * 60) ? 1.0 : 0.0,
-                                                            remarks: `${(sessionsByDate[d] || []).length} session(s) logged`
+                                                            is_compliant: dayMins >= (targetHrs * 60),
+                                                            compliant_day_value: dayMins >= (targetHrs * 60) ? 1.0 : 0.0,
+                                                            target_hours: targetHrs,
+                                                            remarks: `${(sessionsByDate[d] || []).length} session(s) logged (${(dayMins / 60).toFixed(1)}h / ${targetHrs}h req)`
                                                         };
                                                     });
                                                 const combinedDays = [...(s.daily_breakdown || []), ...extraDays].sort((a, b) => (a.date > b.date ? 1 : -1));
@@ -1018,7 +1046,7 @@ const MonthlySummaryReport = () => {
                                                                         <div>
                                                                             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Daily Compliance Target</div>
                                                                             <div className="text-sm font-bold text-gray-900">
-                                                                                {complianceHours}h / day required
+                                                                                {targetHrs}h / day required <span className="text-xs text-gray-500 font-semibold">({s.employment_type || 'Full-time'})</span>
                                                                             </div>
                                                                             <div className="text-[10px] text-gray-500 font-medium">
                                                                                 Att + OD + Credited Time-Off

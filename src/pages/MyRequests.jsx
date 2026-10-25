@@ -349,21 +349,29 @@ const MyRequests = () => {
         return () => window.removeEventListener('settingsLoaded', handleSettingsUpdate);
     }, []);
 
-    // Auto-initialize Time-Off form with current app time (within office hours)
+    // Auto-initialize Time-Off form with office start time from settings
     useEffect(() => {
         if (activeTab === 'timeoff' && activeView === 'apply') {
             const nowInApp = getCurrentInAppTimezone();
             if (!toDate) setToDate(nowInApp.date);
             if (!toStartTime) {
-                const currTime = nowInApp.time;
-                if (currTime < officeHours.startTime || currTime >= officeHours.endTime) {
-                    setToStartTime(officeHours.startTime);
-                } else {
-                    setToStartTime(currTime);
+                const defaultStart = officeHours.startTime || '09:30';
+                setToStartTime(defaultStart);
+                if (!toEndTime) {
+                    const [h, m] = defaultStart.split(':').map(Number);
+                    let endMin = h * 60 + (m || 0) + 120;
+                    const [ohEndH, ohEndM] = (officeHours.endTime || '18:30').split(':').map(Number);
+                    const officeEndMin = ohEndH * 60 + (ohEndM || 0);
+                    if (endMin > officeEndMin) {
+                        endMin = officeEndMin;
+                    }
+                    const resH = String(Math.floor(endMin / 60)).padStart(2, '0');
+                    const resM = String(endMin % 60).padStart(2, '0');
+                    setToEndTime(`${resH}:${resM}`);
                 }
             }
         }
-    }, [activeTab, activeView, toDate, toStartTime, officeHours]);
+    }, [activeTab, activeView, toDate, toStartTime, toEndTime, officeHours]);
 
     // ─── Attendance / Conflict Helpers ───────────────────
     const getLeaveAttendedDateConflict = useCallback(() => {
@@ -469,9 +477,14 @@ const MyRequests = () => {
             toast.error('Please fill all fields');
             return;
         }
-        const todayInApp = getCurrentInAppTimezone().date;
+        const nowInApp = getCurrentInAppTimezone();
+        const todayInApp = nowInApp.date;
         if (holidaysMap[todayInApp]) {
             toast.error(`Today is a company holiday (${holidaysMap[todayInApp]}). On-duty visits cannot be started.`);
+            return;
+        }
+        if (officeHours.startTime && nowInApp.time < officeHours.startTime) {
+            toast.error(`On-duty visits cannot be started before office hours start time (${formatTime12(officeHours.startTime)}).`);
             return;
         }
         setOdSubmitting(true);
@@ -550,8 +563,12 @@ const MyRequests = () => {
 
         // Validate strictly within office hours
         if (officeHours.startTime && officeHours.endTime) {
-            if (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime) {
-                toast.error(`Start time must be within office hours (${formatTime12(officeHours.startTime)} - ${formatTime12(officeHours.endTime)})`);
+            if (toStartTime < officeHours.startTime) {
+                toast.error(`Time-off start time (${formatTime12(toStartTime)}) cannot be before office start time (${formatTime12(officeHours.startTime)}).`);
+                return;
+            }
+            if (toStartTime >= officeHours.endTime) {
+                toast.error(`Time-off start time cannot be on or after office end time (${formatTime12(officeHours.endTime)})`);
                 return;
             }
             if (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime) {
@@ -820,8 +837,12 @@ const MyRequests = () => {
 
         // Validate strictly within office hours
         if (officeHours.startTime && officeHours.endTime) {
-            if (editToStart < officeHours.startTime || editToStart >= officeHours.endTime) {
-                toast.error(`Start time must be within office hours (${formatTime12(officeHours.startTime)} - ${formatTime12(officeHours.endTime)})`);
+            if (editToStart < officeHours.startTime) {
+                toast.error(`Time-off start time (${formatTime12(editToStart)}) cannot be before office start time (${formatTime12(officeHours.startTime)}).`);
+                return;
+            }
+            if (editToStart >= officeHours.endTime) {
+                toast.error(`Time-off start time cannot be on or after office end time (${formatTime12(officeHours.endTime)})`);
                 return;
             }
             if (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime) {
@@ -1754,6 +1775,20 @@ const MyRequests = () => {
                             /* ── Start On-Duty Form ── */
                             <form onSubmit={handleStartOnDuty} className="space-y-4">
 
+                                {officeHours.startTime && (
+                                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3.5 py-2.5 rounded-xl border border-gray-200">
+                                        <FiClock className="w-3.5 h-3.5 text-indigo-600" />
+                                        <span>Office Hours: <strong>{formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}</strong></span>
+                                    </div>
+                                )}
+
+                                {officeHours.startTime && nowInApp.time < officeHours.startTime && (
+                                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800 text-xs font-semibold flex items-center gap-2.5">
+                                        <FiClock className="w-5 h-5 flex-shrink-0 text-amber-600" />
+                                        <span>Office hours start at <strong>{formatTime12(officeHours.startTime)}</strong>. On-duty visits cannot be started before office hours.</span>
+                                    </div>
+                                )}
+
                                 {holidaysMap[today] && (
                                     <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-purple-800 text-xs font-semibold flex items-center gap-2.5">
                                         <FiAlertCircle className="w-5 h-5 flex-shrink-0 text-purple-600" />
@@ -1805,7 +1840,7 @@ const MyRequests = () => {
 
                                 <button
                                     type="submit"
-                                    disabled={odSubmitting || Boolean(holidaysMap[today])}
+                                    disabled={odSubmitting || Boolean(holidaysMap[today]) || Boolean(officeHours.startTime && nowInApp.time < officeHours.startTime)}
                                     className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                                 >
                                     {odSubmitting ? (
@@ -2013,6 +2048,8 @@ const MyRequests = () => {
                                     <label className="text-[10px] text-gray-400 font-semibold mb-1 block">Start Time</label>
                                     <input
                                         type="time"
+                                        min={officeHours.startTime}
+                                        max={officeHours.endTime}
                                         value={toStartTime}
                                         onChange={(e) => {
                                             const val = e.target.value;
@@ -2042,6 +2079,8 @@ const MyRequests = () => {
                                     <label className="text-[10px] text-gray-400 font-semibold mb-1 block">End Time</label>
                                     <input
                                         type="time"
+                                        min={officeHours.startTime}
+                                        max={officeHours.endTime}
                                         value={toEndTime}
                                         onChange={(e) => setToEndTime(e.target.value)}
                                         className={`w-full px-3 py-3 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
@@ -2053,7 +2092,13 @@ const MyRequests = () => {
                                 </div>
                             </div>
                             {/* Validation warning if out of bounds */}
-                            {((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) ||
+                            {toStartTime && toStartTime < officeHours.startTime && (
+                                <div className="mt-2.5 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-semibold">
+                                    <FiAlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                                    <span>Time-off start time cannot be before office start time ({formatTime12(officeHours.startTime)}). Requests must start on or after {formatTime12(officeHours.startTime)}.</span>
+                                </div>
+                            )}
+                            {((toStartTime && toStartTime >= officeHours.endTime) ||
                               (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime))) && (
                                 <div className="mt-2.5 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-semibold">
                                     <FiAlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -2156,6 +2201,8 @@ const MyRequests = () => {
                                                         <label className="text-[10px] text-gray-400 font-semibold mb-0.5 block">Start Time</label>
                                                         <input
                                                             type="time"
+                                                            min={officeHours.startTime}
+                                                            max={officeHours.endTime}
                                                             value={editToStart}
                                                             onChange={(e) => setEditToStart(e.target.value)}
                                                             className={`w-full px-3 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
@@ -2169,6 +2216,8 @@ const MyRequests = () => {
                                                         <label className="text-[10px] text-gray-400 font-semibold mb-0.5 block">End Time</label>
                                                         <input
                                                             type="time"
+                                                            min={officeHours.startTime}
+                                                            max={officeHours.endTime}
                                                             value={editToEnd}
                                                             onChange={(e) => setEditToEnd(e.target.value)}
                                                             className={`w-full px-3 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
@@ -2182,7 +2231,13 @@ const MyRequests = () => {
                                                 <div className="flex items-center justify-between text-[10px] text-gray-500">
                                                     <span>Office Hours: {formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}</span>
                                                 </div>
-                                                {((editToStart && (editToStart < officeHours.startTime || editToStart >= officeHours.endTime)) ||
+                                                {editToStart && editToStart < officeHours.startTime && (
+                                                    <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-1.5 text-rose-700 text-xs font-semibold">
+                                                        <FiAlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                                                        <span>Time-off start time cannot be before office start time ({formatTime12(officeHours.startTime)}).</span>
+                                                    </div>
+                                                )}
+                                                {((editToStart && editToStart >= officeHours.endTime) ||
                                                   (editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime))) && (
                                                     <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-1.5 text-rose-700 text-xs font-semibold">
                                                         <FiAlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-500" />

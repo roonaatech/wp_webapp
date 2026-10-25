@@ -13,8 +13,16 @@ export const getAttendanceConfig = (settingsMap = null) => {
         
         let complianceHours = null;
         
-        // Priority 1: Calculate directly from office start & end times configured in system settings
-        if (stored.office_start_time && stored.office_end_time) {
+        // Priority 1: Use explicit attendance_compliance_hours configured in system settings
+        if (stored.attendance_compliance_hours !== undefined && stored.attendance_compliance_hours !== null && stored.attendance_compliance_hours !== '') {
+            const parsed = parseFloat(stored.attendance_compliance_hours);
+            if (!isNaN(parsed) && parsed > 0) {
+                complianceHours = parsed;
+            }
+        }
+
+        // Priority 2: Fallback to difference between office start & end times
+        if (!complianceHours && stored.office_start_time && stored.office_end_time) {
             const [sh, sm] = stored.office_start_time.split(':').map(Number);
             const [eh, em] = stored.office_end_time.split(':').map(Number);
             const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
@@ -23,17 +31,9 @@ export const getAttendanceConfig = (settingsMap = null) => {
             }
         }
         
-        // Priority 2: Use attendance_compliance_hours if start/end times were missing
-        if (!complianceHours || isNaN(complianceHours) || complianceHours <= 0) {
-            complianceHours = parseFloat(stored.attendance_compliance_hours);
-        }
-        
         // Priority 3: Fallback calculation
-        if (isNaN(complianceHours) || complianceHours <= 0) {
-            const [sh, sm] = startTime.split(':').map(Number);
-            const [eh, em] = endTime.split(':').map(Number);
-            const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
-            complianceHours = diff > 0 ? Math.round((diff / 60) * 100) / 100 : 9;
+        if (isNaN(complianceHours) || !complianceHours || complianceHours <= 0) {
+            complianceHours = 9;
         }
 
         let allowedLeavePerMonth = parseFloat(stored.allowed_leave_per_month);
@@ -46,8 +46,15 @@ export const getAttendanceConfig = (settingsMap = null) => {
             allowedTimeOffPerMonth = 2;
         }
 
+        let complianceHoursPartTime = parseFloat(stored.attendance_compliance_hours_part_time);
+        if (isNaN(complianceHoursPartTime) || complianceHoursPartTime <= 0) {
+            complianceHoursPartTime = complianceHours ? Math.round((complianceHours / 2) * 100) / 100 : 4.5;
+        }
+
         return {
             complianceHours,
+            complianceHoursFullTime: complianceHours,
+            complianceHoursPartTime,
             allowedLeavePerMonth,
             allowedTimeOffPerMonth,
             startTime,
@@ -56,6 +63,8 @@ export const getAttendanceConfig = (settingsMap = null) => {
     } catch (e) {
         return {
             complianceHours: 9,
+            complianceHoursFullTime: 9,
+            complianceHoursPartTime: 4.5,
             allowedLeavePerMonth: 1,
             allowedTimeOffPerMonth: 2,
             startTime: '09:30',
@@ -64,8 +73,18 @@ export const getAttendanceConfig = (settingsMap = null) => {
     }
 };
 
-export const getComplianceHours = (settingsMap = null) => {
-    return getAttendanceConfig(settingsMap).complianceHours;
+export const getComplianceHours = (settingsMap = null, employmentType = 'Full-time') => {
+    const config = getAttendanceConfig(settingsMap);
+    const isPartTime = employmentType && String(employmentType).trim().toLowerCase().replace(/[\s_-]+/g, '') === 'parttime';
+    return isPartTime ? (config.complianceHoursPartTime || 4.5) : (config.complianceHoursFullTime || config.complianceHours || 9);
+};
+
+export const getFullTimeComplianceHours = (settingsMap = null) => {
+    return getAttendanceConfig(settingsMap).complianceHoursFullTime;
+};
+
+export const getPartTimeComplianceHours = (settingsMap = null) => {
+    return getAttendanceConfig(settingsMap).complianceHoursPartTime;
 };
 
 export const getAllowedLeavePerMonth = (settingsMap = null) => {
@@ -86,3 +105,4 @@ export const isAttendanceEnabled = (settingsMap = null) => {
         return true;
     }
 };
+
