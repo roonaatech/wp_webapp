@@ -235,15 +235,17 @@ const ManualAttendance = () => {
 
                 let formatted = [];
                 if (res.data.items) {
-                    // Initialize editable row fields matching Attendance configuration from settings
+                    // Initialize editable row fields matching Attendance configuration or ABiS timings
                     formatted = res.data.items.map(item => {
                         const isPt = item.employment_type === 'Part-time';
                         const targetHrs = item.target_compliance_hours || (isPt ? configHoursPartTime : configHours);
                         const defaultOut = isPt ? calculateEndTime(configStart, targetHrs) : configEnd;
+                        const effCheckIn = item.check_in_time || configStart;
+                        const effCheckOut = item.check_out_time || (item.existing_check_in_time ? calculateEndTime(item.existing_check_in_time, targetHrs) : (item.check_in_time ? calculateEndTime(item.check_in_time, targetHrs) : defaultOut));
                         return {
                             ...item,
-                            in_time: item.check_in_time || configStart,
-                            out_time: item.check_out_time || (item.existing_check_in_time ? calculateEndTime(item.existing_check_in_time, targetHrs) : defaultOut),
+                            in_time: effCheckIn,
+                            out_time: effCheckOut,
                             row_reason: item.reason || 'Work From Home',
                             row_notes: item.notes || ''
                         };
@@ -419,11 +421,43 @@ const ManualAttendance = () => {
         setSelectedStaffIds([]);
     };
 
+    // Helper to fetch ABiS login times for a specific employee and date in modal
+    const fetchAbisTimesForModal = useCallback(async (staffId, dateVal) => {
+        if (!staffId || !dateVal) return;
+        const staff = allStaffList.find(s => String(s.staffid) === String(staffId));
+        if (!staff?.email) return;
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get(`${API_BASE_URL}/api/attendance/abis-login-times`, {
+                headers: { 'x-access-token': token },
+                params: { date: dateVal, email: staff.email }
+            });
+            if (res.data?.data && res.data.data.length > 0) {
+                const abis = res.data.data[0];
+                const isPtModal = staff.employment_type === 'Part-time';
+                const targetHrsModal = isPtModal ? complianceHoursPartTime : complianceHours;
+                const effStart = abis.login_time || defaultStartTime || getAttendanceConfig().startTime;
+                const effEnd = abis.logout_time || calculateEndTime(effStart, targetHrsModal);
+                if (abis.login_time || abis.logout_time) {
+                    setModalData(prev => ({
+                        ...prev,
+                        check_in_time: effStart,
+                        check_out_time: effEnd
+                    }));
+                    toast.success(`Loaded ABiS timings for ${staff.firstname}: ${abis.login_time || '—'} to ${abis.logout_time || '—'}`);
+                }
+            }
+        } catch (err) {
+            console.warn("Could not fetch ABiS times for modal:", err.message);
+        }
+    }, [allStaffList, complianceHours, complianceHoursPartTime, defaultStartTime, calculateEndTime]);
+
     const openAddModal = () => {
         const effStart = defaultStartTime || getAttendanceConfig().startTime;
         const effEnd = defaultEndTime || getAttendanceConfig().endTime;
+        const firstStaff = allStaffList[0];
         setModalData({
-            staff_id: allStaffList[0]?.staffid || '',
+            staff_id: firstStaff?.staffid || '',
             date: todayStr,
             check_in_time: effStart,
             check_out_time: effEnd,
@@ -432,6 +466,8 @@ const ManualAttendance = () => {
         });
         if (allStaffList.length === 0) {
             fetchStaffListForModal();
+        } else if (firstStaff?.staffid) {
+            fetchAbisTimesForModal(firstStaff.staffid, todayStr);
         }
         setIsAddModalOpen(true);
     };
@@ -1355,9 +1391,20 @@ const ManualAttendance = () => {
                                                                 )}
                                                             </span>
                                                         ) : (
-                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                                                Missed In & Out
-                                                            </span>
+                                                            <div className="flex flex-col gap-1 items-start">
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                    Missed In & Out
+                                                                </span>
+                                                                {item.has_abis_data && (
+                                                                    <span
+                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                                                        title={`ABiS Application: Login ${item.abis_login_time || '—'}, Logout ${item.abis_logout_time || '—'}`}
+                                                                    >
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                                                        ABiS Timings
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </td>
 
@@ -1384,22 +1431,42 @@ const ManualAttendance = () => {
                                                         <>
                                                             {/* Check-In Input */}
                                                             <td className="p-3.5">
-                                                                <input
-                                                                    type="time"
-                                                                    value={item.in_time}
-                                                                    onChange={(e) => handleRowFieldChange(item.id, 'in_time', e.target.value)}
-                                                                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                                />
+                                                                <div className="flex flex-col gap-1 items-start">
+                                                                    <input
+                                                                        type="time"
+                                                                        value={item.in_time}
+                                                                        onChange={(e) => handleRowFieldChange(item.id, 'in_time', e.target.value)}
+                                                                        className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                                    />
+                                                                    {item.has_abis_data && item.abis_login_time && (
+                                                                        <span
+                                                                            className="text-[10px] text-indigo-600 font-medium whitespace-nowrap"
+                                                                            title={`ABiS Login Time: ${item.abis_login_time}`}
+                                                                        >
+                                                                            ABiS: {item.abis_login_time.substring(0, 5)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </td>
 
                                                             {/* Check-Out Input */}
                                                             <td className="p-3.5">
-                                                                <input
-                                                                    type="time"
-                                                                    value={item.out_time}
-                                                                    onChange={(e) => handleRowFieldChange(item.id, 'out_time', e.target.value)}
-                                                                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                                />
+                                                                <div className="flex flex-col gap-1 items-start">
+                                                                    <input
+                                                                        type="time"
+                                                                        value={item.out_time}
+                                                                        onChange={(e) => handleRowFieldChange(item.id, 'out_time', e.target.value)}
+                                                                        className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                                    />
+                                                                    {item.has_abis_data && item.abis_logout_time && (
+                                                                        <span
+                                                                            className="text-[10px] text-indigo-600 font-medium whitespace-nowrap"
+                                                                            title={`ABiS Logout Time: ${item.abis_logout_time}`}
+                                                                        >
+                                                                            ABiS: {item.abis_logout_time.substring(0, 5)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </td>
 
                                                             {/* Calculated Duration */}
@@ -1692,25 +1759,35 @@ const ManualAttendance = () => {
                                             </div>
                                         </div>
 
-                                        {/* Compliance Helper Button */}
-                                        <div className="flex items-center justify-between text-xs bg-emerald-50 text-emerald-800 p-2 rounded-xl border border-emerald-200">
+                                        {/* Compliance Helper Button & ABiS Fetch */}
+                                        <div className="flex items-center justify-between text-xs bg-emerald-50 text-emerald-800 p-2 rounded-xl border border-emerald-200 gap-2 flex-wrap">
                                             <span>
                                                 Duration: <strong>{modalDur.text}</strong>
                                                 <span className="text-[10px] text-emerald-600 ml-1.5">
                                                     (Target: {targetHrsModal}h {isPtModal ? 'PT' : 'FT'})
                                                 </span>
                                             </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setModalData({
-                                                    ...modalData,
-                                                    check_in_time: defaultStartTime || getAttendanceConfig().startTime,
-                                                    check_out_time: defaultOut
-                                                })}
-                                                className="font-bold text-emerald-700 underline hover:text-emerald-900 cursor-pointer"
-                                            >
-                                                Apply Default ({defaultStartTime || getAttendanceConfig().startTime} - {defaultOut})
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => fetchAbisTimesForModal(modalData.staff_id, modalData.date)}
+                                                    className="font-bold text-indigo-700 underline hover:text-indigo-900 cursor-pointer"
+                                                >
+                                                    Sync ABiS Timings
+                                                </button>
+                                                <span className="text-slate-300">|</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setModalData({
+                                                        ...modalData,
+                                                        check_in_time: defaultStartTime || getAttendanceConfig().startTime,
+                                                        check_out_time: defaultOut
+                                                    })}
+                                                    className="font-bold text-emerald-700 underline hover:text-emerald-900 cursor-pointer"
+                                                >
+                                                    Default Office ({defaultStartTime || getAttendanceConfig().startTime} - {defaultOut})
+                                                </button>
+                                            </div>
                                         </div>
                                     </>
                                 );
