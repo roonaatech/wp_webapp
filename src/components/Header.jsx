@@ -436,13 +436,13 @@ const Header = () => {
             localStorage.removeItem('user');
             localStorage.removeItem('mustChangePassword');
             localStorage.removeItem('mustCompleteDeclaration');
-            toast.success('Logged out. See you soon!', {
+            toast.success('Successfully logged out', {
                 style: {
-                    background: '#4b5563',
+                    background: '#10B981',
                     color: '#fff'
                 }
             });
-            navigate('/session-expired', { state: { reason: 'logout' } });
+            navigate('/login', { state: { message: 'Successfully logged out' }, replace: true });
         }
     };
 

@@ -10,7 +10,6 @@ import { LuX } from 'react-icons/lu';
 import axios from 'axios';
 import API_BASE_URL from './config/api.config';
 import Login from './pages/Login';
-import SessionExpired from './pages/SessionExpired';
 import Unauthorized from './pages/Unauthorized';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
@@ -101,7 +100,7 @@ const GlobalInit = ({ children }) => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.history.replaceState(null, '', window.location.pathname);
-        window.location.href = '/session-expired';
+        window.location.href = '/login';
       }
     };
 
@@ -278,7 +277,7 @@ function App() {
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/session-expired" element={<SessionExpired />} />
+            <Route path="/session-expired" element={<Navigate to="/login" replace />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="/candidate-onboarding" element={<CandidateOnboardingFlow />} />
 

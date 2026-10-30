@@ -94,9 +94,9 @@ const useInactivityTimer = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
 
-        // Navigate to session expired with inactivity reason
-        navigate('/session-expired', {
-            state: { reason: 'inactivity' },
+        // Navigate to login with inactivity message
+        navigate('/login', {
+            state: { message: 'You have been logged out due to inactivity. Please log in again.' },
             replace: true
         });
     }, [navigate, clearTimers]);

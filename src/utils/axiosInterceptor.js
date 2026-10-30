@@ -116,9 +116,9 @@ export const setupAxiosInterceptors = (navigate) => {
                         reason = 'expired';
                     }
 
-                    // Navigate to session expired page
-                    navigate('/session-expired', {
-                        state: { reason },
+                    // Navigate to login page
+                    navigate('/login', {
+                        state: { message: reason === 'inactive' ? 'Your account has been deactivated.' : 'Your session has expired. Please log in again.' },
                         replace: true
                     });
 
@@ -261,9 +261,9 @@ export const setupGlobalAxiosInterceptors = (navigate) => {
                         reason = 'expired';
                     }
 
-                    // Navigate to session expired page
-                    navigate('/session-expired', {
-                        state: { reason },
+                    // Navigate to login page
+                    navigate('/login', {
+                        state: { message: reason === 'inactive' ? 'Your account has been deactivated.' : 'Your session has expired. Please log in again.' },
                         replace: true
                     });
 

@@ -124,7 +124,7 @@ const ProtectedRoute = ({ children, requiredPermission, skipWebAppCheck = false,
 
     // Token was invalid
     if (authState === 'invalid') {
-        return <Navigate to="/session-expired" replace />;
+        return <Navigate to="/login" state={{ message: 'Your session has expired. Please log in again.' }} replace />;
     }
 
     // Check if user must change password or sign declaration (gated flow)

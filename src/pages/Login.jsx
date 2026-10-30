@@ -58,11 +58,17 @@ const Login = () => {
     const [forgotLoading, setForgotLoading] = useState(false);
     const [forgotSuccess, setForgotSuccess] = useState(false);
     const [forgotError, setForgotError] = useState(null);
+    const [statusMessage, setStatusMessage] = useState(null);
 
-    // Sync email from location state if passed from another page
+    // Sync email and status message from location state if passed from logout or another page
     useEffect(() => {
         if (location.state?.email) {
             setEmail(location.state.email);
+        }
+        if (location.state?.message) {
+            setStatusMessage(location.state.message);
+            // Clear location state from history so page refresh doesn't show it again
+            window.history.replaceState({}, document.title);
         }
     }, [location.state]);
 
@@ -393,6 +399,24 @@ const Login = () => {
                                 Sign in to access your attendance & HR workspace
                             </p>
                         </div>
+
+                        {/* Status / Success Banner (e.g. Logged Out Successfully) */}
+                        {statusMessage && (
+                            <div className="mb-4 sm:mb-5 bg-emerald-50 border-l-4 border-emerald-500 p-3 rounded-r-xl animate-fadeIn shadow-xs flex items-center justify-between">
+                                <p className="text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                                    <LuCircleCheck className="flex-shrink-0 text-emerald-600" size={16} />
+                                    <span>{statusMessage}</span>
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setStatusMessage(null)}
+                                    className="text-emerald-500 hover:text-emerald-800 p-0.5 transition cursor-pointer"
+                                    aria-label="Dismiss message"
+                                >
+                                    <LuX size={14} />
+                                </button>
+                            </div>
+                        )}
 
                         {/* Error Banner */}
                         {error && (
