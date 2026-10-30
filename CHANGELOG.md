@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.19.4](https://github.com/roonaatech/wp_webapp/compare/v2.19.3...v2.19.4) (2026-10-30)
+
+
+### Code Refactoring
+
+* remove SessionExpired page and redirect directly to login with status messages ([9cfdabb](https://github.com/roonaatech/wp_webapp/commit/9cfdabbad141945d35ce493256625f3676f1fcf8))
+
 ### [2.19.3](https://github.com/roonaatech/wp_webapp/compare/v2.19.2...v2.19.3) (2026-10-26)
 
 
