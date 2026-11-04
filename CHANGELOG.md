@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.19.5](https://github.com/roonaatech/wp_webapp/compare/v2.19.4...v2.19.5) (2026-11-04)
+
+
+### Bug Fixes
+
+* format ABiS attendance times correctly using timezone utility ([0c64c49](https://github.com/roonaatech/wp_webapp/commit/0c64c49332a84c2238c39540831ee8bf54eaae51))
+
 ### [2.19.4](https://github.com/roonaatech/wp_webapp/compare/v2.19.3...v2.19.4) (2026-10-30)
 
 
