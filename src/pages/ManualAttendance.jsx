@@ -6,7 +6,7 @@ import API_BASE_URL from '../config/api.config';
 import ModernLoader from '../components/ModernLoader';
 import DateFilterInput from '../components/DateFilterInput';
 import { canManageManualAttendance, getCachedRoles, getRoleById, fetchRoles } from '../utils/roleUtils';
-import { getCurrentInAppTimezone, formatDateOnly, formatInTimezone } from '../utils/timezone.util';
+import { getCurrentInAppTimezone, formatDateOnly, formatInTimezone, formatTimeOnly } from '../utils/timezone.util';
 import { usePageHeader } from '../context/PageHeaderContext';
 import { getAttendanceConfig, getFullTimeComplianceHours, getPartTimeComplianceHours } from '../utils/attendanceConfig';
 import {
@@ -272,8 +272,8 @@ const ManualAttendance = () => {
                 if (pending.length > 0) {
                     const count = pending.length;
                     const names = Array.from(new Set(pending.map(p => p.employee_name)));
-                    const namesText = names.length <= 2 
-                        ? names.join(' and ') 
+                    const namesText = names.length <= 2
+                        ? names.join(' and ')
                         : `${names[0]}, ${names[1]}, and ${names.length - 2} other(s)`;
 
                     toast(
@@ -444,7 +444,7 @@ const ManualAttendance = () => {
                         check_in_time: effStart,
                         check_out_time: effEnd
                     }));
-                    toast.success(`Loaded ABiS timings for ${staff.firstname}: ${abis.login_time || '—'} to ${abis.logout_time || '—'}`);
+                    toast.success(`Loaded ABiS timings for ${staff.firstname}: ${abis.login_time ? formatTimeOnly(abis.login_time) : '—'} to ${abis.logout_time ? formatTimeOnly(abis.logout_time) : '—'}`);
                 }
             }
         } catch (err) {
@@ -805,18 +805,16 @@ const ManualAttendance = () => {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setActiveTab('missed')}
-                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
-                            activeTab === 'missed'
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'missed'
                                 ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
+                            }`}
                     >
                         <LuListFilter className="text-base" />
                         <span>Missed Attendance</span>
                         {missedItems.length > 0 && (
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                                activeTab === 'missed' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-700'
-                            }`}>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'missed' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-700'
+                                }`}>
                                 {missedItems.length}
                             </span>
                         )}
@@ -826,11 +824,10 @@ const ManualAttendance = () => {
                             setActiveTab('history');
                             fetchRecentRegularizations();
                         }}
-                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
-                            activeTab === 'history'
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'history'
                                 ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
+                            }`}
                     >
                         <LuHistory className="text-base" />
                         <span>Recent Regularizations</span>
@@ -866,11 +863,10 @@ const ManualAttendance = () => {
                                     <button
                                         key={p.key}
                                         onClick={() => handlePresetChange(p.key)}
-                                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                                            datePreset === p.key
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${datePreset === p.key
                                                 ? 'bg-white text-indigo-700 shadow-xs'
                                                 : 'text-slate-600 hover:text-slate-900'
-                                        }`}
+                                            }`}
                                     >
                                         {p.label}
                                     </button>
@@ -1052,9 +1048,8 @@ const ManualAttendance = () => {
                                                     return (
                                                         <label
                                                             key={sid}
-                                                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition-colors ${
-                                                                isChecked ? 'bg-indigo-50/70 text-indigo-950 font-semibold' : 'hover:bg-slate-50 text-slate-700'
-                                                            }`}
+                                                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition-colors ${isChecked ? 'bg-indigo-50/70 text-indigo-950 font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                                                                }`}
                                                         >
                                                             <input
                                                                 type="checkbox"
@@ -1247,9 +1242,8 @@ const ManualAttendance = () => {
                                                     checked={isAllSelected}
                                                     onChange={handleToggleSelectAll}
                                                     disabled={actionableFilteredItems.length === 0}
-                                                    className={`w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 ${
-                                                        actionableFilteredItems.length === 0 ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
-                                                    }`}
+                                                    className={`w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 ${actionableFilteredItems.length === 0 ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
+                                                        }`}
                                                     title={actionableFilteredItems.length === 0 ? "No actionable records to select" : "Select all actionable"}
                                                 />
                                             </th>
@@ -1278,23 +1272,22 @@ const ManualAttendance = () => {
                                             return (
                                                 <tr
                                                     key={item.id}
-                                                    className={`transition-colors ${
-                                                        isApprovedLeave
+                                                    className={`transition-colors ${isApprovedLeave
                                                             ? 'bg-purple-50/20 hover:bg-purple-50/30'
                                                             : isPendingLeave
                                                                 ? 'bg-amber-50/25 hover:bg-amber-50/35 border-l-2 border-l-amber-400'
                                                                 : isSelected
                                                                     ? 'bg-indigo-50/40 hover:bg-indigo-50/60'
                                                                     : 'hover:bg-slate-50/70'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {/* Checkbox */}
                                                     <td className="p-3.5 pl-4 text-center">
                                                         {isFullDayLeave ? (
                                                             <span
                                                                 className="text-slate-300 font-bold text-xs select-none block text-center"
-                                                                title={isApprovedLeave 
-                                                                    ? "Employee is on approved full-day leave — update not allowed" 
+                                                                title={isApprovedLeave
+                                                                    ? "Employee is on approved full-day leave — update not allowed"
                                                                     : "Employee is on full-day leave (Pending Approval) — update not allowed"}
                                                             >
                                                                 —
@@ -1329,11 +1322,10 @@ const ManualAttendance = () => {
                                                                     <p className="font-bold text-slate-900 truncate">
                                                                         {item.employee_name}
                                                                     </p>
-                                                                    <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                                                                        item.employment_type === 'Part-time'
+                                                                    <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold ${item.employment_type === 'Part-time'
                                                                             ? 'bg-amber-100 text-amber-800 border border-amber-200'
                                                                             : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                                                    }`}>
+                                                                        }`}>
                                                                         {item.employment_type === 'Part-time' ? `PT (${complianceHoursPartTime}h)` : `FT (${complianceHours}h)`}
                                                                     </span>
                                                                 </div>
@@ -1386,7 +1378,7 @@ const ManualAttendance = () => {
                                                                 <span>Check-Out Missing</span>
                                                                 {item.existing_check_in_time && (
                                                                     <span className="text-[10px] text-blue-500">
-                                                                        ({item.existing_check_in_time})
+                                                                        ({formatTimeOnly(item.existing_check_in_time)})
                                                                     </span>
                                                                 )}
                                                             </span>
@@ -1398,7 +1390,7 @@ const ManualAttendance = () => {
                                                                 {item.has_abis_data && (
                                                                     <span
                                                                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                                                        title={`ABiS Application: Login ${item.abis_login_time || '—'}, Logout ${item.abis_logout_time || '—'}`}
+                                                                        title={`ABiS Application: Login ${item.abis_login_time ? formatTimeOnly(item.abis_login_time) : '—'}, Logout ${item.abis_logout_time ? formatTimeOnly(item.abis_logout_time) : '—'}`}
                                                                     >
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                                                                         ABiS Timings
@@ -1412,11 +1404,10 @@ const ManualAttendance = () => {
                                                     {isFullDayLeave ? (
                                                         <td colSpan={6} className="p-3.5 pr-4">
                                                             <span
-                                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${
-                                                                    isApprovedLeave
+                                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${isApprovedLeave
                                                                         ? 'bg-purple-50/70 text-purple-700 border-purple-200/80'
                                                                         : 'bg-amber-50/70 text-amber-800 border-amber-200/80'
-                                                                }`}
+                                                                    }`}
                                                                 title={item.leave_info?.reason ? `Reason: ${item.leave_info.reason}` : undefined}
                                                             >
                                                                 <LuCalendarOff className="text-xs shrink-0" />
@@ -1441,9 +1432,9 @@ const ManualAttendance = () => {
                                                                     {item.has_abis_data && item.abis_login_time && (
                                                                         <span
                                                                             className="text-[10px] text-indigo-600 font-medium whitespace-nowrap"
-                                                                            title={`ABiS Login Time: ${item.abis_login_time}`}
+                                                                            title={`ABiS Login Time: ${formatTimeOnly(item.abis_login_time)}`}
                                                                         >
-                                                                            ABiS: {item.abis_login_time.substring(0, 5)}
+                                                                            {formatTimeOnly(item.abis_login_time)}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -1461,9 +1452,9 @@ const ManualAttendance = () => {
                                                                     {item.has_abis_data && item.abis_logout_time && (
                                                                         <span
                                                                             className="text-[10px] text-indigo-600 font-medium whitespace-nowrap"
-                                                                            title={`ABiS Logout Time: ${item.abis_logout_time}`}
+                                                                            title={`ABiS Logout Time: ${formatTimeOnly(item.abis_logout_time)}`}
                                                                         >
-                                                                            ABiS: {item.abis_logout_time.substring(0, 5)}
+                                                                            {formatTimeOnly(item.abis_logout_time)}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -1472,13 +1463,12 @@ const ManualAttendance = () => {
                                                             {/* Calculated Duration */}
                                                             <td className="p-3.5">
                                                                 <span
-                                                                    className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold ${
-                                                                        dur.isCompliant
+                                                                    className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold ${dur.isCompliant
                                                                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                                                             : dur.hours > 0
                                                                                 ? 'bg-amber-50 text-amber-700 border border-amber-200'
                                                                                 : 'bg-slate-100 text-slate-400'
-                                                                    }`}
+                                                                        }`}
                                                                     title={dur.isCompliant ? `Meets compliance (${dur.targetHours}h)` : `Below compliance threshold (${dur.targetHours}h)`}
                                                                 >
                                                                     {dur.text}
@@ -1516,9 +1506,8 @@ const ManualAttendance = () => {
                                                                 <button
                                                                     onClick={() => handleSaveSingleRow(item)}
                                                                     disabled={isRowSubmitting}
-                                                                    className={`inline-flex items-center justify-center px-3 py-1 text-white font-medium text-xs rounded-lg transition-colors shadow-xs ${
-                                                                        isPendingLeave ? 'bg-amber-600 hover:bg-amber-700' : 'bg-slate-900 hover:bg-slate-800'
-                                                                    }`}
+                                                                    className={`inline-flex items-center justify-center px-3 py-1 text-white font-medium text-xs rounded-lg transition-colors shadow-xs ${isPendingLeave ? 'bg-amber-600 hover:bg-amber-700' : 'bg-slate-900 hover:bg-slate-800'
+                                                                        }`}
                                                                     title={isPendingLeave ? "Save attendance (Note: Employee has pending leave)" : "Save attendance for this employee"}
                                                                 >
                                                                     {isRowSubmitting ? (
@@ -1596,11 +1585,10 @@ const ManualAttendance = () => {
                                                 <td className="p-3.5 pl-4 font-bold text-slate-900">
                                                     <div className="flex items-center gap-1.5 flex-wrap">
                                                         <span>{log.employee_name}</span>
-                                                        <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                                                            isPt 
-                                                                ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                                                        <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold ${isPt
+                                                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
                                                                 : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                                        }`}>
+                                                            }`}>
                                                             {isPt ? `PT (${complianceHoursPartTime}h)` : `FT (${complianceHours}h)`}
                                                         </span>
                                                     </div>
@@ -1618,10 +1606,9 @@ const ManualAttendance = () => {
                                                     {log.check_out_time || '—'}
                                                 </td>
                                                 <td className="p-3.5">
-                                                    <span 
-                                                        className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                                            dur.isCompliant ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                                                        }`}
+                                                    <span
+                                                        className={`px-2 py-0.5 rounded text-xs font-bold ${dur.isCompliant ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                                                            }`}
                                                         title={dur.isCompliant ? `Meets compliance (${dur.targetHours}h)` : `Below compliance threshold (${dur.targetHours}h)`}
                                                     >
                                                         {dur.text}

@@ -204,15 +204,27 @@ export const formatTimeOnly = (date, timezone = null) => {
 
         // Check if this is a timezone-formatted string from backend (YYYY-MM-DD HH:mm:ss)
         if (typeof date === 'string') {
-            const match = date.match(/^\d{4}-\d{2}-\d{2}\s(\d{2}):(\d{2}):(\d{2})/);;
+            const trimmed = date.trim();
+            const match = trimmed.match(/^\d{4}-\d{2}-\d{2}\s(\d{2}):(\d{2}):(\d{2})/);
             if (match) {
                 return extractTimeString(parseInt(match[1], 10), match[2]);
             }
 
-            // Handle pure time strings from DB TIME columns (e.g. "14:30:00" or "14:30")
-            const timeOnlyMatch = date.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+            // Handle pure time strings from DB TIME columns (e.g. "14:30:00", "14:30", "9:05", "14:30:00.000")
+            const timeOnlyMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/);
             if (timeOnlyMatch) {
                 return extractTimeString(parseInt(timeOnlyMatch[1], 10), timeOnlyMatch[2]);
+            }
+
+            // Handle already 12h formatted time strings (e.g. "09:17 PM", "9:17 AM")
+            const ampmMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+            if (ampmMatch) {
+                let h = parseInt(ampmMatch[1], 10);
+                const m = ampmMatch[2];
+                const isPm = ampmMatch[3].toUpperCase() === 'PM';
+                if (isPm && h < 12) h += 12;
+                if (!isPm && h === 12) h = 0;
+                return extractTimeString(h, m);
             }
         }
 
