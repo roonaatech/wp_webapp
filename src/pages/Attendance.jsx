@@ -630,6 +630,7 @@ const Attendance = () => {
         if (confirmTimerRef.current) clearInterval(confirmTimerRef.current);
         const pendingToken = qrConfirmation.confirmationToken;
         const cancelTimeOff = options.cancelTimeOff || false;
+        const stopTimeOff = options.stopTimeOff || false;
         setQrConfirmation(null);
         setStatusMessage("Recording attendance...");
 
@@ -638,7 +639,8 @@ const Attendance = () => {
             const response = await axios.post(`${API_BASE_URL}/api/attendance/scan-qr-badge`, {
                 confirmed: true,
                 confirmationToken: pendingToken,
-                cancelTimeOff
+                cancelTimeOff,
+                stopTimeOff
             }, {
                 headers: { 'x-access-token': token }
             });
@@ -1391,7 +1393,7 @@ const Attendance = () => {
                                 <div className="flex items-center justify-between text-xs font-bold text-amber-300 mb-1">
                                     <span className="flex items-center gap-1.5">
                                         <LuClock size={14} className="text-amber-400" />
-                                        Scheduled Time-Off Today
+                                        {qrConfirmation.todayTimeOff.isInProgress ? 'Time-Off In Progress' : 'Scheduled Time-Off Today'}
                                     </span>
                                     <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-200 border border-amber-500/30">
                                         {qrConfirmation.todayTimeOff.status}
@@ -1406,7 +1408,9 @@ const Attendance = () => {
                                     </div>
                                 )}
                                 <div className="text-amber-200/90 text-[11px] mt-1 font-medium">
-                                    Would you like to keep this time-off or cancel it to preserve your quota?
+                                    {qrConfirmation.todayTimeOff.isInProgress
+                                        ? 'You are checking in during your time-off. Cancel time-off and check in, or stop time-off (updating end time as check-in time) and check in?'
+                                        : 'Would you like to keep this time-off or cancel it to preserve your quota?'}
                                 </div>
                             </div>
                         ) : null}
@@ -1431,27 +1435,41 @@ const Attendance = () => {
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         type="button"
-                                        onClick={() => handleAcceptConfirmation({ cancelTimeOff: true })}
+                                        onClick={() => handleAcceptConfirmation({ cancelTimeOff: true, stopTimeOff: false })}
                                         className="py-3 px-3 rounded-2xl text-white font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all active:scale-95 shadow-lg shadow-emerald-950 flex flex-col items-center justify-center gap-1 cursor-pointer border border-emerald-400/30"
                                     >
                                         <div className="flex items-center gap-1.5">
                                             <LuCheck size={18} strokeWidth={3} />
-                                            <span>Cancel Time-Off</span>
+                                            <span>Cancel Time-Off & Check In</span>
                                         </div>
                                         <span className="text-[10px] font-normal text-emerald-100">Preserves Quota</span>
                                     </button>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => handleAcceptConfirmation({ cancelTimeOff: false })}
-                                        className="py-3 px-3 rounded-2xl text-white font-black text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all active:scale-95 shadow-lg shadow-blue-950 flex flex-col items-center justify-center gap-1 cursor-pointer border border-blue-400/30"
-                                    >
-                                        <div className="flex items-center gap-1.5">
-                                            <LuClock size={16} />
-                                            <span>Keep Time-Off</span>
-                                        </div>
-                                        <span className="text-[10px] font-normal text-blue-100">Step Out Later</span>
-                                    </button>
+                                    {qrConfirmation.todayTimeOff.isInProgress ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAcceptConfirmation({ cancelTimeOff: false, stopTimeOff: true })}
+                                            className="py-3 px-3 rounded-2xl text-white font-black text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all active:scale-95 shadow-lg shadow-blue-950 flex flex-col items-center justify-center gap-1 cursor-pointer border border-blue-400/30"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <LuClock size={16} />
+                                                <span>Stop Time-Off & Check In</span>
+                                            </div>
+                                            <span className="text-[10px] font-normal text-blue-100">End Time = Check-In Time</span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAcceptConfirmation({ cancelTimeOff: false, stopTimeOff: false })}
+                                            className="py-3 px-3 rounded-2xl text-white font-black text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all active:scale-95 shadow-lg shadow-blue-950 flex flex-col items-center justify-center gap-1 cursor-pointer border border-blue-400/30"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <LuClock size={16} />
+                                                <span>Keep Time-Off & Check In</span>
+                                            </div>
+                                            <span className="text-[10px] font-normal text-blue-100">Step Out Later</span>
+                                        </button>
+                                    )}
                                 </div>
 
                                 <button
