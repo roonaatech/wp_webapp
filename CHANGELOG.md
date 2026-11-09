@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.19.6](https://github.com/roonaatech/wp_webapp/compare/v2.19.5...v2.19.6) (2026-11-09)
+
+
+### Features
+
+* add support for stopping in-progress time-off during check-in ([e5d6ef2](https://github.com/roonaatech/wp_webapp/commit/e5d6ef245a77addac3c20d7ce2464110527b6ad1))
+
 ### [2.19.5](https://github.com/roonaatech/wp_webapp/compare/v2.19.4...v2.19.5) (2026-11-04)
 
 
