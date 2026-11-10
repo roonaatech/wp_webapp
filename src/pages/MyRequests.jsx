@@ -2085,8 +2085,8 @@ const MyRequests = () => {
                                                     }
                                                 }}
                                                 className={`w-full pl-3 pr-12 py-3 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)
-                                                        ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500/30'
-                                                        : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                                    ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500/30'
+                                                    : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
                                                     }`}
                                             />
                                             {toStartTime && (
@@ -2124,8 +2124,8 @@ const MyRequests = () => {
                                                 value={toEndTime}
                                                 onChange={(e) => setToEndTime(e.target.value)}
                                                 className={`w-full pl-3 pr-12 py-3 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)
-                                                        ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500/30'
-                                                        : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                                    ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500/30'
+                                                    : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
                                                     }`}
                                             />
                                             {toEndTime && (
@@ -2255,8 +2255,8 @@ const MyRequests = () => {
                                                                     value={editToStart}
                                                                     onChange={(e) => setEditToStart(e.target.value)}
                                                                     className={`w-full pl-3 pr-12 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${editToStart && (editToStart < officeHours.startTime || editToStart >= officeHours.endTime)
-                                                                            ? 'border-rose-400 bg-rose-50/50'
-                                                                            : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                                                        ? 'border-rose-400 bg-rose-50/50'
+                                                                        : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
                                                                         }`}
                                                                 />
                                                                 {editToStart && (
@@ -2279,8 +2279,8 @@ const MyRequests = () => {
                                                                     value={editToEnd}
                                                                     onChange={(e) => setEditToEnd(e.target.value)}
                                                                     className={`w-full pl-3 pr-12 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime)
-                                                                            ? 'border-rose-400 bg-rose-50/50'
-                                                                            : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                                                        ? 'border-rose-400 bg-rose-50/50'
+                                                                        : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
                                                                         }`}
                                                                 />
                                                                 {editToEnd && (
