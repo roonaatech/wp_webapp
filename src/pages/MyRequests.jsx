@@ -29,6 +29,21 @@ const formatTime12 = (timeStr) => {
     return formatTimeOnly(timeStr);
 };
 
+const toggleTimeMeridiem = (timeStr) => {
+    if (!timeStr || !timeStr.includes(':')) return timeStr;
+    const [hStr, mStr] = timeStr.split(':');
+    const h = parseInt(hStr, 10);
+    if (isNaN(h)) return timeStr;
+    const nextH = h >= 12 ? h - 12 : h + 12;
+    return `${String(nextH).padStart(2, '0')}:${mStr.slice(0, 2)}`;
+};
+
+const getTimeMeridiem = (timeStr) => {
+    if (!timeStr || !timeStr.includes(':')) return 'AM';
+    const h = parseInt(timeStr.split(':')[0], 10);
+    return !isNaN(h) && h >= 12 ? 'PM' : 'AM';
+};
+
 const calculateLeaveDaysExcludingSunday = (start, end, excludeDatesMap = {}, holidayMap = {}) => {
     if (!start || !end) return 0;
     let count = 0;
@@ -1316,7 +1331,7 @@ const MyRequests = () => {
                             const isWfh = isUserWfhToday(user);
 
                             return isWfh ? (
-                                <div 
+                                <div
                                     onClick={() => navigate('/my-badge')}
                                     className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-700 text-white rounded-2xl p-3.5 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between border border-blue-400/30 group"
                                 >
@@ -1340,7 +1355,7 @@ const MyRequests = () => {
                                     </div>
                                 </div>
                             ) : (
-                                <div 
+                                <div
                                     onClick={() => navigate('/my-badge')}
                                     className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white rounded-2xl p-3.5 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between border border-emerald-400/30 group"
                                 >
@@ -1368,1113 +1383,995 @@ const MyRequests = () => {
                     </div>
                 )}
 
-            {/* ── Pending HR Assignment Notice ── */}
-            {(!user.role) && (
-                <div className="mx-4 mt-3 mb-1 p-3.5 bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-500/10 border border-amber-200/80 rounded-2xl flex items-start gap-3 shadow-xs">
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-sm">
-                        ⏳
+                {/* ── Pending HR Assignment Notice ── */}
+                {(!user.role) && (
+                    <div className="mx-4 mt-3 mb-1 p-3.5 bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-500/10 border border-amber-200/80 rounded-2xl flex items-start gap-3 shadow-xs">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-sm">
+                            ⏳
+                        </div>
+                        <div>
+                            <h4 className="text-xs font-bold text-amber-900 leading-snug">Onboarding Profile Submitted</h4>
+                            <p className="text-[11px] text-amber-700/90 font-medium leading-relaxed mt-0.5">
+                                Your profile details and declaration have been received. HR will assign your official email, role, and reporting manager soon.
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h4 className="text-xs font-bold text-amber-900 leading-snug">Onboarding Profile Submitted</h4>
-                        <p className="text-[11px] text-amber-700/90 font-medium leading-relaxed mt-0.5">
-                            Your profile details and declaration have been received. HR will assign your official email, role, and reporting manager soon.
-                        </p>
+                )}
+
+                {/* ── Tab Selector ── */}
+                <div className={`bg-white border-b border-gray-100 sticky ${isDesktopWithLayout ? 'top-0' : 'top-[60px]'} z-20 shadow-sm`}>
+                    <div className="flex">
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => { setActiveTab(tab.id); setActiveView('apply'); }}
+                                className={`flex-1 py-4 flex flex-col items-center gap-1.5 relative transition-all duration-300 group ${activeTab === tab.id ? 'opacity-100' : 'opacity-40 filter grayscale'}`}
+                            >
+                                <div className={`transition-all duration-300 ${activeTab === tab.id ? 'scale-110 drop-shadow-md' : 'scale-90'}`}>
+                                    {tab.icon}
+                                </div>
+                                <span className={`text-[10px] font-black tracking-widest uppercase ${activeTab === tab.id ? 'text-[#1e1b4b]' : 'text-gray-400'}`}>{tab.label}</span>
+                                {activeTab === tab.id && (
+                                    <div className={`absolute bottom-0 left-0 right-0 h-1 bg-[#0ea5e9]`}></div>
+                                )}
+                            </button>
+                        ))}
                     </div>
                 </div>
-            )}
 
-            {/* ── Tab Selector ── */}
-            <div className={`bg-white border-b border-gray-100 sticky ${isDesktopWithLayout ? 'top-0' : 'top-[60px]'} z-20 shadow-sm`}>
-                <div className="flex">
-                    {tabs.map(tab => (
+                {/* ── Apply / History Toggle ── */}
+                <div className="px-4 pt-4 pb-2">
+                    <div className="bg-gray-100 rounded-2xl p-1 flex">
                         <button
-                            key={tab.id}
-                            onClick={() => { setActiveTab(tab.id); setActiveView('apply'); }}
-                            className={`flex-1 py-4 flex flex-col items-center gap-1.5 relative transition-all duration-300 group ${activeTab === tab.id ? 'opacity-100' : 'opacity-40 filter grayscale'}`}
+                            onClick={() => setActiveView('apply')}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeView === 'apply'
+                                ? 'bg-white text-gray-900 shadow-sm'
+                                : 'text-gray-500'
+                                }`}
                         >
-                            <div className={`transition-all duration-300 ${activeTab === tab.id ? 'scale-110 drop-shadow-md' : 'scale-90'}`}>
-                                {tab.icon}
-                            </div>
-                            <span className={`text-[10px] font-black tracking-widest uppercase ${activeTab === tab.id ? 'text-[#1e1b4b]' : 'text-gray-400'}`}>{tab.label}</span>
-                            {activeTab === tab.id && (
-                                <div className={`absolute bottom-0 left-0 right-0 h-1 bg-[#0ea5e9]`}></div>
-                            )}
+                            Apply New
                         </button>
-                    ))}
+                        <button
+                            onClick={() => setActiveView('history')}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeView === 'history'
+                                ? 'bg-white text-gray-900 shadow-sm'
+                                : 'text-gray-500'
+                                }`}
+                        >
+                            My Requests
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            {/* ── Apply / History Toggle ── */}
-            <div className="px-4 pt-4 pb-2">
-                <div className="bg-gray-100 rounded-2xl p-1 flex">
-                    <button
-                        onClick={() => setActiveView('apply')}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeView === 'apply'
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-500'
-                            }`}
-                    >
-                        Apply New
-                    </button>
-                    <button
-                        onClick={() => setActiveView('history')}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeView === 'history'
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-500'
-                            }`}
-                    >
-                        My Requests
-                    </button>
-                </div>
-            </div>
+                {/* ── Content Area ── */}
+                <div className="px-4 pb-8">
+                    {/* ═══════════════════════════════════════════ */}
+                    {/* LEAVE TAB */}
+                    {/* ═══════════════════════════════════════════ */}
+                    {activeTab === 'leave' && activeView === 'apply' && (
+                        <form onSubmit={handleLeaveSubmit} className="space-y-4 animate-fadeIn">
+                            {holidaysMap[today] && (
+                                <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-purple-800 text-xs font-semibold flex items-center gap-2.5">
+                                    <FiAlertCircle className="w-5 h-5 flex-shrink-0 text-purple-600" />
+                                    <span>Today is a company holiday (<strong>{holidaysMap[today]}</strong>). Leave requests cannot be submitted today.</span>
+                                </div>
+                            )}
 
-            {/* ── Content Area ── */}
-            <div className="px-4 pb-8">
-                {/* ═══════════════════════════════════════════ */}
-                {/* LEAVE TAB */}
-                {/* ═══════════════════════════════════════════ */}
-                {activeTab === 'leave' && activeView === 'apply' && (
-                    <form onSubmit={handleLeaveSubmit} className="space-y-4 animate-fadeIn">
-                        {holidaysMap[today] && (
-                            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-purple-800 text-xs font-semibold flex items-center gap-2.5">
-                                <FiAlertCircle className="w-5 h-5 flex-shrink-0 text-purple-600" />
-                                <span>Today is a company holiday (<strong>{holidaysMap[today]}</strong>). Leave requests cannot be submitted today.</span>
+                            {/* Leave Type */}
+                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Leave Type</label>
+                                {leaveTypesLoading ? (
+                                    <div className="h-12 bg-gray-50 rounded-xl animate-pulse"></div>
+                                ) : (
+                                    <select
+                                        value={selectedLeaveType}
+                                        onChange={(e) => setSelectedLeaveType(e.target.value)}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all appearance-none"
+                                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+                                    >
+                                        <option value="">Select leave type</option>
+                                        {leaveTypes.map((lt) => (
+                                            <option key={lt.id} value={lt.name}>{lt.name}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
-                        )}
 
-                        {/* Leave Type */}
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Leave Type</label>
-                            {leaveTypesLoading ? (
-                                <div className="h-12 bg-gray-50 rounded-xl animate-pulse"></div>
-                            ) : (
-                                <select
-                                    value={selectedLeaveType}
-                                    onChange={(e) => setSelectedLeaveType(e.target.value)}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all appearance-none"
-                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
-                                >
-                                    <option value="">Select leave type</option>
-                                    {leaveTypes.map((lt) => (
-                                        <option key={lt.id} value={lt.name}>{lt.name}</option>
+                            {/* Leave Period - Tappable Fields */}
+                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Leave Period</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div onClick={openCalendar} className="cursor-pointer">
+                                        <label className="text-[10px] text-gray-400 font-semibold mb-1 block">From</label>
+                                        <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            <span className={leaveStartDate ? 'text-gray-800' : 'text-gray-400'}>
+                                                {leaveStartDate ? formatDate(leaveStartDate) : 'Select date'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div onClick={openCalendar} className="cursor-pointer">
+                                        <label className="text-[10px] text-gray-400 font-semibold mb-1 block">To</label>
+                                        <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            <span className={leaveEndDate ? 'text-gray-800' : 'text-gray-400'}>
+                                                {leaveEndDate ? formatDate(leaveEndDate) : 'Select date'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {leaveStartDate && leaveEndDate && (
+                                    <div className="mt-3 px-3 py-2 bg-blue-50 rounded-xl space-y-2">
+                                        <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 flex-wrap">
+                                            <FiCalendar className="w-3.5 h-3.5 shrink-0" />
+                                            <span>{formatLeaveDuration(calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap, holidaysMap) - (leaveHalfDay ? 0.5 : 0), { lowercase: true })} <span className="text-blue-400 font-medium">(Sundays & holidays excluded)</span></span>
+                                        </p>
+                                        {(holidaysMap[leaveStartDate] || holidaysMap[leaveEndDate]) && (
+                                            <div className="text-[11px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                                                <FiAlertCircle className="w-3.5 h-3.5 shrink-0 text-purple-600" />
+                                                <span>Selected start/end date falls on a company holiday ({holidaysMap[leaveStartDate] || holidaysMap[leaveEndDate]}).</span>
+                                            </div>
+                                        )}
+                                        <label className="flex flex-row items-center gap-2 cursor-pointer mt-1 border-t border-blue-100 pt-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={leaveHalfDay}
+                                                onChange={(e) => setLeaveHalfDay(e.target.checked)}
+                                                className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
+                                            />
+                                            <span className="text-xs font-medium text-blue-800">Half Day Leave <span className="text-blue-500 text-[10px] font-normal">(reduces total duration by 0.5)</span></span>
+                                        </label>
+                                    </div>
+                                )}
+                                {leaveAttendedConflictDate && (
+                                    <div className="mt-3 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-red-700">
+                                        <LuCircleAlert className="w-4 h-4 text-red-600 shrink-0" />
+                                        <span>Attendance check-in has already been recorded on {formatDate(leaveAttendedConflictDate)}. Leave cannot be applied for days on which attendance has been recorded.</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Reason */}
+                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Reason</label>
+                                <textarea
+                                    value={leaveReason}
+                                    onChange={(e) => setLeaveReason(e.target.value)}
+                                    placeholder="Enter reason for leave..."
+                                    rows={3}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all resize-none"
+                                />
+                            </div>
+
+                            {/* Submit */}
+                            <button
+                                type="submit"
+                                disabled={leaveSubmitting || Boolean(holidaysMap[today]) || Boolean(leaveAttendedConflictDate) || Boolean(holidaysMap[leaveStartDate] || holidaysMap[leaveEndDate])}
+                                className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3 mt-4"
+                            >
+                                {leaveSubmitting ? (
+                                    <>
+                                        <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
+                                        Submitting Request...
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                                        Submit Leave Application
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    )}
+
+                    {activeTab === 'leave' && activeView === 'history' && (
+                        <div className="space-y-3 animate-fadeIn">
+                            {leavesLoading ? (
+                                <div className="space-y-3">
+                                    {[1, 2, 3].map(i => (
+                                        <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-pulse">
+                                            <div className="h-4 bg-gray-100 rounded w-1/3 mb-3"></div>
+                                            <div className="h-3 bg-gray-100 rounded w-2/3 mb-2"></div>
+                                            <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+                                        </div>
                                     ))}
-                                </select>
+                                </div>
+                            ) : myLeaves.filter(l => l.type === 'leave').length === 0 ? (
+                                <div className="text-center py-16">
+                                    <div className="w-20 h-20 mx-auto mb-6 relative">
+                                        <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
+                                            <circle cx="18" cy="7" r="3" fill="#0ea5e9" opacity="0.4" />
+                                            <path d="M10 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
+                                            <path d="M4 20v-2c0-2.21 1.79-4 4-4h4.5" stroke="#1e1b4b" strokeWidth="2" opacity="0.1" />
+                                            <path d="M16 14c0-2-2-4-4-4h-1v1c2 0 3 1.5 3 3v1h2v-1z" fill="#0ea5e9" opacity="0.4" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No Leave Requests</p>
+                                    <p className="text-gray-400 text-xs mt-1">Your leave history will appear here.</p>
+                                </div>
+                            ) : (
+                                myLeaves.filter(l => l.type === 'leave').map((leave) => (
+                                    <div key={leave.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer" onClick={() => editingLeave !== leave.id && openDetail(leave, 'leave')}>
+                                        {editingLeave === leave.id ? (
+                                            /* ── Inline Edit Form ── */
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Editing Leave</span>
+                                                    <button onClick={() => setEditingLeave(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
+                                                </div>
+                                                <select
+                                                    value={editLeaveType}
+                                                    onChange={(e) => setEditLeaveType(e.target.value)}
+                                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all appearance-none"
+                                                >
+                                                    <option value="">Select leave type</option>
+                                                    {leaveTypes.map((lt) => (
+                                                        <option key={lt.id} value={lt.name}>{lt.name}</option>
+                                                    ))}
+                                                </select>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <DateFilterInput
+                                                        value={editLeaveStart}
+                                                        onChange={(val) => {
+                                                            if (val) {
+                                                                const [y, m, d] = val.split('-').map(Number);
+                                                                if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
+                                                                if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
+                                                            }
+                                                            setEditLeaveStart(val);
+                                                        }}
+                                                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                                                    />
+                                                    <DateFilterInput
+                                                        value={editLeaveEnd}
+                                                        min={editLeaveStart}
+                                                        onChange={(val) => {
+                                                            if (val) {
+                                                                const [y, m, d] = val.split('-').map(Number);
+                                                                if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
+                                                                if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
+                                                            }
+                                                            setEditLeaveEnd(val);
+                                                        }}
+                                                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    <label className="flex items-center gap-2 cursor-pointer mt-1 mb-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={editLeaveHalfDay}
+                                                            onChange={(e) => setEditLeaveHalfDay(e.target.checked)}
+                                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                        />
+                                                        <span className="text-xs font-medium text-gray-700">Half Day Leave</span>
+                                                    </label>
+                                                </div>
+                                                <textarea value={editLeaveReason} onChange={(e) => setEditLeaveReason(e.target.value)} rows={2} placeholder="Reason" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all resize-none" />
+                                                <button
+                                                    onClick={() => handleEditLeave(leave.id)}
+                                                    disabled={editLeaveSubmitting}
+                                                    className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl text-xs shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
+                                                >
+                                                    {editLeaveSubmitting ? 'Saving...' : <span className="flex items-center justify-center gap-1.5"><FiSave className="w-3.5 h-3.5" /> Save Changes</span>}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            /* ── Normal Display ── */
+                                            <>
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <h4 className="text-sm font-bold text-gray-900">{leave.title || leave.leave_type}</h4>
+                                                    <StatusBadge status={leave.status} />
+                                                </div>
+                                                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                                                    <FiCalendar className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                                                    <span>{formatDate(leave.start_date || leave.start)} → {formatDate(leave.end_date || leave.end)}</span>
+                                                </p>
+                                                {(leave.reason || leave.subtitle) && <p className="text-xs text-gray-400 italic">"{leave.subtitle || leave.reason}"</p>}
+                                                {leave.rejection_reason && (
+                                                    <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+                                                        <FiXCircle className="w-3.5 h-3.5 shrink-0" /> {leave.rejection_reason}
+                                                    </p>
+                                                )}
+                                                {leave.status === 'Pending' && (
+                                                    <div className="mt-2 flex items-center gap-3">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); startEditLeave(leave); }}
+                                                            className="text-xs text-blue-500 font-bold hover:text-blue-700 transition-colors flex items-center gap-1"
+                                                        >
+                                                            <FiEdit2 className="w-3 h-3" /> Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteLeave(leave.id); }}
+                                                            className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors flex items-center gap-1"
+                                                        >
+                                                            <FiTrash2 className="w-3 h-3" /> Delete
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                ))
                             )}
                         </div>
+                    )}
 
-                        {/* Leave Period - Tappable Fields */}
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Leave Period</label>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div onClick={openCalendar} className="cursor-pointer">
-                                    <label className="text-[10px] text-gray-400 font-semibold mb-1 block">From</label>
-                                    <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium flex items-center gap-2">
-                                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                        <span className={leaveStartDate ? 'text-gray-800' : 'text-gray-400'}>
-                                            {leaveStartDate ? formatDate(leaveStartDate) : 'Select date'}
-                                        </span>
+                    {/* ═══════════════════════════════════════════ */}
+                    {/* ON-DUTY TAB */}
+                    {/* ═══════════════════════════════════════════ */}
+                    {activeTab === 'onduty' && activeView === 'apply' && (
+                        <div className="space-y-4 animate-fadeIn">
+                            {isOnDuty ? (
+                                /* ── Active On-Duty View ── */
+                                <>
+                                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg">
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <span className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></span>
+                                            <span className="text-sm font-bold">Currently On-Duty</span>
+                                        </div>
+                                        <div className="space-y-3 bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-white/80"><FiBriefcase className="w-5 h-5" /></span>
+                                                <div>
+                                                    <p className="text-[10px] text-white/60 font-semibold">Client</p>
+                                                    <p className="text-sm font-bold">{odClientName}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-white/80"><FiMapPin className="w-5 h-5" /></span>
+                                                <div>
+                                                    <p className="text-[10px] text-white/60 font-semibold">Start Location</p>
+                                                    <p className="text-sm font-bold">{odLocation}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-white/80"><FiFileText className="w-5 h-5" /></span>
+                                                <div>
+                                                    <p className="text-[10px] text-white/60 font-semibold">Purpose</p>
+                                                    <p className="text-sm font-bold">{odPurpose}</p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div onClick={openCalendar} className="cursor-pointer">
-                                    <label className="text-[10px] text-gray-400 font-semibold mb-1 block">To</label>
-                                    <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium flex items-center gap-2">
-                                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                        <span className={leaveEndDate ? 'text-gray-800' : 'text-gray-400'}>
-                                            {leaveEndDate ? formatDate(leaveEndDate) : 'Select date'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            {leaveStartDate && leaveEndDate && (
-                                <div className="mt-3 px-3 py-2 bg-blue-50 rounded-xl space-y-2">
-                                    <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 flex-wrap">
-                                        <FiCalendar className="w-3.5 h-3.5 shrink-0" />
-                                        <span>{formatLeaveDuration(calculateLeaveDaysExcludingSunday(leaveStartDate, leaveEndDate, leaveDateStatusMap, holidaysMap) - (leaveHalfDay ? 0.5 : 0), { lowercase: true })} <span className="text-blue-400 font-medium">(Sundays & holidays excluded)</span></span>
-                                    </p>
-                                    {(holidaysMap[leaveStartDate] || holidaysMap[leaveEndDate]) && (
-                                        <div className="text-[11px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-                                            <FiAlertCircle className="w-3.5 h-3.5 shrink-0 text-purple-600" />
-                                            <span>Selected start/end date falls on a company holiday ({holidaysMap[leaveStartDate] || holidaysMap[leaveEndDate]}).</span>
+
+                                    {odStartTime && (
+                                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-blue-100">
+                                            <div className="flex justify-between items-center">
+                                                <div className="text-center flex-1">
+                                                    <p className="text-[10px] text-blue-500 font-bold mb-1">STARTED AT</p>
+                                                    <p className="text-2xl font-black text-blue-600">
+                                                        {formatTime12(odStartTime)}
+                                                    </p>
+                                                </div>
+                                                <div className="w-px h-12 bg-blue-100"></div>
+                                                <div className="text-center flex-1">
+                                                    <p className="text-[10px] text-blue-500 font-bold mb-1">DURATION</p>
+                                                    <p className="text-2xl font-black text-blue-600">{formatDuration(odStartTime)}</p>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
-                                    <label className="flex flex-row items-center gap-2 cursor-pointer mt-1 border-t border-blue-100 pt-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={leaveHalfDay}
-                                            onChange={(e) => setLeaveHalfDay(e.target.checked)}
-                                            className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
-                                        />
-                                        <span className="text-xs font-medium text-blue-800">Half Day Leave <span className="text-blue-500 text-[10px] font-normal">(reduces total duration by 0.5)</span></span>
-                                    </label>
-                                </div>
-                            )}
-                            {leaveAttendedConflictDate && (
-                                <div className="mt-3 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-red-700">
-                                    <LuCircleAlert className="w-4 h-4 text-red-600 shrink-0" />
-                                    <span>Attendance check-in has already been recorded on {formatDate(leaveAttendedConflictDate)}. Leave cannot be applied for days on which attendance has been recorded.</span>
-                                </div>
-                            )}
-                        </div>
 
-                        {/* Reason */}
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Reason</label>
-                            <textarea
-                                value={leaveReason}
-                                onChange={(e) => setLeaveReason(e.target.value)}
-                                placeholder="Enter reason for leave..."
-                                rows={3}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all resize-none"
-                            />
-                        </div>
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">End Location</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><FiFlag className="w-5 h-5" /></span>
+                                            <input
+                                                type="text"
+                                                value={odEndLocation}
+                                                onChange={(e) => setOdEndLocation(e.target.value)}
+                                                placeholder="Enter End Location"
+                                                required
+                                                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all placeholder:text-gray-400 text-gray-800"
+                                            />
+                                        </div>
+                                    </div>
 
-                        {/* Submit */}
-                        <button
-                            type="submit"
-                            disabled={leaveSubmitting || Boolean(holidaysMap[today]) || Boolean(leaveAttendedConflictDate) || Boolean(holidaysMap[leaveStartDate] || holidaysMap[leaveEndDate])}
-                            className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3 mt-4"
-                        >
-                            {leaveSubmitting ? (
-                                <>
-                                    <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
-                                    Submitting Request...
+                                    <button
+                                        onClick={handleEndOnDuty}
+                                        disabled={odSubmitting}
+                                        className="w-full py-4 bg-[#ef4444] text-white font-black rounded-2xl shadow-xl shadow-red-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
+                                    >
+                                        {odSubmitting ? (
+                                            <>
+                                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                                Ending & Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="w-2 h-2 bg-white rounded-full animate-ping" />
+                                                Stop On-Duty
+                                            </>
+                                        )}
+                                    </button>
                                 </>
                             ) : (
-                                <>
-                                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
-                                    Submit Leave Application
-                                </>
+                                /* ── Start On-Duty Form ── */
+                                <form onSubmit={handleStartOnDuty} className="space-y-4">
+
+                                    {officeHours.startTime && (
+                                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3.5 py-2.5 rounded-xl border border-gray-200">
+                                            <FiClock className="w-3.5 h-3.5 text-indigo-600" />
+                                            <span>Office Hours: <strong>{formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}</strong></span>
+                                        </div>
+                                    )}
+
+                                    {officeHours.startTime && nowInApp.time < officeHours.startTime && (
+                                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800 text-xs font-semibold flex items-center gap-2.5">
+                                            <FiClock className="w-5 h-5 flex-shrink-0 text-amber-600" />
+                                            <span>Office hours start at <strong>{formatTime12(officeHours.startTime)}</strong>. On-duty visits cannot be started before office hours.</span>
+                                        </div>
+                                    )}
+
+                                    {holidaysMap[today] && (
+                                        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-purple-800 text-xs font-semibold flex items-center gap-2.5">
+                                            <FiAlertCircle className="w-5 h-5 flex-shrink-0 text-purple-600" />
+                                            <span>Today is a company holiday (<strong>{holidaysMap[today]}</strong>). On-duty visits cannot be started today.</span>
+                                        </div>
+                                    )}
+
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Client Name</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><FiBriefcase className="w-5 h-5" /></span>
+                                            <input
+                                                type="text"
+                                                value={odClientName}
+                                                onChange={(e) => setOdClientName(e.target.value)}
+                                                placeholder="Enter client name"
+                                                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Start Location</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><FiMapPin className="w-5 h-5" /></span>
+                                            <input
+                                                type="text"
+                                                value={odLocation}
+                                                onChange={(e) => setOdLocation(e.target.value)}
+                                                placeholder="Enter start location"
+                                                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Purpose of Visit</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-3 text-gray-400"><FiFileText className="w-5 h-5" /></span>
+                                            <textarea
+                                                value={odPurpose}
+                                                onChange={(e) => setOdPurpose(e.target.value)}
+                                                placeholder="Enter purpose of visit"
+                                                rows={2}
+                                                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all resize-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={odSubmitting || Boolean(holidaysMap[today]) || Boolean(officeHours.startTime && nowInApp.time < officeHours.startTime)}
+                                        className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
+                                    >
+                                        {odSubmitting ? (
+                                            <>
+                                                <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
+                                                Capturing Location...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                                                Start On-Duty
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
                             )}
-                        </button>
-                    </form>
-                )}
+                        </div>
+                    )}
 
-                {activeTab === 'leave' && activeView === 'history' && (
-                    <div className="space-y-3 animate-fadeIn">
-                        {leavesLoading ? (
-                            <div className="space-y-3">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-pulse">
-                                        <div className="h-4 bg-gray-100 rounded w-1/3 mb-3"></div>
-                                        <div className="h-3 bg-gray-100 rounded w-2/3 mb-2"></div>
-                                        <div className="h-3 bg-gray-100 rounded w-1/2"></div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : myLeaves.filter(l => l.type === 'leave').length === 0 ? (
-                            <div className="text-center py-16">
-                                <div className="w-20 h-20 mx-auto mb-6 relative">
-                                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
-                                        <circle cx="18" cy="7" r="3" fill="#0ea5e9" opacity="0.4" />
-                                        <path d="M10 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
-                                        <path d="M4 20v-2c0-2.21 1.79-4 4-4h4.5" stroke="#1e1b4b" strokeWidth="2" opacity="0.1" />
-                                        <path d="M16 14c0-2-2-4-4-4h-1v1c2 0 3 1.5 3 3v1h2v-1z" fill="#0ea5e9" opacity="0.4" />
-                                    </svg>
-                                </div>
-                                <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No Leave Requests</p>
-                                <p className="text-gray-400 text-xs mt-1">Your leave history will appear here.</p>
-                            </div>
-                        ) : (
-                            myLeaves.filter(l => l.type === 'leave').map((leave) => (
-                                <div key={leave.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer" onClick={() => editingLeave !== leave.id && openDetail(leave, 'leave')}>
-                                    {editingLeave === leave.id ? (
-                                        /* ── Inline Edit Form ── */
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Editing Leave</span>
-                                                <button onClick={() => setEditingLeave(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
-                                            </div>
-                                            <select
-                                                value={editLeaveType}
-                                                onChange={(e) => setEditLeaveType(e.target.value)}
-                                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all appearance-none"
-                                            >
-                                                <option value="">Select leave type</option>
-                                                {leaveTypes.map((lt) => (
-                                                    <option key={lt.id} value={lt.name}>{lt.name}</option>
-                                                ))}
-                                            </select>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <DateFilterInput
-                                                    value={editLeaveStart}
-                                                    onChange={(val) => {
-                                                        if (val) {
-                                                            const [y, m, d] = val.split('-').map(Number);
-                                                            if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
-                                                            if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
-                                                        }
-                                                        setEditLeaveStart(val);
-                                                    }}
-                                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-                                                />
-                                                <DateFilterInput
-                                                    value={editLeaveEnd}
-                                                    min={editLeaveStart}
-                                                    onChange={(val) => {
-                                                        if (val) {
-                                                            const [y, m, d] = val.split('-').map(Number);
-                                                            if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
-                                                            if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
-                                                        }
-                                                        setEditLeaveEnd(val);
-                                                    }}
-                                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-                                                />
-                                            </div>
-                                            <div className="grid grid-cols-1 gap-2">
-                                                <label className="flex items-center gap-2 cursor-pointer mt-1 mb-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={editLeaveHalfDay}
-                                                        onChange={(e) => setEditLeaveHalfDay(e.target.checked)}
-                                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                                    />
-                                                    <span className="text-xs font-medium text-gray-700">Half Day Leave</span>
-                                                </label>
-                                            </div>
-                                            <textarea value={editLeaveReason} onChange={(e) => setEditLeaveReason(e.target.value)} rows={2} placeholder="Reason" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all resize-none" />
-                                            <button
-                                                onClick={() => handleEditLeave(leave.id)}
-                                                disabled={editLeaveSubmitting}
-                                                className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl text-xs shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
-                                            >
-                                                {editLeaveSubmitting ? 'Saving...' : <span className="flex items-center justify-center gap-1.5"><FiSave className="w-3.5 h-3.5" /> Save Changes</span>}
-                                            </button>
+                    {activeTab === 'onduty' && activeView === 'history' && (
+                        <div className="space-y-3 animate-fadeIn">
+                            {onDutyLoading ? (
+                                <div className="space-y-3">
+                                    {[1, 2, 3].map(i => (
+                                        <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-pulse">
+                                            <div className="h-4 bg-gray-100 rounded w-1/3 mb-3"></div>
+                                            <div className="h-3 bg-gray-100 rounded w-2/3"></div>
                                         </div>
-                                    ) : (
-                                        /* ── Normal Display ── */
-                                        <>
-                                            <div className="flex items-start justify-between mb-2">
-                                                <h4 className="text-sm font-bold text-gray-900">{leave.title || leave.leave_type}</h4>
-                                                <StatusBadge status={leave.status} />
-                                            </div>
-                                            <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
-                                                <FiCalendar className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                                                <span>{formatDate(leave.start_date || leave.start)} → {formatDate(leave.end_date || leave.end)}</span>
-                                            </p>
-                                            {(leave.reason || leave.subtitle) && <p className="text-xs text-gray-400 italic">"{leave.subtitle || leave.reason}"</p>}
-                                            {leave.rejection_reason && (
-                                                <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
-                                                    <FiXCircle className="w-3.5 h-3.5 shrink-0" /> {leave.rejection_reason}
-                                                </p>
-                                            )}
-                                            {leave.status === 'Pending' && (
-                                                <div className="mt-2 flex items-center gap-3">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); startEditLeave(leave); }}
-                                                        className="text-xs text-blue-500 font-bold hover:text-blue-700 transition-colors flex items-center gap-1"
-                                                    >
-                                                        <FiEdit2 className="w-3 h-3" /> Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleDeleteLeave(leave.id); }}
-                                                        className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors flex items-center gap-1"
-                                                    >
-                                                        <FiTrash2 className="w-3 h-3" /> Delete
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
+                                    ))}
                                 </div>
-                            ))
-                        )}
-                    </div>
-                )}
-
-                {/* ═══════════════════════════════════════════ */}
-                {/* ON-DUTY TAB */}
-                {/* ═══════════════════════════════════════════ */}
-                {activeTab === 'onduty' && activeView === 'apply' && (
-                    <div className="space-y-4 animate-fadeIn">
-                        {isOnDuty ? (
-                            /* ── Active On-Duty View ── */
-                            <>
-                                <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg">
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <span className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></span>
-                                        <span className="text-sm font-bold">Currently On-Duty</span>
+                            ) : myOnDuty.length === 0 ? (
+                                <div className="text-center py-16">
+                                    <div className="w-20 h-20 mx-auto mb-6 relative">
+                                        <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
+                                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
+                                            <path d="M6 20v-2c0-2.21 1.79-4 4-4h4c2.21 0 4 1.79 4 4v2H6z" fill="#1e1b4b" opacity="0.1" />
+                                            <path d="M18 13v3.5l-3 1.5-3-1.5V13h6z" fill="#0ea5e9" opacity="0.4" />
+                                            <path d="M14 15l1 1 2-2" stroke="#0ea5e9" strokeWidth="1.2" />
+                                        </svg>
                                     </div>
-                                    <div className="space-y-3 bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-white/80"><FiBriefcase className="w-5 h-5" /></span>
-                                            <div>
-                                                <p className="text-[10px] text-white/60 font-semibold">Client</p>
-                                                <p className="text-sm font-bold">{odClientName}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-white/80"><FiMapPin className="w-5 h-5" /></span>
-                                            <div>
-                                                <p className="text-[10px] text-white/60 font-semibold">Start Location</p>
-                                                <p className="text-sm font-bold">{odLocation}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-white/80"><FiFileText className="w-5 h-5" /></span>
-                                            <div>
-                                                <p className="text-[10px] text-white/60 font-semibold">Purpose</p>
-                                                <p className="text-sm font-bold">{odPurpose}</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No On-Duty Logs</p>
+                                    <p className="text-gray-400 text-xs mt-1">Your field activity will appear here.</p>
                                 </div>
-
-                                {odStartTime && (
-                                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-blue-100">
-                                        <div className="flex justify-between items-center">
-                                            <div className="text-center flex-1">
-                                                <p className="text-[10px] text-blue-500 font-bold mb-1">STARTED AT</p>
-                                                <p className="text-2xl font-black text-blue-600">
-                                                    {formatTime12(odStartTime)}
-                                                </p>
-                                            </div>
-                                            <div className="w-px h-12 bg-blue-100"></div>
-                                            <div className="text-center flex-1">
-                                                <p className="text-[10px] text-blue-500 font-bold mb-1">DURATION</p>
-                                                <p className="text-2xl font-black text-blue-600">{formatDuration(odStartTime)}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">End Location</label>
-                                    <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><FiFlag className="w-5 h-5" /></span>
-                                        <input
-                                            type="text"
-                                            value={odEndLocation}
-                                            onChange={(e) => setOdEndLocation(e.target.value)}
-                                            placeholder="Enter End Location"
-                                            required
-                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all placeholder:text-gray-400 text-gray-800"
-                                        />
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={handleEndOnDuty}
-                                    disabled={odSubmitting}
-                                    className="w-full py-4 bg-[#ef4444] text-white font-black rounded-2xl shadow-xl shadow-red-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
-                                >
-                                    {odSubmitting ? (
-                                        <>
-                                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                            Ending & Saving...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="w-2 h-2 bg-white rounded-full animate-ping" />
-                                            Stop On-Duty
-                                        </>
-                                    )}
-                                </button>
-                            </>
-                        ) : (
-                            /* ── Start On-Duty Form ── */
-                            <form onSubmit={handleStartOnDuty} className="space-y-4">
-
-                                {officeHours.startTime && (
-                                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3.5 py-2.5 rounded-xl border border-gray-200">
-                                        <FiClock className="w-3.5 h-3.5 text-indigo-600" />
-                                        <span>Office Hours: <strong>{formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}</strong></span>
-                                    </div>
-                                )}
-
-                                {officeHours.startTime && nowInApp.time < officeHours.startTime && (
-                                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800 text-xs font-semibold flex items-center gap-2.5">
-                                        <FiClock className="w-5 h-5 flex-shrink-0 text-amber-600" />
-                                        <span>Office hours start at <strong>{formatTime12(officeHours.startTime)}</strong>. On-duty visits cannot be started before office hours.</span>
-                                    </div>
-                                )}
-
-                                {holidaysMap[today] && (
-                                    <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-purple-800 text-xs font-semibold flex items-center gap-2.5">
-                                        <FiAlertCircle className="w-5 h-5 flex-shrink-0 text-purple-600" />
-                                        <span>Today is a company holiday (<strong>{holidaysMap[today]}</strong>). On-duty visits cannot be started today.</span>
-                                    </div>
-                                )}
-
-                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Client Name</label>
-                                    <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><FiBriefcase className="w-5 h-5" /></span>
-                                        <input
-                                            type="text"
-                                            value={odClientName}
-                                            onChange={(e) => setOdClientName(e.target.value)}
-                                            placeholder="Enter client name"
-                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Start Location</label>
-                                    <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><FiMapPin className="w-5 h-5" /></span>
-                                        <input
-                                            type="text"
-                                            value={odLocation}
-                                            onChange={(e) => setOdLocation(e.target.value)}
-                                            placeholder="Enter start location"
-                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Purpose of Visit</label>
-                                    <div className="relative">
-                                        <span className="absolute left-4 top-3 text-gray-400"><FiFileText className="w-5 h-5" /></span>
-                                        <textarea
-                                            value={odPurpose}
-                                            onChange={(e) => setOdPurpose(e.target.value)}
-                                            placeholder="Enter purpose of visit"
-                                            rows={2}
-                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all resize-none"
-                                        />
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    disabled={odSubmitting || Boolean(holidaysMap[today]) || Boolean(officeHours.startTime && nowInApp.time < officeHours.startTime)}
-                                    className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
-                                >
-                                    {odSubmitting ? (
-                                        <>
-                                            <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
-                                            Capturing Location...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
-                                            Start On-Duty
-                                        </>
-                                    )}
-                                </button>
-                            </form>
-                        )}
-                    </div>
-                )}
-
-                {activeTab === 'onduty' && activeView === 'history' && (
-                    <div className="space-y-3 animate-fadeIn">
-                        {onDutyLoading ? (
-                            <div className="space-y-3">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-pulse">
-                                        <div className="h-4 bg-gray-100 rounded w-1/3 mb-3"></div>
-                                        <div className="h-3 bg-gray-100 rounded w-2/3"></div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : myOnDuty.length === 0 ? (
-                            <div className="text-center py-16">
-                                <div className="w-20 h-20 mx-auto mb-6 relative">
-                                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
-                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
-                                        <path d="M6 20v-2c0-2.21 1.79-4 4-4h4c2.21 0 4 1.79 4 4v2H6z" fill="#1e1b4b" opacity="0.1" />
-                                        <path d="M18 13v3.5l-3 1.5-3-1.5V13h6z" fill="#0ea5e9" opacity="0.4" />
-                                        <path d="M14 15l1 1 2-2" stroke="#0ea5e9" strokeWidth="1.2" />
-                                    </svg>
-                                </div>
-                                <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No On-Duty Logs</p>
-                                <p className="text-gray-400 text-xs mt-1">Your field activity will appear here.</p>
-                            </div>
-                        ) : (
-                            myOnDuty.map((od) => (
-                                <div key={od.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer" onClick={() => editingOnDuty !== od.id && openDetail(od, 'onduty')}>
-                                    {editingOnDuty === od.id ? (
-                                        /* ── Inline Edit Form ── */
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Editing On-Duty</span>
-                                                <button onClick={() => setEditingOnDuty(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
-                                            </div>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><FiBriefcase className="w-4 h-4" /></span>
-                                                <input type="text" value={editOdClient} onChange={(e) => setEditOdClient(e.target.value)} placeholder="Client Name" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
-                                            </div>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><FiMapPin className="w-4 h-4" /></span>
-                                                <input type="text" value={editOdLocation} onChange={(e) => setEditOdLocation(e.target.value)} placeholder="Start Location" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
-                                            </div>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><FiFlag className="w-4 h-4" /></span>
-                                                <input type="text" value={editOdEndLocation} onChange={(e) => setEditOdEndLocation(e.target.value)} placeholder="End Location" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
-                                            </div>
-                                            {/* End Time Selection */}
-                                            <div className="bg-purple-50/60 border border-purple-100/90 rounded-xl p-3 space-y-2">
+                            ) : (
+                                myOnDuty.map((od) => (
+                                    <div key={od.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer" onClick={() => editingOnDuty !== od.id && openDetail(od, 'onduty')}>
+                                        {editingOnDuty === od.id ? (
+                                            /* ── Inline Edit Form ── */
+                                            <div className="space-y-3">
                                                 <div className="flex items-center justify-between">
-                                                    <label className="text-[11px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1.5">
-                                                        <FiClock className="w-3.5 h-3.5 text-purple-600" />
-                                                        End Time
-                                                    </label>
-                                                    {editOdOriginalEndTime && (
-                                                        <span className="text-[10px] text-gray-500 font-medium">
-                                                            Completed at: <span className="font-bold text-gray-700">{formatTime12(editOdOriginalEndTime)}</span>
-                                                        </span>
-                                                    )}
+                                                    <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Editing On-Duty</span>
+                                                    <button onClick={() => setEditingOnDuty(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-500 font-semibold mb-1 block">End Date</label>
-                                                        <DateFilterInput
-                                                            value={editOdEndDate}
-                                                            min={editOdStartTime ? `${editOdStartTime.getFullYear()}-${String(editOdStartTime.getMonth() + 1).padStart(2, '0')}-${String(editOdStartTime.getDate()).padStart(2, '0')}` : undefined}
-                                                            max={editOdOriginalEndTime ? `${editOdOriginalEndTime.getFullYear()}-${String(editOdOriginalEndTime.getMonth() + 1).padStart(2, '0')}-${String(editOdOriginalEndTime.getDate()).padStart(2, '0')}` : undefined}
-                                                            onChange={(val) => setEditOdEndDate(val)}
-                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
-                                                        />
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><FiBriefcase className="w-4 h-4" /></span>
+                                                    <input type="text" value={editOdClient} onChange={(e) => setEditOdClient(e.target.value)} placeholder="Client Name" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
+                                                </div>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><FiMapPin className="w-4 h-4" /></span>
+                                                    <input type="text" value={editOdLocation} onChange={(e) => setEditOdLocation(e.target.value)} placeholder="Start Location" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
+                                                </div>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><FiFlag className="w-4 h-4" /></span>
+                                                    <input type="text" value={editOdEndLocation} onChange={(e) => setEditOdEndLocation(e.target.value)} placeholder="End Location" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
+                                                </div>
+                                                {/* End Time Selection */}
+                                                <div className="bg-purple-50/60 border border-purple-100/90 rounded-xl p-3 space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-[11px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1.5">
+                                                            <FiClock className="w-3.5 h-3.5 text-purple-600" />
+                                                            End Time
+                                                        </label>
+                                                        {editOdOriginalEndTime && (
+                                                            <span className="text-[10px] text-gray-500 font-medium">
+                                                                Completed at: <span className="font-bold text-gray-700">{formatTime12(editOdOriginalEndTime)}</span>
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-500 font-semibold mb-1 block">End Time</label>
-                                                        <input
-                                                            type="time"
-                                                            value={editOdEndTime}
-                                                            onChange={(e) => setEditOdEndTime(e.target.value)}
-                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
-                                                        />
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label className="text-[10px] text-gray-500 font-semibold mb-1 block">End Date</label>
+                                                            <DateFilterInput
+                                                                value={editOdEndDate}
+                                                                min={editOdStartTime ? `${editOdStartTime.getFullYear()}-${String(editOdStartTime.getMonth() + 1).padStart(2, '0')}-${String(editOdStartTime.getDate()).padStart(2, '0')}` : undefined}
+                                                                max={editOdOriginalEndTime ? `${editOdOriginalEndTime.getFullYear()}-${String(editOdOriginalEndTime.getMonth() + 1).padStart(2, '0')}-${String(editOdOriginalEndTime.getDate()).padStart(2, '0')}` : undefined}
+                                                                onChange={(val) => setEditOdEndDate(val)}
+                                                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] text-gray-500 font-semibold mb-1 block">End Time</label>
+                                                            <input
+                                                                type="time"
+                                                                value={editOdEndTime}
+                                                                onChange={(e) => setEditOdEndTime(e.target.value)}
+                                                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+                                                            />
+                                                        </div>
                                                     </div>
+                                                    <p className="text-[10px] text-purple-600/90 italic flex items-center gap-1">
+                                                        <FiAlertCircle className="w-3 h-3 shrink-0" />
+                                                        Forgot to complete on time? You can adjust the end time earlier, but not beyond the completed time.
+                                                    </p>
                                                 </div>
-                                                <p className="text-[10px] text-purple-600/90 italic flex items-center gap-1">
-                                                    <FiAlertCircle className="w-3 h-3 shrink-0" />
-                                                    Forgot to complete on time? You can adjust the end time earlier, but not beyond the completed time.
-                                                </p>
-                                            </div>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-3 text-gray-400"><FiFileText className="w-4 h-4" /></span>
-                                                <textarea value={editOdPurpose} onChange={(e) => setEditOdPurpose(e.target.value)} rows={2} placeholder="Purpose" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all resize-none" />
-                                            </div>
-                                            <button
-                                                onClick={() => handleEditOnDuty(od.id)}
-                                                disabled={editOdSubmitting}
-                                                className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-xl text-xs shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
-                                            >
-                                                {editOdSubmitting ? 'Saving...' : <span className="flex items-center justify-center gap-1.5"><FiSave className="w-3.5 h-3.5" /> Save Changes</span>}
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        /* ── Normal Display ── */
-                                        <>
-                                            <div className="flex items-start justify-between mb-2">
-                                                <h4 className="text-sm font-bold text-gray-900">{od.title || `On-Duty: ${od.client_name || ''}`}</h4>
-                                                <StatusBadge status={od.status} />
-                                            </div>
-                                            <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
-                                                <FiCalendar className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                                                <span>{formatDate(od.start_date || od.start)} {od.end_date || od.end ? `→ ${formatDate(od.end_date || od.end)}` : ''}</span>
-                                            </p>
-                                            {od.subtitle && <p className="text-xs text-gray-400 italic">"{od.subtitle}"</p>}
-                                            {od.rejection_reason && (
-                                                <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
-                                                    <FiXCircle className="w-3.5 h-3.5 shrink-0" /> {od.rejection_reason}
-                                                </p>
-                                            )}
-                                            {od.status === 'Pending' && (
-                                                <div className="mt-2 flex items-center gap-3">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); startEditOnDuty(od); }}
-                                                        className="text-xs text-purple-500 font-bold hover:text-purple-700 transition-colors flex items-center gap-1"
-                                                    >
-                                                        <FiEdit2 className="w-3 h-3" /> Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleDeleteOnDuty(od.id); }}
-                                                        className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors flex items-center gap-1"
-                                                    >
-                                                        <FiTrash2 className="w-3 h-3" /> Delete
-                                                    </button>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-3 text-gray-400"><FiFileText className="w-4 h-4" /></span>
+                                                    <textarea value={editOdPurpose} onChange={(e) => setEditOdPurpose(e.target.value)} rows={2} placeholder="Purpose" className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all resize-none" />
                                                 </div>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            ))
-                        )}
-                    </div>
-                )}
+                                                <button
+                                                    onClick={() => handleEditOnDuty(od.id)}
+                                                    disabled={editOdSubmitting}
+                                                    className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-xl text-xs shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
+                                                >
+                                                    {editOdSubmitting ? 'Saving...' : <span className="flex items-center justify-center gap-1.5"><FiSave className="w-3.5 h-3.5" /> Save Changes</span>}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            /* ── Normal Display ── */
+                                            <>
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <h4 className="text-sm font-bold text-gray-900">{od.title || `On-Duty: ${od.client_name || ''}`}</h4>
+                                                    <StatusBadge status={od.status} />
+                                                </div>
+                                                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                                                    <FiCalendar className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                                                    <span>{formatDate(od.start_date || od.start)} {od.end_date || od.end ? `→ ${formatDate(od.end_date || od.end)}` : ''}</span>
+                                                </p>
+                                                {od.subtitle && <p className="text-xs text-gray-400 italic">"{od.subtitle}"</p>}
+                                                {od.rejection_reason && (
+                                                    <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+                                                        <FiXCircle className="w-3.5 h-3.5 shrink-0" /> {od.rejection_reason}
+                                                    </p>
+                                                )}
+                                                {od.status === 'Pending' && (
+                                                    <div className="mt-2 flex items-center gap-3">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); startEditOnDuty(od); }}
+                                                            className="text-xs text-purple-500 font-bold hover:text-purple-700 transition-colors flex items-center gap-1"
+                                                        >
+                                                            <FiEdit2 className="w-3 h-3" /> Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteOnDuty(od.id); }}
+                                                            className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors flex items-center gap-1"
+                                                        >
+                                                            <FiTrash2 className="w-3 h-3" /> Delete
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    )}
 
-                {/* ═══════════════════════════════════════════ */}
-                {/* TIME-OFF TAB */}
-                {/* ═══════════════════════════════════════════ */}
-                {activeTab === 'timeoff' && activeView === 'apply' && (
-                    <form onSubmit={handleTimeOffSubmit} className="space-y-4 animate-fadeIn">
-                        {(holidaysMap[today] || (toDate && holidaysMap[toDate])) && (
-                            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-purple-800 text-xs font-semibold flex items-center gap-2.5">
-                                <FiAlertCircle className="w-5 h-5 flex-shrink-0 text-purple-600" />
-                                <span>
-                                    {toDate && toDate !== today && holidaysMap[toDate] ? (
-                                        <>Selected date is a company holiday (<strong>{holidaysMap[toDate]}</strong>). Time-off requests cannot be submitted for holidays.</>
-                                    ) : (
-                                        <>Today is a company holiday (<strong>{holidaysMap[today] || holidaysMap[toDate]}</strong>). Time-off requests cannot be submitted today.</>
-                                    )}
-                                </span>
-                            </div>
-                        )}
-
-                        {/* Date - Tappable field that opens calendar popup */}
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Date</label>
-                            <div onClick={() => setToCalendarOpen(true)} className="cursor-pointer">
-                                <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium flex items-center gap-2">
-                                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                    <span className={toDate ? 'text-gray-800' : 'text-gray-400'}>
-                                        {toDate ? formatDate(toDate) : 'Select date'}
+                    {/* ═══════════════════════════════════════════ */}
+                    {/* TIME-OFF TAB */}
+                    {/* ═══════════════════════════════════════════ */}
+                    {activeTab === 'timeoff' && activeView === 'apply' && (
+                        <form onSubmit={handleTimeOffSubmit} className="space-y-4 animate-fadeIn">
+                            {(holidaysMap[today] || (toDate && holidaysMap[toDate])) && (
+                                <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-purple-800 text-xs font-semibold flex items-center gap-2.5">
+                                    <FiAlertCircle className="w-5 h-5 flex-shrink-0 text-purple-600" />
+                                    <span>
+                                        {toDate && toDate !== today && holidaysMap[toDate] ? (
+                                            <>Selected date is a company holiday (<strong>{holidaysMap[toDate]}</strong>). Time-off requests cannot be submitted for holidays.</>
+                                        ) : (
+                                            <>Today is a company holiday (<strong>{holidaysMap[today] || holidaysMap[toDate]}</strong>). Time-off requests cannot be submitted today.</>
+                                        )}
                                     </span>
                                 </div>
-                            </div>
-                            {toDate === nowInApp.date && isCurrentlyCheckedInToday && (
-                                <div className="mt-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-800">
-                                    <LuCircleAlert className="w-4 h-4 text-amber-600 shrink-0" />
-                                    <span>You are currently checked in today. Time-off can only be applied after checking out for the day.</span>
-                                </div>
                             )}
-                        </div>
 
-                        {/* Time Selection */}
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Time Range</label>
-                                <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
-                                    <FiClock className="w-3 h-3 text-teal-600" /> Office Hours: {formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}
-                                </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-[10px] text-gray-400 font-semibold mb-1 block">Start Time</label>
-                                    <input
-                                        type="time"
-                                        min={officeHours.startTime}
-                                        max={officeHours.endTime}
-                                        value={toStartTime}
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            setToStartTime(val);
-                                            // Auto-set end time to +2 hours or office end time
-                                            if (val && (!toEndTime || toEndTime <= val)) {
-                                                const [h, m] = val.split(':').map(Number);
-                                                let endMin = h * 60 + (m || 0) + 120;
-                                                const [ohEndH, ohEndM] = officeHours.endTime.split(':').map(Number);
-                                                const officeEndMin = ohEndH * 60 + (ohEndM || 0);
-                                                if (endMin > officeEndMin) {
-                                                    endMin = officeEndMin;
-                                                }
-                                                const resH = String(Math.floor(endMin / 60)).padStart(2, '0');
-                                                const resM = String(endMin % 60).padStart(2, '0');
-                                                setToEndTime(`${resH}:${resM}`);
-                                            }
-                                        }}
-                                        className={`w-full px-3 py-3 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
-                                            toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)
-                                                ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500/30'
-                                                : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
-                                        }`}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] text-gray-400 font-semibold mb-1 block">End Time</label>
-                                    <input
-                                        type="time"
-                                        min={officeHours.startTime}
-                                        max={officeHours.endTime}
-                                        value={toEndTime}
-                                        onChange={(e) => setToEndTime(e.target.value)}
-                                        className={`w-full px-3 py-3 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
-                                            toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)
-                                                ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500/30'
-                                                : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
-                                        }`}
-                                    />
-                                </div>
-                            </div>
-                            {/* Validation warning if out of bounds */}
-                            {toStartTime && toStartTime < officeHours.startTime && (
-                                <div className="mt-2.5 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-semibold">
-                                    <FiAlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
-                                    <span>Time-off start time cannot be before office start time ({formatTime12(officeHours.startTime)}). Requests must start on or after {formatTime12(officeHours.startTime)}.</span>
-                                </div>
-                            )}
-                            {((toStartTime && toStartTime >= officeHours.endTime) ||
-                              (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime))) && (
-                                <div className="mt-2.5 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-semibold">
-                                    <FiAlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
-                                    <span>Time-off must be within office hours ({formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}). Any time beyond is not allowed.</span>
-                                </div>
-                            )}
-                            {toStartTime && toEndTime && !((toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime) || (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)) && (
-                                <div className="mt-3 px-3 py-2 bg-teal-50 rounded-xl">
-                                    <p className="text-xs font-bold text-teal-600 flex items-center gap-1.5">
-                                        <FiClock className="w-3.5 h-3.5 shrink-0" /> Duration: {calcTimeOffDuration(toStartTime, toEndTime)}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Reason */}
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Reason</label>
-                            <textarea
-                                value={toReason}
-                                onChange={(e) => setToReason(e.target.value)}
-                                placeholder="Enter reason for time-off..."
-                                rows={3}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all resize-none"
-                            />
-                        </div>
-
-                        {/* Submit */}
-                        <button
-                            type="submit"
-                            disabled={toSubmitting || Boolean(holidaysMap[today]) || Boolean(toDate && holidaysMap[toDate]) || Boolean(toDate === nowInApp.date && isCurrentlyCheckedInToday) || Boolean((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) || (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)))}
-                            className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
-                        >
-                            {toSubmitting ? (
-                                <>
-                                    <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
-                                    Submitting Request...
-                                </>
-                            ) : (
-                                <>
-                                    <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
-                                    Submit Time-Off Request
-                                </>
-                            )}
-                        </button>
-                    </form>
-                )}
-
-                {activeTab === 'timeoff' && activeView === 'history' && (
-                    <div className="space-y-3 animate-fadeIn">
-                        {timeOffLoading ? (
-                            <div className="space-y-3">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-pulse">
-                                        <div className="h-4 bg-gray-100 rounded w-1/3 mb-3"></div>
-                                        <div className="h-3 bg-gray-100 rounded w-2/3"></div>
+                            {/* Date - Tappable field that opens calendar popup */}
+                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Date</label>
+                                <div onClick={() => setToCalendarOpen(true)} className="cursor-pointer">
+                                    <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                        <span className={toDate ? 'text-gray-800' : 'text-gray-400'}>
+                                            {toDate ? formatDate(toDate) : 'Select date'}
+                                        </span>
                                     </div>
-                                ))}
-                            </div>
-                        ) : myTimeOffs.length === 0 ? (
-                            <div className="text-center py-16">
-                                <div className="w-20 h-20 mx-auto mb-6 relative">
-                                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
-                                        <circle cx="16" cy="11" r="5" stroke="#0ea5e9" strokeWidth="1" strokeDasharray="2 1" />
-                                        <path d="M8 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
-                                        <path d="M2 20v-2c0-2.21 1.79-4 4-4h4.5" stroke="#1e1b4b" strokeWidth="2" opacity="0.1" />
-                                        <path d="M8 14l-1.5 2 1.5 4 1.5-4L8 14z" fill="#0ea5e9" opacity="0.4" />
-                                    </svg>
                                 </div>
-                                <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No Time-Off Requests</p>
-                                <p className="text-gray-400 text-xs mt-1">Short break history will appear here.</p>
+                                {toDate === nowInApp.date && isCurrentlyCheckedInToday && (
+                                    <div className="mt-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-800">
+                                        <LuCircleAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                                        <span>You are currently checked in today. Time-off can only be applied after checking out for the day.</span>
+                                    </div>
+                                )}
                             </div>
-                        ) : (
-                            myTimeOffs.map((to) => (
-                                <div key={to.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer" onClick={() => editingTimeOff !== to.id && openDetail(to, 'timeoff')}>
-                                    {editingTimeOff === to.id ? (
-                                        /* ── Inline Edit Form ── */
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Editing Time-Off</span>
-                                                <button onClick={() => setEditingTimeOff(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
-                                            </div>
-                                            <DateFilterInput
-                                                min={minTimeOffDate}
-                                                value={editToDate}
-                                                onChange={(val) => {
+
+                            {/* Time Selection */}
+                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Time Range</label>
+                                    <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                                        <FiClock className="w-3 h-3 text-teal-600" /> Office Hours: {formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] text-gray-400 font-semibold mb-1 block">Start Time</label>
+                                        <div className="relative flex items-center">
+                                            <input
+                                                type="time"
+                                                value={toStartTime}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setToStartTime(val);
+                                                    // Auto-set end time to +2 hours or office end time
                                                     if (val) {
-                                                        if (val < minTimeOffDate) { toast.error(`Time-off cannot be requested for dates more than ${timeOffPastDaysAllowed} working day(s) in the past.`); return; }
-                                                        const [y, m, d] = val.split('-').map(Number);
-                                                        if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
-                                                        if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
+                                                        const [h, m] = val.split(':').map(Number);
+                                                        let endMin = h * 60 + (m || 0) + 120;
+                                                        const [ohEndH, ohEndM] = officeHours.endTime.split(':').map(Number);
+                                                        const officeEndMin = ohEndH * 60 + (ohEndM || 0);
+                                                        if (endMin > officeEndMin && (h * 60 + (m || 0)) < officeEndMin) {
+                                                            endMin = officeEndMin;
+                                                        } else if (endMin >= 24 * 60) {
+                                                            endMin = 23 * 60 + 59;
+                                                        }
+                                                        const resH = String(Math.floor(endMin / 60)).padStart(2, '0');
+                                                        const resM = String(endMin % 60).padStart(2, '0');
+                                                        setToEndTime(`${resH}:${resM}`);
                                                     }
-                                                    setEditToDate(val);
                                                 }}
-                                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
+                                                className={`w-full pl-3 pr-12 py-3 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)
+                                                        ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500/30'
+                                                        : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                                    }`}
                                             />
-                                            <div className="space-y-1.5">
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-400 font-semibold mb-0.5 block">Start Time</label>
-                                                        <input
-                                                            type="time"
-                                                            min={officeHours.startTime}
-                                                            max={officeHours.endTime}
-                                                            value={editToStart}
-                                                            onChange={(e) => setEditToStart(e.target.value)}
-                                                            className={`w-full px-3 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
-                                                                editToStart && (editToStart < officeHours.startTime || editToStart >= officeHours.endTime)
-                                                                    ? 'border-rose-400 bg-rose-50/50'
-                                                                    : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
-                                                            }`}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-400 font-semibold mb-0.5 block">End Time</label>
-                                                        <input
-                                                            type="time"
-                                                            min={officeHours.startTime}
-                                                            max={officeHours.endTime}
-                                                            value={editToEnd}
-                                                            onChange={(e) => setEditToEnd(e.target.value)}
-                                                            className={`w-full px-3 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${
-                                                                editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime)
-                                                                    ? 'border-rose-400 bg-rose-50/50'
-                                                                    : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
-                                                            }`}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center justify-between text-[10px] text-gray-500">
-                                                    <span>Office Hours: {formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}</span>
-                                                </div>
-                                                {editToStart && editToStart < officeHours.startTime && (
-                                                    <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-1.5 text-rose-700 text-xs font-semibold">
-                                                        <FiAlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
-                                                        <span>Time-off start time cannot be before office start time ({formatTime12(officeHours.startTime)}).</span>
-                                                    </div>
-                                                )}
-                                                {((editToStart && editToStart >= officeHours.endTime) ||
-                                                  (editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime))) && (
-                                                    <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-1.5 text-rose-700 text-xs font-semibold">
-                                                        <FiAlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
-                                                        <span>Time-off must be within office hours ({formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}).</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <textarea value={editToReason} onChange={(e) => setEditToReason(e.target.value)} rows={2} placeholder="Reason" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all resize-none" />
-                                            <button
-                                                onClick={() => handleEditTimeOff(to.id)}
-                                                disabled={editToSubmitting || Boolean((editToStart && (editToStart < officeHours.startTime || editToStart >= officeHours.endTime)) || (editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime)))}
-                                                className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-xl text-xs shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
-                                            >
-                                                {editToSubmitting ? 'Saving...' : <span className="flex items-center justify-center gap-1.5"><FiSave className="w-3.5 h-3.5" /> Save Changes</span>}
-                                            </button>
+                                            {toStartTime && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const nextVal = toggleTimeMeridiem(toStartTime);
+                                                        setToStartTime(nextVal);
+                                                        const [h, m] = nextVal.split(':').map(Number);
+                                                        let endMin = h * 60 + (m || 0) + 120;
+                                                        const [ohEndH, ohEndM] = officeHours.endTime.split(':').map(Number);
+                                                        const officeEndMin = ohEndH * 60 + (ohEndM || 0);
+                                                        if (endMin > officeEndMin && (h * 60 + (m || 0)) < officeEndMin) {
+                                                            endMin = officeEndMin;
+                                                        } else if (endMin >= 24 * 60) {
+                                                            endMin = 23 * 60 + 59;
+                                                        }
+                                                        const resH = String(Math.floor(endMin / 60)).padStart(2, '0');
+                                                        const resM = String(endMin % 60).padStart(2, '0');
+                                                        setToEndTime(`${resH}:${resM}`);
+                                                    }}
+                                                    title="Tap to switch AM / PM"
+                                                    className="absolute right-2 px-2 py-1 rounded-lg text-[10px] font-extrabold bg-teal-100 text-teal-800 hover:bg-teal-200 active:scale-95 transition-all"
+                                                >
+                                                    {getTimeMeridiem(toStartTime)}
+                                                </button>
+                                            )}
                                         </div>
-                                    ) : (
-                                        /* ── Normal Display ── */
-                                        <>
-                                            <div className="flex items-start justify-between mb-2">
-                                                <h4 className="text-sm font-bold text-gray-900">Time-Off {to.start_time && to.end_time && <span className="text-teal-600 font-bold">· {calcTimeOffDuration(to.start_time, to.end_time)}</span>}</h4>
-                                                <StatusBadge status={to.status} />
-                                            </div>
-                                            <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
-                                                <FiCalendar className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                                                <span>{formatDate(to.date)} • {formatTime12(to.start_time)} - {formatTime12(to.end_time)}</span>
-                                            </p>
-                                            {to.reason && <p className="text-xs text-gray-400 italic">"{to.reason}"</p>}
-                                            {to.rejection_reason && (
-                                                <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
-                                                    <FiXCircle className="w-3.5 h-3.5 shrink-0" /> {to.rejection_reason}
-                                                </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-gray-400 font-semibold mb-1 block">End Time</label>
+                                        <div className="relative flex items-center">
+                                            <input
+                                                type="time"
+                                                value={toEndTime}
+                                                onChange={(e) => setToEndTime(e.target.value)}
+                                                className={`w-full pl-3 pr-12 py-3 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)
+                                                        ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500/30'
+                                                        : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                                    }`}
+                                            />
+                                            {toEndTime && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setToEndTime(toggleTimeMeridiem(toEndTime))}
+                                                    title="Tap to switch AM / PM"
+                                                    className="absolute right-2 px-2 py-1 rounded-lg text-[10px] font-extrabold bg-teal-100 text-teal-800 hover:bg-teal-200 active:scale-95 transition-all"
+                                                >
+                                                    {getTimeMeridiem(toEndTime)}
+                                                </button>
                                             )}
-                                            {to.status === 'Pending' && (
-                                                <div className="mt-2 flex items-center gap-3">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); startEditTimeOff(to); }}
-                                                        className="text-xs text-teal-500 font-bold hover:text-teal-700 transition-colors flex items-center gap-1"
-                                                    >
-                                                        <FiEdit2 className="w-3 h-3" /> Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleDeleteTimeOff(to.id); }}
-                                                        className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors flex items-center gap-1"
-                                                    >
-                                                        <FiTrash2 className="w-3 h-3" /> Delete
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </>
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* Validation warning if out of bounds */}
+                                {toStartTime && toStartTime < officeHours.startTime && (
+                                    <div className="mt-2.5 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-semibold">
+                                        <FiAlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                                        <span>Time-off start time cannot be before office start time ({formatTime12(officeHours.startTime)}). Requests must start on or after {formatTime12(officeHours.startTime)}.</span>
+                                    </div>
+                                )}
+                                {((toStartTime && toStartTime >= officeHours.endTime) ||
+                                    (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime))) && (
+                                        <div className="mt-2.5 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-semibold">
+                                            <FiAlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                                            <span>Time-off must be within office hours ({formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}). Any time beyond is not allowed.</span>
+                                        </div>
                                     )}
-                                </div>
-                            ))
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {/* ── Calendar Popup Modal ── */}
-            {calendarOpen && (
-                <div className="fixed inset-0 z-[95] flex items-center justify-center confirm-backdrop" onClick={cancelCalendar}>
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 confirm-modal overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-5 pt-4 pb-2">
-                            <h3 className="text-base font-bold text-gray-900">Select Leave Dates</h3>
-                            <button onClick={cancelCalendar} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-                                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
-
-                        <div className="px-4 pb-4">
-                            {/* Month Header */}
-                            <div className="flex items-center justify-between mb-3">
-                                <button type="button" onClick={prevMonth} disabled={(() => { const [minY, minM] = minLeaveDate.split('-').map(Number); const prevY = calendarMon === 0 ? calendarYear - 1 : calendarYear; const prevM = calendarMon === 0 ? 12 : calendarMon; return prevY < minY || (prevY === minY && prevM < minM); })()} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent">
-                                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <span className="text-sm font-bold text-gray-800">{monthName}</span>
-                                <button type="button" onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-                                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                </button>
+                                {toStartTime && toEndTime && !((toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime) || (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)) && (
+                                    <div className="mt-3 px-3 py-2 bg-teal-50 rounded-xl">
+                                        <p className="text-xs font-bold text-teal-600 flex items-center gap-1.5">
+                                            <FiClock className="w-3.5 h-3.5 shrink-0" /> Duration: {calcTimeOffDuration(toStartTime, toEndTime)}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Day of Week Headers */}
-                            <div className="grid grid-cols-7 gap-0 mb-1">
-                                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-                                    <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase py-1">{d}</div>
-                                ))}
+                            {/* Reason */}
+                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Reason</label>
+                                <textarea
+                                    value={toReason}
+                                    onChange={(e) => setToReason(e.target.value)}
+                                    placeholder="Enter reason for time-off..."
+                                    rows={3}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all resize-none"
+                                />
                             </div>
 
-                            {/* Calendar Grid */}
-                            <div className="grid grid-cols-7 gap-0">
-                                {calendarDays.map((cell, idx) => {
-                                    if (!cell) return <div key={`empty-${idx}`} className="h-10"></div>;
-
-                                    const { day, dateStr, isSunday, isHoliday, holidayName } = cell;
-                                    const isPast = dateStr < minLeaveDate;
-                                    const hasAttendance = attendedDates.has(dateStr) || (dateStr === today && hasAttendanceToday);
-                                    const disabled = isPast || isSunday || isHoliday || hasAttendance;
-                                    const leaveStatus = leaveDateStatusMap[dateStr];
-                                    const inRange = isInSelectedRange(dateStr);
-                                    const isStart = isRangeStart(dateStr);
-                                    const isEnd = isRangeEnd(dateStr);
-                                    const isToday = dateStr === today;
-
-                                    let bgClass = '';
-                                    let textClass = 'text-gray-800';
-                                    let ringClass = '';
-
-                                    if (disabled) {
-                                        if (hasAttendance) {
-                                            textClass = 'text-rose-400 line-through';
-                                            bgClass = 'bg-rose-50/50';
-                                        } else if (isHoliday) {
-                                            textClass = 'text-purple-400 font-bold';
-                                            bgClass = 'bg-purple-50';
-                                        } else {
-                                            textClass = 'text-gray-300';
-                                        }
-                                    } else if (isStart || isEnd) {
-                                        bgClass = 'bg-blue-600';
-                                        textClass = 'text-white';
-                                    } else if (inRange) {
-                                        bgClass = 'bg-blue-500';
-                                        textClass = 'text-white';
-                                    } else if (leaveStatus === 'Approved') {
-                                        bgClass = 'bg-emerald-100';
-                                        textClass = 'text-emerald-800';
-                                    } else if (leaveStatus === 'Pending') {
-                                        bgClass = 'bg-amber-100';
-                                        textClass = 'text-amber-800';
-                                    } else if (isSunday) {
-                                        textClass = 'text-red-400';
-                                    }
-
-                                    if (isToday && !isStart && !isEnd && !inRange) {
-                                        ringClass = 'ring-2 ring-blue-400 ring-offset-1';
-                                    }
-
-                                    return (
-                                        <button
-                                            key={dateStr}
-                                            type="button"
-                                            disabled={disabled}
-                                            onClick={() => handleCalendarDayClick(dateStr)}
-                                            title={hasAttendance ? 'Attendance recorded - Leave not allowed' : isHoliday ? `Holiday: ${holidayName} (Disabled)` : isSunday ? 'Sunday (Disabled)' : ''}
-                                            className={`h-10 w-full flex items-center justify-center text-xs font-semibold rounded-full transition-all
-                                                ${bgClass} ${textClass} ${ringClass}
-                                                ${!disabled && !inRange && !isStart && !isEnd ? 'hover:bg-blue-50' : ''} ${!disabled ? 'active:scale-95 cursor-pointer' : 'cursor-default'}
-                                                ${(isStart || isEnd) ? 'shadow-sm' : ''}
-                                            `}
-                                        >
-                                            {day}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Legend */}
-                            <div className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-gray-100 flex-wrap">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
-                                    <span className="text-[10px] text-gray-500 font-semibold">Selected</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-200"></span>
-                                    <span className="text-[10px] text-gray-500 font-semibold">Approved</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-amber-200"></span>
-                                    <span className="text-[10px] text-gray-500 font-semibold">Pending</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-purple-300"></span>
-                                    <span className="text-[10px] text-gray-500 font-semibold">Holiday (Disabled)</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
-                                    <span className="text-[10px] text-gray-500 font-semibold">Attended</span>
-                                </div>
-                            </div>
-
-                            {/* Range hint */}
-                            <p className="text-center text-[10px] text-gray-400 mt-2">
-                                {rangeStep === 0
-                                    ? (tempCalStart && tempCalEnd ? 'Tap a date to select a new range' : 'Tap to select start date')
-                                    : 'Now tap to select end date'
-                                }
-                            </p>
-
-                            {/* Selected range preview */}
-                            {tempCalStart && (
-                                <div className="mt-2 px-3 py-2 bg-blue-50 rounded-xl">
-                                    <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 flex-wrap">
-                                        <FiCalendar className="w-3.5 h-3.5 shrink-0" />
-                                        <span>{formatDate(tempCalStart)}{tempCalEnd ? ` → ${formatDate(tempCalEnd)} · ${calculateLeaveDaysExcludingSunday(tempCalStart, tempCalEnd, leaveDateStatusMap, holidaysMap)} day(s)` : ' — pick end date'}</span>
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Confirm Button */}
+                            {/* Submit */}
                             <button
-                                type="button"
-                                onClick={confirmCalendar}
-                                disabled={!tempCalStart}
-                                className="w-full mt-3 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all disabled:opacity-50"
+                                type="submit"
+                                disabled={toSubmitting || Boolean(holidaysMap[today]) || Boolean(toDate && holidaysMap[toDate]) || Boolean(toDate === nowInApp.date && isCurrentlyCheckedInToday) || Boolean((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) || (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)))}
+                                className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                             >
-                                Confirm Selection
+                                {toSubmitting ? (
+                                    <>
+                                        <span className="w-4 h-4 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin"></span>
+                                        Submitting Request...
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="w-2 h-2 bg-[#0ea5e9] rounded-full animate-pulse" />
+                                        Submit Time-Off Request
+                                    </>
+                                )}
                             </button>
+                        </form>
+                    )}
+
+                    {activeTab === 'timeoff' && activeView === 'history' && (
+                        <div className="space-y-3 animate-fadeIn">
+                            {timeOffLoading ? (
+                                <div className="space-y-3">
+                                    {[1, 2, 3].map(i => (
+                                        <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-pulse">
+                                            <div className="h-4 bg-gray-100 rounded w-1/3 mb-3"></div>
+                                            <div className="h-3 bg-gray-100 rounded w-2/3"></div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : myTimeOffs.length === 0 ? (
+                                <div className="text-center py-16">
+                                    <div className="w-20 h-20 mx-auto mb-6 relative">
+                                        <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
+                                            <circle cx="16" cy="11" r="5" stroke="#0ea5e9" strokeWidth="1" strokeDasharray="2 1" />
+                                            <path d="M8 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#1e1b4b" opacity="0.1" />
+                                            <path d="M2 20v-2c0-2.21 1.79-4 4-4h4.5" stroke="#1e1b4b" strokeWidth="2" opacity="0.1" />
+                                            <path d="M8 14l-1.5 2 1.5 4 1.5-4L8 14z" fill="#0ea5e9" opacity="0.4" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-[#1e1b4b] font-black text-sm uppercase tracking-widest">No Time-Off Requests</p>
+                                    <p className="text-gray-400 text-xs mt-1">Short break history will appear here.</p>
+                                </div>
+                            ) : (
+                                myTimeOffs.map((to) => (
+                                    <div key={to.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer" onClick={() => editingTimeOff !== to.id && openDetail(to, 'timeoff')}>
+                                        {editingTimeOff === to.id ? (
+                                            /* ── Inline Edit Form ── */
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Editing Time-Off</span>
+                                                    <button onClick={() => setEditingTimeOff(null)} className="text-xs text-gray-400 font-bold hover:text-gray-600 flex items-center gap-1"><FiX className="w-3.5 h-3.5" /> Cancel</button>
+                                                </div>
+                                                <DateFilterInput
+                                                    min={minTimeOffDate}
+                                                    value={editToDate}
+                                                    onChange={(val) => {
+                                                        if (val) {
+                                                            if (val < minTimeOffDate) { toast.error(`Time-off cannot be requested for dates more than ${timeOffPastDaysAllowed} working day(s) in the past.`); return; }
+                                                            const [y, m, d] = val.split('-').map(Number);
+                                                            if (new Date(y, m - 1, d).getDay() === 0) { toast.error('Sundays are not allowed'); return; }
+                                                            if (holidaysMap[val]) { toast.error(`Holiday (${holidaysMap[val]}) is not allowed`); return; }
+                                                        }
+                                                        setEditToDate(val);
+                                                    }}
+                                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
+                                                />
+                                                <div className="space-y-1.5">
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label className="text-[10px] text-gray-400 font-semibold mb-0.5 block">Start Time</label>
+                                                            <div className="relative flex items-center">
+                                                                <input
+                                                                    type="time"
+                                                                    value={editToStart}
+                                                                    onChange={(e) => setEditToStart(e.target.value)}
+                                                                    className={`w-full pl-3 pr-12 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${editToStart && (editToStart < officeHours.startTime || editToStart >= officeHours.endTime)
+                                                                            ? 'border-rose-400 bg-rose-50/50'
+                                                                            : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                                                        }`}
+                                                                />
+                                                                {editToStart && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setEditToStart(toggleTimeMeridiem(editToStart))}
+                                                                        title="Tap to switch AM / PM"
+                                                                        className="absolute right-2 px-2 py-1 rounded-lg text-[10px] font-extrabold bg-teal-100 text-teal-800 hover:bg-teal-200 active:scale-95 transition-all"
+                                                                    >
+                                                                        {getTimeMeridiem(editToStart)}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] text-gray-400 font-semibold mb-0.5 block">End Time</label>
+                                                            <div className="relative flex items-center">
+                                                                <input
+                                                                    type="time"
+                                                                    value={editToEnd}
+                                                                    onChange={(e) => setEditToEnd(e.target.value)}
+                                                                    className={`w-full pl-3 pr-12 py-2.5 bg-gray-50 border rounded-xl text-sm font-medium focus:outline-none transition-all ${editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime)
+                                                                            ? 'border-rose-400 bg-rose-50/50'
+                                                                            : 'border-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500'
+                                                                        }`}
+                                                                />
+                                                                {editToEnd && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setEditToEnd(toggleTimeMeridiem(editToEnd))}
+                                                                        title="Tap to switch AM / PM"
+                                                                        className="absolute right-2 px-2 py-1 rounded-lg text-[10px] font-extrabold bg-teal-100 text-teal-800 hover:bg-teal-200 active:scale-95 transition-all"
+                                                                    >
+                                                                        {getTimeMeridiem(editToEnd)}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-[10px] text-gray-500">
+                                                        <span>Office Hours: {formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}</span>
+                                                    </div>
+                                                    {editToStart && editToStart < officeHours.startTime && (
+                                                        <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-1.5 text-rose-700 text-xs font-semibold">
+                                                            <FiAlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                                                            <span>Time-off start time cannot be before office start time ({formatTime12(officeHours.startTime)}).</span>
+                                                        </div>
+                                                    )}
+                                                    {((editToStart && editToStart >= officeHours.endTime) ||
+                                                        (editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime))) && (
+                                                            <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-1.5 text-rose-700 text-xs font-semibold">
+                                                                <FiAlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                                                                <span>Time-off must be within office hours ({formatTime12(officeHours.startTime)} – {formatTime12(officeHours.endTime)}).</span>
+                                                            </div>
+                                                        )}
+                                                </div>
+                                                <textarea value={editToReason} onChange={(e) => setEditToReason(e.target.value)} rows={2} placeholder="Reason" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all resize-none" />
+                                                <button
+                                                    onClick={() => handleEditTimeOff(to.id)}
+                                                    disabled={editToSubmitting || Boolean((editToStart && (editToStart < officeHours.startTime || editToStart >= officeHours.endTime)) || (editToEnd && (editToEnd <= officeHours.startTime || editToEnd > officeHours.endTime)))}
+                                                    className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-xl text-xs shadow-sm active:scale-[0.98] transition-all disabled:opacity-60"
+                                                >
+                                                    {editToSubmitting ? 'Saving...' : <span className="flex items-center justify-center gap-1.5"><FiSave className="w-3.5 h-3.5" /> Save Changes</span>}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            /* ── Normal Display ── */
+                                            <>
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <h4 className="text-sm font-bold text-gray-900">Time-Off {to.start_time && to.end_time && <span className="text-teal-600 font-bold">· {calcTimeOffDuration(to.start_time, to.end_time)}</span>}</h4>
+                                                    <StatusBadge status={to.status} />
+                                                </div>
+                                                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                                                    <FiCalendar className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                                                    <span>{formatDate(to.date)} • {formatTime12(to.start_time)} - {formatTime12(to.end_time)}</span>
+                                                </p>
+                                                {to.reason && <p className="text-xs text-gray-400 italic">"{to.reason}"</p>}
+                                                {to.rejection_reason && (
+                                                    <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+                                                        <FiXCircle className="w-3.5 h-3.5 shrink-0" /> {to.rejection_reason}
+                                                    </p>
+                                                )}
+                                                {to.status === 'Pending' && (
+                                                    <div className="mt-2 flex items-center gap-3">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); startEditTimeOff(to); }}
+                                                            className="text-xs text-teal-500 font-bold hover:text-teal-700 transition-colors flex items-center gap-1"
+                                                        >
+                                                            <FiEdit2 className="w-3 h-3" /> Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteTimeOff(to.id); }}
+                                                            className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors flex items-center gap-1"
+                                                        >
+                                                            <FiTrash2 className="w-3 h-3" /> Delete
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                ))
+                            )}
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
 
-            {/* ── Time-Off Calendar Popup Modal ── */}
-            {toCalendarOpen && (() => {
-                const tYear = toCalendarMonth.getFullYear();
-                const tMon = toCalendarMonth.getMonth();
-                const tDaysInMonth = new Date(tYear, tMon + 1, 0).getDate();
-                const tFirstDay = new Date(tYear, tMon, 1).getDay();
-                const tMonthLabel = formatInTimezone(toCalendarMonth, null, { month: 'long', year: 'numeric' });
-
-                const tDays = [];
-                for (let i = 0; i < tFirstDay; i++) tDays.push(null);
-                for (let d = 1; d <= tDaysInMonth; d++) {
-                    const dateObj = new Date(tYear, tMon, d);
-                    const dateStr = `${tYear}-${String(tMon + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                    const holidayName = holidaysMap[dateStr];
-                    tDays.push({ day: d, dateStr, isSunday: dateObj.getDay() === 0, isHoliday: Boolean(holidayName), holidayName });
-                }
-
-                return (
-                    <div className="fixed inset-0 z-[95] flex items-center justify-center confirm-backdrop" onClick={() => setToCalendarOpen(false)}>
+                {/* ── Calendar Popup Modal ── */}
+                {calendarOpen && (
+                    <div className="fixed inset-0 z-[95] flex items-center justify-center confirm-backdrop" onClick={cancelCalendar}>
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 confirm-modal overflow-hidden" onClick={(e) => e.stopPropagation()}>
                             {/* Header */}
                             <div className="flex items-center justify-between px-5 pt-4 pb-2">
-                                <h3 className="text-base font-bold text-gray-900">Select Time-Off Date</h3>
-                                <button onClick={() => setToCalendarOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                <h3 className="text-base font-bold text-gray-900">Select Leave Dates</h3>
+                                <button onClick={cancelCalendar} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
                                     <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                             </div>
@@ -2482,21 +2379,11 @@ const MyRequests = () => {
                             <div className="px-4 pb-4">
                                 {/* Month Header */}
                                 <div className="flex items-center justify-between mb-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setToCalendarMonth(new Date(tYear, tMon - 1, 1))}
-                                        disabled={(() => {
-                                            const [minY, minM] = minTimeOffDate.split('-').map(Number);
-                                            const prevY = tMon === 0 ? tYear - 1 : tYear;
-                                            const prevM = tMon === 0 ? 12 : tMon;
-                                            return prevY < minY || (prevY === minY && prevM < minM);
-                                        })()}
-                                        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent"
-                                    >
+                                    <button type="button" onClick={prevMonth} disabled={(() => { const [minY, minM] = minLeaveDate.split('-').map(Number); const prevY = calendarMon === 0 ? calendarYear - 1 : calendarYear; const prevM = calendarMon === 0 ? 12 : calendarMon; return prevY < minY || (prevY === minY && prevM < minM); })()} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent">
                                         <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                     </button>
-                                    <span className="text-sm font-bold text-gray-800">{tMonthLabel}</span>
-                                    <button type="button" onClick={() => setToCalendarMonth(new Date(tYear, tMon + 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                    <span className="text-sm font-bold text-gray-800">{monthName}</span>
+                                    <button type="button" onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
                                         <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                     </button>
                                 </div>
@@ -2504,30 +2391,57 @@ const MyRequests = () => {
                                 {/* Day of Week Headers */}
                                 <div className="grid grid-cols-7 gap-0 mb-1">
                                     {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-                                        <div key={d} className={`text-center text-[10px] font-bold uppercase py-1 ${d === 'Su' ? 'text-red-400' : 'text-gray-400'}`}>{d}</div>
+                                        <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase py-1">{d}</div>
                                     ))}
                                 </div>
 
                                 {/* Calendar Grid */}
                                 <div className="grid grid-cols-7 gap-0">
-                                    {tDays.map((cell, idx) => {
-                                        if (!cell) return <div key={`to-empty-${idx}`} className="h-10"></div>;
+                                    {calendarDays.map((cell, idx) => {
+                                        if (!cell) return <div key={`empty-${idx}`} className="h-10"></div>;
 
                                         const { day, dateStr, isSunday, isHoliday, holidayName } = cell;
-                                        const isPast = dateStr < minTimeOffDate;
-                                        const disabled = isPast || isSunday || isHoliday;
-                                        const isSelected = dateStr === toDate;
+                                        const isPast = dateStr < minLeaveDate;
+                                        const hasAttendance = attendedDates.has(dateStr) || (dateStr === today && hasAttendanceToday);
+                                        const disabled = isPast || isSunday || isHoliday || hasAttendance;
+                                        const leaveStatus = leaveDateStatusMap[dateStr];
+                                        const inRange = isInSelectedRange(dateStr);
+                                        const isStart = isRangeStart(dateStr);
+                                        const isEnd = isRangeEnd(dateStr);
                                         const isToday = dateStr === today;
 
                                         let bgClass = '';
                                         let textClass = 'text-gray-800';
+                                        let ringClass = '';
 
                                         if (disabled) {
-                                            textClass = isHoliday ? 'text-purple-400 font-bold' : isSunday ? 'text-red-300' : 'text-gray-300';
-                                            bgClass = isHoliday ? 'bg-purple-50' : '';
-                                        } else if (isSelected) {
-                                            bgClass = 'bg-teal-600';
+                                            if (hasAttendance) {
+                                                textClass = 'text-rose-400 line-through';
+                                                bgClass = 'bg-rose-50/50';
+                                            } else if (isHoliday) {
+                                                textClass = 'text-purple-400 font-bold';
+                                                bgClass = 'bg-purple-50';
+                                            } else {
+                                                textClass = 'text-gray-300';
+                                            }
+                                        } else if (isStart || isEnd) {
+                                            bgClass = 'bg-blue-600';
                                             textClass = 'text-white';
+                                        } else if (inRange) {
+                                            bgClass = 'bg-blue-500';
+                                            textClass = 'text-white';
+                                        } else if (leaveStatus === 'Approved') {
+                                            bgClass = 'bg-emerald-100';
+                                            textClass = 'text-emerald-800';
+                                        } else if (leaveStatus === 'Pending') {
+                                            bgClass = 'bg-amber-100';
+                                            textClass = 'text-amber-800';
+                                        } else if (isSunday) {
+                                            textClass = 'text-red-400';
+                                        }
+
+                                        if (isToday && !isStart && !isEnd && !inRange) {
+                                            ringClass = 'ring-2 ring-blue-400 ring-offset-1';
                                         }
 
                                         return (
@@ -2535,18 +2449,13 @@ const MyRequests = () => {
                                                 key={dateStr}
                                                 type="button"
                                                 disabled={disabled}
-                                                title={isHoliday ? `Holiday: ${holidayName} (Disabled)` : isSunday ? 'Sunday (Disabled)' : ''}
-                                                onClick={() => {
-                                                    setToDate(dateStr);
-                                                    setToCalendarOpen(false);
-                                                }}
+                                                onClick={() => handleCalendarDayClick(dateStr)}
+                                                title={hasAttendance ? 'Attendance recorded - Leave not allowed' : isHoliday ? `Holiday: ${holidayName} (Disabled)` : isSunday ? 'Sunday (Disabled)' : ''}
                                                 className={`h-10 w-full flex items-center justify-center text-xs font-semibold rounded-full transition-all
-                                                    ${bgClass} ${textClass}
-                                                    ${isToday && !isSelected ? 'ring-2 ring-teal-400 ring-offset-1' : ''}
-                                                    ${!disabled && !isSelected ? 'hover:bg-teal-50' : ''}
-                                                    ${!disabled ? 'active:scale-95 cursor-pointer' : 'cursor-default'}
-                                                    ${isSelected ? 'shadow-sm' : ''}
-                                                `}
+                                                ${bgClass} ${textClass} ${ringClass}
+                                                ${!disabled && !inRange && !isStart && !isEnd ? 'hover:bg-blue-50' : ''} ${!disabled ? 'active:scale-95 cursor-pointer' : 'cursor-default'}
+                                                ${(isStart || isEnd) ? 'shadow-sm' : ''}
+                                            `}
                                             >
                                                 {day}
                                             </button>
@@ -2555,26 +2464,43 @@ const MyRequests = () => {
                                 </div>
 
                                 {/* Legend */}
-                                <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-100 flex-wrap">
+                                <div className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-gray-100 flex-wrap">
                                     <div className="flex items-center gap-1.5">
-                                        <span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
+                                        <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
                                         <span className="text-[10px] text-gray-500 font-semibold">Selected</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-200"></span>
+                                        <span className="text-[10px] text-gray-500 font-semibold">Approved</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-200"></span>
+                                        <span className="text-[10px] text-gray-500 font-semibold">Pending</span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2.5 h-2.5 rounded-full bg-purple-300"></span>
                                         <span className="text-[10px] text-gray-500 font-semibold">Holiday (Disabled)</span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
-                                        <span className="w-2.5 h-2.5 rounded-full bg-red-200"></span>
-                                        <span className="text-[10px] text-gray-500 font-semibold">Sunday (Disabled)</span>
+                                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+                                        <span className="text-[10px] text-gray-500 font-semibold">Attended</span>
                                     </div>
                                 </div>
 
-                                {/* Selected date preview */}
-                                {toDate && (
-                                    <div className="mt-2 px-3 py-2 bg-teal-50 rounded-xl">
-                                        <p className="text-xs font-bold text-teal-600 flex items-center gap-1.5">
-                                            <FiCalendar className="w-3.5 h-3.5 shrink-0" /> {formatDate(toDate)}
+                                {/* Range hint */}
+                                <p className="text-center text-[10px] text-gray-400 mt-2">
+                                    {rangeStep === 0
+                                        ? (tempCalStart && tempCalEnd ? 'Tap a date to select a new range' : 'Tap to select start date')
+                                        : 'Now tap to select end date'
+                                    }
+                                </p>
+
+                                {/* Selected range preview */}
+                                {tempCalStart && (
+                                    <div className="mt-2 px-3 py-2 bg-blue-50 rounded-xl">
+                                        <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 flex-wrap">
+                                            <FiCalendar className="w-3.5 h-3.5 shrink-0" />
+                                            <span>{formatDate(tempCalStart)}{tempCalEnd ? ` → ${formatDate(tempCalEnd)} · ${calculateLeaveDaysExcludingSunday(tempCalStart, tempCalEnd, leaveDateStatusMap, holidaysMap)} day(s)` : ' — pick end date'}</span>
                                         </p>
                                     </div>
                                 )}
@@ -2582,275 +2508,417 @@ const MyRequests = () => {
                                 {/* Confirm Button */}
                                 <button
                                     type="button"
-                                    onClick={() => setToCalendarOpen(false)}
-                                    disabled={!toDate}
-                                    className="w-full mt-3 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-teal-500/25 active:scale-[0.98] transition-all disabled:opacity-50"
+                                    onClick={confirmCalendar}
+                                    disabled={!tempCalStart}
+                                    className="w-full mt-3 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all disabled:opacity-50"
                                 >
                                     Confirm Selection
                                 </button>
                             </div>
                         </div>
                     </div>
-                );
-            })()}
+                )}
 
-            {/* ── Detail Bottom Sheet ── */}
-            {selectedDetail && (
-                <div className="fixed inset-0 z-[90] flex items-end justify-center detail-backdrop" onClick={closeDetail}>
-                    <div className="bg-white rounded-t-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto detail-sheet" onClick={(e) => e.stopPropagation()}>
-                        {/* Handle Bar */}
-                        <div className="sticky top-0 bg-white rounded-t-3xl pt-3 pb-2 px-6 z-10">
-                            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto"></div>
-                        </div>
+                {/* ── Time-Off Calendar Popup Modal ── */}
+                {toCalendarOpen && (() => {
+                    const tYear = toCalendarMonth.getFullYear();
+                    const tMon = toCalendarMonth.getMonth();
+                    const tDaysInMonth = new Date(tYear, tMon + 1, 0).getDate();
+                    const tFirstDay = new Date(tYear, tMon, 1).getDay();
+                    const tMonthLabel = formatInTimezone(toCalendarMonth, null, { month: 'long', year: 'numeric' });
 
-                        <div className="px-6 pb-6 space-y-4">
-                            {/* Title & Status */}
-                            <div className="flex items-start justify-between gap-3">
-                                <h3 className="text-lg font-black text-gray-900">
-                                    {detailType === 'leave' && (selectedDetail.title || selectedDetail.leave_type || 'Leave')}
-                                    {detailType === 'onduty' && (selectedDetail.title || `On-Duty: ${selectedDetail.client_name || ''}`)}
-                                    {detailType === 'timeoff' && (
-                                        <>Time-Off {selectedDetail.start_time && selectedDetail.end_time && <span className="text-teal-600">· {calcTimeOffDuration(selectedDetail.start_time, selectedDetail.end_time)}</span>}</>
-                                    )}
-                                </h3>
-                                <StatusBadge status={selectedDetail.status} />
-                            </div>
+                    const tDays = [];
+                    for (let i = 0; i < tFirstDay; i++) tDays.push(null);
+                    for (let d = 1; d <= tDaysInMonth; d++) {
+                        const dateObj = new Date(tYear, tMon, d);
+                        const dateStr = `${tYear}-${String(tMon + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                        const holidayName = holidaysMap[dateStr];
+                        tDays.push({ day: d, dateStr, isSunday: dateObj.getDay() === 0, isHoliday: Boolean(holidayName), holidayName });
+                    }
 
-                            {/* Request ID */}
-                            {selectedDetail.id && (
-                                <div className="bg-gray-50 rounded-xl px-3 py-2 flex items-center gap-2">
-                                    <span className="text-gray-400 text-xs">#</span>
-                                    <span className="text-xs text-gray-500 font-medium">Request ID: {selectedDetail.id}</span>
+                    return (
+                        <div className="fixed inset-0 z-[95] flex items-center justify-center confirm-backdrop" onClick={() => setToCalendarOpen(false)}>
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 confirm-modal overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                                {/* Header */}
+                                <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                                    <h3 className="text-base font-bold text-gray-900">Select Time-Off Date</h3>
+                                    <button onClick={() => setToCalendarOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
                                 </div>
-                            )}
 
-                            {/* Date Range */}
-                            <div className="bg-blue-50 rounded-xl p-3">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                    <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Date & Time</span>
-                                </div>
-                                {detailType === 'timeoff' ? (
-                                    <p className="text-sm font-semibold text-gray-800">
-                                        {formatDate(selectedDetail.date)} · {formatTime12(selectedDetail.start_time)} - {formatTime12(selectedDetail.end_time)}
-                                    </p>
-                                ) : detailType === 'onduty' ? (
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-800">
-                                            {formatDate(selectedDetail.start)} · {formatTime12(selectedDetail.start)} → {selectedDetail.end ? `${formatDate(selectedDetail.end)} · ${formatTime12(selectedDetail.end)}` : 'Active'}
-                                        </p>
-                                        {selectedDetail.completed_end_time && selectedDetail.end && (selectedDetail.completed_end_time !== selectedDetail.end) && (
-                                            <p className="text-[11px] text-gray-500 mt-1">
-                                                Originally completed at: <span className="font-semibold text-gray-700">{formatTime12(selectedDetail.completed_end_time)}</span>
-                                            </p>
-                                        )}
+                                <div className="px-4 pb-4">
+                                    {/* Month Header */}
+                                    <div className="flex items-center justify-between mb-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setToCalendarMonth(new Date(tYear, tMon - 1, 1))}
+                                            disabled={(() => {
+                                                const [minY, minM] = minTimeOffDate.split('-').map(Number);
+                                                const prevY = tMon === 0 ? tYear - 1 : tYear;
+                                                const prevM = tMon === 0 ? 12 : tMon;
+                                                return prevY < minY || (prevY === minY && prevM < minM);
+                                            })()}
+                                            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent"
+                                        >
+                                            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                        </button>
+                                        <span className="text-sm font-bold text-gray-800">{tMonthLabel}</span>
+                                        <button type="button" onClick={() => setToCalendarMonth(new Date(tYear, tMon + 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                                            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                        </button>
                                     </div>
-                                ) : (
-                                    <p className="text-sm font-semibold text-gray-800">
-                                        {formatDate(selectedDetail.start_date || selectedDetail.start)} → {formatDate(selectedDetail.end_date || selectedDetail.end)}
-                                    </p>
-                                )}
-                            </div>
 
-                            {/* Duration (Leave) */}
-                            {detailType === 'leave' && (selectedDetail.start_date || selectedDetail.start) && (selectedDetail.end_date || selectedDetail.end) && (
-                                <div className="bg-indigo-50 rounded-xl p-3 flex items-center gap-2">
-                                    <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    <span className="text-sm font-semibold text-indigo-700">
-                                        Duration: {formatLeaveDuration(calculateLeaveDaysExcludingSunday(selectedDetail.start_date || selectedDetail.start, selectedDetail.end_date || selectedDetail.end, {}, holidaysMap) - (selectedDetail.is_half_day === true || selectedDetail.is_half_day === 1 ? 0.5 : 0), { lowercase: true })}
-                                        <span className="text-xs font-normal text-indigo-400 ml-1">(excl. Sundays & holidays)</span>
-                                    </span>
-                                </div>
-                            )}
-
-                            {/* On-Duty Details */}
-                            {detailType === 'onduty' && (
-                                <div className="space-y-2">
-                                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Details</div>
-                                    {(selectedDetail.client_name || selectedDetail.title) && (
-                                        <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-                                            <span className="text-gray-400"><FiBriefcase className="w-4 h-4" /></span>
-                                            <div>
-                                                <div className="text-[10px] text-gray-400 font-semibold uppercase">Client</div>
-                                                <div className="text-sm font-semibold text-gray-800">{selectedDetail.client_name || selectedDetail.title?.replace('On-Duty: ', '')}</div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {selectedDetail.location && (
-                                        <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-                                            <span className="text-gray-400"><FiMapPin className="w-4 h-4" /></span>
-                                            <div>
-                                                <div className="text-[10px] text-gray-400 font-semibold uppercase">Location</div>
-                                                <div className="text-sm font-semibold text-gray-800">{selectedDetail.location}</div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {selectedDetail.purpose && (
-                                        <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-                                            <span className="text-gray-400"><FiFileText className="w-4 h-4" /></span>
-                                            <div>
-                                                <div className="text-[10px] text-gray-400 font-semibold uppercase">Purpose</div>
-                                                <div className="text-sm font-semibold text-gray-800">{selectedDetail.purpose}</div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {selectedDetail.subtitle && !selectedDetail.location && !selectedDetail.purpose && (
-                                        <p className="text-sm text-gray-600">{selectedDetail.subtitle}</p>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Reason */}
-                            {(selectedDetail.reason || (detailType !== 'onduty' && selectedDetail.subtitle)) && (
-                                <div>
-                                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Reason</div>
-                                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                        <p className="text-sm text-gray-700 leading-relaxed">{selectedDetail.reason || selectedDetail.subtitle}</p>
+                                    {/* Day of Week Headers */}
+                                    <div className="grid grid-cols-7 gap-0 mb-1">
+                                        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+                                            <div key={d} className={`text-center text-[10px] font-bold uppercase py-1 ${d === 'Su' ? 'text-red-400' : 'text-gray-400'}`}>{d}</div>
+                                        ))}
                                     </div>
-                                </div>
-                            )}
 
-                            {/* Rejection Reason */}
-                            {selectedDetail.rejection_reason && (
-                                <div className="bg-red-50 rounded-xl p-3 border border-red-200">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                        <span className="text-xs font-bold text-red-600 uppercase tracking-wider">Rejection Reason</span>
-                                    </div>
-                                    <p className="text-sm text-red-700">{selectedDetail.rejection_reason}</p>
-                                </div>
-                            )}
+                                    {/* Calendar Grid */}
+                                    <div className="grid grid-cols-7 gap-0">
+                                        {tDays.map((cell, idx) => {
+                                            if (!cell) return <div key={`to-empty-${idx}`} className="h-10"></div>;
 
-                            {/* Approver Info */}
-                            {selectedDetail.approver && selectedDetail.status !== 'Pending' && (
-                                <div className={`rounded-xl p-3 border ${selectedDetail.status === 'Rejected'
-                                    ? 'bg-red-50 border-red-200'
-                                    : 'bg-emerald-50 border-emerald-200'
-                                    }`}>
-                                    <div className="flex items-center gap-2">
-                                        <svg className={`w-4 h-4 ${selectedDetail.status === 'Rejected' ? 'text-red-500' : 'text-emerald-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            {selectedDetail.status === 'Rejected'
-                                                ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            const { day, dateStr, isSunday, isHoliday, holidayName } = cell;
+                                            const isPast = dateStr < minTimeOffDate;
+                                            const disabled = isPast || isSunday || isHoliday;
+                                            const isSelected = dateStr === toDate;
+                                            const isToday = dateStr === today;
+
+                                            let bgClass = '';
+                                            let textClass = 'text-gray-800';
+
+                                            if (disabled) {
+                                                textClass = isHoliday ? 'text-purple-400 font-bold' : isSunday ? 'text-red-300' : 'text-gray-300';
+                                                bgClass = isHoliday ? 'bg-purple-50' : '';
+                                            } else if (isSelected) {
+                                                bgClass = 'bg-teal-600';
+                                                textClass = 'text-white';
                                             }
-                                        </svg>
+
+                                            return (
+                                                <button
+                                                    key={dateStr}
+                                                    type="button"
+                                                    disabled={disabled}
+                                                    title={isHoliday ? `Holiday: ${holidayName} (Disabled)` : isSunday ? 'Sunday (Disabled)' : ''}
+                                                    onClick={() => {
+                                                        setToDate(dateStr);
+                                                        setToCalendarOpen(false);
+                                                    }}
+                                                    className={`h-10 w-full flex items-center justify-center text-xs font-semibold rounded-full transition-all
+                                                    ${bgClass} ${textClass}
+                                                    ${isToday && !isSelected ? 'ring-2 ring-teal-400 ring-offset-1' : ''}
+                                                    ${!disabled && !isSelected ? 'hover:bg-teal-50' : ''}
+                                                    ${!disabled ? 'active:scale-95 cursor-pointer' : 'cursor-default'}
+                                                    ${isSelected ? 'shadow-sm' : ''}
+                                                `}
+                                                >
+                                                    {day}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Legend */}
+                                    <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-100 flex-wrap">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
+                                            <span className="text-[10px] text-gray-500 font-semibold">Selected</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-purple-300"></span>
+                                            <span className="text-[10px] text-gray-500 font-semibold">Holiday (Disabled)</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-red-200"></span>
+                                            <span className="text-[10px] text-gray-500 font-semibold">Sunday (Disabled)</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Selected date preview */}
+                                    {toDate && (
+                                        <div className="mt-2 px-3 py-2 bg-teal-50 rounded-xl">
+                                            <p className="text-xs font-bold text-teal-600 flex items-center gap-1.5">
+                                                <FiCalendar className="w-3.5 h-3.5 shrink-0" /> {formatDate(toDate)}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Confirm Button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setToCalendarOpen(false)}
+                                        disabled={!toDate}
+                                        className="w-full mt-3 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-teal-500/25 active:scale-[0.98] transition-all disabled:opacity-50"
+                                    >
+                                        Confirm Selection
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {/* ── Detail Bottom Sheet ── */}
+                {selectedDetail && (
+                    <div className="fixed inset-0 z-[90] flex items-end justify-center detail-backdrop" onClick={closeDetail}>
+                        <div className="bg-white rounded-t-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto detail-sheet" onClick={(e) => e.stopPropagation()}>
+                            {/* Handle Bar */}
+                            <div className="sticky top-0 bg-white rounded-t-3xl pt-3 pb-2 px-6 z-10">
+                                <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto"></div>
+                            </div>
+
+                            <div className="px-6 pb-6 space-y-4">
+                                {/* Title & Status */}
+                                <div className="flex items-start justify-between gap-3">
+                                    <h3 className="text-lg font-black text-gray-900">
+                                        {detailType === 'leave' && (selectedDetail.title || selectedDetail.leave_type || 'Leave')}
+                                        {detailType === 'onduty' && (selectedDetail.title || `On-Duty: ${selectedDetail.client_name || ''}`)}
+                                        {detailType === 'timeoff' && (
+                                            <>Time-Off {selectedDetail.start_time && selectedDetail.end_time && <span className="text-teal-600">· {calcTimeOffDuration(selectedDetail.start_time, selectedDetail.end_time)}</span>}</>
+                                        )}
+                                    </h3>
+                                    <StatusBadge status={selectedDetail.status} />
+                                </div>
+
+                                {/* Request ID */}
+                                {selectedDetail.id && (
+                                    <div className="bg-gray-50 rounded-xl px-3 py-2 flex items-center gap-2">
+                                        <span className="text-gray-400 text-xs">#</span>
+                                        <span className="text-xs text-gray-500 font-medium">Request ID: {selectedDetail.id}</span>
+                                    </div>
+                                )}
+
+                                {/* Date Range */}
+                                <div className="bg-blue-50 rounded-xl p-3">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                        <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Date & Time</span>
+                                    </div>
+                                    {detailType === 'timeoff' ? (
+                                        <p className="text-sm font-semibold text-gray-800">
+                                            {formatDate(selectedDetail.date)} · {formatTime12(selectedDetail.start_time)} - {formatTime12(selectedDetail.end_time)}
+                                        </p>
+                                    ) : detailType === 'onduty' ? (
                                         <div>
-                                            <div className={`text-xs font-bold ${selectedDetail.status === 'Rejected' ? 'text-red-600' : 'text-emerald-600'
-                                                }`}>
-                                                {selectedDetail.status === 'Rejected' ? 'Rejected' : 'Approved'} by
+                                            <p className="text-sm font-semibold text-gray-800">
+                                                {formatDate(selectedDetail.start)} · {formatTime12(selectedDetail.start)} → {selectedDetail.end ? `${formatDate(selectedDetail.end)} · ${formatTime12(selectedDetail.end)}` : 'Active'}
+                                            </p>
+                                            {selectedDetail.completed_end_time && selectedDetail.end && (selectedDetail.completed_end_time !== selectedDetail.end) && (
+                                                <p className="text-[11px] text-gray-500 mt-1">
+                                                    Originally completed at: <span className="font-semibold text-gray-700">{formatTime12(selectedDetail.completed_end_time)}</span>
+                                                </p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm font-semibold text-gray-800">
+                                            {formatDate(selectedDetail.start_date || selectedDetail.start)} → {formatDate(selectedDetail.end_date || selectedDetail.end)}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Duration (Leave) */}
+                                {detailType === 'leave' && (selectedDetail.start_date || selectedDetail.start) && (selectedDetail.end_date || selectedDetail.end) && (
+                                    <div className="bg-indigo-50 rounded-xl p-3 flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        <span className="text-sm font-semibold text-indigo-700">
+                                            Duration: {formatLeaveDuration(calculateLeaveDaysExcludingSunday(selectedDetail.start_date || selectedDetail.start, selectedDetail.end_date || selectedDetail.end, {}, holidaysMap) - (selectedDetail.is_half_day === true || selectedDetail.is_half_day === 1 ? 0.5 : 0), { lowercase: true })}
+                                            <span className="text-xs font-normal text-indigo-400 ml-1">(excl. Sundays & holidays)</span>
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* On-Duty Details */}
+                                {detailType === 'onduty' && (
+                                    <div className="space-y-2">
+                                        <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Details</div>
+                                        {(selectedDetail.client_name || selectedDetail.title) && (
+                                            <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+                                                <span className="text-gray-400"><FiBriefcase className="w-4 h-4" /></span>
+                                                <div>
+                                                    <div className="text-[10px] text-gray-400 font-semibold uppercase">Client</div>
+                                                    <div className="text-sm font-semibold text-gray-800">{selectedDetail.client_name || selectedDetail.title?.replace('On-Duty: ', '')}</div>
+                                                </div>
                                             </div>
-                                            <div className={`text-sm font-semibold ${selectedDetail.status === 'Rejected' ? 'text-red-700' : 'text-emerald-700'
-                                                }`}>
-                                                {selectedDetail.approver.firstname} {selectedDetail.approver.lastname}
+                                        )}
+                                        {selectedDetail.location && (
+                                            <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+                                                <span className="text-gray-400"><FiMapPin className="w-4 h-4" /></span>
+                                                <div>
+                                                    <div className="text-[10px] text-gray-400 font-semibold uppercase">Location</div>
+                                                    <div className="text-sm font-semibold text-gray-800">{selectedDetail.location}</div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {selectedDetail.purpose && (
+                                            <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+                                                <span className="text-gray-400"><FiFileText className="w-4 h-4" /></span>
+                                                <div>
+                                                    <div className="text-[10px] text-gray-400 font-semibold uppercase">Purpose</div>
+                                                    <div className="text-sm font-semibold text-gray-800">{selectedDetail.purpose}</div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {selectedDetail.subtitle && !selectedDetail.location && !selectedDetail.purpose && (
+                                            <p className="text-sm text-gray-600">{selectedDetail.subtitle}</p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Reason */}
+                                {(selectedDetail.reason || (detailType !== 'onduty' && selectedDetail.subtitle)) && (
+                                    <div>
+                                        <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Reason</div>
+                                        <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                            <p className="text-sm text-gray-700 leading-relaxed">{selectedDetail.reason || selectedDetail.subtitle}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Rejection Reason */}
+                                {selectedDetail.rejection_reason && (
+                                    <div className="bg-red-50 rounded-xl p-3 border border-red-200">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <span className="text-xs font-bold text-red-600 uppercase tracking-wider">Rejection Reason</span>
+                                        </div>
+                                        <p className="text-sm text-red-700">{selectedDetail.rejection_reason}</p>
+                                    </div>
+                                )}
+
+                                {/* Approver Info */}
+                                {selectedDetail.approver && selectedDetail.status !== 'Pending' && (
+                                    <div className={`rounded-xl p-3 border ${selectedDetail.status === 'Rejected'
+                                        ? 'bg-red-50 border-red-200'
+                                        : 'bg-emerald-50 border-emerald-200'
+                                        }`}>
+                                        <div className="flex items-center gap-2">
+                                            <svg className={`w-4 h-4 ${selectedDetail.status === 'Rejected' ? 'text-red-500' : 'text-emerald-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                {selectedDetail.status === 'Rejected'
+                                                    ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                }
+                                            </svg>
+                                            <div>
+                                                <div className={`text-xs font-bold ${selectedDetail.status === 'Rejected' ? 'text-red-600' : 'text-emerald-600'
+                                                    }`}>
+                                                    {selectedDetail.status === 'Rejected' ? 'Rejected' : 'Approved'} by
+                                                </div>
+                                                <div className={`text-sm font-semibold ${selectedDetail.status === 'Rejected' ? 'text-red-700' : 'text-emerald-700'
+                                                    }`}>
+                                                    {selectedDetail.approver.firstname} {selectedDetail.approver.lastname}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Activity Timeline */}
-                            {(selectedDetail.createdAt || selectedDetail.updatedAt) && (
-                                <div>
-                                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Activity Timeline</div>
-                                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-3">
-                                        {selectedDetail.createdAt && (
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                                    <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                {/* Activity Timeline */}
+                                {(selectedDetail.createdAt || selectedDetail.updatedAt) && (
+                                    <div>
+                                        <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Activity Timeline</div>
+                                        <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-3">
+                                            {selectedDetail.createdAt && (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                                        <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-[10px] font-bold text-gray-400 uppercase">Created</div>
+                                                        <div className="text-xs text-gray-600 font-medium">{formatInTimezone(selectedDetail.createdAt)}</div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <div className="text-[10px] font-bold text-gray-400 uppercase">Created</div>
-                                                    <div className="text-xs text-gray-600 font-medium">{formatInTimezone(selectedDetail.createdAt)}</div>
+                                            )}
+                                            {selectedDetail.updatedAt && selectedDetail.updatedAt !== selectedDetail.createdAt && (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                                        <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-[10px] font-bold text-gray-400 uppercase">Last Updated</div>
+                                                        <div className="text-xs text-gray-600 font-medium">{formatInTimezone(selectedDetail.updatedAt)}</div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                        {selectedDetail.updatedAt && selectedDetail.updatedAt !== selectedDetail.createdAt && (
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                                    <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                            )}
+                                            {selectedDetail.status !== 'Pending' && selectedDetail.approver && (
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${selectedDetail.status === 'Rejected' ? 'bg-red-100' : 'bg-emerald-100'}`}>
+                                                        <svg className={`w-3 h-3 ${selectedDetail.status === 'Rejected' ? 'text-red-600' : 'text-emerald-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            {selectedDetail.status === 'Rejected'
+                                                                ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                            }
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-[10px] font-bold text-gray-400 uppercase">{selectedDetail.status === 'Rejected' ? 'Rejected' : 'Approved'}</div>
+                                                        <div className="text-xs text-gray-600 font-medium">By {selectedDetail.approver.firstname} {selectedDetail.approver.lastname}</div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <div className="text-[10px] font-bold text-gray-400 uppercase">Last Updated</div>
-                                                    <div className="text-xs text-gray-600 font-medium">{formatInTimezone(selectedDetail.updatedAt)}</div>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {selectedDetail.status !== 'Pending' && selectedDetail.approver && (
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${selectedDetail.status === 'Rejected' ? 'bg-red-100' : 'bg-emerald-100'}`}>
-                                                    <svg className={`w-3 h-3 ${selectedDetail.status === 'Rejected' ? 'text-red-600' : 'text-emerald-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        {selectedDetail.status === 'Rejected'
-                                                            ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                            : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                        }
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <div className="text-[10px] font-bold text-gray-400 uppercase">{selectedDetail.status === 'Rejected' ? 'Rejected' : 'Approved'}</div>
-                                                    <div className="text-xs text-gray-600 font-medium">By {selectedDetail.approver.firstname} {selectedDetail.approver.lastname}</div>
-                                                </div>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Close Button */}
-                            <button
-                                onClick={closeDetail}
-                                className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-2xl text-sm shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all"
-                            >
-                                Close
-                            </button>
+                                {/* Close Button */}
+                                <button
+                                    onClick={closeDetail}
+                                    className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-2xl text-sm shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all"
+                                >
+                                    Close
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* ── Confirm Delete Modal ── */}
-            {confirmModal.open && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 confirm-backdrop" onClick={() => !confirmModal.deleting && setConfirmModal({ open: false, title: '', message: '', onConfirm: null, deleting: false })}>
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 confirm-modal" onClick={(e) => e.stopPropagation()}>
-                        {/* Warning Icon */}
-                        <div className="w-16 h-16 mx-auto mb-4 bg-red-50 rounded-full flex items-center justify-center">
-                            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </div>
-                        {/* Title */}
-                        <h3 className="text-lg font-black text-gray-900 text-center mb-2">{confirmModal.title}</h3>
-                        {/* Message */}
-                        <p className="text-sm text-gray-500 text-center mb-6 leading-relaxed">{confirmModal.message}</p>
-                        {/* Buttons */}
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setConfirmModal({ open: false, title: '', message: '', onConfirm: null, deleting: false })}
-                                disabled={confirmModal.deleting}
-                                className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl text-sm hover:bg-gray-200 active:scale-[0.97] transition-all disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => confirmModal.onConfirm && confirmModal.onConfirm()}
-                                disabled={confirmModal.deleting}
-                                className="flex-1 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-red-500/25 hover:shadow-xl active:scale-[0.97] transition-all disabled:opacity-70"
-                            >
-                                {confirmModal.deleting ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                        Deleting...
-                                    </span>
-                                ) : 'Delete'}
-                            </button>
+                {/* ── Confirm Delete Modal ── */}
+                {confirmModal.open && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 confirm-backdrop" onClick={() => !confirmModal.deleting && setConfirmModal({ open: false, title: '', message: '', onConfirm: null, deleting: false })}>
+                        <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 confirm-modal" onClick={(e) => e.stopPropagation()}>
+                            {/* Warning Icon */}
+                            <div className="w-16 h-16 mx-auto mb-4 bg-red-50 rounded-full flex items-center justify-center">
+                                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </div>
+                            {/* Title */}
+                            <h3 className="text-lg font-black text-gray-900 text-center mb-2">{confirmModal.title}</h3>
+                            {/* Message */}
+                            <p className="text-sm text-gray-500 text-center mb-6 leading-relaxed">{confirmModal.message}</p>
+                            {/* Buttons */}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setConfirmModal({ open: false, title: '', message: '', onConfirm: null, deleting: false })}
+                                    disabled={confirmModal.deleting}
+                                    className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl text-sm hover:bg-gray-200 active:scale-[0.97] transition-all disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => confirmModal.onConfirm && confirmModal.onConfirm()}
+                                    disabled={confirmModal.deleting}
+                                    className="flex-1 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-red-500/25 hover:shadow-xl active:scale-[0.97] transition-all disabled:opacity-70"
+                                >
+                                    {confirmModal.deleting ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            Deleting...
+                                        </span>
+                                    ) : 'Delete'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* ── Change Password Modal ── */}
-            {showChangePasswordModal && (
-                <ChangePasswordModal onClose={() => setShowChangePasswordModal(false)} />
-            )}
+                {/* ── Change Password Modal ── */}
+                {showChangePasswordModal && (
+                    <ChangePasswordModal onClose={() => setShowChangePasswordModal(false)} />
+                )}
 
             </div>
 
