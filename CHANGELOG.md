@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.19.7](https://github.com/roonaatech/wp_webapp/compare/v2.19.6...v2.19.7) (2026-11-10)
+
+
+### Features
+
+* add AM/PM toggle controls for start and end time inputs in MyRequests ([9687795](https://github.com/roonaatech/wp_webapp/commit/96877954184ad7c68413cf88107f2826c82dbc60))
+
+
+### Code Refactoring
+
+* remove tab navigation and request forms from MyRequests page ([f6d59e0](https://github.com/roonaatech/wp_webapp/commit/f6d59e0c66555de492144d8dc1876f9d5d256923))
+
 ### [2.19.6](https://github.com/roonaatech/wp_webapp/compare/v2.19.5...v2.19.6) (2026-11-09)
 
 
