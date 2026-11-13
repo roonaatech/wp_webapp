@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -8,7 +8,7 @@ import DateFilterInput from '../components/DateFilterInput';
 import SingleSelectDropdown from '../components/SingleSelectDropdown';
 import { fetchRoles, canViewAttendanceReport, canManageAttendance, canEditAttendance, canDeleteAttendance, canEditAttendanceAll, canDeleteAttendanceAll } from '../utils/roleUtils';
 import { formatDateOnly, formatTimeOnly, formatInTimezone, getCurrentInAppTimezone, parseAppTimezone } from '../utils/timezone.util';
-import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet, LuShieldCheck, LuQrCode, LuSmartphone, LuLaptop, LuLayers, LuShield, LuShieldAlert, LuClock } from 'react-icons/lu';
+import { LuFilter, LuUser, LuCalendar, LuInfo, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye, LuX, LuPencil, LuTrash2, LuLock, LuFileSpreadsheet, LuShieldCheck, LuQrCode, LuSmartphone, LuLaptop, LuLayers, LuShield, LuShieldAlert, LuClock, LuSearch } from 'react-icons/lu';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { getComplianceHours, getFullTimeComplianceHours, getPartTimeComplianceHours } from '../utils/attendanceConfig';
@@ -60,7 +60,10 @@ const AttendanceReport = () => {
     const [hasPermission, setHasPermission] = useState(false);
 
     // Filter States
-    const [selectedUserId, setSelectedUserId] = useState('');
+    const [selectedUserIds, setSelectedUserIds] = useState([]);
+    const [isStaffDropdownOpen, setIsStaffDropdownOpen] = useState(false);
+    const [staffDropdownSearch, setStaffDropdownSearch] = useState('');
+    const staffDropdownRef = useRef(null);
     const defaultToday = getCurrentInAppTimezone().date;
     const [datePreset, setDatePreset] = useState('today');
     const [startDate, setStartDate] = useState(defaultToday);
@@ -211,7 +214,7 @@ const AttendanceReport = () => {
 
     // Grouped Rows State
     const [expandedUsers, setExpandedUsers] = useState({});
-    
+
     // Clear expanded list on logs refresh
     useEffect(() => {
         setExpandedUsers({});
@@ -273,12 +276,57 @@ const AttendanceReport = () => {
         }
     }, [hasPermission]);
 
+    // Close staff dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (staffDropdownRef.current && !staffDropdownRef.current.contains(e.target)) {
+                setIsStaffDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredStaffOptions = users.filter(s => {
+        if (!staffDropdownSearch.trim()) return true;
+        const q = staffDropdownSearch.toLowerCase();
+        const fullName = `${s.firstname || ''} ${s.lastname || ''}`.toLowerCase();
+        const email = (s.email || '').toLowerCase();
+        const idStr = String(s.staffid || '');
+        return fullName.includes(q) || email.includes(q) || idStr.includes(q);
+    });
+
+    const handleToggleStaff = (staffId) => {
+        const numId = Number(staffId);
+        setSelectedUserIds(prev =>
+            prev.includes(numId) ? prev.filter(id => id !== numId) : [...prev, numId]
+        );
+        setPage(1);
+    };
+
+    const handleSelectAllStaff = () => {
+        const visibleIds = filteredStaffOptions.map(s => Number(s.staffid));
+        const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedUserIds.includes(id));
+        if (allVisibleSelected) {
+            setSelectedUserIds(prev => prev.filter(id => !visibleIds.includes(id)));
+        } else {
+            setSelectedUserIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+        }
+        setPage(1);
+    };
+
+    const handleClearStaff = (e) => {
+        if (e) e.stopPropagation();
+        setSelectedUserIds([]);
+        setPage(1);
+    };
+
     // 3. Fetch logs whenever page, limit, filters change
     useEffect(() => {
         if (hasPermission) {
             fetchAttendanceLogs();
         }
-    }, [hasPermission, selectedUserId, startDate, endDate, page, limit, punchSource, complianceFilter]);
+    }, [hasPermission, selectedUserIds, startDate, endDate, page, limit, punchSource, complianceFilter]);
 
     const fetchUsersList = async () => {
         try {
@@ -304,7 +352,7 @@ const AttendanceReport = () => {
             const params = {
                 page,
                 limit,
-                userId: selectedUserId,
+                userId: selectedUserIds.length > 0 ? selectedUserIds.join(',') : undefined,
                 startDate,
                 endDate,
                 punchSource: punchSource || undefined,
@@ -399,7 +447,7 @@ const AttendanceReport = () => {
         const diffMins = Math.floor(totalMs / 60000);
         const hours = Math.floor(diffMins / 60);
         const mins = diffMins % 60;
-        
+
         let timeStr = '';
         if (hours > 0) timeStr += `${hours}h ${mins}m`;
         else timeStr += `${mins}m`;
@@ -540,7 +588,7 @@ const AttendanceReport = () => {
             } else if (log.check_in_time && !log.check_out_time) {
                 activeDays.add(d);
             }
-            const extraMins = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+            const extraMins = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0) - (Number(log.day_overlap_minutes) || 0);
             dayTotals[d] += mins + extraMins;
         });
 
@@ -581,7 +629,7 @@ const AttendanceReport = () => {
         let nonCompliantCount = 0;
         let inProgressCount = 0;
         logs.forEach(log => {
-            const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+            const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0) - (Number(log.day_overlap_minutes) || 0);
             const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time, null, log.user, extra);
             if (comp.isActive) inProgressCount++;
             else if (comp.isCompliant) compliantCount++;
@@ -604,7 +652,7 @@ const AttendanceReport = () => {
             const params = {
                 page: 1,
                 limit: exportLimit,
-                userId: selectedUserId,
+                userId: selectedUserIds.length > 0 ? selectedUserIds.join(',') : undefined,
                 startDate,
                 endDate,
                 punchSource: punchSource || undefined,
@@ -658,7 +706,7 @@ const AttendanceReport = () => {
             let exportNonCompliantCount = 0;
             let exportInProgressCount = 0;
             exportLogs.forEach((log) => {
-                const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+                const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0) - (Number(log.day_overlap_minutes) || 0);
                 const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time, null, log.user, extra);
                 if (comp.isActive) exportInProgressCount++;
                 else if (comp.isCompliant) exportCompliantCount++;
@@ -671,12 +719,12 @@ const AttendanceReport = () => {
             const compLabel = complianceFilter === 'compliant'
                 ? `Compliant (≥${fullTimeComplianceHours}h FT / ≥${partTimeComplianceHours}h PT)`
                 : complianceFilter === 'non_compliant'
-                ? `Non-Compliant (< Required)`
-                : complianceFilter === 'in_progress'
-                ? 'In Progress'
-                : 'All';
-            const filterDesc = selectedUserId
-                ? `Filtered by Employee ID: ${selectedUserId} | Date Range: ${startDate || 'Start'} to ${endDate || 'End'} | Compliance: ${compLabel}`
+                    ? `Non-Compliant (< Required)`
+                    : complianceFilter === 'in_progress'
+                        ? 'In Progress'
+                        : 'All';
+            const filterDesc = selectedUserIds.length > 0
+                ? `Filtered by Employee ID(s): ${selectedUserIds.join(', ')} | Date Range: ${startDate || 'Start'} to ${endDate || 'End'} | Compliance: ${compLabel}`
                 : `Filter: All Employees | Date Range: ${startDate || 'Start'} to ${endDate || 'End'} | Compliance: ${compLabel}`;
             const complianceSummaryText = `Compliant: ${exportCompliantCount} | Non-Compliant: ${exportNonCompliantCount}${exportInProgressCount > 0 ? ` | In Progress: ${exportInProgressCount}` : ''}`;
             metaCell.value = `${filterDesc} | Total Records: ${exportLogs.length} (${complianceSummaryText}) | Exported: ${formatInTimezone(new Date())}`;
@@ -738,7 +786,7 @@ const AttendanceReport = () => {
                 const checkIn = log.check_in_time ? formatTimeOnly(log.check_in_time) : '-';
                 const checkOut = log.check_out_time ? formatTimeOnly(log.check_out_time) : '-';
                 const duration = calculateDuration(log.check_in_time, log.check_out_time);
-                const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+                const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0) - (Number(log.day_overlap_minutes) || 0);
                 const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time, null, log.user, extra);
                 const complianceStr = comp.label;
                 const status = log.check_out_time ? 'Completed' : 'Active Check-In';
@@ -860,7 +908,7 @@ const AttendanceReport = () => {
 
 
     const handleClearFilters = () => {
-        setSelectedUserId('');
+        setSelectedUserIds([]);
         setPunchSource('');
         setComplianceFilter('');
         const today = getCurrentInAppTimezone().date;
@@ -873,7 +921,7 @@ const AttendanceReport = () => {
     const handleEditClick = (log) => {
         setEditingLog(log);
         setEditDate(log.date);
-        
+
         // Parse check-in time safely into local HH:mm
         if (log.check_in_time) {
             const checkInDate = parseAppTimezone(log.check_in_time);
@@ -1067,25 +1115,146 @@ const AttendanceReport = () => {
 
                 <div className="flex flex-wrap items-end gap-3">
                     {/* Employee Filter */}
-                    <div className="flex flex-col gap-1.5 flex-1 min-w-[200px]">
+                    {/* Employee Multi-Select Filter */}
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-[200px] relative" ref={staffDropdownRef}>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Employee</label>
-                        <div className="relative">
-                            <select
-                                value={selectedUserId}
-                                onChange={(e) => { setSelectedUserId(e.target.value); setPage(1); }}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
-                            >
-                                <option value="">All Employees</option>
-                                {users.map(u => (
-                                    <option key={u.staffid} value={u.staffid}>
-                                        {u.firstname} {u.lastname}
-                                    </option>
-                                ))}
-                            </select>
-                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                <LuUser size={16} />
+                        <button
+                            type="button"
+                            onClick={() => setIsStaffDropdownOpen(prev => !prev)}
+                            className="w-full h-[38px] px-3.5 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-left"
+                        >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <LuUser size={16} className="text-slate-400 shrink-0" />
+                                {selectedUserIds.length === 0 ? (
+                                    <span className="text-slate-700 font-medium truncate">All Employees</span>
+                                ) : selectedUserIds.length === 1 ? (
+                                    <span className="font-semibold text-slate-800 truncate">
+                                        {(() => {
+                                            const emp = users.find(u => Number(u.staffid) === selectedUserIds[0]);
+                                            return emp ? `${emp.firstname} ${emp.lastname}` : `Employee #${selectedUserIds[0]}`;
+                                        })()}
+                                    </span>
+                                ) : (
+                                    <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 font-bold text-xs shrink-0">
+                                        {selectedUserIds.length} Selected
+                                    </span>
+                                )}
                             </div>
-                        </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                                {selectedUserIds.length > 0 && (
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={handleClearStaff}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleClearStaff(e)}
+                                        className="p-1 hover:bg-slate-200 rounded-md text-slate-400 hover:text-slate-700 transition-colors"
+                                        title="Clear employee selection"
+                                    >
+                                        <LuX size={13} />
+                                    </span>
+                                )}
+                                <LuChevronDown size={15} className={`text-slate-400 transition-transform duration-200 ${isStaffDropdownOpen ? 'rotate-180' : ''}`} />
+                            </div>
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {isStaffDropdownOpen && (
+                            <div className="absolute left-0 right-0 sm:right-auto sm:w-[320px] top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                                {/* Search Filter Input inside Dropdown */}
+                                <div className="p-2 border-b border-slate-100 bg-slate-50/70">
+                                    <div className="relative">
+                                        <LuSearch className="absolute left-2.5 top-2.5 text-slate-400 text-xs" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search by name, email, or ID..."
+                                            value={staffDropdownSearch}
+                                            onChange={(e) => setStaffDropdownSearch(e.target.value)}
+                                            className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                            autoFocus
+                                        />
+                                        {staffDropdownSearch && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setStaffDropdownSearch('')}
+                                                className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                                            >
+                                                <LuX className="text-xs" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Action Bar */}
+                                <div className="flex items-center justify-between px-3 py-1.5 bg-slate-100/60 border-b border-slate-100 text-[11px] font-semibold text-slate-500">
+                                    <span>
+                                        {selectedUserIds.length === 0 ? 'All Employees' : `${selectedUserIds.length} selected`}
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={handleSelectAllStaff}
+                                            className="text-indigo-600 hover:text-indigo-800 hover:underline font-bold"
+                                        >
+                                            {(() => {
+                                                const visibleIds = filteredStaffOptions.map(s => Number(s.staffid));
+                                                const allVis = visibleIds.length > 0 && visibleIds.every(id => selectedUserIds.includes(id));
+                                                return allVis ? 'Deselect All' : 'Select All';
+                                            })()}
+                                        </button>
+                                        {selectedUserIds.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={handleClearStaff}
+                                                className="text-slate-500 hover:text-slate-700 hover:underline"
+                                            >
+                                                Clear
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Scrollable Employee Checkboxes */}
+                                <div className="max-h-60 overflow-y-auto divide-y divide-slate-50 p-1">
+                                    {filteredStaffOptions.length === 0 ? (
+                                        <div className="py-6 text-center text-xs text-slate-400 italic">
+                                            No employees found matching "{staffDropdownSearch}"
+                                        </div>
+                                    ) : (
+                                        filteredStaffOptions.map(staff => {
+                                            const sid = Number(staff.staffid);
+                                            const isChecked = selectedUserIds.includes(sid);
+                                            const initials = `${(staff.firstname || '')[0] || ''}${(staff.lastname || '')[0] || ''}`.toUpperCase();
+
+                                            return (
+                                                <label
+                                                    key={sid}
+                                                    className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer text-xs transition-colors ${isChecked ? 'bg-indigo-50/70 text-indigo-950 font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                                                        }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={() => handleToggleStaff(sid)}
+                                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                                                    />
+                                                    <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                                        {initials || <LuUser className="text-xs" />}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="truncate">
+                                                            {staff.firstname} {staff.lastname}
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-400 font-normal truncate">
+                                                            {staff.email || `ID: ${sid}`}
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Date Preset Filter */}
@@ -1115,7 +1284,7 @@ const AttendanceReport = () => {
                     {/* From Date & To Date — only shown when Custom Range is active */}
                     {datePreset === 'custom' && (
                         <>
-                            <div className="flex flex-col gap-1.5 w-full sm:w-44">
+                            <div className="flex flex-col gap-1.5 w-full sm:w-[128px]">
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">From Date</label>
                                 <DateFilterInput
                                     value={startDate}
@@ -1123,11 +1292,11 @@ const AttendanceReport = () => {
                                         setStartDate(iso);
                                         setPage(1);
                                     }}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                                 />
                             </div>
 
-                            <div className="flex flex-col gap-1.5 w-full sm:w-44">
+                            <div className="flex flex-col gap-1.5 w-full sm:w-[128px]">
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">To Date</label>
                                 <DateFilterInput
                                     value={endDate}
@@ -1135,7 +1304,7 @@ const AttendanceReport = () => {
                                         setEndDate(iso);
                                         setPage(1);
                                     }}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-9 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                                 />
                             </div>
                         </>
@@ -1176,6 +1345,37 @@ const AttendanceReport = () => {
                     </div>
 
                 </div>
+
+                {/* Selected Employees List Below Filter Controls */}
+                {selectedUserIds.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                            Selected Employees ({selectedUserIds.length}):
+                        </span>
+                        {users
+                            .filter(u => selectedUserIds.includes(Number(u.staffid)))
+                            .map(emp => {
+                                const sid = Number(emp.staffid);
+                                const fullName = `${emp.firstname || ''} ${emp.lastname || ''}`.trim() || `Employee #${sid}`;
+                                return (
+                                    <span
+                                        key={sid}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200/80 text-indigo-800 text-xs font-semibold"
+                                    >
+                                        <span>{fullName}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleToggleStaff(sid)}
+                                            className="text-indigo-400 hover:text-indigo-700 transition-colors cursor-pointer"
+                                            title={`Remove ${fullName}`}
+                                        >
+                                            <LuX className="text-[11px]" />
+                                        </button>
+                                    </span>
+                                );
+                            })}
+                    </div>
+                )}
             </div>
 
             {/* Error alerts */}
@@ -1260,11 +1460,10 @@ const AttendanceReport = () => {
                                                                     <p className="font-bold text-slate-800 leading-tight">
                                                                         {emp.firstname} {emp.lastname}
                                                                     </p>
-                                                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                                                        emp.employment_type === 'Part-time' 
-                                                                            ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-                                                                            : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                                                    }`}>
+                                                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${emp.employment_type === 'Part-time'
+                                                                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                                                        : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                                                        }`}>
                                                                         {emp.employment_type === 'Part-time' ? `PT (${partTimeComplianceHours}h)` : `FT (${fullTimeComplianceHours}h)`}
                                                                     </span>
                                                                 </div>
@@ -1294,11 +1493,10 @@ const AttendanceReport = () => {
 
                                                     {/* Work Duration */}
                                                     <td className="px-4 py-2.5">
-                                                        <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-black ${
-                                                            log.check_out_time 
-                                                                ? 'bg-slate-100 text-slate-700' 
-                                                                : 'bg-indigo-50 text-indigo-700 animate-pulse'
-                                                        }`}>
+                                                        <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-black ${log.check_out_time
+                                                            ? 'bg-slate-100 text-slate-700'
+                                                            : 'bg-indigo-50 text-indigo-700 animate-pulse'
+                                                            }`}>
                                                             {calculateDuration(log.check_in_time, log.check_out_time)}
                                                         </span>
                                                     </td>
@@ -1306,12 +1504,12 @@ const AttendanceReport = () => {
                                                     {/* Compliance */}
                                                     <td className="px-4 py-2.5">
                                                         {(() => {
-                                                            const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+                                                            const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0) - (Number(log.day_overlap_minutes) || 0);
                                                             const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time, null, log.user, extra);
                                                             const targetHrs = (log.user?.employment_type === 'Part-time' ? partTimeComplianceHours : fullTimeComplianceHours);
                                                             if (comp.isActive) {
                                                                 return (
-                                                                    <span 
+                                                                    <span
                                                                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200"
                                                                         title={`Target: ${targetHrs}h/day`}
                                                                     >
@@ -1321,15 +1519,15 @@ const AttendanceReport = () => {
                                                                 );
                                                             }
                                                             return comp.isCompliant ? (
-                                                                <span 
+                                                                <span
                                                                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                                                    title={`Meets threshold of ${targetHrs}h (${log.user?.employment_type || 'Full-time'})${extra > 0 ? ` [inc. ${Math.round(extra/60*10)/10}h OD/Time-off]` : ''}`}
+                                                                    title={`Meets threshold of ${targetHrs}h (${log.user?.employment_type || 'Full-time'})${extra > 0 ? ` [inc. ${Math.round(extra / 60 * 10) / 10}h OD/Time-off]` : ''}`}
                                                                 >
                                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                                                     Compliant
                                                                 </span>
                                                             ) : (
-                                                                <span 
+                                                                <span
                                                                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200"
                                                                     title={`Below threshold of ${targetHrs}h (${log.user?.employment_type || 'Full-time'})`}
                                                                 >
@@ -1370,7 +1568,7 @@ const AttendanceReport = () => {
                                             return (
                                                 <React.Fragment key={group.userId}>
                                                     {/* Parent Row */}
-                                                    <tr 
+                                                    <tr
                                                         onClick={() => toggleUserExpand(group.userId)}
                                                         className="bg-indigo-50/20 hover:bg-indigo-50/40 transition cursor-pointer font-medium"
                                                     >
@@ -1396,11 +1594,10 @@ const AttendanceReport = () => {
                                                                         <p className="font-bold text-slate-800 leading-tight">
                                                                             {emp.firstname} {emp.lastname}
                                                                         </p>
-                                                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                                                            emp.employment_type === 'Part-time' 
-                                                                                ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-                                                                                : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                                                        }`}>
+                                                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${emp.employment_type === 'Part-time'
+                                                                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                                                            : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                                                            }`}>
                                                                             {emp.employment_type === 'Part-time' ? `PT (${partTimeComplianceHours}h)` : `FT (${fullTimeComplianceHours}h)`}
                                                                         </span>
                                                                         <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider animate-pulse">
@@ -1486,7 +1683,7 @@ const AttendanceReport = () => {
                                                     {isExpanded && group.logs.map((log, index) => {
                                                         const isLast = index === group.logs.length - 1;
                                                         return (
-                                                             <tr key={log.id} className="bg-slate-50/20 hover:bg-slate-50/50 border-l-2 border-indigo-500/30 transition">
+                                                            <tr key={log.id} className="bg-slate-50/20 hover:bg-slate-50/50 border-l-2 border-indigo-500/30 transition">
                                                                 <td className="px-4 py-2.5 pl-10">
                                                                     <div className="flex items-center gap-2 text-xs font-semibold">
                                                                         <span className="font-mono text-slate-300">{isLast ? '└─' : '├─'}</span>
@@ -1505,22 +1702,21 @@ const AttendanceReport = () => {
                                                                     </p>
                                                                 </td>
                                                                 <td className="px-4 py-2.5">
-                                                                    <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-black ${
-                                                                        log.check_out_time 
-                                                                            ? 'bg-slate-100 text-slate-700' 
-                                                                            : 'bg-indigo-50 text-indigo-700 animate-pulse'
-                                                                    }`}>
+                                                                    <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-black ${log.check_out_time
+                                                                        ? 'bg-slate-100 text-slate-700'
+                                                                        : 'bg-indigo-50 text-indigo-700 animate-pulse'
+                                                                        }`}>
                                                                         {calculateDuration(log.check_in_time, log.check_out_time)}
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-4 py-2.5">
                                                                     {(() => {
-                                                                        const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0);
+                                                                        const extra = (Number(log.day_onduty_minutes) || 0) + (Number(log.day_timeoff_minutes) || 0) - (Number(log.day_overlap_minutes) || 0);
                                                                         const comp = getAttendanceCompliance(log.check_in_time, log.check_out_time, null, log.user, extra);
                                                                         const targetHrs = (log.user?.employment_type === 'Part-time' ? partTimeComplianceHours : fullTimeComplianceHours);
                                                                         if (comp.isActive) {
                                                                             return (
-                                                                                <span 
+                                                                                <span
                                                                                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200"
                                                                                     title={`Target: ${targetHrs}h/day`}
                                                                                 >
@@ -1530,15 +1726,15 @@ const AttendanceReport = () => {
                                                                             );
                                                                         }
                                                                         return comp.isCompliant ? (
-                                                                            <span 
+                                                                            <span
                                                                                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                                                                title={`Meets threshold of ${targetHrs}h (${log.user?.employment_type || 'Full-time'})${extra > 0 ? ` [inc. ${Math.round(extra/60*10)/10}h OD/Time-off]` : ''}`}
+                                                                                title={`Meets threshold of ${targetHrs}h (${log.user?.employment_type || 'Full-time'})${extra > 0 ? ` [inc. ${Math.round(extra / 60 * 10) / 10}h OD/Time-off]` : ''}`}
                                                                             >
                                                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                                                                 Compliant
                                                                             </span>
                                                                         ) : (
-                                                                            <span 
+                                                                            <span
                                                                                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200"
                                                                                 title={`Below threshold of ${targetHrs}h (${log.user?.employment_type || 'Full-time'})`}
                                                                             >
@@ -1629,7 +1825,7 @@ const AttendanceReport = () => {
                             >
                                 <LuChevronLeft size={16} />
                             </button>
-                            
+
                             <span className="text-xs text-slate-600 font-bold px-3">
                                 Page {page} of {totalPages}
                             </span>
@@ -1720,11 +1916,10 @@ const AttendanceReport = () => {
                                             }
                                             setEditCheckOutError('');
                                         }}
-                                        className={`bg-slate-50 border rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 transition w-full ${
-                                            editCheckOutError
-                                                ? 'border-rose-400 focus:ring-rose-400'
-                                                : 'border-slate-200 focus:ring-indigo-500'
-                                        }`}
+                                        className={`bg-slate-50 border rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 transition w-full ${editCheckOutError
+                                            ? 'border-rose-400 focus:ring-rose-400'
+                                            : 'border-slate-200 focus:ring-indigo-500'
+                                            }`}
                                     />
                                     {editCheckOutTime && (
                                         <button
@@ -1739,7 +1934,7 @@ const AttendanceReport = () => {
                                 </div>
                                 {editCheckOutError ? (
                                     <p className="text-[11px] text-rose-500 font-semibold flex items-center gap-1 mt-0.5">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" /></svg>
                                         {editCheckOutError}
                                     </p>
                                 ) : (

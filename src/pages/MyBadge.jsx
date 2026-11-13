@@ -431,7 +431,7 @@ const MyBadge = () => {
             });
 
             if (response.data && response.data.success) {
-                toast.success(response.data.message || `${action === 'CHECK_IN' ? 'Check-In' : 'Check-Out'} successful!`);
+                toast.success(response.data.message || `${action === 'CHECK_IN' ? 'Check-In' : action === 'STOP_TIMEOFF' ? 'Time-Off Stopped' : 'Check-Out'} successful!`);
                 setWfhNotes('');
                 if (action === 'CHECK_IN') {
                     const checkInIso = response.data.checkInIso || new Date().toISOString();
@@ -441,11 +441,24 @@ const MyBadge = () => {
                         todayStatus: 'CHECKED_IN',
                         checkInIso,
                         checkInTime,
+                        todayTimeOff: response.data.activeTimeOff !== undefined ? response.data.activeTimeOff : prev?.todayTimeOff,
                         badge: {
                             ...(prev?.badge || {}),
                             todayStatus: 'CHECKED_IN',
                             checkInIso,
                             checkInTime,
+                            todayTimeOff: response.data.activeTimeOff !== undefined ? response.data.activeTimeOff : prev?.badge?.todayTimeOff,
+                        }
+                    }));
+                } else if (action === 'STOP_TIMEOFF' || response.data.type === 'STOP_TIMEOFF') {
+                    setBadgeData(prev => ({
+                        ...(prev || {}),
+                        todayStatus: 'CHECKED_IN',
+                        todayTimeOff: null,
+                        badge: {
+                            ...(prev?.badge || {}),
+                            todayStatus: 'CHECKED_IN',
+                            todayTimeOff: null,
                         }
                     }));
                 } else {
@@ -875,14 +888,16 @@ const MyBadge = () => {
                                 )}
 
                                 {/* Scheduled Time-Off Notice (WFH View) */}
-                                {todayStatus === 'NOT_CHECKED_IN' && todayTimeOff && (
+                                {(todayStatus === 'NOT_CHECKED_IN' || todayStatus === 'CHECKED_IN') && todayTimeOff && !getTimeOffTimingState(todayTimeOff).isEnded && (
                                     <div className="mb-4 p-3.5 rounded-2xl bg-amber-50 border border-amber-200/90 shadow-sm flex items-start gap-2.5">
                                         <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
                                             <LuClock className="w-4 h-4" />
                                         </div>
                                         <div className="flex-1 text-xs">
                                             <div className="flex items-center justify-between">
-                                                <span className="font-extrabold text-amber-900">Scheduled Time-Off Today</span>
+                                                <span className="font-extrabold text-amber-900">
+                                                    {getTimeOffTimingState(todayTimeOff).isInProgress ? 'Time-Off In Progress' : 'Scheduled Time-Off Today'}
+                                                </span>
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                                                     todayTimeOff.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-200/80 text-amber-900'
                                                 }`}>
@@ -898,7 +913,9 @@ const MyBadge = () => {
                                                 </p>
                                             )}
                                             <p className="text-[11px] text-amber-700 mt-1 font-medium">
-                                                Tap Check In to choose whether to cancel or stop/keep this time-off.
+                                                {todayStatus === 'CHECKED_IN'
+                                                    ? 'When returning to work, tap "Stop Time-Off / Resume Work" below to stop your time-off clock.'
+                                                    : 'Tap Check In to choose whether to cancel or stop/keep this time-off.'}
                                             </p>
                                         </div>
                                     </div>
@@ -921,20 +938,33 @@ const MyBadge = () => {
                                         )}
                                     </button>
                                 ) : todayStatus === 'CHECKED_IN' ? (
-                                    <button
-                                        onClick={() => handleWfhPunch('CHECK_OUT')}
-                                        disabled={punchLoading}
-                                        className="w-full py-3.5 px-4 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 active:scale-[0.98] text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-rose-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-                                    >
-                                        {punchLoading ? (
-                                            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                        ) : (
-                                            <>
-                                                <LuLogOut className="w-5 h-5" />
-                                                <span>Check Out (WFH Punch)</span>
-                                            </>
+                                    <div className="space-y-2.5">
+                                        {todayTimeOff && !getTimeOffTimingState(todayTimeOff).isEnded && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowTimeOffPrompt(true)}
+                                                disabled={punchLoading}
+                                                className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                                            >
+                                                <LuClock className="w-5 h-5" />
+                                                <span>Stop Time-Off / Resume Work</span>
+                                            </button>
                                         )}
-                                    </button>
+                                        <button
+                                            onClick={() => handleWfhPunch('CHECK_OUT')}
+                                            disabled={punchLoading}
+                                            className="w-full py-3.5 px-4 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 active:scale-[0.98] text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-rose-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                                        >
+                                            {punchLoading ? (
+                                                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            ) : (
+                                                <>
+                                                    <LuLogOut className="w-5 h-5" />
+                                                    <span>Check Out (WFH Punch)</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
                                 ) : todayStatus === 'COMPLETED' ? (
                                     <div className="w-full py-3.5 px-4 bg-slate-100 text-slate-600 font-bold text-xs rounded-2xl text-center border border-slate-200">
                                         Day's attendance completed & submitted for review
@@ -965,14 +995,16 @@ const MyBadge = () => {
                             /* ─── OFFICE QR BADGE VIEW (Only for Office days) ─── */
                             <>
                                 {/* Scheduled Time-Off Notice (Office View) */}
-                                {todayStatus === 'NOT_CHECKED_IN' && todayTimeOff && (
+                                {(todayStatus === 'NOT_CHECKED_IN' || todayStatus === 'CHECKED_IN') && todayTimeOff && !getTimeOffTimingState(todayTimeOff).isEnded && (
                                     <div className="mt-4 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 shadow-sm text-left flex items-start gap-2.5">
                                         <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
                                             <LuClock className="w-4 h-4" />
                                         </div>
                                         <div className="flex-1 text-xs">
                                             <div className="flex items-center justify-between">
-                                                <span className="font-extrabold text-amber-900">Scheduled Time-Off Today</span>
+                                                <span className="font-extrabold text-amber-900">
+                                                    {getTimeOffTimingState(todayTimeOff).isInProgress ? 'Time-Off In Progress' : 'Scheduled Time-Off Today'}
+                                                </span>
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                                                     todayTimeOff.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-200/80 text-amber-900'
                                                 }`}>
@@ -988,7 +1020,9 @@ const MyBadge = () => {
                                                 </p>
                                             )}
                                             <p className="text-[11px] text-amber-700 mt-1 font-medium">
-                                                When scanning at the kiosk, you will be prompted to cancel or stop/keep your time-off.
+                                                {todayStatus === 'CHECKED_IN'
+                                                    ? 'When returning to work, scan your QR badge at the kiosk to stop your time-off clock and resume work.'
+                                                    : 'When scanning at the kiosk, you will be prompted to cancel or stop/keep your time-off.'}
                                             </p>
                                         </div>
                                     </div>
@@ -1324,9 +1358,10 @@ const MyBadge = () => {
                     </div>
                 )}
 
-                {/* Scheduled Time-Off Modal Prompt on Check-In */}
+                {/* Scheduled Time-Off Modal Prompt on Check-In or Resume Work */}
                 {showTimeOffPrompt && todayTimeOff && (() => {
                     const { isInProgress: isTimeOffInProgress } = getTimeOffTimingState(todayTimeOff);
+                    const isAlreadyCheckedIn = todayStatus === 'CHECKED_IN';
                     return (
                     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
                         <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 text-slate-800 animate-scaleUp">
@@ -1338,12 +1373,18 @@ const MyBadge = () => {
                             {/* Title & Subtitle */}
                             <div className="text-center">
                                 <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
-                                    {isTimeOffInProgress ? 'Time-Off Currently In Progress' : 'Scheduled Time-Off Detected'}
+                                    {isAlreadyCheckedIn
+                                        ? 'Stop Time-Off & Resume Work'
+                                        : isTimeOffInProgress
+                                            ? 'Time-Off Currently In Progress'
+                                            : 'Scheduled Time-Off Detected'}
                                 </h3>
                                 <p className="text-xs text-slate-500 mt-1">
-                                    {isTimeOffInProgress
-                                        ? 'You are checking in during your active time-off window.'
-                                        : 'You have a time-off request scheduled for today.'}
+                                    {isAlreadyCheckedIn
+                                        ? 'Stop your active time-off clock or cancel the time-off to resume working.'
+                                        : isTimeOffInProgress
+                                            ? 'You are checking in during your active time-off window.'
+                                            : 'You have a time-off request scheduled for today.'}
                                 </p>
                             </div>
 
@@ -1372,82 +1413,138 @@ const MyBadge = () => {
 
                             {/* Explanatory Prompt */}
                             <p className="text-xs text-slate-600 leading-relaxed text-center mb-4">
-                                {isTimeOffInProgress
-                                    ? 'Since you are checking in between your time-off duration, please choose how to handle your time-off:'
-                                    : 'Since you are checking in early, please choose how you would like to handle your scheduled time-off:'}
+                                {isAlreadyCheckedIn
+                                    ? 'Choose how you would like to end your time-off and continue working:'
+                                    : isTimeOffInProgress
+                                        ? 'Since you are checking in between your time-off duration, please choose how to handle your time-off:'
+                                        : 'Since you are checking in early, please choose how you would like to handle your scheduled time-off:'}
                             </p>
 
-                            {/* Action Option 1: Cancel Time-Off & Check In */}
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowTimeOffPrompt(false);
-                                    handleWfhPunch('CHECK_IN', { cancelTimeOff: true, stopTimeOff: false });
-                                }}
-                                disabled={punchLoading}
-                                className="w-full text-left p-3.5 mb-2.5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/60 hover:bg-emerald-50 hover:border-emerald-500 transition-all active:scale-[0.99] group cursor-pointer"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <span className="font-black text-emerald-900 text-xs sm:text-sm flex items-center gap-1.5">
-                                        <LuCheck className="w-4 h-4 text-emerald-600" />
-                                        Cancel Time-Off & Check In
-                                    </span>
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800">
-                                        Preserves Quota
-                                    </span>
-                                </div>
-                                <p className="text-[11px] text-emerald-800/80 mt-1 leading-snug">
-                                    Cancel this time-off request completely, restore my monthly time-off allowance, and register check-in.
-                                </p>
-                            </button>
+                            {isAlreadyCheckedIn ? (
+                                <>
+                                    {/* Option 1 while Checked In: Stop Time-Off & Resume Work */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowTimeOffPrompt(false);
+                                            handleWfhPunch('STOP_TIMEOFF', { cancelTimeOff: false, stopTimeOff: true });
+                                        }}
+                                        disabled={punchLoading}
+                                        className="w-full text-left p-3.5 mb-2.5 rounded-2xl border-2 border-blue-500/30 bg-blue-50/60 hover:bg-blue-50 hover:border-blue-500 transition-all active:scale-[0.99] group cursor-pointer"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-black text-blue-900 text-xs sm:text-sm flex items-center gap-1.5">
+                                                <LuClock className="w-4 h-4 text-blue-600" />
+                                                Stop Time-Off & Resume Work
+                                            </span>
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-200/80 text-blue-800">
+                                                Updates End Time
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-blue-800/80 mt-1 leading-snug">
+                                            Stop time-off now, update time-off end time to current time, and remain checked in.
+                                        </p>
+                                    </button>
 
-                            {/* Action Option 2: Stop Time-Off (when in progress) OR Keep Time-Off (when upcoming) */}
-                            {isTimeOffInProgress ? (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowTimeOffPrompt(false);
-                                        handleWfhPunch('CHECK_IN', { cancelTimeOff: false, stopTimeOff: true });
-                                    }}
-                                    disabled={punchLoading}
-                                    className="w-full text-left p-3.5 mb-4 rounded-2xl border-2 border-blue-500/30 bg-blue-50/60 hover:bg-blue-50 hover:border-blue-500 transition-all active:scale-[0.99] group cursor-pointer"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-black text-blue-900 text-xs sm:text-sm flex items-center gap-1.5">
-                                            <LuClock className="w-4 h-4 text-blue-600" />
-                                            Stop Time-Off & Check In
-                                        </span>
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-200/80 text-blue-800">
-                                            Updates End Time
-                                        </span>
-                                    </div>
-                                    <p className="text-[11px] text-blue-800/80 mt-1 leading-snug">
-                                        Stop time-off now, update time-off end time as check-in time, and register check-in.
-                                    </p>
-                                </button>
+                                    {/* Option 2 while Checked In: Cancel Time-Off & Resume Work */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowTimeOffPrompt(false);
+                                            handleWfhPunch('STOP_TIMEOFF', { cancelTimeOff: true, stopTimeOff: false });
+                                        }}
+                                        disabled={punchLoading}
+                                        className="w-full text-left p-3.5 mb-4 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/60 hover:bg-emerald-50 hover:border-emerald-500 transition-all active:scale-[0.99] group cursor-pointer"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-black text-emerald-900 text-xs sm:text-sm flex items-center gap-1.5">
+                                                <LuCheck className="w-4 h-4 text-emerald-600" />
+                                                Cancel Time-Off & Resume Work
+                                            </span>
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800">
+                                                Preserves Quota
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-emerald-800/80 mt-1 leading-snug">
+                                            Cancel this time-off request completely, restore my monthly time-off allowance, and remain checked in.
+                                        </p>
+                                    </button>
+                                </>
                             ) : (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowTimeOffPrompt(false);
-                                        handleWfhPunch('CHECK_IN', { cancelTimeOff: false, stopTimeOff: false });
-                                    }}
-                                    disabled={punchLoading}
-                                    className="w-full text-left p-3.5 mb-4 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 transition-all active:scale-[0.99] group cursor-pointer"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-black text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
-                                            <LuClock className="w-4 h-4 text-blue-600" />
-                                            Keep Time-Off & Check In
-                                        </span>
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                                            Stepping Out Later
-                                        </span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                                        I am checking in now, but still plan to take time off from {todayTimeOff.timeRange}.
-                                    </p>
-                                </button>
+                                <>
+                                    {/* Action Option 1: Cancel Time-Off & Check In */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowTimeOffPrompt(false);
+                                            handleWfhPunch('CHECK_IN', { cancelTimeOff: true, stopTimeOff: false });
+                                        }}
+                                        disabled={punchLoading}
+                                        className="w-full text-left p-3.5 mb-2.5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/60 hover:bg-emerald-50 hover:border-emerald-500 transition-all active:scale-[0.99] group cursor-pointer"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-black text-emerald-900 text-xs sm:text-sm flex items-center gap-1.5">
+                                                <LuCheck className="w-4 h-4 text-emerald-600" />
+                                                Cancel Time-Off & Check In
+                                            </span>
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800">
+                                                Preserves Quota
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-emerald-800/80 mt-1 leading-snug">
+                                            Cancel this time-off request completely, restore my monthly time-off allowance, and register check-in.
+                                        </p>
+                                    </button>
+
+                                    {/* Action Option 2: Stop Time-Off (when in progress) OR Keep Time-Off (when upcoming) */}
+                                    {isTimeOffInProgress ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowTimeOffPrompt(false);
+                                                handleWfhPunch('CHECK_IN', { cancelTimeOff: false, stopTimeOff: true });
+                                            }}
+                                            disabled={punchLoading}
+                                            className="w-full text-left p-3.5 mb-4 rounded-2xl border-2 border-blue-500/30 bg-blue-50/60 hover:bg-blue-50 hover:border-blue-500 transition-all active:scale-[0.99] group cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-black text-blue-900 text-xs sm:text-sm flex items-center gap-1.5">
+                                                    <LuClock className="w-4 h-4 text-blue-600" />
+                                                    Stop Time-Off & Check In
+                                                </span>
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-200/80 text-blue-800">
+                                                    Updates End Time
+                                                </span>
+                                            </div>
+                                            <p className="text-[11px] text-blue-800/80 mt-1 leading-snug">
+                                                Stop time-off now, update time-off end time as check-in time, and register check-in.
+                                            </p>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowTimeOffPrompt(false);
+                                                handleWfhPunch('CHECK_IN', { cancelTimeOff: false, stopTimeOff: false });
+                                            }}
+                                            disabled={punchLoading}
+                                            className="w-full text-left p-3.5 mb-4 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 transition-all active:scale-[0.99] group cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-black text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
+                                                    <LuClock className="w-4 h-4 text-blue-600" />
+                                                    Keep Time-Off & Check In
+                                                </span>
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                                                    Stepping Out Later
+                                                </span>
+                                            </div>
+                                            <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                                                I am checking in now, but still plan to take time off from {todayTimeOff.timeRange}.
+                                            </p>
+                                        </button>
+                                    )}
+                                </>
                             )}
 
                             {/* Dismiss / Cancel Button */}

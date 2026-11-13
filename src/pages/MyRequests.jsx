@@ -505,17 +505,21 @@ const MyRequests = () => {
         setOdSubmitting(true);
         try {
             const coords = await getCurrentLocation();
-            await axios.post(`${API_BASE_URL}/api/onduty/start`, {
+            const res = await axios.post(`${API_BASE_URL}/api/onduty/start`, {
                 client_name: odClientName.trim(),
                 location: odLocation.trim(),
                 purpose: odPurpose.trim(),
                 latitude: coords.latitude,
                 longitude: coords.longitude
             }, { headers });
-            toast.success('On-Duty started!');
+            toast.success(res.data?.message || 'On-Duty started!');
             setIsOnDuty(true);
             setOdStartTime(getCurrentInAppTimezone().full);
             fetchActiveOnDuty();
+            if (res.data?.timeOffStopped) {
+                fetchMyTimeOff();
+                fetchTimeOffBalance();
+            }
         } catch (e) {
             toast.error(e.response?.data?.message || 'Failed to start on-duty');
         } finally { setOdSubmitting(false); }
@@ -556,10 +560,6 @@ const MyRequests = () => {
         }
         if (holidaysMap[today] && (!toDate || toDate === today || toDate === nowInApp.date)) {
             toast.error(`Today is a company holiday (${holidaysMap[today]}). Time-off requests cannot be submitted today.`);
-            return;
-        }
-        if (toDate === nowInApp.date && isCurrentlyCheckedInToday) {
-            toast.error('You are currently checked in today. Time-off can only be applied after checking out for the day.');
             return;
         }
         if (toDate < minTimeOffDate) {
@@ -2043,9 +2043,9 @@ const MyRequests = () => {
                                     </div>
                                 </div>
                                 {toDate === nowInApp.date && isCurrentlyCheckedInToday && (
-                                    <div className="mt-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-800">
-                                        <LuCircleAlert className="w-4 h-4 text-amber-600 shrink-0" />
-                                        <span>You are currently checked in today. Time-off can only be applied after checking out for the day.</span>
+                                    <div className="mt-3 px-3 py-2.5 bg-teal-50 border border-teal-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-teal-800">
+                                        <FiClock className="w-4 h-4 text-teal-600 shrink-0" />
+                                        <span>You are checked in today. When returning from time-off, scan your badge at the kiosk (or stop time-off on your badge) to stop your time-off clock.</span>
                                     </div>
                                 )}
                             </div>
@@ -2179,7 +2179,7 @@ const MyRequests = () => {
                             {/* Submit */}
                             <button
                                 type="submit"
-                                disabled={toSubmitting || Boolean(holidaysMap[today]) || Boolean(toDate && holidaysMap[toDate]) || Boolean(toDate === nowInApp.date && isCurrentlyCheckedInToday) || Boolean((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) || (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)))}
+                                disabled={toSubmitting || Boolean(holidaysMap[today]) || Boolean(toDate && holidaysMap[toDate]) || Boolean((toStartTime && (toStartTime < officeHours.startTime || toStartTime >= officeHours.endTime)) || (toEndTime && (toEndTime <= officeHours.startTime || toEndTime > officeHours.endTime)))}
                                 className="w-full py-4 bg-[#1e1b4b] text-white font-black rounded-2xl shadow-xl shadow-indigo-900/20 hover:shadow-2xl active:scale-[0.98] transition-all disabled:opacity-60 text-xs uppercase tracking-widest flex items-center justify-center gap-3"
                             >
                                 {toSubmitting ? (

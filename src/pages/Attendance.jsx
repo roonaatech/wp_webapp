@@ -650,7 +650,12 @@ const Attendance = () => {
                 playSuccessChime();
                 const formattedTime = data.time || formatTimeOnly(data.timestamp || new Date());
                 const msg = data.message || `${data.employeeName} recorded ${data.type === 'CHECK_IN' ? 'Check-In' : 'Check-Out'}`;
-                triggerPanelNotification('success', data.type === 'CHECK_IN' ? 'Check-In Confirmed' : 'Check-Out Confirmed', msg, {
+                const title = data.type === 'STOP_TIMEOFF'
+                    ? (data.timeOffCancelled ? 'Time-Off Cancelled — Work Resumed' : 'Time-Off Stopped — Work Resumed')
+                    : data.type === 'CHECK_IN'
+                        ? 'Check-In Confirmed'
+                        : 'Check-Out Confirmed';
+                triggerPanelNotification('success', title, msg, {
                     employeeName: data.employeeName,
                     avatarUrl: data.avatarUrl,
                     time: formattedTime,
@@ -1360,10 +1365,18 @@ const Attendance = () => {
                             <span className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-sm ${
                                 qrConfirmation.type === 'CHECK_IN'
                                     ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                                    : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                    : qrConfirmation.todayTimeOff
+                                        ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                                        : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
                             }`}>
-                                {qrConfirmation.type === 'CHECK_IN' ? <LuLogIn size={14} /> : <LuLogOut size={14} />}
-                                <span>{qrConfirmation.type === 'CHECK_IN' ? 'CONFIRM CHECK-IN' : 'CONFIRM CHECK-OUT'}</span>
+                                {qrConfirmation.type === 'CHECK_IN' ? <LuLogIn size={14} /> : qrConfirmation.todayTimeOff ? <LuClock size={14} /> : <LuLogOut size={14} />}
+                                <span>
+                                    {qrConfirmation.type === 'CHECK_IN'
+                                        ? 'CONFIRM CHECK-IN'
+                                        : qrConfirmation.todayTimeOff
+                                            ? 'TIME-OFF IN PROGRESS'
+                                            : 'CONFIRM CHECK-OUT'}
+                                </span>
                             </span>
                         </div>
 
@@ -1387,8 +1400,8 @@ const Attendance = () => {
                             )}
                         </div>
 
-                        {/* Scheduled Time-Off Notice (if applicable on check-in) */}
-                        {qrConfirmation.todayTimeOff && qrConfirmation.type === 'CHECK_IN' ? (
+                        {/* Scheduled Time-Off Notice */}
+                        {qrConfirmation.todayTimeOff ? (
                             <div className="mt-3.5 p-3 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-left">
                                 <div className="flex items-center justify-between text-xs font-bold text-amber-300 mb-1">
                                     <span className="flex items-center gap-1.5">
@@ -1408,9 +1421,11 @@ const Attendance = () => {
                                     </div>
                                 )}
                                 <div className="text-amber-200/90 text-[11px] mt-1 font-medium">
-                                    {qrConfirmation.todayTimeOff.isInProgress
-                                        ? 'You are checking in during your time-off. Cancel time-off and check in, or stop time-off (updating end time as check-in time) and check in?'
-                                        : 'Would you like to keep this time-off or cancel it to preserve your quota?'}
+                                    {qrConfirmation.type === 'CHECK_OUT'
+                                        ? 'Welcome back! Stop your time-off clock to resume work, cancel time-off, or check out for the day.'
+                                        : qrConfirmation.todayTimeOff.isInProgress
+                                            ? 'You are checking in during your time-off. Cancel time-off and check in, or stop time-off (updating end time as check-in time) and check in?'
+                                            : 'Would you like to keep this time-off or cancel it to preserve your quota?'}
                                 </div>
                             </div>
                         ) : null}
@@ -1419,9 +1434,11 @@ const Attendance = () => {
                         <p className="text-sm font-medium text-slate-300 mt-4 leading-relaxed">
                             {qrConfirmation.todayTimeOff && qrConfirmation.type === 'CHECK_IN'
                                 ? 'Choose an option to confirm attendance check-in:'
-                                : qrConfirmation.type === 'CHECK_IN'
-                                ? 'Would you like to record Check-In for this employee?'
-                                : 'Would you like to record Check-Out for this employee?'}
+                                : qrConfirmation.todayTimeOff && qrConfirmation.type === 'CHECK_OUT'
+                                    ? 'Choose an action for your active time-off:'
+                                    : qrConfirmation.type === 'CHECK_IN'
+                                        ? 'Would you like to record Check-In for this employee?'
+                                        : 'Would you like to record Check-Out for this employee?'}
                         </p>
 
                         {/* Auto-cancel countdown */}
@@ -1480,6 +1497,54 @@ const Attendance = () => {
                                     <LuX size={16} className="text-rose-400" />
                                     <span>Don't Check In (Cancel)</span>
                                 </button>
+                            </div>
+                        ) : qrConfirmation.todayTimeOff && qrConfirmation.type === 'CHECK_OUT' ? (
+                            <div className="space-y-2.5 mt-5 pt-2">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAcceptConfirmation({ cancelTimeOff: false, stopTimeOff: true })}
+                                        className="py-3 px-3 rounded-2xl text-white font-black text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all active:scale-95 shadow-lg shadow-blue-950 flex flex-col items-center justify-center gap-1 cursor-pointer border border-blue-400/30"
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <LuClock size={16} />
+                                            <span>Stop Time-Off & Resume</span>
+                                        </div>
+                                        <span className="text-[10px] font-normal text-blue-100">End Time = Current Time</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAcceptConfirmation({ cancelTimeOff: true, stopTimeOff: false })}
+                                        className="py-3 px-3 rounded-2xl text-white font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all active:scale-95 shadow-lg shadow-emerald-950 flex flex-col items-center justify-center gap-1 cursor-pointer border border-emerald-400/30"
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <LuCheck size={18} strokeWidth={3} />
+                                            <span>Cancel Time-Off & Resume</span>
+                                        </div>
+                                        <span className="text-[10px] font-normal text-emerald-100">Preserves Quota</span>
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAcceptConfirmation({ cancelTimeOff: false, stopTimeOff: false })}
+                                        className="py-2.5 px-3 rounded-xl bg-amber-600/90 hover:bg-amber-500 text-white font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                                    >
+                                        <LuLogOut size={15} />
+                                        <span>Check Out for Day</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelConfirmation}
+                                        className="py-2.5 px-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                                    >
+                                        <LuX size={15} className="text-rose-400" />
+                                        <span>Cancel Scan</span>
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 gap-3.5 sm:gap-4 mt-6 pt-2">

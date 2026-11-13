@@ -894,9 +894,9 @@ const ManualAttendance = () => {
                         </div>
 
                         {/* Search & Custom Date Range inputs */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
+                        <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-slate-100">
                             {/* Start Date */}
-                            <div>
+                            <div className="w-full sm:w-[128px]">
                                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                                     Start Date
                                 </label>
@@ -906,11 +906,12 @@ const ManualAttendance = () => {
                                         setStartDate(val);
                                         setDatePreset('custom');
                                     }}
+                                    className="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                                 />
                             </div>
 
                             {/* End Date */}
-                            <div>
+                            <div className="w-full sm:w-[128px]">
                                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                                     End Date
                                 </label>
@@ -920,18 +921,19 @@ const ManualAttendance = () => {
                                         setEndDate(val);
                                         setDatePreset('custom');
                                     }}
+                                    className="w-full h-[38px] bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                                 />
                             </div>
 
                             {/* Employee Multi-Select Dropdown */}
-                            <div className="relative" ref={staffDropdownRef}>
+                            <div className="relative w-full sm:w-64" ref={staffDropdownRef}>
                                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                                     Search Employee
                                 </label>
                                 <button
                                     type="button"
                                     onClick={() => setIsStaffDropdownOpen(prev => !prev)}
-                                    className="w-full h-[37px] px-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-left shadow-2xs"
+                                    className="w-full h-[38px] px-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-left shadow-2xs"
                                 >
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
                                         <LuUser className="text-slate-400 text-sm shrink-0" />
@@ -945,19 +947,9 @@ const ManualAttendance = () => {
                                                 })()}
                                             </span>
                                         ) : (
-                                            <div className="flex items-center gap-1.5 truncate">
-                                                <span className="px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 font-bold text-[10px] shrink-0">
-                                                    {selectedStaffIds.length} Selected
-                                                </span>
-                                                <span className="text-slate-600 truncate text-[11px]">
-                                                    {allStaffList
-                                                        .filter(s => selectedStaffIds.includes(Number(s.staffid)))
-                                                        .slice(0, 2)
-                                                        .map(s => s.firstname)
-                                                        .join(', ')}
-                                                    {selectedStaffIds.length > 2 ? ` +${selectedStaffIds.length - 2}` : ''}
-                                                </span>
-                                            </div>
+                                            <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 font-bold text-[11px] shrink-0">
+                                                {selectedStaffIds.length} Selected
+                                            </span>
                                         )}
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
@@ -1078,16 +1070,44 @@ const ManualAttendance = () => {
                             </div>
 
                             {/* Refresh Button */}
-                            <div className="flex items-end gap-2">
+                            <div className="flex items-end gap-2 w-full sm:w-auto">
                                 <button
                                     onClick={fetchMissedAttendance}
                                     disabled={loading}
-                                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-xl shadow-xs transition-colors"
+                                    className="w-full sm:w-auto h-[38px] inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-xl shadow-xs transition-colors shrink-0"
                                 >
                                     <LuRefreshCw className={`text-sm ${loading ? 'animate-spin' : ''}`} />
                                     <span>Filter Records</span>
                                 </button>
                             </div>
+
+                            {/* Selected Employee Names (shown to the right of Filter Records when multiple selected) */}
+                            {selectedStaffIds.length > 1 && (
+                                <div className="flex-1 min-w-[200px] min-h-[38px] flex flex-wrap items-center gap-1.5 py-0.5">
+                                    {allStaffList
+                                        .filter(s => selectedStaffIds.includes(Number(s.staffid)))
+                                        .map(emp => {
+                                            const sid = Number(emp.staffid);
+                                            const fullName = `${emp.firstname || ''} ${emp.lastname || ''}`.trim() || `Employee #${sid}`;
+                                            return (
+                                                <span
+                                                    key={sid}
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200/80 text-indigo-800 text-xs font-semibold"
+                                                >
+                                                    <span>{fullName}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleToggleStaff(sid)}
+                                                        className="text-indigo-400 hover:text-indigo-700 transition-colors cursor-pointer"
+                                                        title={`Remove ${fullName}`}
+                                                    >
+                                                        <LuX className="text-[11px]" />
+                                                    </button>
+                                                </span>
+                                            );
+                                        })}
+                                </div>
+                            )}
                         </div>
                     </div>
 
