@@ -1422,7 +1422,9 @@ const Attendance = () => {
                                 )}
                                 <div className="text-amber-200/90 text-[11px] mt-1 font-medium">
                                     {qrConfirmation.type === 'CHECK_OUT'
-                                        ? 'Welcome back! Stop your time-off clock to resume work, cancel time-off, or check out for the day.'
+                                        ? (qrConfirmation.todayTimeOff.isInProgress
+                                            ? 'Welcome back! Stop your time-off clock to resume work, or check out for the day.'
+                                            : 'Welcome back! Stop your time-off clock to resume work, cancel time-off, or check out for the day.')
                                         : qrConfirmation.todayTimeOff.isInProgress
                                             ? 'You are checking in during your time-off. Cancel time-off and check in, or stop time-off (updating end time as check-in time) and check in?'
                                             : 'Would you like to keep this time-off or cancel it to preserve your quota?'}
@@ -1500,7 +1502,7 @@ const Attendance = () => {
                             </div>
                         ) : qrConfirmation.todayTimeOff && qrConfirmation.type === 'CHECK_OUT' ? (
                             <div className="space-y-2.5 mt-5 pt-2">
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className={`grid gap-3 ${qrConfirmation.todayTimeOff.isInProgress ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                     <button
                                         type="button"
                                         onClick={() => handleAcceptConfirmation({ cancelTimeOff: false, stopTimeOff: true })}
@@ -1513,17 +1515,20 @@ const Attendance = () => {
                                         <span className="text-[10px] font-normal text-blue-100">End Time = Current Time</span>
                                     </button>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => handleAcceptConfirmation({ cancelTimeOff: true, stopTimeOff: false })}
-                                        className="py-3 px-3 rounded-2xl text-white font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all active:scale-95 shadow-lg shadow-emerald-950 flex flex-col items-center justify-center gap-1 cursor-pointer border border-emerald-400/30"
-                                    >
-                                        <div className="flex items-center gap-1.5">
-                                            <LuCheck size={18} strokeWidth={3} />
-                                            <span>Cancel Time-Off & Resume</span>
-                                        </div>
-                                        <span className="text-[10px] font-normal text-emerald-100">Preserves Quota</span>
-                                    </button>
+                                    {/* Cancel is only offered before the time-off has started; mid time-off the user can only stop it */}
+                                    {!qrConfirmation.todayTimeOff.isInProgress && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAcceptConfirmation({ cancelTimeOff: true, stopTimeOff: false })}
+                                            className="py-3 px-3 rounded-2xl text-white font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all active:scale-95 shadow-lg shadow-emerald-950 flex flex-col items-center justify-center gap-1 cursor-pointer border border-emerald-400/30"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <LuCheck size={18} strokeWidth={3} />
+                                                <span>Cancel Time-Off & Resume</span>
+                                            </div>
+                                            <span className="text-[10px] font-normal text-emerald-100">Preserves Quota</span>
+                                        </button>
+                                    )}
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">

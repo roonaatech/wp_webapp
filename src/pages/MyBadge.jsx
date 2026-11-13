@@ -1381,7 +1381,9 @@ const MyBadge = () => {
                                 </h3>
                                 <p className="text-xs text-slate-500 mt-1">
                                     {isAlreadyCheckedIn
-                                        ? 'Stop your active time-off clock or cancel the time-off to resume working.'
+                                        ? (isTimeOffInProgress
+                                            ? 'Stop your active time-off clock to resume working, or check out for the day.'
+                                            : 'Stop your active time-off clock or cancel the time-off to resume working.')
                                         : isTimeOffInProgress
                                             ? 'You are checking in during your active time-off window.'
                                             : 'You have a time-off request scheduled for today.'}
@@ -1446,7 +1448,32 @@ const MyBadge = () => {
                                         </p>
                                     </button>
 
-                                    {/* Option 2 while Checked In: Cancel Time-Off & Resume Work */}
+                                    {isTimeOffInProgress ? (
+                                        /* Option 2 while Checked In mid time-off: Check Out for the Day (cancel not allowed once time-off started) */
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowTimeOffPrompt(false);
+                                                handleWfhPunch('CHECK_OUT');
+                                            }}
+                                            disabled={punchLoading}
+                                            className="w-full text-left p-3.5 mb-4 rounded-2xl border-2 border-amber-500/30 bg-amber-50/60 hover:bg-amber-50 hover:border-amber-500 transition-all active:scale-[0.99] group cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-black text-amber-900 text-xs sm:text-sm flex items-center gap-1.5">
+                                                    <LuLogOut className="w-4 h-4 text-amber-600" />
+                                                    Check Out for Day
+                                                </span>
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-800">
+                                                    Ends Session
+                                                </span>
+                                            </div>
+                                            <p className="text-[11px] text-amber-800/80 mt-1 leading-snug">
+                                                Not returning to work today. Record check-out now and keep the time-off as applied.
+                                            </p>
+                                        </button>
+                                    ) : (
+                                    /* Option 2 while Checked In (time-off not started yet): Cancel Time-Off & Resume Work */
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -1469,6 +1496,7 @@ const MyBadge = () => {
                                             Cancel this time-off request completely, restore my monthly time-off allowance, and remain checked in.
                                         </p>
                                     </button>
+                                    )}
                                 </>
                             ) : (
                                 <>
