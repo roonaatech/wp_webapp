@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.19.8](https://github.com/roonaatech/wp_webapp/compare/v2.19.7...v2.19.8) (2026-11-13)
+
+
+### Features
+
+* add time-off handling and stop/cancel options to attendance check-out flow ([194e04e](https://github.com/roonaatech/wp_webapp/commit/194e04e4517a15af5b26cd547e9c546d34f91f93))
+
 ### [2.19.7](https://github.com/roonaatech/wp_webapp/compare/v2.19.6...v2.19.7) (2026-11-10)
 
 
