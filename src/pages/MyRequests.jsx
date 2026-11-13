@@ -833,10 +833,6 @@ const MyRequests = () => {
             toast.error('Please fill all fields');
             return;
         }
-        if (editToDate === nowInApp.date && isCurrentlyCheckedInToday) {
-            toast.error('You are currently checked in today. Time-off can only be applied after checking out for the day.');
-            return;
-        }
         if (editToDate < minTimeOffDate) {
             toast.error(`Time-off cannot be requested for dates more than ${timeOffPastDaysAllowed} working day(s) in the past.`);
             return;
