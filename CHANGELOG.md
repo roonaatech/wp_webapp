@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.19.10](https://github.com/roonaatech/wp_webapp/compare/v2.19.9...v2.19.10) (2026-11-13)
+
+
+### Bug Fixes
+
+* handle time-off cancellation restrictions based on in-progress status in attendance and badge prompts ([cf88991](https://github.com/roonaatech/wp_webapp/commit/cf88991c592861cd0d2055f983d66a3d9b995c1f))
+
 ### [2.19.9](https://github.com/roonaatech/wp_webapp/compare/v2.19.8...v2.19.9) (2026-11-13)
 
 
