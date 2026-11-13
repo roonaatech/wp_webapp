@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.19.9](https://github.com/roonaatech/wp_webapp/compare/v2.19.8...v2.19.9) (2026-11-13)
+
+
+### Bug Fixes
+
+* remove check-in validation restriction when editing time-off request ([1a85f2a](https://github.com/roonaatech/wp_webapp/commit/1a85f2a97b1d18b7244de3ffcf26671d406fed4f))
+
 ### [2.19.8](https://github.com/roonaatech/wp_webapp/compare/v2.19.7...v2.19.8) (2026-11-13)
 
 
